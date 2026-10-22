@@ -28,7 +28,8 @@ def source_agents() -> list[Path]:
 
 
 def render_agent(path: Path, flavor: str, kiro_prefix: str = ".kiro/skills") -> str:
-    """Rend l'agent source au format claude, copilot, opencode ou kiro."""
+    """Rend l'agent source au format claude, copilot, opencode, kiro ou
+    hermes (Hermes n'a pas d'agents : l'agent devient un skill)."""
     meta, body = parse_agent(path)
     name, desc = meta["name"], meta["description"]
     lines = ["---"]
@@ -51,6 +52,8 @@ def render_agent(path: Path, flavor: str, kiro_prefix: str = ".kiro/skills") -> 
         lines += [f"name: {name}", f"description: {desc}",
                   'tools: ["read", "write", "shell", "subagent"]',
                   f"resources: [{resources}]"]
+    elif flavor == "hermes":
+        lines += [f"name: {name}", f"description: {desc}"]
     else:
         raise ValueError(f"Format inconnu : {flavor}")
     lines.append("---")

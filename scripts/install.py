@@ -1,12 +1,14 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Installe skills et agents pour OpenCode et Kiro, qui n'ont pas
-d'installation native pour ce contenu. Claude Code et GitHub Copilot passent
-par leur commande plugin (voir le README).
+"""Installe skills et agents pour OpenCode, Kiro et Hermes, qui n'ont pas
+d'installation native pour l'ensemble de ce contenu. Claude Code et GitHub
+Copilot passent par leur commande plugin (voir le README).
+
+Hermes n'a pas d'agents : chaque agent y est installé comme un skill.
 
 Usage :
-    uv run scripts/install.py [--project DIR | --global] [--tools opencode,kiro] [--dry-run]
+    uv run scripts/install.py [--project DIR | --global] [--tools opencode,kiro,hermes] [--dry-run]
 """
 
 import argparse
@@ -29,7 +31,8 @@ def install_skills(dest: Path, dry: bool) -> None:
 
 def install_agents(flavor: str, dest: Path, kiro_prefix: str, dry: bool) -> None:
     for src in source_agents():
-        target = dest / f"{parse_agent(src)[0]['name']}.md"
+        name = parse_agent(src)[0]["name"]
+        target = dest / name / "SKILL.md" if flavor == "hermes" else dest / f"{name}.md"
         if dry:
             print(f"+ écrire {target}")
             continue
@@ -44,7 +47,7 @@ def main() -> None:
                        help="dossier du projet (défaut : dossier courant)")
     where.add_argument("--global", dest="global_", action="store_true",
                        help="installer dans le dossier personnel")
-    parser.add_argument("--tools", default="opencode,kiro",
+    parser.add_argument("--tools", default="opencode,kiro,hermes",
                         help="outils ciblés, séparés par des virgules")
     parser.add_argument("--dry-run", action="store_true",
                         help="afficher sans rien écrire")
@@ -63,6 +66,11 @@ def main() -> None:
         prefix = "~/.kiro/skills" if args.global_ else ".kiro/skills"
         install_skills(root / ".kiro" / "skills", args.dry_run)
         install_agents("kiro", root / ".kiro" / "agents", prefix, args.dry_run)
+
+    if "hermes" in tools:
+        skills = root / ".hermes" / "skills"
+        install_skills(skills, args.dry_run)
+        install_agents("hermes", skills, "", args.dry_run)
 
 
 if __name__ == "__main__":

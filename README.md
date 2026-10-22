@@ -1,7 +1,7 @@
 # myskills
 
 Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
-**GitHub Copilot**, **Claude Code**, **Kiro** et **OpenCode** :
+**GitHub Copilot**, **Claude Code**, **Kiro**, **OpenCode** et **Hermes** :
 
 - **Extraction documentaire** : PDF, DOCX, PPTX, XLSX, images vers Markdown ou
   Obsidian.
@@ -17,6 +17,11 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 | Kiro | Panneau Powers > Add Custom Power > Import power from GitHub > `https://github.com/RenaudVanhille/myskills` (skills uniquement) |
 | OpenCode | Pas d'installation native : `uv run scripts/install.py --tools opencode [--global]` |
 | Agents Kiro | Les powers ne transportent pas d'agents : `uv run scripts/install.py --tools kiro [--global]` |
+| Hermes | Skills : `hermes skills tap add RenaudVanhille/myskills` puis `hermes skills install RenaudVanhille/myskills/<skill>`. Tout, agents compris : `uv run scripts/install.py --tools hermes [--global]` |
+
+Hermes n'a pas d'agents personnalisés : `install.py` y installe
+`schema-designer` et `document-extractor` sous forme de skills. En projet,
+lancez ensuite `hermes skills trust` pour que Hermes charge `.hermes/skills`.
 
 Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
 macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
@@ -63,6 +68,7 @@ conversion reste locale.
 | GitHub Copilot | `read, edit, execute, agent` | Toutes |
 | OpenCode | `read, glob, edit, skill, subagent` + `shell` filtré | Seulement la liste `commands` de l'agent |
 | Kiro | `read, write, shell, subagent` | Toutes |
+| Hermes | Outils de la session (pas d'agents) | Toutes |
 
 La liste des commandes autorisées se trouve dans le champ `commands` de
 chaque agent source (`src/agents/`).
@@ -88,7 +94,7 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 | `com.github.copilot/agents/` | Agents Copilot, générés |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
-| `scripts/install.py` | Installation pour OpenCode et les agents Kiro |
+| `scripts/install.py` | Installation pour OpenCode, Hermes et les agents Kiro |
 | `tests/` | Documents réels et résultats attendus |
 
 Vérification du plugin Claude Code : `claude plugin validate .`
