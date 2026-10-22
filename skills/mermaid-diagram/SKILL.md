@@ -5,6 +5,16 @@ description: "Écrit des schémas Mermaid (flux, séquence, états, classes, mod
 
 # mermaid-diagram
 
+## Contrat
+
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Décision de diagram-brief ; Contenu à représenter.
+- **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
+- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **Passe la main** au skill `diagram-export` : vérifier le rendu (--check) ou exporter en PNG ou SVG.
+
 ## 1. Choisir le type
 
 | Pour montrer | Type Mermaid |

@@ -9,6 +9,17 @@ Le modèle C4 décrit une architecture en niveaux, du plus large au plus
 détaillé. Un seul modèle LikeC4 sert toutes les vues : on décrit les éléments
 une fois, chaque vue en montre une partie.
 
+## Contrat
+
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture.
+- **Sorties** : Dossier LikeC4 : specification.c4 et model.c4 ; Un PNG par vue (après export).
+- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
+- **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
+
 ## 1. Choisir le niveau
 
 | Niveau | Montre | Pour |

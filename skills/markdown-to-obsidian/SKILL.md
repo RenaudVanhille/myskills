@@ -8,6 +8,26 @@ description: "Met un fichier Markdown au format Obsidian : frontmatter, embeds d
 Les chemins `scripts/...` sont relatifs au dossier de ce skill. Le script n'a
 aucune dépendance (`uv run` ou `python`).
 
+## Contrat
+
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Notes Markdown (sortie de doc-to-markdown ou existantes) ; Dossier du vault Obsidian (facultatif).
+- **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail.
+- **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault.
+  - Rapport (liste JSON) : Un objet par note.
+  - Champs : `input` (texte), `output` (texte), `embeds` (entier), `wikilinks` (entier), `callouts` (entier), `attachments_copied` (entier), `missing` (liste) ; facultatifs : `classification`, `classification_warning`.
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 toutes les notes sont traitées ; 1 une note est introuvable ou une image manque (missing).
+- **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes.
+  - Rapport (objet JSON) : Un objet ; tags donne le nombre de notes par tag.
+  - Champs : `vault` (texte), `notes` (entier), `tags` (objet), `folders` (objet), `attachments` (texte ou null).
+  - Ou, en cas d'échec : `error` (texte).
+  - Codes de sortie : 0 profil produit ; 2 vault introuvable.
+- **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
+- **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
+
 ## 1. Classer et taguer
 
 Avant d'importer, lisez le profil du vault (lecture seule) :

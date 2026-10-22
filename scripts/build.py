@@ -9,6 +9,8 @@ le résultat : les outils installent le plugin depuis le dépôt.
     agents/*.md                           agents Claude Code
     com.github.copilot/agents/*.agent.md  agents GitHub Copilot
     skills/*/references/style.md          charte graphique (shared/targets.txt)
+    sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
+    CATALOG.md, catalog.json              catalogue des agents et des skills
 
 Usage : uv run scripts/build.py   (ou : python scripts/build.py)
 """
@@ -16,9 +18,24 @@ Usage : uv run scripts/build.py   (ou : python scripts/build.py)
 import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
+from contracts_lib import (agent_contracts, build_catalog_json, build_catalog_md, render_agent as
+                           render_agent_contract, render_skill, replace_section, skill_contracts)
+
+
+def write_contract_sections() -> None:
+    """Réécrit la section « Contrat » des SKILL.md et des agents sources
+    à partir des contract.json."""
+    for name, contract in skill_contracts().items():
+        path = REPO / "skills" / name / "SKILL.md"
+        write_text(path, replace_section(path.read_text(encoding="utf-8"), render_skill(contract)))
+    for name, contract in agent_contracts().items():
+        path = REPO / "src" / "agents" / f"{name}.md"
+        text = replace_section(path.read_text(encoding="utf-8"), render_agent_contract(contract), "## Déroulé")
+        write_text(path, text)
 
 
 def main() -> None:
+    write_contract_sections()
     claude_dir = REPO / "agents"
     copilot_dir = REPO / "com.github.copilot" / "agents"
     for folder in (claude_dir, copilot_dir):
@@ -35,7 +52,11 @@ def main() -> None:
     for skill in targets:
         write_text(REPO / "skills" / skill / "references" / "style.md", style)
 
-    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/ et skills/.")
+    agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
+    write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))
+    write_text(REPO / "catalog.json", build_catalog_json(agents_meta))
+
+    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, CATALOG.md et catalog.json.")
 
 
 if __name__ == "__main__":

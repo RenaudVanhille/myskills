@@ -45,6 +45,21 @@ la demande ; les rendus passent par Playwright.
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 
+Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
+foi :
+
+- `skills/<nom>/contract.json` : entrées, sorties, scripts, options, codes de
+  sortie, passages de main, et le **JSON Schema** du rapport de chaque script ;
+- `src/agents/<nom>.contract.json` : ce que l'agent reçoit, produit, ne fait
+  jamais, et à qui il passe la main avec quoi ;
+- `shared/schemas/` : les schémas des contrats, du **message de passage**
+  entre agents (`handoff.schema.json`) et du **rapport final** des agents
+  (`agent-report.schema.json`), que les agents écrivent en JSON.
+
+`scripts/build.py` en génère la section « Contrat » des SKILL.md et des
+agents, [`CATALOG.md`](CATALOG.md) et [`catalog.json`](catalog.json), à
+lire par un autre agent ou outil qui appelle myskills.
+
 ### Skills
 
 | Skill | Rôle |
@@ -98,6 +113,8 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
+| `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
+| `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
 | `scripts/install.py` | Installation pour OpenCode, Hermes et les agents Kiro |
 | `tests/` | Documents de test, résultats attendus, `run.py` (scripts) et `judge.py` (agents et déclenchement des skills) |
@@ -107,6 +124,9 @@ Vérification du plugin Claude Code : `claude plugin validate .`
 ## Principes
 
 - La logique métier vit dans les skills ; les agents orchestrent et valident.
+- Tout script de skill est déclaré dans le `contract.json` de son skill ;
+  `tests/run.py` valide chaque rapport contre son JSON Schema. On modifie le
+  contrat JSON, jamais la section « Contrat » générée.
 - La conversion de documents reste locale, sans service en ligne.
 - Un skill repris d'un tiers cite sa source et respecte sa licence.
 

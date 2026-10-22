@@ -1,0 +1,34 @@
+{
+  "agent": "document-publisher",
+  "receives": [
+    "Des fichiers Markdown ou des notes Obsidian (et le vault)",
+    "L'outil cible : Word, SharePoint, Confluence ou XWiki",
+    "Un modèle Word, s'il existe"
+  ],
+  "produces": [
+    "Des fichiers .docx, .html, .xwiki et ses images",
+    "En option un PDF"
+  ],
+  "never": [
+    "Publier en ligne : l'utilisateur importe lui-même les fichiers"
+  ],
+  "handoffs": [
+    {
+      "to": "schema-designer",
+      "when": "un schéma ne s'exporte pas ou doit être corrigé",
+      "send": [
+        "le fichier source du schéma",
+        "le message d'erreur",
+        "la destination"
+      ]
+    },
+    {
+      "to": "document-extractor",
+      "when": "la source n'est pas encore en Markdown (PDF, Office)",
+      "send": [
+        "le document",
+        "la cible Markdown et le dossier de travail"
+      ]
+    }
+  ]
+}

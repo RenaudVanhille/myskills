@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/agent-report.schema.json",
+  "title": "Rapport final d'un agent",
+  "description": "Ce que chaque agent rend à la fin de sa tâche, au même format pour l'utilisateur et pour un autre agent.",
+  "type": "object",
+  "required": ["agent", "status", "files", "tools", "level", "corrections", "todo", "next"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher"]},
+    "status": {"enum": ["ok", "partiel", "echec"], "description": "ok : tout est livré ; partiel : il reste des points dans todo ; echec : rien d'utilisable."},
+    "files": {"type": "array", "items": {"type": "string"}, "description": "Fichiers produits."},
+    "tools": {"type": "string", "description": "Moteur ou format utilisé, et pourquoi en une phrase."},
+    "level": {"enum": ["simple", "moyen", "complexe"], "description": "Niveau le plus haut utilisé."},
+    "corrections": {"type": "array", "items": {"type": "string"}, "description": "Ce qui a été corrigé."},
+    "todo": {"type": "array", "items": {"type": "string"}, "description": "Ce qui n'a pas pu être fait."},
+    "next": {"description": "Agent suivant conseillé, ou null.",
+             "anyOf": [{"type": "null"}, {"$ref": "handoff.schema.json"}]}
+  }
+}

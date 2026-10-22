@@ -10,6 +10,23 @@ ne publie rien : il produit des fichiers que l'utilisateur importe lui-même.
 Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 à installer à part.
 
+## Contrat
+
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/.
+- **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.
+  - Rapport (liste JSON) : Un objet par document.
+  - Champs : `input` (texte), `outputs` (liste), `diagrams_exported` (entier), `warnings` (liste) ; facultatifs : `error`.
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
+- **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte.
+  - Codes de sortie : 0 modèle écrit.
+- **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
+- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki.
+
 ## 1. Produire les fichiers
 
 ```bash

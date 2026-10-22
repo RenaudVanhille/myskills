@@ -1,0 +1,82 @@
+{
+  "skill": "diagram-export",
+  "inputs": [
+    "Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4"
+  ],
+  "outputs": [
+    "Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4",
+    "Rien avec --check"
+  ],
+  "scripts": [
+    {
+      "name": "export.py",
+      "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+      "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
+      "options": {
+        "SCHEMA": "sources à exporter",
+        "--format": "png (défaut), svg ou pdf",
+        "--scale": "zoom des PNG (défaut 2)",
+        "--out": "dossier de sortie",
+        "--transparent": "fond transparent",
+        "--check": "vérifier sans rien écrire"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet par source ; error vaut null si tout va bien.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source",
+              "format",
+              "outputs",
+              "error"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "format": {
+                "enum": [
+                  "png",
+                  "svg",
+                  "pdf"
+                ]
+              },
+              "outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rendered": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "toutes les sources sont rendues",
+        "1": "au moins une source échoue"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "check-prerequisites",
+      "kind": "skill",
+      "when": "un outil de rendu manque (groupe schemas)"
+    }
+  ]
+}

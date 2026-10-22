@@ -10,6 +10,30 @@ chemins `scripts/...` sont relatifs au dossier de ce skill. Les scripts
 installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les avec
 `python` après `pip install "markitdown[docx,pptx,xlsx,pdf]" pypdf`.
 
+## Contrat
+
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers (classify.py seulement).
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
+- **`convert.py`** : Convertit les documents en Markdown, en local.
+  - Rapport (liste JSON) : Un objet par fichier.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`.
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
+- **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
+  - Rapport (liste JSON) : Un objet par fichier ; un fichier introuvable donne ok false.
+  - Champs : `file` (texte), `ok` (booléen), `errors` (liste), `warnings` (liste).
+  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles.
+  - Rapport (liste JSON) : Un objet par fichier ; type et domaine valent null sous le seuil de confiance.
+  - Champs : `input` (texte), `type` (specification | architecture | procedure | compte-rendu | presentation | contrat | rapport | autre | null), `type_confidence` (nombre ou null), `domaine` (texte ou null), `domaine_confidence` (nombre ou null), `tables` (nombre ou null), `engine` (markitdown | docling), `method` (texte), `warnings` (liste).
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
+- **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
+
 ## 0. Trier un lot (optionnel)
 
 Pour un lot de documents, ou quand l'utilisateur veut connaître le type et le

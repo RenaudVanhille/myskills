@@ -1,0 +1,18 @@
+{
+  "skill": "mermaid-diagram",
+  "inputs": [
+    "Décision de diagram-brief",
+    "Contenu à représenter"
+  ],
+  "outputs": [
+    "Bloc ```mermaid dans un Markdown, ou fichier .mmd"
+  ],
+  "scripts": [],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "vérifier le rendu (--check) ou exporter en PNG ou SVG"
+    }
+  ]
+}

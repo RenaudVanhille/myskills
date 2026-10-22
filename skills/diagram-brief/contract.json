@@ -1,0 +1,33 @@
+{
+  "skill": "diagram-brief",
+  "inputs": [
+    "Contexte du schéma : description, code, ADR, Markdown ou image",
+    "Ce que l'on sait du public et de la destination"
+  ],
+  "outputs": [
+    "Aucun fichier : une décision (public, destination, type, format, skill) et la phrase message principal / 3 à 7 éléments / ce qu'on laisse de côté"
+  ],
+  "scripts": [],
+  "handoffs": [
+    {
+      "to": "mermaid-diagram",
+      "kind": "skill",
+      "when": "séquence, états, classes, données, ou flux simple dans un dépôt ou Obsidian"
+    },
+    {
+      "to": "drawio-diagram",
+      "kind": "skill",
+      "when": "public technique, Word, PowerPoint ou Confluence, mise en page précise"
+    },
+    {
+      "to": "excalidraw-diagram",
+      "kind": "skill",
+      "when": "public non technique, atelier, vue d'ensemble"
+    },
+    {
+      "to": "c4-architecture",
+      "kind": "skill",
+      "when": "architecture logicielle à plusieurs vues ou niveaux"
+    }
+  ]
+}

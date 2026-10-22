@@ -1,0 +1,96 @@
+{
+  "skill": "excalidraw-diagram",
+  "inputs": [
+    "Décision de diagram-brief",
+    "Description JSON du schéma : title, audience, elements"
+  ],
+  "outputs": [
+    "<sujet>.excalidraw, à côté de sa description <sujet>.json",
+    "Après export : <sujet>.excalidraw.png ou .svg"
+  ],
+  "scripts": [
+    {
+      "name": "excalidraw_build.py",
+      "role": "Construit la scène Excalidraw à partir de la description JSON.",
+      "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw]",
+      "options": {
+        "SCHEMA.json": "description du schéma",
+        "--out": "fichier produit (défaut : même nom)"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet ; si la description est illisible, seulement input et errors.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "elements",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": "string"
+                },
+                "elements": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "errors"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "scène produite sans erreur",
+        "1": "description illisible ou erreur"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "rendre et relire l'image"
+    }
+  ]
+}

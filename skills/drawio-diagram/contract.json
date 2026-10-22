@@ -1,0 +1,73 @@
+{
+  "skill": "drawio-diagram",
+  "inputs": [
+    "Décision de diagram-brief et contenu à représenter",
+    "Ou un .drawio existant à modifier"
+  ],
+  "outputs": [
+    "<nom>.drawio en XML clair",
+    "Après export : <nom>.drawio.png, .svg ou .pdf"
+  ],
+  "scripts": [
+    {
+      "name": "check_drawio.py",
+      "role": "Vérifie un fichier draw.io avant export.",
+      "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
+      "report": {
+        "format": "json",
+        "description": "Un objet par fichier.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "pages",
+              "shapes",
+              "errors",
+              "warnings"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "pages": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "shapes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "errors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "aucune erreur",
+        "1": "au moins un fichier a une erreur"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "exporter et relire l'image"
+    }
+  ]
+}

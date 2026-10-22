@@ -1,0 +1,155 @@
+{
+  "skill": "markdown-publish",
+  "inputs": [
+    "Markdown ou notes Obsidian, avec leurs images et schémas sources",
+    "Modèle Word (facultatif)",
+    "Vault Obsidian (facultatif)"
+  ],
+  "outputs": [
+    "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
+    "En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/"
+  ],
+  "scripts": [
+    {
+      "name": "publish.py",
+      "role": "Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.",
+      "usage": "uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER] [--reference-doc modele.docx] [--toc] [--pdf] [--preview] [--vault VAULT]",
+      "options": {
+        "DOC.md": "documents à publier",
+        "--to": "formats, séparés par des virgules (défaut docx)",
+        "--out": "dossier de sortie",
+        "--reference-doc": "modèle Word",
+        "--toc": "table des matières",
+        "--pdf": "docx : PDF en plus (LibreOffice)",
+        "--preview": "docx : aperçu PNG par page (LibreOffice)",
+        "--vault": "vault Obsidian, pour retrouver les pièces jointes"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet par document.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "input",
+                  "outputs",
+                  "diagrams_exported",
+                  "warnings"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "format",
+                        "file",
+                        "images",
+                        "tables"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "format": {
+                          "enum": [
+                            "docx",
+                            "html",
+                            "xwiki"
+                          ]
+                        },
+                        "file": {
+                          "type": "string"
+                        },
+                        "images": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "tables": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "pdf": {
+                          "type": "string"
+                        },
+                        "preview": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "diagrams_exported": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "input",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "tous les documents sont produits",
+        "1": "au moins un document a échoué"
+      }
+    },
+    {
+      "name": "make_reference.py",
+      "role": "Régénère references/modele.docx aux couleurs de la charte.",
+      "maintenance": true,
+      "usage": "uv run scripts/make_reference.py [--out references/modele.docx]",
+      "report": {
+        "format": "none"
+      },
+      "exit_codes": {
+        "0": "modèle écrit"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "exporter les schémas (automatique)"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "importer les fichiers dans SharePoint, Confluence ou XWiki"
+    }
+  ]
+}
