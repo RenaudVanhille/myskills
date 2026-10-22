@@ -27,7 +27,7 @@ def source_agents() -> list[Path]:
     return sorted(AGENTS_SRC.glob("*.md"))
 
 
-def render_agent(path: Path, flavor: str, kiro_prefix: str = ".kiro/skills") -> str:
+def render_agent(path: Path, flavor: str) -> str:
     """Rend l'agent source au format claude, copilot, opencode, kiro ou
     hermes (Hermes n'a pas d'agents : l'agent devient un skill)."""
     meta, body = parse_agent(path)
@@ -40,18 +40,21 @@ def render_agent(path: Path, flavor: str, kiro_prefix: str = ".kiro/skills") -> 
         lines += [f"name: {name}", f"description: {desc}",
                   "tools: ['read', 'edit', 'execute', 'agent']"]
     elif flavor == "opencode":
-        lines += [f"description: {desc}", "mode: primary", "permissions:",
-                  '  - action: "*"', '    resource: "*"', "    effect: deny"]
-        for action in ("read", "glob", "edit", "skill", "subagent"):
-            lines += [f"  - action: {action}", '    resource: "*"', "    effect: allow"]
-        for command in split_list(meta.get("commands", "")):
-            lines += ["  - action: shell", f'    resource: "{command}"', "    effect: allow"]
+        # Pas d'accès web ; le shell n'accepte que les commandes listées.
+        lines += [f"description: {desc}", "mode: primary", "permission:",
+                  "  webfetch: deny", "  websearch: deny", "  codesearch: deny",
+                  "  bash:", '    "*": deny']
+        lines += [f'    "{command}": allow' for command in split_list(meta.get("commands", ""))]
     elif flavor == "kiro":
-        resources = ", ".join(f'"skill://{kiro_prefix}/{skill}/SKILL.md"'
-                              for skill in split_list(meta.get("skills", "")))
+        # skill://<nom> pointe vers .kiro/skills/<nom>/SKILL.md ; pas d'accès web,
+        # les commandes listées passent sans confirmation.
         lines += [f"name: {name}", f"description: {desc}",
                   'tools: ["read", "write", "shell", "subagent"]',
-                  f"resources: [{resources}]"]
+                  'excludedTools: ["web"]', "resources:"]
+        lines += [f"  - skill://{skill}" for skill in split_list(meta.get("skills", ""))]
+        lines += ["permissions:", "  rules:", "    - capability: shell", "      match:"]
+        lines += [f'        - "{command}"' for command in split_list(meta.get("commands", ""))]
+        lines += ["      effect: allow"]
     elif flavor == "hermes":
         lines += [f"name: {name}", f"description: {desc}"]
     else:

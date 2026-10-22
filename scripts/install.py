@@ -29,14 +29,14 @@ def install_skills(dest: Path, dry: bool) -> None:
     print(f"Skills -> {dest}")
 
 
-def install_agents(flavor: str, dest: Path, kiro_prefix: str, dry: bool) -> None:
+def install_agents(flavor: str, dest: Path, dry: bool) -> None:
     for src in source_agents():
         name = parse_agent(src)[0]["name"]
         target = dest / name / "SKILL.md" if flavor == "hermes" else dest / f"{name}.md"
         if dry:
             print(f"+ écrire {target}")
             continue
-        write_text(target, render_agent(src, flavor, kiro_prefix))
+        write_text(target, render_agent(src, flavor))
     print(f"Agents ({flavor}) -> {dest}")
 
 
@@ -60,17 +60,21 @@ def main() -> None:
     if "opencode" in tools:
         base = home / ".config" / "opencode" if args.global_ else root / ".opencode"
         install_skills(base / "skills", args.dry_run)
-        install_agents("opencode", base / "agents", "", args.dry_run)
+        install_agents("opencode", base / "agents", args.dry_run)
 
     if "kiro" in tools:
-        prefix = "~/.kiro/skills" if args.global_ else ".kiro/skills"
         install_skills(root / ".kiro" / "skills", args.dry_run)
-        install_agents("kiro", root / ".kiro" / "agents", prefix, args.dry_run)
+        install_agents("kiro", root / ".kiro" / "agents", args.dry_run)
 
     if "hermes" in tools:
         skills = root / ".hermes" / "skills"
         install_skills(skills, args.dry_run)
-        install_agents("hermes", skills, "", args.dry_run)
+        install_agents("hermes", skills, args.dry_run)
+        if not args.global_:
+            # Hermes ne lit que ~/.hermes/skills et les dossiers de skills.external_dirs.
+            print("Pour que Hermes charge ces skills, lancez une fois :\n"
+                  f'  hermes config set skills.external_dirs "{skills.resolve()}"\n'
+                  "(la valeur remplace les external_dirs déjà configurés)")
 
 
 if __name__ == "__main__":
