@@ -3,4 +3,5 @@ drawio-diagram draw.io
 excalidraw-diagram Excalidraw
 c4-architecture LikeC4
 mermaid-diagram Mermaid
+urbanization-map POS
 diagram-brief

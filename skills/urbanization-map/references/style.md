@@ -1,0 +1,91 @@
+# Charte graphique des schémas
+
+Partagée par tous les skills de schémas. Source : `shared/references/style.md`,
+copiée dans `references/style.md` de chaque skill par `scripts/build.py`, avec
+les seules règles du format de ce skill.
+Le but : qu'un même élément ait la même couleur et la même forme, quel que
+soit le format.
+
+## Rôles et couleurs
+
+| Rôle | Forme | Fond | Bordure |
+| --- | --- | --- | --- |
+| Personne, acteur | personnage ou ellipse | `#fef3c7` | `#b45309` |
+| Notre système, conteneur, service | rectangle arrondi | `#dbeafe` | `#1d4ed8` |
+| Système externe | rectangle arrondi, bordure en tirets | `#f3f4f6` | `#6b7280` |
+| Base de données, stockage | cylindre | `#dcfce7` | `#15803d` |
+| File, bus, évènement | parallélogramme ou rectangle | `#f3e8ff` | `#7e22ce` |
+| Point de vigilance, erreur | rectangle | `#fee2e2` | `#b91c1c` |
+| Zone, frontière (équipe, réseau, SI) | rectangle sans fond, tirets | aucun | `#9ca3af` |
+
+Dans une cartographie applicative ou un plan d'occupation des sols (POS),
+les applications sont colorées par statut. « En place » garde la couleur de
+notre système, « à remplacer » celle du point de vigilance ; deux couleurs
+s'ajoutent, réservées à ces statuts :
+
+| Statut d'application | Fond | Bordure |
+| --- | --- | --- |
+| En place | `#dbeafe` | `#1d4ed8` |
+| À faire évoluer | `#ffedd5` | `#c2410c` |
+| À remplacer ou retirer | `#fee2e2` | `#b91c1c` |
+| À créer (tirets) | `#ccfbf1` | `#0f766e` |
+| Externe, SaaS (tirets) | `#f3f4f6` | `#6b7280` |
+
+- Texte : `#1f2937`. Flèches : `#374151`.
+- Appel synchrone : trait plein. Asynchrone (message, évènement) : tirets.
+- Une couleur ne sert qu'à un rôle. Pas d'autre couleur sans raison.
+
+## Texte
+
+- Police : celle du format (Helvetica dans draw.io, Excalifont dans Excalidraw).
+- Taille : 14 px pour les éléments, 12 px pour les libellés de flèche, 20 px pour
+  le titre.
+- Libellé d'élément : un nom, plus éventuellement la technologie entre
+  crochets (`API paiement [Java]`) pour un public technique.
+- Libellé de flèche : un verbe (`appelle`, `publie`, `lit`), jamais vide sauf
+  évidence.
+
+## Règles de composition
+
+- Toujours un titre. Une légende dès que plus d'une couleur ou d'un style de
+  trait est utilisé.
+- Sens de lecture : de gauche à droite ou de haut en bas, l'utilisateur en
+  premier.
+- Public non technique : 7 éléments maximum, pas de sigle ni de technologie,
+  des verbes simples.
+- Public technique : 15 à 20 éléments maximum par vue ; au-delà, faire
+  plusieurs vues.
+- Aucun chevauchement d'éléments ni de libellés, flèches sans croisement
+  quand c'est possible.
+- Nom de fichier : `<sujet>-<vue>` en minuscules et tirets
+  (`paiement-conteneurs.drawio`), l'export garde le même nom.
+
+## POS
+
+Trois niveaux imbriqués, du plus large au plus fin, puis les applications :
+
+```text
+Zone          : rounded=1;arcSize=2;dashed=1;fillColor=<fond>;strokeColor=<bordure>;fontColor=<bordure>;fontSize=16;fontStyle=1;
+Quartier      : rounded=1;arcSize=4;fillColor=<fond quartier>;strokeColor=<bordure>;fontColor=#1f2937;fontSize=14;fontStyle=1;
+Îlot          : rounded=1;arcSize=6;fillColor=#ffffff;strokeColor=#d1d5db;fontColor=#1f2937;fontSize=13;
+Application   : rounded=1;fillColor=<statut>;strokeColor=<statut>;fontColor=#1f2937;fontSize=14;
+```
+
+Chaque type de zone a sa teinte, reprise par ses quartiers ; les îlots
+restent blancs pour que les statuts des applications ressortent. Échanges
+reprend la couleur des files et bus, référentiels celle des données. En
+vocabulaire TOGAF, les capacités de niveau 1 prennent ces teintes dans
+l'ordre.
+
+| Zone | Fond | Bordure, titre | Fond des quartiers |
+| --- | --- | --- | --- |
+| Pilotage | `#eef2ff` | `#4f46e5` | `#e0e7ff` |
+| Opérations | `#fefce8` | `#ca8a04` | `#fef9c3` |
+| Support | `#fdf2f8` | `#db2777` | `#fce7f3` |
+| Référentiels | `#f0fdf4` | `#15803d` | `#dcfce7` |
+| Échanges | `#faf5ff` | `#7e22ce` | `#f3e8ff` |
+
+Disposition : zone de pilotage en haut, opérations (cœur de métier) au
+milieu, support en bas, échanges à gauche, référentiels à droite. Les blocs
+sont des conteneurs draw.io (`container=1`) : déplacer un quartier déplace
+son contenu. `pos_build.py` (skill `urbanization-map`) applique ces règles.

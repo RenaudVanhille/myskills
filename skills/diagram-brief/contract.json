@@ -28,6 +28,11 @@
       "to": "c4-architecture",
       "kind": "skill",
       "when": "architecture logicielle à plusieurs vues ou niveaux"
+    },
+    {
+      "to": "urbanization-map",
+      "kind": "skill",
+      "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
     }
   ]
 }

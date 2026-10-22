@@ -5,7 +5,7 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 
 - **Extraction documentaire** : PDF, DOCX, PPTX, XLSX, images vers Markdown ou
   Obsidian.
-- **Schémas** : draw.io, Excalidraw, C4, Mermaid, adaptés à un public
+- **Schémas** : draw.io, Excalidraw, C4, Mermaid, plan d'occupation des sols du SI, adaptés à un public
   technique ou non, pour Markdown, Office et Confluence.
 - **Publication** : Markdown vers Word, HTML ou XWiki, schémas compris.
 
@@ -71,6 +71,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
+| `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |

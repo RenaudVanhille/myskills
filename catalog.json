@@ -95,7 +95,7 @@
         "Si possible le public, la destination et le dossier de sortie"
       ],
       "produces": [
-        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json, ou modèle LikeC4",
+        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4",
         "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
       ],
       "never": [
@@ -129,6 +129,7 @@
         "drawio-diagram",
         "excalidraw-diagram",
         "c4-architecture",
+        "urbanization-map",
         "diagram-export"
       ]
     }
@@ -223,6 +224,11 @@
           "to": "c4-architecture",
           "kind": "skill",
           "when": "architecture logicielle à plusieurs vues ou niveaux"
+        },
+        {
+          "to": "urbanization-map",
+          "kind": "skill",
+          "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
         }
       ],
       "description": "Grille de choix du format de schéma (Mermaid, draw.io, Excalidraw, C4) selon le public, la destination (Markdown, Obsidian, Word, PowerPoint, Confluence) et le type de schéma. À utiliser avant de produire un schéma.",
@@ -1432,6 +1438,153 @@
       ],
       "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian.",
       "path": "skills/mermaid-diagram"
+    },
+    {
+      "skill": "urbanization-map",
+      "inputs": [
+        "Décision de diagram-brief : public et destination",
+        "Description JSON du plan : title, audience, detail, vocabulary, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut)"
+      ],
+      "outputs": [
+        "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv",
+        "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
+      ],
+      "scripts": [
+        {
+          "name": "pos_build.py",
+          "role": "Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+          "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf]",
+          "options": {
+            "SUJET.json|SUJET.csv": "description du plan ou inventaire des applications",
+            "--out": "fichier .drawio (défaut : même nom)",
+            "--title": "titre, prioritaire sur celui de la description",
+            "--audience": "technique (défaut) ou non technique",
+            "--detail": "niveau le plus fin affiché (défaut : application en technique, quartier en non technique)",
+            "--zoom": "ajoute une page par zone, au niveau des applications",
+            "--vocabulary": "pos (défaut) ou togaf : légende en capacités de niveau 1 à 3, zones empilées dans l'ordre donné"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input et errors.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "pages",
+                    "zones",
+                    "quartiers",
+                    "ilots",
+                    "applications",
+                    "detail",
+                    "vocabulary",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "zones": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "quartiers": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ilots": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "applications": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "detail": {
+                      "enum": [
+                        "zone",
+                        "quartier",
+                        "ilot",
+                        "application"
+                      ]
+                    },
+                    "vocabulary": {
+                      "enum": [
+                        "pos",
+                        "togaf"
+                      ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "plan produit sans erreur",
+            "1": "description illisible ou erreur"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter et relire l'image"
+        },
+        {
+          "to": "drawio-diagram",
+          "kind": "skill",
+          "when": "retoucher le .drawio à la main, ou dessiner les flux entre applications (cartographie applicative)"
+        }
+      ],
+      "description": "Dessine le plan d'occupation des sols (POS) d'un système d'information, ou carte d'urbanisation : zones, quartiers, îlots et applications rangées dedans, colorées par statut, en draw.io et PNG. Fait aussi la carte des capacités TOGAF (Business Capability Map) avec les applications posées dessus. À utiliser pour une cartographie fonctionnelle du SI, technique ou pour la direction, à partir d'une liste ou d'un inventaire CSV.",
+      "path": "skills/urbanization-map"
     }
   ]
 }

@@ -128,6 +128,41 @@
       "contains": {"paiement.drawio": ["fillColor=#dbeafe", "Comment un paiement est traité", "Légende"]}
     },
     {
+      "id": "pos",
+      "skill": "urbanization-map",
+      "steps": [
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-assurance.json", "--out", "{out}/pos.drawio", "--detail", "ilot", "--zoom"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "pages": 6, "zones": 5, "quartiers": 10,
+                               "ilots": 8, "applications": 21, "detail": "ilot"}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{out}/pos.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+      ],
+      "files": ["pos.drawio"],
+      "contains": {"pos.drawio": ["Plan d'occupation des sols du SI : assurance", "container=1",
+                                  "fillColor=#fee2e2", "Gestion vie", "Légende", "name=\"Opérations\""]}
+    },
+    {
+      "id": "pos-csv",
+      "skill": "urbanization-map",
+      "steps": [
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}/inventaire.drawio",
+                  "--title", "POS", "--audience", "non technique"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "zones": 5, "applications": 9, "detail": "quartier"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}/statut.drawio", "--title", "POS"],
+         "exit": 0, "report": {"detail": "application", "vocabulary": "pos"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}/togaf.drawio", "--title", "Capacités",
+                  "--vocabulary", "togaf", "--detail", "quartier", "--zoom"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "vocabulary": "togaf", "pages": 6}}
+      ],
+      "contains": {"inventaire.drawio": ["Sinistres", "Référentiels"],
+                   "togaf.drawio": ["Capacité niveau 2", "Composant applicatif"],
+                   "statut.drawio": ["fillColor=#ffedd5", "fillColor=#f3f4f6", "Gestion vie"]}
+    },
+    {
       "id": "excalidraw",
       "skill": "excalidraw-diagram",
       "steps": [
