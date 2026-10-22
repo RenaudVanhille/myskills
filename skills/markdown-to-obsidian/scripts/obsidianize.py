@@ -11,7 +11,9 @@
 - transforme les citations « Note : », « Attention : »... en callouts ;
 - avec --vault, copie la note dans le vault et ses images dans le dossier
   de pièces jointes du vault ; avec --move en plus, supprime ensuite la
-  note et les images d'origine (et leurs dossiers devenus vides).
+  note et les images d'origine (et leurs dossiers devenus vides) ;
+- vérifie la note produite comme `validate.py --obsidian` du skill
+  doc-to-markdown : le résultat est dans `validation` du rapport.
 
 Affiche un rapport JSON. Usage :
     uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER]
@@ -21,6 +23,7 @@ Affiche un rapport JSON. Usage :
 
 import argparse
 import datetime
+import importlib.util
 import json
 import re
 import shutil
@@ -30,6 +33,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 CLASSIFY = Path(__file__).resolve().parents[2] / "doc-to-markdown" / "scripts" / "classify.py"
+VALIDATE = CLASSIFY.with_name("validate.py")
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+\.md)(#[^)]*)?\)")
 H1 = re.compile(r"^#\s+(.+)$", re.M)
@@ -61,6 +65,16 @@ def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | 
         lines = (result.stderr or "sortie vide").strip().splitlines()
         return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
     return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
+
+
+def load_check():
+    """Fonction check() de validate.py (skill doc-to-markdown), ou None s'il manque."""
+    if not VALIDATE.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("validate", VALIDATE)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.check
 
 
 def frontmatter(text: str, path: Path, source: str | None, tags: list[str],
@@ -160,6 +174,10 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
                 remove_if_empty(image.parent)
         path.unlink()
         remove_if_empty(path.parent)
+    check = load_check()
+    if check:
+        result = check(target, obsidian=True, vault=args.vault)
+        report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
     return report
 
 

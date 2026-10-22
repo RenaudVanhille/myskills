@@ -17,7 +17,7 @@ JSON des scripts y sont décrits en JSON Schema.
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail.
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault.
   - Rapport (liste JSON) : Un objet par note.
-  - Champs : `input` (texte), `output` (texte), `embeds` (entier), `wikilinks` (entier), `callouts` (entier), `attachments_copied` (entier), `missing` (liste) ; facultatifs : `classification`, `classification_warning`.
+  - Champs : `input` (texte), `output` (texte), `embeds` (entier), `wikilinks` (entier), `callouts` (entier), `attachments_copied` (entier), `missing` (liste) ; facultatifs : `classification`, `classification_warning`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 toutes les notes sont traitées ; 1 une note est introuvable ou une image manque (missing).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes.
@@ -89,14 +89,15 @@ callouts créés, et les images introuvables (`missing`, code de sortie 1).
 
 ## 3. Valider
 
-Avec le script `validate.py` du skill `doc-to-markdown` :
+Le rapport contient aussi `validation` : le résultat de `validate.py
+--obsidian` (skill `doc-to-markdown`) sur la note produite. Un embed
+introuvable est une erreur ; une note liée absente n'est qu'un avertissement
+(Obsidian accepte les liens vers des notes à créer). Après une correction à
+la main, revérifiez :
 
 ```bash
 uv run ../doc-to-markdown/scripts/validate.py VAULT/SOUS-DOSSIER/NOTE.md --obsidian --vault VAULT
 ```
-
-Un embed introuvable est une erreur ; une note liée absente n'est qu'un
-avertissement (Obsidian accepte les liens vers des notes à créer).
 
 ## 4. Finir à la main
 

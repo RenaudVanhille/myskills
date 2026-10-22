@@ -19,6 +19,9 @@ Moteurs :
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
 ou en colonnes part sur Docling en mode auto.
+
+Chaque Markdown produit est vérifié comme par validate.py : le résultat est
+dans `validation` du rapport, inutile de lancer validate.py juste après.
 """
 
 import argparse
@@ -30,6 +33,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+from validate import check
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
@@ -195,6 +200,8 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
     out.mkdir(parents=True, exist_ok=True)
     with open(out / f"{stem}.md", "w", encoding="utf-8", newline="\n") as handle:
         handle.write(markdown.rstrip() + "\n")
+    result = check(out / f"{stem}.md", obsidian=False)
+    report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
     return report
 
 

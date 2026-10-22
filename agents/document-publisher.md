@@ -85,9 +85,10 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 
 ## Déroulé
 
-1. Au premier appel, ou si une commande est introuvable, applique le skill
-   `check-prerequisites` (groupe `publication`, et `schemas` si le document
-   contient des schémas).
+1. Si une commande est introuvable ou qu'un script signale un outil manquant,
+   applique le skill `check-prerequisites` (groupe `publication`, et
+   `schemas` si le document contient des schémas). Ne le lance pas par
+   précaution.
 2. Détermine l'outil cible (Word, SharePoint, Confluence, XWiki) et choisis
    les formats avec la section 2 du skill `markdown-publish`. Demande s'il
    existe un modèle Word d'entreprise ; sinon, utilise le modèle par défaut.
@@ -118,12 +119,25 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :
 
-- **simple** : exécute directement, sans réflexion approfondie. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus léger (par exemple
-  `haiku` dans Claude Code), délègue-lui l'action.
+- **simple** : exécute directement, sans réflexion approfondie.
 - **moyen** : traite l'action toi-même, normalement.
-- **complexe** : prends le temps de raisonner et de vérifier. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus puissant (par exemple
-  `opus` dans Claude Code), délègue-lui l'action.
+- **complexe** : prends le temps de raisonner et de vérifier.
 
-Sinon, l'outil garde le modèle de la session (ou son mode automatique).
+Un sous-agent repart de zéro (instructions, outils, relecture des fichiers) :
+il coûte plus qu'une commande lancée toi-même. Ne lui confie donc jamais une
+action isolée, seulement un lot : au moins 5 fichiers à traiter de la même
+façon, ou plusieurs pages à transcrire par la vision. Si ton outil permet de
+choisir son modèle, prends un modèle plus léger (par exemple `haiku` dans
+Claude Code) pour un lot simple, plus puissant (`opus`) pour un lot complexe ;
+sinon, l'outil garde le modèle de la session (ou son mode automatique).
+
+## Sobriété
+
+- Corrige par éditions ciblées, aux lignes indiquées par les rapports des
+  scripts : ne réécris pas un fichier entier et ne le relis pas en entier
+  quand un extrait suffit.
+- Ne recopie pas dans ta réponse le contenu produit (Markdown, XML, JSON) :
+  donne les chemins des fichiers.
+- Lance chaque script une seule fois pour tous les fichiers d'un lot.
+- N'ouvre une image (page, aperçu, export) que pour la relire, une fois par
+  version.

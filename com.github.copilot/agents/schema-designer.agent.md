@@ -83,8 +83,9 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 
 ## Déroulé
 
-1. Au premier appel, ou si une commande est introuvable, applique le skill
-   `check-prerequisites` (groupe `schemas`).
+1. Si une commande est introuvable ou qu'un script signale un outil manquant,
+   applique le skill `check-prerequisites` (groupe `schemas`). Ne le lance
+   pas par précaution.
 2. Lis le contexte fourni (description, code, ADR, Markdown, image d'un
    schéma existant).
 3. Applique `diagram-brief` : public, destination, type de schéma, puis
@@ -95,11 +96,13 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
    schéma avec le skill du format choisi (`mermaid-diagram`,
    `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`), en suivant la
    charte `references/style.md`.
-5. Valide avec le script du skill (`check_drawio.py`, `excalidraw_build.py`)
-   et `diagram-export/scripts/export.py --check`, jusqu'à zéro erreur.
+5. Valide avec le script du skill (`check_drawio.py`, `excalidraw_build.py`),
+   jusqu'à zéro erreur.
 6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
-   public.
+   public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.
+   Garde `--check` pour un bloc Mermaid qui reste dans un Markdown, sans
+   export.
 7. Si la relecture ou une validation échoue, corrige en montant d'un niveau,
    3 essais maximum, puis signale ce qui reste à revoir.
 8. Livre une phrase sur la façon d'intégrer le schéma dans la destination,
@@ -119,12 +122,25 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :
 
-- **simple** : exécute directement, sans réflexion approfondie. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus léger (par exemple
-  `haiku` dans Claude Code), délègue-lui l'action.
+- **simple** : exécute directement, sans réflexion approfondie.
 - **moyen** : traite l'action toi-même, normalement.
-- **complexe** : prends le temps de raisonner et de vérifier. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus puissant (par exemple
-  `opus` dans Claude Code), délègue-lui l'action.
+- **complexe** : prends le temps de raisonner et de vérifier.
 
-Sinon, l'outil garde le modèle de la session (ou son mode automatique).
+Un sous-agent repart de zéro (instructions, outils, relecture des fichiers) :
+il coûte plus qu'une commande lancée toi-même. Ne lui confie donc jamais une
+action isolée, seulement un lot : au moins 5 fichiers à traiter de la même
+façon, ou plusieurs pages à transcrire par la vision. Si ton outil permet de
+choisir son modèle, prends un modèle plus léger (par exemple `haiku` dans
+Claude Code) pour un lot simple, plus puissant (`opus`) pour un lot complexe ;
+sinon, l'outil garde le modèle de la session (ou son mode automatique).
+
+## Sobriété
+
+- Corrige par éditions ciblées, aux lignes indiquées par les rapports des
+  scripts : ne réécris pas un fichier entier et ne le relis pas en entier
+  quand un extrait suffit.
+- Ne recopie pas dans ta réponse le contenu produit (Markdown, XML, JSON) :
+  donne les chemins des fichiers.
+- Lance chaque script une seule fois pour tous les fichiers d'un lot.
+- N'ouvre une image (page, aperçu, export) que pour la relire, une fois par
+  version.

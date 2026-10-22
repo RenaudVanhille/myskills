@@ -7,7 +7,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}},
+         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1, "0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/architecture.md"], "exit": 0}
       ],
@@ -82,7 +82,7 @@
         {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
          "args": ["{out}/tmp/architecture.md", "--vault", "{out}/vault", "--folder", "Architecture",
                   "--tags", "architecture,paiement", "--source", "architecture.docx", "--move"],
-         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1}},
+         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1, "0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
          "exit": 0}

@@ -55,7 +55,8 @@ JSON des scripts y sont décrits en JSON Schema.
 
 `--check` rend le schéma dans un dossier temporaire et ne garde rien : c'est
 la validation de syntaxe pour Mermaid et LikeC4, et un test de rendu pour
-draw.io et Excalidraw.
+draw.io et Excalidraw. Inutile avant un export : un export qui échoue donne
+la même erreur. Exportez plusieurs schémas en une seule commande.
 
 ## Rapport
 

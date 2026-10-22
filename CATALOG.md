@@ -138,7 +138,7 @@ JSON des scripts y sont décrits en JSON Schema.
 - **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
 - **`convert.py`** : Convertit les documents en Markdown, en local.
   - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
@@ -214,7 +214,7 @@ JSON des scripts y sont décrits en JSON Schema.
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail.
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault.
   - Rapport (liste JSON) : Un objet par note.
-  - Champs : `input` (texte), `output` (texte), `embeds` (entier), `wikilinks` (entier), `callouts` (entier), `attachments_copied` (entier), `missing` (liste) ; facultatifs : `classification`, `classification_warning`.
+  - Champs : `input` (texte), `output` (texte), `embeds` (entier), `wikilinks` (entier), `callouts` (entier), `attachments_copied` (entier), `missing` (liste) ; facultatifs : `classification`, `classification_warning`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 toutes les notes sont traitées ; 1 une note est introuvable ou une image manque (missing).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes.

@@ -19,7 +19,7 @@ JSON des scripts y sont décrits en JSON Schema.
 - **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
 - **`convert.py`** : Convertit les documents en Markdown, en local.
   - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
@@ -78,22 +78,22 @@ colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
 
 Le script écrit `DOSSIER/<nom>.md`, extrait les images dans
 `DOSSIER/attachments/` et affiche un rapport JSON par fichier : `engine`,
-`pages`, `images`, `needs_vision`, `warnings`. Lisez-le avant de continuer.
+`pages`, `images`, `needs_vision`, `warnings` et `validation`. Lisez-le avant
+de continuer.
 
 ## 2. Valider
 
-```bash
-uv run scripts/validate.py DOSSIER/<nom>.md
-```
-
-Code de sortie 1 en cas d'erreur : image ou lien introuvable, tableau mal
-formé, image restée en base64, fichier vide. Les avertissements (pas de titre,
-saut de niveau, en-tête de tableau vide, contenu à transcrire) se corrigent à
-l'étape 3.
+`validation` donne le résultat de `validate.py` sur le Markdown produit :
+inutile de le relancer avant d'avoir corrigé. Erreurs (`ok: false`) : image
+ou lien introuvable, tableau mal formé, image restée en base64, fichier vide.
+Les avertissements (pas de titre, saut de niveau, en-tête de tableau vide,
+contenu à transcrire) se corrigent à l'étape 3. Chaque message donne le
+numéro de ligne.
 
 ## 3. Corriger
 
-Corrigez le Markdown directement, sans relancer la conversion. Ne supprimez
+Corrigez le Markdown directement, par éditions ciblées aux lignes signalées,
+sans relancer la conversion ni réécrire tout le fichier. Ne supprimez
 aucun contenu du document : seuls les en-têtes et pieds de page répétés
 peuvent partir. Un passage en double se signale, il ne s'efface pas.
 
@@ -109,7 +109,11 @@ peuvent partir. Un passage en double se signale, il ne s'efface pas.
 - **Tableau illisible** : relancez avec `--engine docling` ; sinon
   reconstituez-le à partir du document.
 
-Relancez `validate.py` jusqu'à zéro erreur.
+Une fois les corrections faites, relancez `validate.py` jusqu'à zéro erreur :
+
+```bash
+uv run scripts/validate.py DOSSIER/<nom>.md
+```
 
 ## 4. Rendre compte
 

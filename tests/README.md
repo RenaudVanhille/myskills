@@ -45,7 +45,23 @@ un dossier de travail, lancez l'agent avec le prompt, puis notez le résultat :
 uv run --with laya tests/judge.py outputs DOSSIER_DE_TRAVAIL
 ```
 
-### 3. Déclenchement des skills
+### 3. Coût des agents (Claude Code)
+
+`cost.py` joue les cas de `agent-cases.json` dans Claude Code (`claude -p`,
+plugin chargé depuis le dépôt, modèle fixe) et ajoute à `costs.csv` une ligne
+par cas : coût, tokens, nombre de tours, sous-agents lancés, fichier produit
+ou non. Lancez-le avant et après une modification des agents ou des skills
+pour en chiffrer l'effet :
+
+```bash
+uv run tests/cost.py --label avant --only extraire-docx,schema-drawio
+uv run tests/cost.py --label apres --only extraire-docx,schema-drawio --keep
+```
+
+Avec `--keep`, les dossiers de travail restent, pour `judge.py outputs`.
+Chaque cas coûte quelques centimes avec `sonnet`.
+
+### 4. Déclenchement des skills
 
 `triggers.json` associe des demandes au skill attendu. Le juge choisit un
 skill d'après les seules descriptions des `SKILL.md` : une erreur signale une

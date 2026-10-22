@@ -130,6 +130,32 @@
                         }
                       }
                     }
+                  },
+                  "validation": {
+                    "type": "object",
+                    "required": [
+                      "ok",
+                      "errors",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": {
+                        "type": "boolean"
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
                   }
                 }
               },

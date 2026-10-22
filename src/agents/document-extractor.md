@@ -86,52 +86,66 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 
 ## Déroulé
 
-1. Au premier appel, ou si une commande est introuvable, applique le skill
-   `check-prerequisites` (groupe `extraction`).
+1. Si une commande est introuvable ou qu'un script signale un outil manquant,
+   applique le skill `check-prerequisites` (groupe `extraction`). Ne le
+   lance pas par précaution.
 2. Demande, si ce n'est pas clair, le dossier de sortie et la cible
    (Markdown simple ou vault Obsidian). Par défaut : à côté du document.
 3. Convertis tous les fichiers en une commande avec le script `convert.py` du
-   skill `doc-to-markdown`, puis lis son rapport JSON. Pour un lot de plus de
+   skill `doc-to-markdown`, puis lis son rapport JSON : il contient déjà la
+   validation de chaque Markdown (`validation`). Pour un lot de plus de
    5 fichiers, ou si l'utilisateur veut le type et le domaine des documents,
    ajoute `--classify` : le modèle local Laya trie les documents sans
    dépenser tes tokens.
-4. Valide chaque Markdown avec `validate.py` du même skill.
-5. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
-   niveau de chaque correction avec la grille ci-dessous. Relance
-   `validate.py` après chaque correction, 3 essais maximum par fichier.
-6. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
+4. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
+   niveau de chaque correction avec la grille ci-dessous. Fais toutes les
+   corrections d'un fichier, puis relance `validate.py` une fois ; 3 essais
+   maximum par fichier.
+5. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
    profil du vault (`vault_profile.py`) pour choisir dossier et tags comme le
    décrit `markdown-to-obsidian`, puis applique `obsidianize.py --vault ...
    --folder ... --tags ... --move` (avec `--classify --domains <tags
-   principaux du vault>` si tu as classé à l'étape 3) et `validate.py
-   --obsidian --vault`. Ne
-   laisse aucun fichier de travail.
-7. Si un document contient un schéma en image et que l'utilisateur veut une
+   principaux du vault>` si tu as classé à l'étape 3) : son rapport contient
+   la validation Obsidian de chaque note. Ne laisse aucun fichier de travail.
+6. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, passe la main à l'agent `schema-designer` avec le
    message de passage de la section Contrat.
-8. Tu ne produis pas de Word, HTML ou page de wiki : si l'utilisateur veut
+7. Tu ne produis pas de Word, HTML ou page de wiki : si l'utilisateur veut
    publier le Markdown obtenu, passe la main à l'agent `document-publisher`
    de la même façon.
-9. Livre le rapport final JSON de la section Contrat : moteur dans `tools`,
+8. Livre le rapport final JSON de la section Contrat : moteur dans `tools`,
    ce qui n'a pas pu être converti dans `todo`.
 
 ## Grille des niveaux
 
 | Action | Niveau |
 | --- | --- |
-| Lancer `convert.py` et `validate.py`, corriger un lien ou un en-tête de tableau, ajouter un frontmatter | simple |
+| Lancer `convert.py`, corriger un lien ou un en-tête de tableau, ajouter un frontmatter | simple |
 | Restructurer les titres d'un PDF, recoller les mots coupés, retirer en-têtes et pieds de page, relancer avec Docling, mettre au format Obsidian, choisir le dossier et les tags d'après le profil du vault | moyen |
 | Transcrire par la vision un PDF scanné ou une image (`needs_vision`), reconstituer un tableau ou une mise en page complexe, trancher un cas ambigu | complexe |
 
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :
 
-- **simple** : exécute directement, sans réflexion approfondie. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus léger (par exemple
-  `haiku` dans Claude Code), délègue-lui l'action.
+- **simple** : exécute directement, sans réflexion approfondie.
 - **moyen** : traite l'action toi-même, normalement.
-- **complexe** : prends le temps de raisonner et de vérifier. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus puissant (par exemple
-  `opus` dans Claude Code), délègue-lui l'action.
+- **complexe** : prends le temps de raisonner et de vérifier.
 
-Sinon, l'outil garde le modèle de la session (ou son mode automatique).
+Un sous-agent repart de zéro (instructions, outils, relecture des fichiers) :
+il coûte plus qu'une commande lancée toi-même. Ne lui confie donc jamais une
+action isolée, seulement un lot : au moins 5 fichiers à traiter de la même
+façon, ou plusieurs pages à transcrire par la vision. Si ton outil permet de
+choisir son modèle, prends un modèle plus léger (par exemple `haiku` dans
+Claude Code) pour un lot simple, plus puissant (`opus`) pour un lot complexe ;
+sinon, l'outil garde le modèle de la session (ou son mode automatique).
+
+## Sobriété
+
+- Corrige par éditions ciblées, aux lignes indiquées par les rapports des
+  scripts : ne réécris pas un fichier entier et ne le relis pas en entier
+  quand un extrait suffit.
+- Ne recopie pas dans ta réponse le contenu produit (Markdown, XML, JSON) :
+  donne les chemins des fichiers.
+- Lance chaque script une seule fois pour tous les fichiers d'un lot.
+- N'ouvre une image (page, aperçu, export) que pour la relire, une fois par
+  version.
