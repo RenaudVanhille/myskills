@@ -7,22 +7,24 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
   Obsidian.
 - **Schémas** : draw.io, Excalidraw, C4, Mermaid, adaptés à un public
   technique ou non, pour Markdown, Office et Confluence.
+- **Publication** : Markdown vers Word, HTML ou XWiki, schémas compris.
 
 ## Installation
 
 | Outil | Commande |
 | --- | --- |
-| GitHub Copilot CLI | `copilot plugin install RenaudVanhille/myskills` |
+| GitHub Copilot CLI | `copilot plugin marketplace add RenaudVanhille/myskills` puis `copilot plugin install myskills@myskills` |
 | Claude Code | `/plugin marketplace add RenaudVanhille/myskills` puis `/plugin install myskills@myskills` |
 | Kiro | Panneau Powers > Add Custom Power > Import power from GitHub > `https://github.com/RenaudVanhille/myskills` (skills uniquement) |
 | OpenCode | Pas d'installation native : `uv run scripts/install.py --tools opencode [--global]` |
 | Agents Kiro | Les powers ne transportent pas d'agents : `uv run scripts/install.py --tools kiro [--global]` |
-| Hermes | Skills : `hermes skills tap add RenaudVanhille/myskills` puis `hermes skills install RenaudVanhille/myskills/<skill>`. Tout, agents compris : `uv run scripts/install.py --tools hermes [--global]` |
+| Hermes | Skills : `hermes skills tap add RenaudVanhille/myskills` puis `hermes skills install RenaudVanhille/myskills/skills/<skill>`. Tout, agents compris : `uv run scripts/install.py --tools hermes [--global]` |
 
 Hermes n'a pas d'agents personnalisés : `install.py` y installe
 les agents (`schema-designer`, `document-extractor`, `document-publisher`) sous
-forme de skills. En projet,
-lancez ensuite `hermes skills trust` pour que Hermes charge `.hermes/skills`.
+forme de skills. Hermes ne lit que `~/.hermes/skills` : en projet, `install.py`
+affiche la commande `hermes config set skills.external_dirs "<dossier>"` à
+lancer une fois (elle remplace les `external_dirs` déjà configurés).
 
 Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
 macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
@@ -56,7 +58,7 @@ la demande ; les rendus passent par Playwright.
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
-| `markdown-publish` | Markdown vers Confluence ou Word |
+| `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
 
 ## Outils autorisés
 
@@ -70,7 +72,7 @@ conversion reste locale.
 | Claude Code | `Read, Write, Edit, Bash, Skill, Agent` | Toutes (Claude Code ne filtre pas les commandes au niveau de l'agent) |
 | GitHub Copilot | `read, edit, execute, agent` | Toutes |
 | OpenCode | `read, glob, edit, skill, subagent` + `shell` filtré | Seulement la liste `commands` de l'agent |
-| Kiro | `read, write, shell, subagent` | Toutes |
+| Kiro | `read, write, shell, subagent`, `web` exclu | Liste `commands` approuvée d'office, les autres sur confirmation |
 | Hermes | Outils de la session (pas d'agents) | Toutes |
 
 La liste des commandes autorisées se trouve dans le champ `commands` de
