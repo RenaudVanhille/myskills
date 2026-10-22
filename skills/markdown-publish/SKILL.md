@@ -16,7 +16,7 @@ Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
 JSON des scripts y sont décrits en JSON Schema.
 
 - **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/.
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.
   - Rapport (liste JSON) : Un objet par document.
   - Champs : `input` (texte), `outputs` (liste), `diagrams_exported` (entier), `warnings` (liste) ; facultatifs : `error`.
@@ -31,7 +31,7 @@ JSON des scripts y sont décrits en JSON Schema.
 
 ```bash
 uv run scripts/publish.py DOC.md [...] --to docx,html,xwiki [--out DOSSIER] \
-    [--reference-doc modele.docx] [--toc] [--pdf] [--preview] [--vault VAULT]
+    [--reference-doc modele.docx] [--toc] [--pdf] [--preview | --preview-all] [--vault VAULT]
 ```
 
 Avant la conversion, le script :
@@ -87,11 +87,14 @@ change.
 Avec LibreOffice installé (facultatif, détecté aussi hors du PATH, par
 exemple dans `C:\Program Files\LibreOffice`) :
 
-- `--preview` produit une image PNG par page dans
-  `.myskills-tmp/<nom>-apercu/` à côté du .docx. **Ouvrez chaque page** et
-  vérifiez : image trop grande ou coupée, tableau qui déborde, titre seul en
-  bas de page, légende manquante. Corrigez la source et relancez, puis
-  supprimez le dossier `.myskills-tmp/`.
+- `--preview` ne rend que les pages à relire (une image, un tableau, ou un
+  titre seul en bas de page), assemblées par 4 sur des planches PNG dans
+  `.myskills-tmp/<nom>-apercu/` à côté du .docx ; `preview_pages` donne
+  leurs numéros. **Ouvrez chaque planche** et vérifiez : image trop grande ou
+  coupée, tableau qui déborde, titre seul en bas de page, légende manquante.
+  Corrigez la source et relancez, puis supprimez le dossier `.myskills-tmp/`.
+  `--preview-all` rend chaque page séparément, si l'utilisateur veut tout
+  relire.
 - `--pdf` livre aussi un PDF.
 
 Sans LibreOffice, le script le signale et produit le .docx quand même.

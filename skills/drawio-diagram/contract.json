@@ -1,14 +1,98 @@
 {
   "skill": "drawio-diagram",
   "inputs": [
-    "Décision de diagram-brief et contenu à représenter",
+    "Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages)",
     "Ou un .drawio existant à modifier"
   ],
   "outputs": [
-    "<nom>.drawio en XML clair",
-    "Après export : <nom>.drawio.png, .svg ou .pdf"
+    "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json",
+    "Après export : <sujet>.drawio.png, .svg ou .pdf"
   ],
   "scripts": [
+    {
+      "name": "drawio_build.py",
+      "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
+      "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio]",
+      "options": {
+        "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
+        "--out": "fichier .drawio (défaut : même nom)"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet ; si la description est illisible, seulement input et errors.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "pages",
+                "shapes",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pages": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "shapes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "errors"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "schéma produit sans erreur",
+        "1": "description illisible ou erreur"
+      }
+    },
     {
       "name": "check_drawio.py",
       "role": "Vérifie un fichier draw.io avant export.",

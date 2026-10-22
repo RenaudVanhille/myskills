@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5"]
+# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5", "pypdfium2>=4"]
 # ///
 """Convertit un document (PDF, DOCX, PPTX, XLSX, image) en Markdown, en local.
 
@@ -9,7 +9,7 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]]
+        [--classify [--domains a,b]] [--no-clean]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
@@ -19,6 +19,16 @@ Moteurs :
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
 ou en colonnes part sur Docling en mode auto.
+
+Un PDF converti par MarkItDown est nettoyé (lignes d'un même paragraphe
+réunies, césures recollées, en-têtes et pieds de page répétés retirés à
+partir de 3 pages) ; ce que le script ne peut pas trancher (titres probables,
+mots peut-être coupés) va dans `hints`, avec le numéro de ligne. --no-clean
+désactive ce nettoyage.
+
+Les pages à transcrire par vision (scannées, sans OCR) sont rendues en PNG
+dans <sortie>/.myskills-tmp/<nom>-pages/ et listées dans `vision_pages` :
+seules ces images sont à ouvrir.
 
 Chaque Markdown produit est vérifié comme par validate.py : le résultat est
 dans `validation` du rapport, inutile de lancer validate.py juste après.
@@ -40,6 +50,10 @@ OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
 MIN_CHARS_PER_PAGE = 30
+# Côté le plus long d'une page rendue pour la vision : au-delà, le modèle la
+# réduit de toute façon, et chaque pixel en plus coûte des tokens.
+VISION_MAX_PX = 1568
+MAX_HINTS = 40
 CLASSIFY = Path(__file__).with_name("classify.py")
 DATA_URI = re.compile(r"!\[([^\]]*)\]\(data:image/([a-zA-Z0-9.+-]+);base64,([^)]+)\)")
 
@@ -89,6 +103,87 @@ def promote_empty_headers(markdown: str) -> str:
         out.append(line)
         i += 1
     return "\n".join(out)
+
+
+def is_text(line: str) -> bool:
+    """Ligne de texte courant : ni vide, ni titre, ni tableau, ni liste, ni image."""
+    s = line.strip()
+    return bool(s) and not re.match(r"^(#|\||[-*+•] |\d+[.)] |!\[|<!--|```|>)", s)
+
+
+def heading_like(line: str) -> bool:
+    s = line.strip()
+    if not s or len(s) > 80 or re.search(r"[.,;:!?)]$", s):
+        return False
+    if re.match(r"^\d+(\.\d+)*[.)]?\s+[A-ZÀ-Ý]", s):  # titre numéroté : 1. Introduction, 2.3 Flux
+        return len(s) <= 60
+    return is_text(s) and (s[0].isupper() or s[0].isdigit())
+
+
+def clean_pdf_text(markdown: str, pages: int | None) -> tuple[str, list[str]]:
+    """Nettoyage sûr d'un PDF converti par MarkItDown, et indices pour le reste."""
+    lines = markdown.split("\n")
+    # En-têtes et pieds de page : même ligne courte (chiffres ignorés) sur la plupart des pages.
+    removed = set()
+    if pages and pages >= 3:
+        counts: dict[str, int] = {}
+        for line in lines:
+            if is_text(line) and len(line.strip()) <= 80:
+                key = re.sub(r"\d+", "#", line.strip())
+                counts[key] = counts.get(key, 0) + 1
+        removed = {key for key, n in counts.items() if n >= max(3, pages * 0.6)}
+    kept = [l for l in lines if not (is_text(l) and re.sub(r"\d+", "#", l.strip()) in removed)]
+
+    widths = sorted(len(l.strip()) for l in kept if is_text(l))
+    wide = widths[int(len(widths) * 0.9)] * 0.6 if widths else 0
+    vocabulary = set(re.findall(r"\w+", " ".join(kept).lower()))
+    out, hints = [], []
+    for line in kept:
+        previous = out[-1] if out else ""
+        joinable = (is_text(previous) and is_text(line) and len(previous.strip()) >= wide
+                    and not re.search(r"[.!?:]$", previous.strip()))
+        if not joinable:
+            # Une ligne vide entre un paragraphe et un tableau, pour que le tableau se rende.
+            if previous.strip() and line.strip() and is_text(previous) != is_text(line) \
+                    and (line.lstrip().startswith("|") or previous.lstrip().startswith("|")):
+                out.append("")
+            out.append(line.rstrip())
+            continue
+        head, tail = previous.rstrip(), line.strip()
+        if re.search(r"\w-$", head) and tail[:1].islower():
+            out[-1] = head[:-1] + tail  # césure
+        elif re.search(r"\w$", head) and tail[:1].islower():
+            left, right = re.search(r"(\w+)$", head).group(1), re.match(r"(\w+)", tail).group(1)
+            if (left + right).lower() in vocabulary and left.lower() not in vocabulary:
+                out[-1] = head + tail
+            else:
+                out[-1] = head + " " + tail
+                hints.append(f"Ligne {len(out)} : mot peut-être coupé « {left} {right} »")
+        else:
+            out[-1] = head + " " + tail
+    for number, line in enumerate(out, 1):
+        if heading_like(line) and len(hints) < MAX_HINTS:
+            hints.append(f"Ligne {number} : titre probable « {line.strip()} »")
+    if removed:
+        hints.insert(0, f"En-têtes ou pieds de page retirés : {', '.join(sorted(removed))}")
+    return "\n".join(out), hints[:MAX_HINTS]
+
+
+def render_pages(pdf: Path, numbers: list[int], folder: Path) -> list[str]:
+    """Rend les pages demandées en PNG, côté le plus long limité à VISION_MAX_PX."""
+    import pypdfium2 as pdfium
+
+    folder.mkdir(parents=True, exist_ok=True)
+    document = pdfium.PdfDocument(str(pdf))
+    paths = []
+    for number in numbers:
+        page = document[number - 1]
+        scale = min(2.0, VISION_MAX_PX / max(page.get_size()))
+        target = folder / f"page-{number}.png"
+        page.render(scale=scale).to_pil().save(target)
+        paths.append(str(target))
+    document.close()
+    return paths
 
 
 def run_markitdown(path: Path) -> str:
@@ -141,7 +236,8 @@ def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | 
     return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
 
 
-def convert(path: Path, out: Path, engine: str, classification: dict | None = None) -> dict:
+def convert(path: Path, out: Path, engine: str, classification: dict | None = None,
+            clean: bool = True) -> dict:
     suffix = path.suffix.lower()
     stem = path.stem
     attachments = out / "attachments"
@@ -159,7 +255,9 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         markdown = (f"# {stem}\n\n![{stem}](attachments/{path.name})\n\n"
                     "<!-- vision : transcrire ici le contenu de l'image -->\n")
         report["images"], report["needs_vision"] = 1, True
+        report["vision_pages"] = [str(attachments / path.name)]
     else:
+        profile = {"pages": None, "scanned_pages": []}
         if suffix == ".pdf":
             report["type"] = "pdf"
             profile = pdf_profile(path)
@@ -192,11 +290,17 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
             markdown, report["images"] = extract_data_uris(run_markitdown(path), attachments, stem)
             if report["type"] == "pdf" and report["warnings"]:
                 report["needs_vision"] = True
+            if report["type"] == "pdf" and clean:
+                markdown, report["hints"] = clean_pdf_text(markdown, report["pages"])
         report["engine"] = engine
 
     if len(markdown.strip()) < 20:
         report["warnings"].append("Résultat presque vide : document scanné ou protégé ?")
         report["needs_vision"] = True
+        profile["scanned_pages"] = list(range(1, (report["pages"] or 0) + 1))
+    if report["type"] == "pdf" and report["needs_vision"] and profile["scanned_pages"]:
+        report["vision_pages"] = render_pages(path, profile["scanned_pages"],
+                                              out / ".myskills-tmp" / f"{stem}-pages")
     out.mkdir(parents=True, exist_ok=True)
     with open(out / f"{stem}.md", "w", encoding="utf-8", newline="\n") as handle:
         handle.write(markdown.rstrip() + "\n")
@@ -215,6 +319,8 @@ def main() -> int:
     parser.add_argument("--classify", action="store_true",
                         help="classer d'abord les documents avec le modèle local Laya")
     parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
+    parser.add_argument("--no-clean", action="store_true",
+                        help="ne pas nettoyer le texte des PDF (paragraphes, césures, en-têtes)")
     args = parser.parse_args()
 
     reports, failed = [], False
@@ -231,7 +337,7 @@ def main() -> int:
             continue
         try:
             reports.append(convert(path.resolve(), args.out.resolve(), args.engine,
-                                   classifications.get(path.resolve())))
+                                   classifications.get(path.resolve()), not args.no_clean))
             if classify_warning:
                 reports[-1]["warnings"].append(classify_warning)
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec

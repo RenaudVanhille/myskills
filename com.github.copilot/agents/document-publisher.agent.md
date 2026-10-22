@@ -97,8 +97,9 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
    fichiers qui existent. Ne modifie pas la source sans le dire.
 4. Lance `publish.py` du skill `markdown-publish`, avec `--preview` pour un
    .docx si LibreOffice est présent, et lis le rapport JSON.
-5. Ouvre chaque page de l'aperçu et vérifie le rendu (images, tableaux,
-   légendes, titres isolés en bas de page). Corrige la source ou les options
+5. Ouvre chaque planche de l'aperçu (seules les pages à relire y sont) et
+   vérifie le rendu (images, tableaux, légendes, titres isolés en bas de
+   page). Corrige la source ou les options
    et relance, 3 essais maximum, puis signale ce qui reste à revoir.
 6. Si un schéma ne s'exporte pas, signale l'erreur ; si l'utilisateur veut le
    faire corriger, passe la main à l'agent `schema-designer` avec le message

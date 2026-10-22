@@ -135,10 +135,10 @@ Généré depuis [`contract.json`](skills/doc-to-markdown/contract.json), qui fa
 JSON des scripts y sont décrits en JSON Schema.
 
 - **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers (classify.py seulement).
-- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
 - **`convert.py`** : Convertit les documents en Markdown, en local.
   - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`, `validation`.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `hints`, `vision_pages`, `classification`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
@@ -160,8 +160,13 @@ Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, 
 Généré depuis [`contract.json`](skills/drawio-diagram/contract.json), qui fait foi : les rapports
 JSON des scripts y sont décrits en JSON Schema.
 
-- **Entrées** : Décision de diagram-brief et contenu à représenter ; Ou un .drawio existant à modifier.
-- **Sorties** : <nom>.drawio en XML clair ; Après export : <nom>.drawio.png, .svg ou .pdf.
+- **Entrées** : Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages) ; Ou un .drawio existant à modifier.
+- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf.
+- **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.
+  - Rapport (objet JSON) : Un objet ; si la description est illisible, seulement input et errors.
+  - Champs : `input` (texte), `output` (texte ou null), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
+  - Ou, en cas d'échec : `input` (texte), `errors` (liste).
+  - Codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
 - **`check_drawio.py`** : Vérifie un fichier draw.io avant export.
   - Rapport (liste JSON) : Un objet par fichier.
   - Champs : `file` (texte), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
@@ -192,7 +197,7 @@ Généré depuis [`contract.json`](skills/markdown-publish/contract.json), qui f
 JSON des scripts y sont décrits en JSON Schema.
 
 - **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/.
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.
   - Rapport (liste JSON) : Un objet par document.
   - Champs : `input` (texte), `outputs` (liste), `diagrams_exported` (entier), `warnings` (liste) ; facultatifs : `error`.

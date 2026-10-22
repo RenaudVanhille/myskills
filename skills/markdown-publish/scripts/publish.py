@@ -14,11 +14,15 @@ Les exports passent par le script `export.py` du skill `diagram-export`.
 Affiche un rapport JSON. Usage :
     uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER]
         [--reference-doc modele.docx]
-        [--toc] [--pdf] [--preview] [--vault VAULT]
+        [--toc] [--pdf] [--preview | --preview-all] [--vault VAULT]
 
 - docx : Word, import Word de Confluence, Office Importer de XWiki, SharePoint ;
 - html : page autonome (images intégrées), à ouvrir ou à coller dans un éditeur ;
 - xwiki : syntaxe XWiki 2.1 et images à joindre à la page, dans `<nom>-xwiki/`.
+
+--preview ne rend que les pages à relire (image, tableau, ou titre seul en bas
+de page), assemblées par 4 sur des planches PNG ; --preview-all rend chaque
+page séparément.
 """
 
 import argparse
@@ -49,6 +53,8 @@ TABLE_SEPARATOR = re.compile(r"^\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t
 DIAGRAM_SOURCES = {".drawio", ".excalidraw", ".mmd", ".mermaid"}
 REFERENCE_DOC = Path(__file__).resolve().parents[1] / "references" / "modele.docx"
 MAX_WIDTH_CM, MAX_HEIGHT_CM = 16.6, 20.0  # zone de texte A4 du modèle
+SHEET_PAGES = 4  # pages par planche d'aperçu (2 x 2)
+FPDF_PAGEOBJ_PATH, FPDF_PAGEOBJ_IMAGE = 2, 3
 SOFFICE_PATHS = [
     Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.exe",
     Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "LibreOffice" / "program" / "soffice.exe",
@@ -203,8 +209,45 @@ def soffice_binary() -> str | None:
     return next((str(p) for p in SOFFICE_PATHS if p.is_file()), None)
 
 
-def render_docx(docx: Path, keep_pdf: bool, preview: bool) -> dict:
-    """PDF et aperçu des pages avec LibreOffice, pour relire le rendu."""
+def pages_to_review(document, headings: set[str]) -> list[int]:
+    """Numéros des pages qui contiennent une image, un tableau (traits), ou se
+    terminent par un titre du document (titre isolé en bas de page)."""
+    flagged = []
+    for index in range(len(document)):
+        page = document[index]
+        kinds = [obj.type for obj in page.get_objects()]
+        lines = [l.strip() for l in page.get_textpage().get_text_range().splitlines() if l.strip()]
+        # La dernière ligne est le numéro de page du pied de page : on regarde celle d'avant.
+        last = lines[-2] if len(lines) > 1 else ""
+        if (FPDF_PAGEOBJ_IMAGE in kinds or kinds.count(FPDF_PAGEOBJ_PATH) >= 4
+                or last in headings):
+            flagged.append(index + 1)
+    return flagged
+
+
+def contact_sheets(images: list, numbers: list[int], folder: Path) -> list[str]:
+    """Assemble les pages par SHEET_PAGES sur des planches, numéro de page en haut."""
+    from PIL import Image, ImageDraw
+
+    sheets = []
+    for start in range(0, len(images), SHEET_PAGES):
+        group = images[start:start + SHEET_PAGES]
+        w, h = max(i.width for i in group), max(i.height for i in group)
+        sheet = Image.new("RGB", (w * 2 + 10, h * ((len(group) + 1) // 2) + 10), "#9ca3af")
+        draw = ImageDraw.Draw(sheet)
+        for offset, image in enumerate(group):
+            x, y = (offset % 2) * (w + 10), (offset // 2) * (h + 10)
+            sheet.paste(image, (x, y))
+            draw.text((x + 8, y + 6), f"p. {numbers[start + offset]}", fill="#b91c1c")
+        target = folder / f"planche-{start // SHEET_PAGES + 1}.png"
+        sheet.save(target)
+        sheets.append(str(target))
+    return sheets
+
+
+def render_docx(docx: Path, keep_pdf: bool, preview: str | None, headings: set[str]) -> dict:
+    """PDF et aperçu des pages avec LibreOffice, pour relire le rendu.
+    preview : None, "cible" (pages à relire, en planches) ou "tout" (chaque page)."""
     soffice = soffice_binary()
     if not soffice:
         return {"warning": "LibreOffice introuvable : pas de PDF ni d'aperçu "
@@ -229,14 +272,20 @@ def render_docx(docx: Path, keep_pdf: bool, preview: bool) -> dict:
                 shutil.rmtree(folder)
             folder.mkdir(parents=True)
             document = pdfium.PdfDocument(str(pdf))
-            pages = []
-            for index in range(len(document)):
-                image = document[index].render(scale=1.0).to_pil()
-                page = folder / f"page-{index + 1}.png"
-                image.save(page)
-                pages.append(str(page))
+            numbers = (list(range(1, len(document) + 1)) if preview == "tout"
+                       else pages_to_review(document, headings))
+            images = [document[n - 1].render(scale=1.0).to_pil() for n in numbers]
             document.close()
-            result["preview"] = pages
+            if preview == "tout":
+                pages = []
+                for number, image in zip(numbers, images):
+                    page = folder / f"page-{number}.png"
+                    image.save(page)
+                    pages.append(str(page))
+                result["preview"] = pages
+            else:
+                result["preview"] = contact_sheets(images, numbers, folder)
+            result["preview_pages"] = numbers
         if keep_pdf:
             target = docx.with_suffix(".pdf")
             shutil.copy2(pdf, target)
@@ -294,8 +343,10 @@ def publish(doc: Path, args, exporter) -> dict:
             base += ["--metadata", "lang=fr-FR"]
         if args.toc:
             base += ["--toc", "--toc-depth=3", "--metadata", "toc-title=Sommaire"]
+        headings = {h.strip() for h in re.findall(r"^#{1,6}\s+(.+)$", text, re.M)}
         for fmt in args.formats:
             extra = list(base)
+            rendered = {}
             if fmt == "docx":
                 target = out_dir / f"{doc.stem}.docx"
                 reference = args.reference_doc.resolve() if args.reference_doc else REFERENCE_DOC
@@ -321,12 +372,11 @@ def publish(doc: Path, args, exporter) -> dict:
             if fmt == "docx":
                 finish_docx(target, args.toc)
                 if args.pdf or args.preview:
-                    rendered = render_docx(target, args.pdf, args.preview)
-                    report.update({k: v for k, v in rendered.items() if k != "warning"})
+                    rendered = render_docx(target, args.pdf, args.preview, headings)
                     if rendered.get("warning"):
-                        report["warnings"].append(rendered["warning"])
+                        report["warnings"].append(rendered.pop("warning"))
             found = check_output(target, fmt)
-            report["outputs"].append({"format": fmt, "file": str(target), **found})
+            report["outputs"].append({"format": fmt, "file": str(target), **found, **rendered})
             if found["images"] < prepared.images:
                 report["warnings"].append(f"{fmt} : {found['images']} image(s), "
                                           f"{prepared.images} attendue(s)")
@@ -346,8 +396,11 @@ def main() -> int:
     parser.add_argument("--reference-doc", type=Path, help="modèle Word (styles, en-tête, pied de page)")
     parser.add_argument("--toc", action="store_true", help="ajouter une table des matières")
     parser.add_argument("--pdf", action="store_true", help="docx : produire aussi un PDF (LibreOffice)")
-    parser.add_argument("--preview", action="store_true",
-                        help="docx : aperçu PNG de chaque page dans .myskills-tmp/ (LibreOffice)")
+    preview = parser.add_mutually_exclusive_group()
+    preview.add_argument("--preview", action="store_const", const="cible",
+                         help="docx : planches PNG des pages à relire dans .myskills-tmp/ (LibreOffice)")
+    preview.add_argument("--preview-all", dest="preview", action="store_const", const="tout",
+                         help="docx : aperçu PNG de chaque page dans .myskills-tmp/ (LibreOffice)")
     parser.add_argument("--vault", type=Path, help="vault Obsidian, pour retrouver les pièces jointes")
     args = parser.parse_args()
     args.formats = [f.strip().lower() for f in args.to.split(",") if f.strip()]

@@ -321,19 +321,21 @@
       ],
       "outputs": [
         "DOSSIER/<nom>.md",
-        "DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown"
+        "DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown",
+        "DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite"
       ],
       "scripts": [
         {
           "name": "convert.py",
           "role": "Convertit les documents en Markdown, en local.",
-          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]]",
+          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean]",
           "options": {
             "FICHIER": "documents à convertir",
             "--out": "dossier de sortie (défaut : dossier courant)",
             "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
             "--classify": "classe d'abord avec classify.py (Laya)",
-            "--domains": "avec --classify : domaines possibles"
+            "--domains": "avec --classify : domaines possibles",
+            "--no-clean": "ne pas nettoyer le texte des PDF"
           },
           "report": {
             "format": "json",
@@ -393,6 +395,18 @@
                         "type": "boolean"
                       },
                       "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "hints": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "vision_pages": {
                         "type": "array",
                         "items": {
                           "type": "string"
@@ -687,14 +701,98 @@
     {
       "skill": "drawio-diagram",
       "inputs": [
-        "Décision de diagram-brief et contenu à représenter",
+        "Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages)",
         "Ou un .drawio existant à modifier"
       ],
       "outputs": [
-        "<nom>.drawio en XML clair",
-        "Après export : <nom>.drawio.png, .svg ou .pdf"
+        "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json",
+        "Après export : <sujet>.drawio.png, .svg ou .pdf"
       ],
       "scripts": [
+        {
+          "name": "drawio_build.py",
+          "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
+          "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio]",
+          "options": {
+            "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
+            "--out": "fichier .drawio (défaut : même nom)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input et errors.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "pages",
+                    "shapes",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "shapes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "schéma produit sans erreur",
+            "1": "description illisible ou erreur"
+          }
+        },
         {
           "name": "check_drawio.py",
           "role": "Vérifie un fichier draw.io avant export.",
@@ -866,13 +964,13 @@
       ],
       "outputs": [
         "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
-        "En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/"
+        "En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/"
       ],
       "scripts": [
         {
           "name": "publish.py",
           "role": "Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.",
-          "usage": "uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER] [--reference-doc modele.docx] [--toc] [--pdf] [--preview] [--vault VAULT]",
+          "usage": "uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER] [--reference-doc modele.docx] [--toc] [--pdf] [--preview | --preview-all] [--vault VAULT]",
           "options": {
             "DOC.md": "documents à publier",
             "--to": "formats, séparés par des virgules (défaut docx)",
@@ -880,7 +978,8 @@
             "--reference-doc": "modèle Word",
             "--toc": "table des matières",
             "--pdf": "docx : PDF en plus (LibreOffice)",
-            "--preview": "docx : aperçu PNG par page (LibreOffice)",
+            "--preview": "docx : planches PNG des seules pages à relire (images, tableaux, titre en bas de page)",
+            "--preview-all": "docx : aperçu PNG de chaque page",
             "--vault": "vault Obsidian, pour retrouver les pièces jointes"
           },
           "report": {
@@ -941,6 +1040,13 @@
                               "type": "array",
                               "items": {
                                 "type": "string"
+                              }
+                            },
+                            "preview_pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 1
                               }
                             }
                           }

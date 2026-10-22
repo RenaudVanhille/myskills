@@ -34,11 +34,12 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-texte.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false}},
+         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false},
+         "report_contains": {"0.hints": "titre probable"}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/rapport-texte.md"], "exit": 0}
       ],
-      "contains": {"rapport-texte.md": ["| API", "PostgreSQL"]}
+      "contains": {"rapport-texte.md": ["| API", "PostgreSQL", "notifie le cli ent. Ce document"]}
     },
     {
       "id": "pdf-scanne",
@@ -109,6 +110,19 @@
          "args": ["{fixtures}/diagrams/paiement-casse.drawio"],
          "exit": 1, "report_contains": {"0.errors": "identifiant en double"}}
       ]
+    },
+    {
+      "id": "drawio-build",
+      "skill": "drawio-diagram",
+      "steps": [
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py",
+         "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "pages": 1}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+      ],
+      "files": ["paiement.drawio"],
+      "contains": {"paiement.drawio": ["fillColor=#dbeafe", "Comment un paiement est traité", "Légende"]}
     },
     {
       "id": "excalidraw",

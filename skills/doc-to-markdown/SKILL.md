@@ -16,10 +16,10 @@ Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
 JSON des scripts y sont décrits en JSON Schema.
 
 - **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers (classify.py seulement).
-- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
 - **`convert.py`** : Convertit les documents en Markdown, en local.
   - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`, `validation`.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `hints`, `vision_pages`, `classification`, `validation`.
   - Ou, en cas d'échec : `input` (texte), `error` (texte).
   - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
@@ -78,8 +78,15 @@ colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
 
 Le script écrit `DOSSIER/<nom>.md`, extrait les images dans
 `DOSSIER/attachments/` et affiche un rapport JSON par fichier : `engine`,
-`pages`, `images`, `needs_vision`, `warnings` et `validation`. Lisez-le avant
-de continuer.
+`pages`, `images`, `needs_vision`, `warnings`, `hints`, `vision_pages` et
+`validation`. Lisez-le avant de continuer : il évite de relire tout le
+Markdown.
+
+Pour un PDF converti par MarkItDown, le script a déjà réuni les lignes d'un
+même paragraphe, recollé les césures et retiré les en-têtes et pieds de page
+répétés (à partir de 3 pages). `hints` liste, avec le numéro de ligne, ce
+qu'il n'a pas pu trancher : titres probables, mots peut-être coupés.
+`--no-clean` garde le texte brut.
 
 ## 2. Valider
 
@@ -97,15 +104,19 @@ sans relancer la conversion ni réécrire tout le fichier. Ne supprimez
 aucun contenu du document : seuls les en-têtes et pieds de page répétés
 peuvent partir. Un passage en double se signale, il ne s'efface pas.
 
-- **Pas de titre** (fréquent sur les PDF) : transformez les titres visibles du
-  document en `#`, `##`, `###`, sans sauter de niveau.
-- **Mots coupés en fin de ligne** (`cli` / `ent`) : recollez-les ; réunissez
-  les lignes d'un même paragraphe.
-- **En-têtes et pieds de page répétés** sur chaque page : supprimez-les.
-- **`needs_vision: true`** ou marqueur `<!-- vision ... -->` : ouvrez l'image
-  ou la page, transcrivez le texte, et décrivez un schéma en une ou deux
-  phrases sous l'image. Si le schéma doit rester modifiable, proposez de le
-  recréer (agent `schema-designer`).
+- **Pas de titre** (fréquent sur les PDF) : partez des « titre probable » de
+  `hints` et transformez les vrais titres en `#`, `##`, `###`, sans sauter de
+  niveau. Inutile de lire tout le document pour cela.
+- **Mot peut-être coupé** (`hints`, par exemple « cli ent ») : recollez-le
+  s'il s'agit d'un seul mot.
+- **En-têtes et pieds de page répétés** restants (document de moins de
+  3 pages) : supprimez-les.
+- **`needs_vision: true`** ou marqueur `<!-- vision ... -->` : ouvrez
+  seulement les images listées dans `vision_pages` (pages déjà rendues en
+  PNG, ou l'image d'origine), transcrivez le texte, et décrivez un schéma en
+  une ou deux phrases sous l'image. Supprimez ensuite `DOSSIER/.myskills-tmp/`.
+  Si le schéma doit rester modifiable, proposez de le recréer (agent
+  `schema-designer`).
 - **Tableau illisible** : relancez avec `--engine docling` ; sinon
   reconstituez-le à partir du document.
 

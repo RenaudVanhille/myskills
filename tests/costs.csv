@@ -1,0 +1,7 @@
+date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation_tokens,cache_read_tokens,output_tokens,subagents,duration_s
+2026-10-22T21:45:15,avant,cfcbd4c,extraire-docx,document-extractor,sonnet,True,6,0.1075,8,23138,63894,845,0,29
+2026-10-22T21:45:15,avant,cfcbd4c,extraire-pdf-texte,document-extractor,sonnet,True,8,0.0877,10,15017,96755,1785,0,23
+2026-10-22T21:45:15,avant,cfcbd4c,schema-drawio,schema-designer,sonnet,True,5,0.1371,6,20570,45239,5019,0,41
+2026-10-22T21:47:03,lot-1,06d851a,extraire-docx,document-extractor,sonnet,True,6,0.0889,8,18340,70129,835,0,18
+2026-10-22T21:47:03,lot-1,06d851a,extraire-pdf-texte,document-extractor,sonnet,True,8,0.0861,10,14866,98138,1664,0,24
+2026-10-22T21:47:03,lot-1,06d851a,schema-drawio,schema-designer,sonnet,True,5,0.1138,6,19040,45929,3288,0,31

@@ -96,8 +96,10 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
    schéma avec le skill du format choisi (`mermaid-diagram`,
    `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`), en suivant la
    charte `references/style.md`.
-5. Valide avec le script du skill (`check_drawio.py`, `excalidraw_build.py`),
-   jusqu'à zéro erreur.
+5. Pour draw.io et Excalidraw, écris la description JSON courte et construis
+   le fichier avec le script du skill (`drawio_build.py`,
+   `excalidraw_build.py`), jusqu'à zéro erreur ; n'écris le XML draw.io à la
+   main que pour modifier un fichier existant (`check_drawio.py`).
 6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
    public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.
