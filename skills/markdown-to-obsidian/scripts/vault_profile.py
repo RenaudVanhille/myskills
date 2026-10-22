@@ -100,7 +100,7 @@ def main() -> int:
         },
         "attachments": attachments_folder(vault),
     }
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps(report, ensure_ascii=False))
     return 0
 
 

@@ -112,12 +112,12 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 | `src/agents/` | **Source** des agents, en format neutre (à modifier ici) |
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
-| `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
+| `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` (règles communes et section du format) |
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
 | `scripts/install.py` | Installation pour OpenCode, Hermes et les agents Kiro |
-| `tests/` | Documents de test, résultats attendus, `run.py` (scripts) et `judge.py` (agents et déclenchement des skills) |
+| `tests/` | Documents de test, résultats attendus, `run.py` (scripts), `judge.py` (agents et déclenchement des skills) et `cost.py` (coût des agents, historique dans `costs.csv`) |
 
 Vérification du plugin Claude Code : `claude plugin validate .`
 
@@ -128,6 +128,9 @@ Vérification du plugin Claude Code : `claude plugin validate .`
   `tests/run.py` valide chaque rapport contre son JSON Schema. On modifie le
   contrat JSON, jamais la section « Contrat » générée.
 - La conversion de documents reste locale, sans service en ligne.
+- Sobriété en tokens : ce qui est mécanique (nettoyage, styles, rendu, validation)
+  est fait par un script ; le modèle ne décide que ce qui demande du jugement,
+  sur des rapports courts. `tests/cost.py` mesure l'effet de chaque changement.
 - Un skill repris d'un tiers cite sa source et respecte sa licence.
 
 ## Licence

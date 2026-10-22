@@ -27,68 +27,23 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 | `document-extractor` | la source n'est pas encore en Markdown (PDF, Office) | le document ; la cible Markdown et le dossier de travail |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** ci-dessous. Si ton outil permet d'appeler un autre agent, envoie-lui
-ce bloc ; sinon, donne-le à l'utilisateur en lui indiquant l'agent à lancer.
-Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
+l'utilisateur en lui indiquant l'agent à lancer.
+
+Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
+rien à passer. Exemple, avec un message de passage dans `next` :
 
 ```json
-{
-  "agent": "schema-designer",
-  "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
-  "files": [
-    "sortie/attachments/architecture-1.png",
-    "sortie/architecture.md"
-  ],
-  "audience": "technique",
-  "destination": "confluence",
-  "output": "sortie/schemas/",
-  "constraints": [
-    "garder les noms des composants du document"
-  ]
-}
-```
-
-Termine toujours par le **rapport final** ci-dessous, en JSON, pour qu'un autre
-agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage ou null.
-
-```json
-{
-  "agent": "document-extractor",
-  "status": "partiel",
-  "files": [
-    "sortie/architecture.md",
-    "sortie/attachments/architecture-1.png"
-  ],
-  "tools": "MarkItDown : document Word avec texte, tableaux et images.",
-  "level": "moyen",
-  "corrections": [
-    "en-tête de tableau vide remplacé par la première ligne"
-  ],
-  "todo": [
-    "le schéma reste une image"
-  ],
-  "next": {
-    "agent": "schema-designer",
-    "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
-    "files": [
-      "sortie/attachments/architecture-1.png",
-      "sortie/architecture.md"
-    ],
-    "audience": "technique",
-    "destination": "confluence",
-    "output": "sortie/schemas/",
-    "constraints": [
-      "garder les noms des composants du document"
-    ]
-  }
-}
+{"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
 
 ## Déroulé
 
-1. Au premier appel, ou si une commande est introuvable, applique le skill
-   `check-prerequisites` (groupe `publication`, et `schemas` si le document
-   contient des schémas).
+1. Si une commande est introuvable ou qu'un script signale un outil manquant,
+   applique le skill `check-prerequisites` (groupe `publication`, et
+   `schemas` si le document contient des schémas). Ne le lance pas par
+   précaution.
 2. Détermine l'outil cible (Word, SharePoint, Confluence, XWiki) et choisis
    les formats avec la section 2 du skill `markdown-publish`. Demande s'il
    existe un modèle Word d'entreprise ; sinon, utilise le modèle par défaut.
@@ -97,8 +52,9 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
    fichiers qui existent. Ne modifie pas la source sans le dire.
 4. Lance `publish.py` du skill `markdown-publish`, avec `--preview` pour un
    .docx si LibreOffice est présent, et lis le rapport JSON.
-5. Ouvre chaque page de l'aperçu et vérifie le rendu (images, tableaux,
-   légendes, titres isolés en bas de page). Corrige la source ou les options
+5. Ouvre chaque planche de l'aperçu (seules les pages à relire y sont) et
+   vérifie le rendu (images, tableaux, légendes, titres isolés en bas de
+   page). Corrige la source ou les options
    et relance, 3 essais maximum, puis signale ce qui reste à revoir.
 6. Si un schéma ne s'exporte pas, signale l'erreur ; si l'utilisateur veut le
    faire corriger, passe la main à l'agent `schema-designer` avec le message
@@ -119,12 +75,25 @@ agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-ex
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :
 
-- **simple** : exécute directement, sans réflexion approfondie. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus léger (par exemple
-  `haiku` dans Claude Code), délègue-lui l'action.
+- **simple** : exécute directement, sans réflexion approfondie.
 - **moyen** : traite l'action toi-même, normalement.
-- **complexe** : prends le temps de raisonner et de vérifier. Si ton outil
-  permet de lancer un sous-agent sur un modèle plus puissant (par exemple
-  `opus` dans Claude Code), délègue-lui l'action.
+- **complexe** : prends le temps de raisonner et de vérifier.
 
-Sinon, l'outil garde le modèle de la session (ou son mode automatique).
+Un sous-agent repart de zéro (instructions, outils, relecture des fichiers) :
+il coûte plus qu'une commande lancée toi-même. Ne lui confie donc jamais une
+action isolée, seulement un lot : au moins 5 fichiers à traiter de la même
+façon, ou plusieurs pages à transcrire par la vision. Si ton outil permet de
+choisir son modèle, prends un modèle plus léger (par exemple `haiku` dans
+Claude Code) pour un lot simple, plus puissant (`opus`) pour un lot complexe ;
+sinon, l'outil garde le modèle de la session (ou son mode automatique).
+
+## Sobriété
+
+- Corrige par éditions ciblées, aux lignes indiquées par les rapports des
+  scripts : ne réécris pas un fichier entier et ne le relis pas en entier
+  quand un extrait suffit.
+- Ne recopie pas dans ta réponse le contenu produit (Markdown, XML, JSON) :
+  donne les chemins des fichiers.
+- Lance chaque script une seule fois pour tous les fichiers d'un lot.
+- N'ouvre une image (page, aperçu, export) que pour la relire, une fois par
+  version.

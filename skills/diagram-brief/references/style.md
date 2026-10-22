@@ -1,7 +1,8 @@
 # Charte graphique des schémas
 
 Partagée par tous les skills de schémas. Source : `shared/references/style.md`,
-copiée dans `references/style.md` de chaque skill par `scripts/build.py`.
+copiée dans `references/style.md` de chaque skill par `scripts/build.py`, avec
+les seules règles du format de ce skill.
 Le but : qu'un même élément ait la même couleur et la même forme, quel que
 soit le format.
 
@@ -45,51 +46,3 @@ soit le format.
   quand c'est possible.
 - Nom de fichier : `<sujet>-<vue>` en minuscules et tirets
   (`paiement-conteneurs.drawio`), l'export garde le même nom.
-
-## Par format
-
-### draw.io
-
-```text
-Personne      : shape=umlActor;verticalLabelPosition=bottom;fillColor=#fef3c7;strokeColor=#b45309;fontColor=#1f2937;
-Système       : rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1d4ed8;fontColor=#1f2937;fontSize=14;
-Externe       : rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f3f4f6;strokeColor=#6b7280;fontColor=#1f2937;fontSize=14;
-Base          : shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=12;fillColor=#dcfce7;strokeColor=#15803d;fontColor=#1f2937;fontSize=14;
-File          : shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#7e22ce;fontColor=#1f2937;
-Vigilance     : rounded=0;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;fontColor=#1f2937;
-Zone          : rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#9ca3af;verticalAlign=top;align=left;spacingLeft=8;fontColor=#6b7280;
-Flèche        : edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#374151;fontSize=12;endArrow=block;endFill=1;
-Flèche async  : edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#374151;fontSize=12;dashed=1;endArrow=open;
-Titre         : text;html=1;fontSize=20;fontStyle=1;align=left;
-```
-
-### Mermaid
-
-```text
-classDef person fill:#fef3c7,stroke:#b45309,color:#1f2937
-classDef system fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
-classDef external fill:#f3f4f6,stroke:#6b7280,color:#1f2937,stroke-dasharray:4 3
-classDef db fill:#dcfce7,stroke:#15803d,color:#1f2937
-classDef queue fill:#f3e8ff,stroke:#7e22ce,color:#1f2937
-classDef alert fill:#fee2e2,stroke:#b91c1c,color:#1f2937
-```
-
-Formes : `client([Client])` pour une personne, `api[API]`, `db[(Base)]`,
-`bus[/Bus/]`. Async : `-.->`. Le titre va dans l'en-tête
-`---\ntitle: ...\n---`.
-
-### Excalidraw
-
-Rôles : `person`, `system`, `external`, `db`, `queue`, `alert`, `zone` dans le
-format simplifié de `excalidraw_build.py`, qui applique ces couleurs. Police
-Excalifont (style dessiné) pour un public non technique, Nunito pour un
-schéma plus sobre.
-
-### LikeC4
-
-Le fichier `references/specification.c4` du skill `c4-architecture` définit
-les types aux couleurs de la charte : `person` (amber), `system` et
-`container` (primary), `component` (sky), `external` (gray, tirets),
-`database` (green, forme storage), `queue` (indigo, forme queue), et la
-relation `async` (tirets, flèche ouverte). LikeC4 trace ses relations en
-tirets fins par défaut : c'est la convention de l'outil, gardez-la.

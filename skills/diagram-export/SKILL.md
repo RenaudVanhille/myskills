@@ -1,6 +1,6 @@
 ---
 name: diagram-export
-description: "Exporte un schéma (draw.io, Mermaid, Excalidraw, LikeC4) en PNG, SVG ou PDF pour Word, PowerPoint, Confluence ou un Markdown, ou vérifie seulement qu'il se rend. À utiliser pour intégrer un schéma dans un document ou valider sa syntaxe."
+description: "Exporte un schéma (draw.io, Mermaid, Excalidraw, LikeC4) en PNG, SVG ou PDF pour Word, PowerPoint, Confluence ou un Markdown, ou vérifie seulement qu'il se rend. À utiliser pour intégrer un schéma dans un document ou valider sa syntaxe, pas pour convertir un document Markdown entier."
 ---
 
 # diagram-export
@@ -30,15 +30,11 @@ fonctionne hors ligne.
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4.
 - **Sorties** : Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4 ; Rien avec --check.
-- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.
-  - Rapport (liste JSON) : Un objet par source ; error vaut null si tout va bien.
-  - Champs : `source` (texte), `format` (png | svg | pdf), `outputs` (liste), `error` (texte ou null) ; facultatifs : `rendered`.
-  - Codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
+- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Rapport JSON, codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
 - **Passe la main** au skill `check-prerequisites` : un outil de rendu manque (groupe schemas).
 
 ## Choisir le format de sortie
@@ -55,7 +51,8 @@ JSON des scripts y sont décrits en JSON Schema.
 
 `--check` rend le schéma dans un dossier temporaire et ne garde rien : c'est
 la validation de syntaxe pour Mermaid et LikeC4, et un test de rendu pour
-draw.io et Excalidraw.
+draw.io et Excalidraw. Inutile avant un export : un export qui échoue donne
+la même erreur. Exportez plusieurs schémas en une seule commande.
 
 ## Rapport
 

@@ -8,13 +8,14 @@ le résultat : les outils installent le plugin depuis le dépôt.
 
     agents/*.md                           agents Claude Code
     com.github.copilot/agents/*.agent.md  agents GitHub Copilot
-    skills/*/references/style.md          charte graphique (shared/targets.txt)
+    skills/*/references/style.md          charte : règles communes + section du format (shared/targets.txt)
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
 
 Usage : uv run scripts/build.py   (ou : python scripts/build.py)
 """
 
+import re
 import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
@@ -34,6 +35,17 @@ def write_contract_sections() -> None:
         write_text(path, text)
 
 
+def style_for(style: str, section: str) -> str:
+    """Charte réduite aux règles communes et à la section « Par format » du skill :
+    chaque skill ne charge que ce qui le concerne."""
+    common, _, formats = style.partition("\n## Par format\n")
+    parts = re.split(r"^### ", formats, flags=re.M)
+    kept = [p for p in parts[1:] if p.split("\n", 1)[0].strip() == section]
+    if not kept:
+        return common.rstrip() + "\n"
+    return common.rstrip() + "\n\n## " + kept[0].rstrip() + "\n"
+
+
 def main() -> None:
     write_contract_sections()
     claude_dir = REPO / "agents"
@@ -48,9 +60,10 @@ def main() -> None:
         write_text(copilot_dir / f"{name}.agent.md", render_agent(src, "copilot"))
 
     style = (REPO / "shared" / "references" / "style.md").read_text(encoding="utf-8")
-    targets = (REPO / "shared" / "targets.txt").read_text(encoding="utf-8").split()
-    for skill in targets:
-        write_text(REPO / "skills" / skill / "references" / "style.md", style)
+    for line in (REPO / "shared" / "targets.txt").read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            skill, _, section = line.strip().partition(" ")
+            write_text(REPO / "skills" / skill / "references" / "style.md", style_for(style, section))
 
     agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))

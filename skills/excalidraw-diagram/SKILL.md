@@ -1,6 +1,6 @@
 ---
 name: excalidraw-diagram
-description: "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers et les vues d'ensemble."
+description: "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers (façon tableau blanc) et les vues d'ensemble."
 ---
 
 # excalidraw-diagram
@@ -11,16 +11,11 @@ script construit la scène.
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Décision de diagram-brief ; Description JSON du schéma : title, audience, elements.
 - **Sorties** : <sujet>.excalidraw, à côté de sa description <sujet>.json ; Après export : <sujet>.excalidraw.png ou .svg.
-- **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON.
-  - Rapport (objet JSON) : Un objet ; si la description est illisible, seulement input et errors.
-  - Champs : `input` (texte), `output` (texte), `elements` (entier), `errors` (liste), `warnings` (liste).
-  - Ou, en cas d'échec : `input` (texte), `errors` (liste).
-  - Codes de sortie : 0 scène produite sans erreur ; 1 description illisible ou erreur.
+- **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON. Rapport JSON, codes de sortie : 0 scène produite sans erreur ; 1 description illisible ou erreur.
 - **Passe la main** au skill `diagram-export` : rendre et relire l'image.
 
 ## 1. Décrire le schéma

@@ -7,9 +7,12 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}},
+         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1, "0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
-         "args": ["{out}/architecture.md"], "exit": 0}
+         "args": ["{out}/architecture.md"], "exit": 0},
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/architecture.docx", "--out", "{out}", "--skip-existing"],
+         "exit": 0, "report": {"0.skipped": true}}
       ],
       "files": ["architecture.md", "attachments/architecture-1.png"],
       "contains": {"architecture.md": ["# Architecture du service de paiement",
@@ -34,11 +37,12 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-texte.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false}},
+         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false},
+         "report_contains": {"0.hints": "titre probable"}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/rapport-texte.md"], "exit": 0}
       ],
-      "contains": {"rapport-texte.md": ["| API", "PostgreSQL"]}
+      "contains": {"rapport-texte.md": ["| API", "PostgreSQL", "notifie le cli ent. Ce document"]}
     },
     {
       "id": "pdf-scanne",
@@ -82,7 +86,7 @@
         {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
          "args": ["{out}/tmp/architecture.md", "--vault", "{out}/vault", "--folder", "Architecture",
                   "--tags", "architecture,paiement", "--source", "architecture.docx", "--move"],
-         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1}},
+         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1, "0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
          "exit": 0}
@@ -109,6 +113,19 @@
          "args": ["{fixtures}/diagrams/paiement-casse.drawio"],
          "exit": 1, "report_contains": {"0.errors": "identifiant en double"}}
       ]
+    },
+    {
+      "id": "drawio-build",
+      "skill": "drawio-diagram",
+      "steps": [
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py",
+         "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "pages": 1}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+      ],
+      "files": ["paiement.drawio"],
+      "contains": {"paiement.drawio": ["fillColor=#dbeafe", "Comment un paiement est traité", "Légende"]}
     },
     {
       "id": "excalidraw",

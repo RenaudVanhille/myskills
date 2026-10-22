@@ -1,95 +1,105 @@
 ---
 name: drawio-diagram
-description: "Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise."
+description: "Crée (à partir d'une description courte) ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise."
 ---
 
 # drawio-diagram
 
-Les chemins `scripts/...` sont relatifs au dossier de ce skill.
+Les chemins `scripts/...` sont relatifs au dossier de ce skill. N'écrivez pas
+le XML draw.io à la main pour un nouveau schéma : décrivez-le dans un format
+court, le script construit le fichier aux styles de la charte.
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Décision de diagram-brief et contenu à représenter ; Ou un .drawio existant à modifier.
-- **Sorties** : <nom>.drawio en XML clair ; Après export : <nom>.drawio.png, .svg ou .pdf.
-- **`check_drawio.py`** : Vérifie un fichier draw.io avant export.
-  - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `file` (texte), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
-  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **Entrées** : Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages) ; Ou un .drawio existant à modifier.
+- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf.
+- **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
+- **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
-## 1. Écrire le fichier
+## 1. Décrire le schéma
 
-Un `.drawio` est un XML non compressé :
+Fichier `<sujet>.json`, le même format que pour `excalidraw-diagram` (une
+description sert aux deux) :
 
-```xml
-<mxfile>
-  <diagram id="p1" name="Contexte">
-    <mxGraphModel grid="1" gridSize="10" page="0">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
-        <mxCell id="title" value="Paiement : vue d'ensemble" style="text;html=1;fontSize=20;fontStyle=1;align=left;" vertex="1" parent="1">
-          <mxGeometry x="0" y="0" width="400" height="30" as="geometry"/>
-        </mxCell>
-        <mxCell id="api" value="API paiement" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1d4ed8;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="0" y="80" width="160" height="70" as="geometry"/>
-        </mxCell>
-        <mxCell id="db" value="Paiements" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;size=12;fillColor=#dcfce7;strokeColor=#15803d;fontColor=#1f2937;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry x="260" y="80" width="120" height="80" as="geometry"/>
-        </mxCell>
-        <mxCell id="api-db" value="enregistre" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#374151;fontSize=12;endArrow=block;endFill=1;" edge="1" parent="1" source="api" target="db">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-</mxfile>
+```json
+{
+  "title": "Paiement : conteneurs",
+  "audience": "technique",
+  "elements": [
+    {"id": "client", "role": "person", "label": "Client", "row": 0, "col": 0},
+    {"id": "shop", "role": "zone", "label": "Boutique", "x": 270, "y": -40, "w": 540, "h": 340},
+    {"id": "api", "role": "system", "label": "API paiement [Java]", "row": 0, "col": 1},
+    {"id": "db", "role": "db", "label": "Paiements", "row": 1, "col": 1},
+    {"id": "bank", "role": "external", "label": "Banque", "row": 0, "col": 3},
+    {"from": "client", "to": "api", "label": "paie"},
+    {"from": "api", "to": "db", "label": "enregistre"},
+    {"from": "api", "to": "bank", "label": "débite", "style": "async"}
+  ]
+}
 ```
 
-- Les cellules `0` et `1` sont obligatoires ; tout le reste a `parent="1"`,
-  ou l'identifiant d'une zone pour être dedans (coordonnées alors relatives à
-  la zone).
-- Identifiants lisibles (`api`, `api-db`), uniques.
-- Styles : copiez ceux de `references/style.md` (section draw.io) selon le
-  rôle de chaque élément.
-- Placement : grille de 10, 60 à 80 px d'écart entre les formes, flux de
-  gauche à droite. Laissez draw.io tracer les flèches (`source`/`target`, pas
-  de points intermédiaires sauf besoin).
-- Une page (`<diagram>`) par vue si le schéma a plusieurs niveaux.
-- Ajoutez une légende (formes de 30 × 20 et texte) dès que plus d'un rôle
-  ou d'un style de flèche apparaît.
+- **Formes** : `role` parmi `person`, `system`, `external`, `db`, `queue`,
+  `alert`, `zone` (cadre en tirets, toujours derrière) et `note` (texte
+  libre) ; le rôle donne le style de la charte. `shape` (`rectangle`,
+  `ellipse`, `diamond`) force une forme.
+- **Placement** : `row` et `col` (grille de 300 × 180 px, décimales
+  permises), ou `x` et `y` en pixels ; taille 180 × 80 par défaut, ou `w`
+  et `h`. Flux de gauche à droite.
+- **Flèches** : `from`, `to`, `label` (un verbe), `style: "async"` pour des
+  tirets. draw.io les trace et les garde attachées aux formes.
+- **Libellés** : `\n` pour aller à la ligne.
+- **Plusieurs vues** : `"pages": [{"name": "Contexte", "title": "...",
+  "elements": [...]}, ...]`, une page draw.io par vue.
+- Titre et légende sont ajoutés par le script (`legend` : `auto`, `true` ou
+  `false`).
 
-Pour modifier un schéma existant, lisez-le, gardez les identifiants et ne
-touchez qu'aux cellules concernées. S'il est compressé (texte en base64 dans
-`<diagram>`), le script de vérification sait le lire ; réécrivez-le en XML
-clair.
+## 2. Construire et vérifier
 
-## 2. Vérifier
+```bash
+uv run scripts/drawio_build.py SUJET.json
+```
+
+Produit `SUJET.drawio` et un rapport : erreurs (identifiant en double, flèche
+vers une forme inconnue) et avertissements (formes qui se chevauchent, forme
+qui déborde d'une zone, plus de 7 éléments pour un public non technique, pas
+de titre). Corrigez la description jusqu'à zéro erreur et zéro avertissement.
+
+## 3. Modifier un .drawio existant
+
+Lisez-le, gardez les identifiants et ne touchez qu'aux cellules concernées
+(`<mxCell>` : `value` pour le libellé, `style`, `<mxGeometry x y width
+height>`). Les styles de la charte sont dans `references/style.md` (section
+draw.io). S'il est compressé (texte en base64 dans `<diagram>`),
+`check_drawio.py` sait le lire ; réécrivez-le en XML clair. Puis vérifiez :
 
 ```bash
 uv run scripts/check_drawio.py SCHEMA.drawio
 ```
 
-Erreurs (à corriger) : XML illisible, identifiant en double, parent ou
-extrémité de flèche introuvable. Avertissements (à regarder) : formes qui se
-chevauchent, forme sans libellé, flèche non attachée, couleur hors charte,
-pas de titre.
+Erreurs : XML illisible, identifiant en double, parent ou extrémité de flèche
+introuvable. Avertissements : chevauchement, forme sans libellé, flèche non
+attachée, couleur hors charte, pas de titre.
 
-## 3. Exporter et relire
+Si quelqu'un a retouché à la main un `.drawio` construit par le script, c'est
+le `.drawio` qui fait foi : modifiez-le directement plutôt que de
+reconstruire.
+
+## 4. Exporter et relire
 
 ```bash
-uv run ../diagram-export/scripts/export.py SCHEMA.drawio --format png
+uv run ../diagram-export/scripts/export.py SUJET.drawio --format png
 ```
 
-Le PNG `SCHEMA.drawio.png` garde le XML : il se rouvre dans draw.io. Ouvrez
+Le PNG `SUJET.drawio.png` garde le XML : il se rouvre dans draw.io. Ouvrez
 l'image et vérifiez la lisibilité (libellés coupés, flèches qui se croisent
-ou passent sous une forme). Corrigez les coordonnées et réexportez.
+ou passent sous une forme). Ajustez `row`, `col`, `w` ou `h`, reconstruisez
+et réexportez.
 
 Pour Confluence, livrez les deux fichiers : le `.drawio`, à importer dans la
 macro draw.io de la page pour le modifier, et le `.drawio.png`, à insérer
-dans la page.
+dans la page. Gardez le `.json` à côté pour faire évoluer le schéma.
 
 draw.io Desktop est requis pour l'export (voir `check-prerequisites`).
