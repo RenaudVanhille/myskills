@@ -13,43 +13,74 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 
 ## Contrat
 
-- **Reçoit** : des fichiers Markdown ou des notes Obsidian (et le vault),
-  l'outil cible (Word, SharePoint, Confluence, XWiki) et, s'il existe, un
-  modèle Word. Les demandes viennent de l'utilisateur ou d'un autre agent, au
-  format de passage ci-dessous.
-- **Produit** : des fichiers `.docx`, `.html`, `.xwiki` (et ses images), en
-  option un PDF ; rien n'est publié en ligne.
+Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
+
+- **Reçoit** : Des fichiers Markdown ou des notes Obsidian (et le vault) ; L'outil cible : Word, SharePoint, Confluence ou XWiki ; Un modèle Word, s'il existe.
+- **Produit** : Des fichiers .docx, .html, .xwiki et ses images ; En option un PDF.
+- **Ne fait jamais** : Publier en ligne : l'utilisateur importe lui-même les fichiers.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
-| `schema-designer` | un schéma ne s'exporte pas ou doit être corrigé | le fichier source du schéma, le message d'erreur, la destination |
-| `document-extractor` | la source n'est pas encore en Markdown (PDF, Office) | le document, la cible Markdown, le dossier de travail |
+| `schema-designer` | un schéma ne s'exporte pas ou doit être corrigé | le fichier source du schéma ; le message d'erreur ; la destination |
+| `document-extractor` | la source n'est pas encore en Markdown (PDF, Office) | le document ; la cible Markdown et le dossier de travail |
 
-Pour passer la main, si ton outil permet d'appeler un autre agent, envoie-lui
-un message avec ces lignes ; sinon, donne ce message à l'utilisateur et
-indique-lui l'agent à lancer :
+Les demandes que tu reçois et celles que tu envoies suivent le **message de
+passage** ci-dessous. Si ton outil permet d'appeler un autre agent, envoie-lui
+ce bloc ; sinon, donne-le à l'utilisateur en lui indiquant l'agent à lancer.
+Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
 
-```text
-Agent : <nom de l'agent>
-Objectif : <ce qu'il faut produire, en une phrase>
-Fichiers : <chemins des fichiers d'entrée>
-Public : <technique | non technique>
-Destination : <Markdown, Obsidian, Word, PowerPoint, Confluence, SharePoint, XWiki>
-Sortie : <dossier ou fichier attendu>
-Contraintes : <ce qu'il ne faut pas changer, délais, modèle Word...>
+```json
+{
+  "agent": "schema-designer",
+  "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
+  "files": [
+    "sortie/attachments/architecture-1.png",
+    "sortie/architecture.md"
+  ],
+  "audience": "technique",
+  "destination": "confluence",
+  "output": "sortie/schemas/",
+  "constraints": [
+    "garder les noms des composants du document"
+  ]
+}
 ```
 
-Ton rapport final suit toujours ce plan, pour qu'un autre agent ou
-l'utilisateur le lise de la même façon :
+Termine toujours par le **rapport final** ci-dessous, en JSON, pour qu'un autre
+agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage ou null.
 
-```text
-Fichiers produits : <un chemin par ligne>
-Outils : <moteur ou format utilisé, et pourquoi en une phrase>
-Niveau : <simple | moyen | complexe, le plus haut utilisé>
-Corrections : <ce qui a été corrigé>
-Reste à faire : <ce qui n'a pas pu être fait, ou « rien »>
-Suite : <agent suivant conseillé et message de passage, ou « aucune »>
+```json
+{
+  "agent": "document-extractor",
+  "status": "partiel",
+  "files": [
+    "sortie/architecture.md",
+    "sortie/attachments/architecture-1.png"
+  ],
+  "tools": "MarkItDown : document Word avec texte, tableaux et images.",
+  "level": "moyen",
+  "corrections": [
+    "en-tête de tableau vide remplacé par la première ligne"
+  ],
+  "todo": [
+    "le schéma reste une image"
+  ],
+  "next": {
+    "agent": "schema-designer",
+    "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
+    "files": [
+      "sortie/attachments/architecture-1.png",
+      "sortie/architecture.md"
+    ],
+    "audience": "technique",
+    "destination": "confluence",
+    "output": "sortie/schemas/",
+    "constraints": [
+      "garder les noms des composants du document"
+    ]
+  }
+}
 ```
 
 ## Déroulé
@@ -73,8 +104,8 @@ Suite : <agent suivant conseillé et message de passage, ou « aucune »>
    de passage de la section Contrat.
 7. Supprime les fichiers de travail que tu as créés (dont `.myskills-tmp/`),
    sans toucher aux autres.
-8. Livre le rapport final au plan de la section Contrat, avec, pour chaque
-   fichier produit, comment l'importer dans l'outil visé.
+8. Livre une phrase par fichier produit sur la façon de l'importer dans
+   l'outil visé, puis le rapport final JSON de la section Contrat.
 
 ## Grille des niveaux
 

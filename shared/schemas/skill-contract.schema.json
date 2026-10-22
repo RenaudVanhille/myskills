@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/skill-contract.schema.json",
+  "title": "Contrat d'interface d'un skill",
+  "description": "Fichier contract.json à la racine de chaque skill : entrées, sorties, scripts, rapports et passages de main.",
+  "type": "object",
+  "required": ["skill", "inputs", "outputs", "scripts", "handoffs"],
+  "additionalProperties": false,
+  "properties": {
+    "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+    "inputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "scripts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "role", "usage", "report", "exit_codes"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "pattern": "^[\\w-]+\\.py$"},
+          "role": {"type": "string"},
+          "usage": {"type": "string"},
+          "maintenance": {"type": "boolean", "description": "Outil de maintenance du dépôt, pas à lancer par un agent."},
+          "options": {"type": "object", "additionalProperties": {"type": "string"},
+                      "description": "Option ou argument -> description."},
+          "report": {
+            "type": "object",
+            "required": ["format"],
+            "additionalProperties": false,
+            "properties": {
+              "format": {"enum": ["json", "text", "none"]},
+              "description": {"type": "string"},
+              "schema": {"type": "object", "description": "JSON Schema du rapport (format json)."}
+            }
+          },
+          "exit_codes": {"type": "object", "patternProperties": {"^[0-9]+$": {"type": "string"}},
+                         "additionalProperties": false, "minProperties": 1}
+        }
+      }
+    },
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["to", "kind", "when"],
+        "additionalProperties": false,
+        "properties": {
+          "to": {"type": "string"},
+          "kind": {"enum": ["skill", "agent", "utilisateur"]},
+          "when": {"type": "string"}
+        }
+      }
+    }
+  }
+}

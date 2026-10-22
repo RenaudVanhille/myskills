@@ -12,14 +12,27 @@ installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les a
 
 ## Contrat
 
-- **Entrées** : fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ou images (PNG, JPG, GIF, BMP, TIFF, WEBP) ; dossiers acceptés par `classify.py`.
-- **Sorties** : `DOSSIER/<nom>.md` et ses images dans `DOSSIER/attachments/<nom>-N.<ext>`, liées en relatif.
-- **Rapport `convert.py`** (liste JSON, un objet par fichier) : `input`, `output`, `type`, `engine`, `pages`, `images`, `needs_vision`, `warnings` ; avec `--classify` : `classification`.
-- **Rapport `validate.py`** (liste JSON, un objet par fichier) : `file`, `ok`, `errors`, `warnings`.
-- **Rapport `classify.py`** (liste JSON, un objet par fichier) : `input`, `type`, `type_confidence`, `domaine`, `domaine_confidence`, `tables`, `engine`, `method`, `warnings`.
-- **Échec sur un fichier** : l'objet ne contient que `input` (ou `file`) et `error`.
-- **Codes de sortie** : 0 si tout a réussi ; 1 si un fichier a échoué (`convert.py`, `classify.py`) ou contient une erreur (`validate.py`).
-- **Passe la main** : à `markdown-to-obsidian` si la cible est un vault ; à l'agent `schema-designer` pour recréer un schéma modifiable à partir d'une image.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers (classify.py seulement).
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown.
+- **`convert.py`** : Convertit les documents en Markdown, en local.
+  - Rapport (liste JSON) : Un objet par fichier.
+  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `classification`.
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
+- **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
+  - Rapport (liste JSON) : Un objet par fichier ; un fichier introuvable donne ok false.
+  - Champs : `file` (texte), `ok` (booléen), `errors` (liste), `warnings` (liste).
+  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles.
+  - Rapport (liste JSON) : Un objet par fichier ; type et domaine valent null sous le seuil de confiance.
+  - Champs : `input` (texte), `type` (specification | architecture | procedure | compte-rendu | presentation | contrat | rapport | autre | null), `type_confidence` (nombre ou null), `domaine` (texte ou null), `domaine_confidence` (nombre ou null), `tables` (nombre ou null), `engine` (markitdown | docling), `method` (texte), `warnings` (liste).
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
+- **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 
 ## 0. Trier un lot (optionnel)
 

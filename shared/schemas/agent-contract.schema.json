@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/agent-contract.schema.json",
+  "title": "Contrat d'interface d'un agent",
+  "description": "Fichier src/agents/<nom>.contract.json : ce que l'agent reçoit, ce qu'il produit et à qui il passe la main. Ses messages suivent handoff.schema.json et agent-report.schema.json.",
+  "type": "object",
+  "required": ["agent", "receives", "produces", "handoffs"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher"]},
+    "receives": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "produces": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "never": {"type": "array", "items": {"type": "string"}, "description": "Ce que l'agent ne fait jamais."},
+    "handoffs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["to", "when", "send"],
+        "additionalProperties": false,
+        "properties": {
+          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher"]},
+          "when": {"type": "string"},
+          "send": {"type": "array", "items": {"type": "string"}, "minItems": 1,
+                   "description": "Ce qui va dans files, objective et constraints du message de passage."}
+        }
+      }
+    }
+  }
+}

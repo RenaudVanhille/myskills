@@ -9,11 +9,16 @@ Les chemins `scripts/...` sont relatifs au dossier de ce skill.
 
 ## Contrat
 
-- **Entrées** : la décision de `diagram-brief` et le contenu à représenter, ou un `.drawio` existant à modifier.
-- **Sorties** : un fichier `.drawio` en XML clair ; après export, `<nom>.drawio.png` (ou `.svg`, `.pdf`).
-- **Rapport `check_drawio.py`** (liste JSON, un objet par fichier) : `file`, `pages`, `shapes`, `errors`, `warnings`.
-- **Codes de sortie** : `check_drawio.py` 1 si un fichier contient une erreur, 0 sinon.
-- **Passe la main** : à `diagram-export` pour l'export et la relecture de l'image.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Décision de diagram-brief et contenu à représenter ; Ou un .drawio existant à modifier.
+- **Sorties** : <nom>.drawio en XML clair ; Après export : <nom>.drawio.png, .svg ou .pdf.
+- **`check_drawio.py`** : Vérifie un fichier draw.io avant export.
+  - Rapport (liste JSON) : Un objet par fichier.
+  - Champs : `file` (texte), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
+  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
 ## 1. Écrire le fichier
 

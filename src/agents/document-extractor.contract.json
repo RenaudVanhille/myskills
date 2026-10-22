@@ -1,0 +1,35 @@
+{
+  "agent": "document-extractor",
+  "receives": [
+    "Fichiers PDF, DOCX, PPTX, XLSX, images, ou un dossier",
+    "La cible : Markdown ou vault Obsidian",
+    "Un dossier de sortie (défaut : à côté du document)"
+  ],
+  "produces": [
+    "Un Markdown par document et ses images dans attachments/",
+    "Ou des notes rangées dans le vault Obsidian"
+  ],
+  "never": [
+    "Produire du Word, du HTML ou une page de wiki",
+    "Envoyer un document à un service en ligne"
+  ],
+  "handoffs": [
+    {
+      "to": "schema-designer",
+      "when": "un schéma en image doit devenir modifiable",
+      "send": [
+        "l'image extraite et le Markdown qui la contient",
+        "le public et la destination"
+      ]
+    },
+    {
+      "to": "document-publisher",
+      "when": "le Markdown obtenu doit partir en Word, HTML ou XWiki",
+      "send": [
+        "les Markdown produits",
+        "l'outil cible",
+        "le modèle Word s'il y en a un"
+      ]
+    }
+  ]
+}

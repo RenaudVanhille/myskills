@@ -1,0 +1,1257 @@
+{
+  "name": "myskills",
+  "schemas": {
+    "skill-contract": "shared/schemas/skill-contract.schema.json",
+    "agent-contract": "shared/schemas/agent-contract.schema.json",
+    "handoff": "shared/schemas/handoff.schema.json",
+    "agent-report": "shared/schemas/agent-report.schema.json"
+  },
+  "agents": [
+    {
+      "agent": "document-extractor",
+      "receives": [
+        "Fichiers PDF, DOCX, PPTX, XLSX, images, ou un dossier",
+        "La cible : Markdown ou vault Obsidian",
+        "Un dossier de sortie (défaut : à côté du document)"
+      ],
+      "produces": [
+        "Un Markdown par document et ses images dans attachments/",
+        "Ou des notes rangées dans le vault Obsidian"
+      ],
+      "never": [
+        "Produire du Word, du HTML ou une page de wiki",
+        "Envoyer un document à un service en ligne"
+      ],
+      "handoffs": [
+        {
+          "to": "schema-designer",
+          "when": "un schéma en image doit devenir modifiable",
+          "send": [
+            "l'image extraite et le Markdown qui la contient",
+            "le public et la destination"
+          ]
+        },
+        {
+          "to": "document-publisher",
+          "when": "le Markdown obtenu doit partir en Word, HTML ou XWiki",
+          "send": [
+            "les Markdown produits",
+            "l'outil cible",
+            "le modèle Word s'il y en a un"
+          ]
+        }
+      ],
+      "description": "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.",
+      "skills": [
+        "check-prerequisites",
+        "doc-to-markdown",
+        "markdown-to-obsidian"
+      ]
+    },
+    {
+      "agent": "document-publisher",
+      "receives": [
+        "Des fichiers Markdown ou des notes Obsidian (et le vault)",
+        "L'outil cible : Word, SharePoint, Confluence ou XWiki",
+        "Un modèle Word, s'il existe"
+      ],
+      "produces": [
+        "Des fichiers .docx, .html, .xwiki et ses images",
+        "En option un PDF"
+      ],
+      "never": [
+        "Publier en ligne : l'utilisateur importe lui-même les fichiers"
+      ],
+      "handoffs": [
+        {
+          "to": "schema-designer",
+          "when": "un schéma ne s'exporte pas ou doit être corrigé",
+          "send": [
+            "le fichier source du schéma",
+            "le message d'erreur",
+            "la destination"
+          ]
+        },
+        {
+          "to": "document-extractor",
+          "when": "la source n'est pas encore en Markdown (PDF, Office)",
+          "send": [
+            "le document",
+            "la cible Markdown et le dossier de travail"
+          ]
+        }
+      ],
+      "description": "Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.",
+      "skills": [
+        "check-prerequisites",
+        "markdown-publish",
+        "diagram-export"
+      ]
+    },
+    {
+      "agent": "schema-designer",
+      "receives": [
+        "Un contexte : description, code, ADR, Markdown ou image d'un schéma existant",
+        "Si possible le public, la destination et le dossier de sortie"
+      ],
+      "produces": [
+        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json, ou modèle LikeC4",
+        "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
+      ],
+      "never": [
+        "Modifier un fichier qu'il n'a pas créé, sauf le schéma à corriger",
+        "Envoyer un schéma à un service en ligne"
+      ],
+      "handoffs": [
+        {
+          "to": "document-extractor",
+          "when": "le contexte est un document à convertir d'abord (PDF, Office)",
+          "send": [
+            "le document",
+            "la cible Markdown et le dossier de travail"
+          ]
+        },
+        {
+          "to": "document-publisher",
+          "when": "le schéma doit être intégré dans un Word, une page HTML ou XWiki",
+          "send": [
+            "le Markdown qui référence le schéma",
+            "la source et l'export",
+            "l'outil cible"
+          ]
+        }
+      ],
+      "description": "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.",
+      "skills": [
+        "check-prerequisites",
+        "diagram-brief",
+        "mermaid-diagram",
+        "drawio-diagram",
+        "excalidraw-diagram",
+        "c4-architecture",
+        "diagram-export"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "skill": "c4-architecture",
+      "inputs": [
+        "Décision de diagram-brief",
+        "Code, configuration ou description de l'architecture"
+      ],
+      "outputs": [
+        "Dossier LikeC4 : specification.c4 et model.c4",
+        "Un PNG par vue (après export)"
+      ],
+      "scripts": [],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "valider le modèle et exporter les vues"
+        },
+        {
+          "to": "excalidraw-diagram",
+          "kind": "skill",
+          "when": "une vue est destinée à un public non technique"
+        }
+      ],
+      "description": "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue. À utiliser pour les schémas d'architecture.",
+      "path": "skills/c4-architecture"
+    },
+    {
+      "skill": "check-prerequisites",
+      "inputs": [
+        "Un groupe : extraction, schemas, publication ou tout (défaut)"
+      ],
+      "outputs": [
+        "Aucun fichier"
+      ],
+      "scripts": [
+        {
+          "name": "doctor.py",
+          "role": "Vérifie les outils locaux et affiche la commande d'installation des manquants.",
+          "usage": "python scripts/doctor.py [extraction|schemas|publication|tout]",
+          "report": {
+            "format": "text",
+            "description": "Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation."
+          },
+          "exit_codes": {
+            "0": "tous les outils obligatoires sont présents",
+            "1": "au moins un outil manque"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "un outil manque : il l'installe lui-même, rien n'est installé sans son accord"
+        }
+      ],
+      "description": "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (MarkItDown, Docling, draw.io Desktop, Node.js, navigateur) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable.",
+      "path": "skills/check-prerequisites"
+    },
+    {
+      "skill": "diagram-brief",
+      "inputs": [
+        "Contexte du schéma : description, code, ADR, Markdown ou image",
+        "Ce que l'on sait du public et de la destination"
+      ],
+      "outputs": [
+        "Aucun fichier : une décision (public, destination, type, format, skill) et la phrase message principal / 3 à 7 éléments / ce qu'on laisse de côté"
+      ],
+      "scripts": [],
+      "handoffs": [
+        {
+          "to": "mermaid-diagram",
+          "kind": "skill",
+          "when": "séquence, états, classes, données, ou flux simple dans un dépôt ou Obsidian"
+        },
+        {
+          "to": "drawio-diagram",
+          "kind": "skill",
+          "when": "public technique, Word, PowerPoint ou Confluence, mise en page précise"
+        },
+        {
+          "to": "excalidraw-diagram",
+          "kind": "skill",
+          "when": "public non technique, atelier, vue d'ensemble"
+        },
+        {
+          "to": "c4-architecture",
+          "kind": "skill",
+          "when": "architecture logicielle à plusieurs vues ou niveaux"
+        }
+      ],
+      "description": "Grille de choix du format de schéma (Mermaid, draw.io, Excalidraw, C4) selon le public, la destination (Markdown, Obsidian, Word, PowerPoint, Confluence) et le type de schéma. À utiliser avant de produire un schéma.",
+      "path": "skills/diagram-brief"
+    },
+    {
+      "skill": "diagram-export",
+      "inputs": [
+        "Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4"
+      ],
+      "outputs": [
+        "Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4",
+        "Rien avec --check"
+      ],
+      "scripts": [
+        {
+          "name": "export.py",
+          "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+          "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
+          "options": {
+            "SCHEMA": "sources à exporter",
+            "--format": "png (défaut), svg ou pdf",
+            "--scale": "zoom des PNG (défaut 2)",
+            "--out": "dossier de sortie",
+            "--transparent": "fond transparent",
+            "--check": "vérifier sans rien écrire"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par source ; error vaut null si tout va bien.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "format",
+                  "outputs",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "enum": [
+                      "png",
+                      "svg",
+                      "pdf"
+                    ]
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rendered": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "toutes les sources sont rendues",
+            "1": "au moins une source échoue"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "check-prerequisites",
+          "kind": "skill",
+          "when": "un outil de rendu manque (groupe schemas)"
+        }
+      ],
+      "description": "Exporte un schéma (draw.io, Mermaid, Excalidraw, LikeC4) en PNG, SVG ou PDF pour Word, PowerPoint, Confluence ou un Markdown, ou vérifie seulement qu'il se rend. À utiliser pour intégrer un schéma dans un document ou valider sa syntaxe.",
+      "path": "skills/diagram-export"
+    },
+    {
+      "skill": "doc-to-markdown",
+      "inputs": [
+        "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
+        "Images PNG, JPG, GIF, BMP, TIFF, WEBP",
+        "Dossiers (classify.py seulement)"
+      ],
+      "outputs": [
+        "DOSSIER/<nom>.md",
+        "DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown"
+      ],
+      "scripts": [
+        {
+          "name": "convert.py",
+          "role": "Convertit les documents en Markdown, en local.",
+          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]]",
+          "options": {
+            "FICHIER": "documents à convertir",
+            "--out": "dossier de sortie (défaut : dossier courant)",
+            "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
+            "--classify": "classe d'abord avec classify.py (Laya)",
+            "--domains": "avec --classify : domaines possibles"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par fichier.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "output",
+                      "type",
+                      "engine",
+                      "pages",
+                      "images",
+                      "needs_vision",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "output": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "image",
+                          "pdf",
+                          "office",
+                          "autre"
+                        ]
+                      },
+                      "engine": {
+                        "enum": [
+                          "copie",
+                          "markitdown",
+                          "docling"
+                        ]
+                      },
+                      "pages": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "minimum": 0
+                      },
+                      "images": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "needs_vision": {
+                        "type": "boolean"
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "classification": {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "domaine",
+                          "tables",
+                          "engine",
+                          "method",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "domaine": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "tables": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "engine": {
+                            "enum": [
+                              "markitdown",
+                              "docling"
+                            ]
+                          },
+                          "method": {
+                            "type": "string"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "tous les fichiers sont convertis",
+            "1": "au moins un fichier a échoué (objet avec error)"
+          }
+        },
+        {
+          "name": "validate.py",
+          "role": "Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.",
+          "usage": "uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER]",
+          "options": {
+            "FICHIER.md": "Markdown à vérifier",
+            "--obsidian": "vérifie aussi frontmatter, embeds et wikilinks",
+            "--vault": "racine du vault"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par fichier ; un fichier introuvable donne ok false.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "ok",
+                  "errors",
+                  "warnings"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "ok": {
+                    "type": "boolean"
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "aucune erreur",
+            "1": "au moins un fichier a une erreur"
+          }
+        },
+        {
+          "name": "classify.py",
+          "role": "Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles.",
+          "usage": "uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b] [--min-confidence 0.5] [--rules-only]",
+          "options": {
+            "FICHIER|DOSSIER": "documents ou dossiers",
+            "--domains": "domaines possibles : a,b ou a:description,b:description",
+            "--min-confidence": "confiance minimale pour retenir type et domaine (défaut 0.5)",
+            "--rules-only": "ne pas charger Laya"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "type",
+                      "type_confidence",
+                      "domaine",
+                      "domaine_confidence",
+                      "tables",
+                      "engine",
+                      "method",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "specification",
+                          "architecture",
+                          "procedure",
+                          "compte-rendu",
+                          "presentation",
+                          "contrat",
+                          "rapport",
+                          "autre",
+                          null
+                        ]
+                      },
+                      "type_confidence": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "domaine": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "domaine_confidence": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "tables": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "engine": {
+                        "enum": [
+                          "markitdown",
+                          "docling"
+                        ]
+                      },
+                      "method": {
+                        "type": "string",
+                        "pattern": "^(regles|laya \\(.*\\))$"
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "tous les fichiers sont classés",
+            "1": "au moins un fichier a échoué"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "markdown-to-obsidian",
+          "kind": "skill",
+          "when": "la cible est un vault Obsidian"
+        },
+        {
+          "to": "schema-designer",
+          "kind": "agent",
+          "when": "un schéma en image doit devenir modifiable"
+        }
+      ],
+      "description": "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le contenu d'un document vers du Markdown.",
+      "path": "skills/doc-to-markdown"
+    },
+    {
+      "skill": "drawio-diagram",
+      "inputs": [
+        "Décision de diagram-brief et contenu à représenter",
+        "Ou un .drawio existant à modifier"
+      ],
+      "outputs": [
+        "<nom>.drawio en XML clair",
+        "Après export : <nom>.drawio.png, .svg ou .pdf"
+      ],
+      "scripts": [
+        {
+          "name": "check_drawio.py",
+          "role": "Vérifie un fichier draw.io avant export.",
+          "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
+          "report": {
+            "format": "json",
+            "description": "Un objet par fichier.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "pages",
+                  "shapes",
+                  "errors",
+                  "warnings"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "pages": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "shapes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "aucune erreur",
+            "1": "au moins un fichier a une erreur"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter et relire l'image"
+        }
+      ],
+      "description": "Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise.",
+      "path": "skills/drawio-diagram"
+    },
+    {
+      "skill": "excalidraw-diagram",
+      "inputs": [
+        "Décision de diagram-brief",
+        "Description JSON du schéma : title, audience, elements"
+      ],
+      "outputs": [
+        "<sujet>.excalidraw, à côté de sa description <sujet>.json",
+        "Après export : <sujet>.excalidraw.png ou .svg"
+      ],
+      "scripts": [
+        {
+          "name": "excalidraw_build.py",
+          "role": "Construit la scène Excalidraw à partir de la description JSON.",
+          "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw]",
+          "options": {
+            "SCHEMA.json": "description du schéma",
+            "--out": "fichier produit (défaut : même nom)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input et errors.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "elements",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": "string"
+                    },
+                    "elements": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "scène produite sans erreur",
+            "1": "description illisible ou erreur"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "rendre et relire l'image"
+        }
+      ],
+      "description": "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers et les vues d'ensemble.",
+      "path": "skills/excalidraw-diagram"
+    },
+    {
+      "skill": "markdown-publish",
+      "inputs": [
+        "Markdown ou notes Obsidian, avec leurs images et schémas sources",
+        "Modèle Word (facultatif)",
+        "Vault Obsidian (facultatif)"
+      ],
+      "outputs": [
+        "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
+        "En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/"
+      ],
+      "scripts": [
+        {
+          "name": "publish.py",
+          "role": "Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.",
+          "usage": "uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER] [--reference-doc modele.docx] [--toc] [--pdf] [--preview] [--vault VAULT]",
+          "options": {
+            "DOC.md": "documents à publier",
+            "--to": "formats, séparés par des virgules (défaut docx)",
+            "--out": "dossier de sortie",
+            "--reference-doc": "modèle Word",
+            "--toc": "table des matières",
+            "--pdf": "docx : PDF en plus (LibreOffice)",
+            "--preview": "docx : aperçu PNG par page (LibreOffice)",
+            "--vault": "vault Obsidian, pour retrouver les pièces jointes"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par document.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "outputs",
+                      "diagrams_exported",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "format",
+                            "file",
+                            "images",
+                            "tables"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "format": {
+                              "enum": [
+                                "docx",
+                                "html",
+                                "xwiki"
+                              ]
+                            },
+                            "file": {
+                              "type": "string"
+                            },
+                            "images": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "tables": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "pdf": {
+                              "type": "string"
+                            },
+                            "preview": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "diagrams_exported": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "tous les documents sont produits",
+            "1": "au moins un document a échoué"
+          }
+        },
+        {
+          "name": "make_reference.py",
+          "role": "Régénère references/modele.docx aux couleurs de la charte.",
+          "maintenance": true,
+          "usage": "uv run scripts/make_reference.py [--out references/modele.docx]",
+          "report": {
+            "format": "none"
+          },
+          "exit_codes": {
+            "0": "modèle écrit"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter les schémas (automatique)"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "importer les fichiers dans SharePoint, Confluence ou XWiki"
+        }
+      ],
+      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
+      "path": "skills/markdown-publish"
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "inputs": [
+        "Notes Markdown (sortie de doc-to-markdown ou existantes)",
+        "Dossier du vault Obsidian (facultatif)"
+      ],
+      "outputs": [
+        "Note au format Obsidian, sur place ou dans VAULT/<dossier>/",
+        "Images dans le dossier de pièces jointes du vault",
+        "Avec --move : rien ne reste dans le dossier de travail"
+      ],
+      "scripts": [
+        {
+          "name": "obsidianize.py",
+          "role": "Met des notes au format Obsidian et les range dans le vault.",
+          "usage": "uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER] [--attachments attachments] [--source NOM] [--tags a,b] [--move] [--classify [--domains a,b]]",
+          "options": {
+            "NOTE.md": "notes à transformer",
+            "--vault": "vault de destination",
+            "--folder": "sous-dossier du vault",
+            "--attachments": "dossier des pièces jointes (défaut attachments)",
+            "--source": "document d'origine, pour le frontmatter",
+            "--tags": "tags séparés par des virgules",
+            "--move": "avec --vault : supprime la note et les images d'origine",
+            "--classify": "ajoute type et domaine au frontmatter (Laya)",
+            "--domains": "avec --classify : domaines possibles"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par note.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "output",
+                      "embeds",
+                      "wikilinks",
+                      "callouts",
+                      "attachments_copied",
+                      "missing"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "output": {
+                        "type": "string"
+                      },
+                      "embeds": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "wikilinks": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "callouts": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "attachments_copied": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "missing": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "classification": {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "domaine",
+                          "method",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "domaine": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "method": {
+                            "type": "string"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "classification_warning": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "toutes les notes sont traitées",
+            "1": "une note est introuvable ou une image manque (missing)"
+          }
+        },
+        {
+          "name": "vault_profile.py",
+          "role": "Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes.",
+          "usage": "uv run scripts/vault_profile.py VAULT [--top 50]",
+          "options": {
+            "VAULT": "racine du vault",
+            "--top": "nombre de tags listés (défaut 50)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; tags donne le nombre de notes par tag.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "vault",
+                    "notes",
+                    "tags",
+                    "folders",
+                    "attachments"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "vault": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tags": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "folders": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "notes",
+                          "top_tags"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "notes": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "top_tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "attachments": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "profil produit",
+            "2": "vault introuvable"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "doc-to-markdown",
+          "kind": "skill",
+          "when": "valider la note avec validate.py --obsidian"
+        },
+        {
+          "to": "markdown-publish",
+          "kind": "skill",
+          "when": "exporter la note en Word, HTML ou XWiki"
+        }
+      ],
+      "description": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian.",
+      "path": "skills/markdown-to-obsidian"
+    },
+    {
+      "skill": "mermaid-diagram",
+      "inputs": [
+        "Décision de diagram-brief",
+        "Contenu à représenter"
+      ],
+      "outputs": [
+        "Bloc ```mermaid dans un Markdown, ou fichier .mmd"
+      ],
+      "scripts": [],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "vérifier le rendu (--check) ou exporter en PNG ou SVG"
+        }
+      ],
+      "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt ou Obsidian.",
+      "path": "skills/mermaid-diagram"
+    }
+  ]
+}

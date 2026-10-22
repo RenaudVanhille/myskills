@@ -1,14 +1,15 @@
 # /// script
 # requires-python = ">=3.10"
+# dependencies = ["jsonschema>=4.18"]
 # ///
 """Lance les cas de test des scripts (tests/cases.json) et affiche un bilan.
 
 Sans modèle ni service en ligne : chaque cas lance les scripts des skills sur
 les documents de tests/fixtures/ et vérifie codes de sortie, rapports JSON,
 fichiers produits et, si un résultat attendu existe, sa ressemblance avec
-tests/expected/. Chaque rapport JSON doit aussi contenir les champs annoncés
-dans la section « Contrat » du SKILL.md, et le cas `contrats` vérifie que
-chaque script, chaque agent et CATALOG.md sont documentés. Les cas marqués `slow` (gros téléchargements au premier
+tests/expected/. Chaque rapport JSON est validé contre le JSON Schema déclaré
+dans le contract.json du skill, et le cas `contrats` vérifie les contrats
+eux-mêmes et les fichiers qui en sont générés. Les cas marqués `slow` (gros téléchargements au premier
 lancement) ne tournent qu'avec --slow.
 
 Usage :
@@ -18,7 +19,6 @@ Usage :
 import argparse
 import difflib
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -31,27 +31,32 @@ TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" 
           "{fixtures}": str(TESTS / "fixtures")}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
 MIN_RATIO = 0.9
-# Ligne de contrat d'un SKILL.md : - **Rapport `script.py`** (...) : `champ`, ... ; ...
-REPORT_LINE = re.compile(r"^- \*\*Rapport `([\w.]+)`\*\*([^:]*):(.*)$", re.M)
-MAINTENANCE_LINE = re.compile(r"^- \*\*Maintenance\*\* : `([\w.]+)`", re.M)
+sys.path.insert(0, str(ROOT / "scripts"))
+import contracts_lib  # noqa: E402
+from jsonschema import Draft202012Validator  # noqa: E402
+from jsonschema.exceptions import best_match  # noqa: E402
+from referencing import Registry, Resource  # noqa: E402
+
+# Schéma du rapport de chaque script, d'après les contract.json (None : pas de JSON).
+CONTRACTS = {script["name"]: script["report"].get("schema")
+             for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
 
 
-def contracts() -> dict:
-    """Champs obligatoires du rapport de chaque script, d'après les SKILL.md.
-
-    None pour un script documenté sans rapport JSON (texte, maintenance)."""
-    found = {}
-    for path in (ROOT / "skills").glob("*/SKILL.md"):
-        text = path.read_text(encoding="utf-8")
-        for script, kind, fields in REPORT_LINE.findall(text):
-            required = fields.split(" ; ")[0]
-            found[script] = None if "pas de JSON" in kind else re.findall(r"`(\w+)`", required)
-        for script in MAINTENANCE_LINE.findall(text):
-            found[script] = None
-    return found
+def closest(error):
+    if not error.context:
+        return error
+    branches: dict = {}
+    for sub in error.context:
+        branches.setdefault(sub.schema_path[0], []).append(sub)
+    return best_match(min(branches.values(), key=len))
 
 
-CONTRACTS = contracts()
+def schema_errors(instance, schema: dict, registry: Registry | None = None) -> list[str]:
+    validator = Draft202012Validator(schema, registry=registry) if registry else Draft202012Validator(schema)
+    errors = sorted(validator.iter_errors(instance), key=lambda e: list(e.absolute_path))
+    # Pour un anyOf (succès ou échec), on montre l'erreur de la variante la plus proche.
+    errors = [closest(e) for e in errors[:3]]
+    return [f"{'/'.join(map(str, e.absolute_path)) or 'racine'} : {e.message[:160]}" for e in errors]
 
 
 def expand(value: str, out: Path) -> str:
@@ -79,19 +84,16 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or [""]
         failures.append(f"{name} : code {result.returncode} au lieu de {step.get('exit', 0)} "
                         f"({tail[0][:200]})")
-    fields = CONTRACTS.get(name)
-    if not (step.get("report") or step.get("report_contains") or fields):
+    report_schema = CONTRACTS.get(name)
+    if not (step.get("report") or step.get("report_contains") or report_schema):
         return
     try:
         report = json.loads(result.stdout)
     except json.JSONDecodeError:
         failures.append(f"{name} : rapport JSON illisible")
         return
-    for item in report if isinstance(report, list) else [report]:
-        if isinstance(item, dict) and not item.get("error"):
-            missing = [field for field in fields or [] if field not in item]
-            if missing:
-                failures.append(f"{name} : champs du contrat absents du rapport : {', '.join(missing)}")
+    if report_schema:
+        failures += [f"{name} : rapport non conforme au contrat, {e}" for e in schema_errors(report, report_schema)]
     for key, wanted in step.get("report", {}).items():
         try:
             got = lookup(report, key)
@@ -136,23 +138,64 @@ def check_outputs(case: dict, out: Path, failures: list[str]) -> None:
 
 
 def check_contracts() -> dict:
-    """Chaque script, chaque agent et le catalogue sont documentés."""
+    """Contrats valides, cohérents entre eux, et fichiers générés à jour."""
     failures = []
-    for script in sorted((ROOT / "skills").glob("*/scripts/*.py")):
-        if script.name not in CONTRACTS:
-            failures.append(f"{script.parent.parent.name}/{script.name} absent de la section Contrat")
-    for skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
-        if "\n## Contrat\n" not in skill.read_text(encoding="utf-8"):
-            failures.append(f"{skill.parent.name} : pas de section Contrat")
-    for agent in sorted((ROOT / "src" / "agents").glob("*.md")):
-        if "\n## Contrat\n" not in agent.read_text(encoding="utf-8"):
-            failures.append(f"agent {agent.stem} : pas de section Contrat")
-    sys.path.insert(0, str(ROOT / "scripts"))
-    from build import build_catalog
+    schemas = {name: contracts_lib.schema(name)
+               for name in ("skill-contract", "agent-contract", "handoff", "agent-report")}
+    registry = Registry().with_resources(
+        (f"{name}.schema.json", Resource.from_contents(value)) for name, value in schemas.items())
+    skills, agents = contracts_lib.skill_contracts(), contracts_lib.agent_contracts()
 
-    catalog = ROOT / "CATALOG.md"
-    if not catalog.exists() or catalog.read_text(encoding="utf-8") != build_catalog():
-        failures.append("CATALOG.md n'est pas à jour : lancez uv run scripts/build.py")
+    for folder in sorted((ROOT / "skills").glob("*/")):
+        if folder.name not in skills:
+            failures.append(f"{folder.name} : pas de contract.json")
+    for name, contract in skills.items():
+        failures += [f"{name}/contract.json : {e}" for e in schema_errors(contract, schemas["skill-contract"])]
+        if contract.get("skill") != name:
+            failures.append(f"{name}/contract.json : skill = {contract.get('skill')!r}")
+        declared = {script["name"] for script in contract.get("scripts", [])}
+        present = {p.name for p in (ROOT / "skills" / name / "scripts").glob("*.py")}
+        failures += [f"{name} : script {s} absent du contrat" for s in sorted(present - declared)]
+        failures += [f"{name} : script {s} du contrat introuvable" for s in sorted(declared - present)]
+        for script in contract.get("scripts", []):
+            if script["report"]["format"] == "json":
+                try:
+                    Draft202012Validator.check_schema(script["report"].get("schema", {}))
+                except Exception as error:  # noqa: BLE001 - message du validateur
+                    failures.append(f"{name}/{script['name']} : schéma de rapport invalide ({error})")
+        for handoff in contract.get("handoffs", []):
+            known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"}}[handoff["kind"]]
+            if handoff["to"] not in known:
+                failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
+
+    for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
+        if path.stem not in agents:
+            failures.append(f"agent {path.stem} : pas de {path.stem}.contract.json")
+    for name, contract in agents.items():
+        failures += [f"agent {name} : {e}" for e in schema_errors(contract, schemas["agent-contract"])]
+
+    failures += [f"exemple de message de passage : {e}"
+                 for e in schema_errors(contracts_lib.HANDOFF_EXAMPLE, schemas["handoff"])]
+    failures += [f"exemple de rapport final : {e}"
+                 for e in schema_errors(contracts_lib.REPORT_EXAMPLE, schemas["agent-report"], registry)]
+
+    stale = []
+    for name, contract in skills.items():
+        if contracts_lib.render_skill(contract) not in (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8"):
+            stale.append(f"skills/{name}/SKILL.md")
+    for name, contract in agents.items():
+        if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
+            stale.append(f"src/agents/{name}.md")
+    from agents_lib import parse_agent, source_agents
+
+    meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
+    for file, expected in (("CATALOG.md", contracts_lib.build_catalog_md(meta)),
+                           ("catalog.json", contracts_lib.build_catalog_json(meta))):
+        target = ROOT / file
+        if not target.exists() or target.read_text(encoding="utf-8") != expected:
+            stale.append(file)
+    if stale:
+        failures.append(f"pas à jour, lancez uv run scripts/build.py : {', '.join(stale)}")
     return {"id": "contrats", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 

@@ -10,10 +10,16 @@ le **type de schéma**. Puis choisissez le format avec la grille.
 
 ## Contrat
 
-- **Entrées** : le contexte du schéma (description, code, ADR, Markdown, image) et ce que l'on sait du public et de la destination.
-- **Sorties** : aucun fichier. Une décision : public, destination, type de schéma, format, skill à appliquer, et la phrase « message principal, 3 à 7 éléments, ce qu'on laisse de côté ».
-- **Rapport** : aucun script.
-- **Passe la main** : au skill du format choisi, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram` ou `c4-architecture`.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Contexte du schéma : description, code, ADR, Markdown ou image ; Ce que l'on sait du public et de la destination.
+- **Sorties** : Aucun fichier : une décision (public, destination, type, format, skill) et la phrase message principal / 3 à 7 éléments / ce qu'on laisse de côté.
+- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **Passe la main** au skill `mermaid-diagram` : séquence, états, classes, données, ou flux simple dans un dépôt ou Obsidian.
+- **Passe la main** au skill `drawio-diagram` : public technique, Word, PowerPoint ou Confluence, mise en page précise.
+- **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
+- **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
 
 ## 1. Les trois questions
 

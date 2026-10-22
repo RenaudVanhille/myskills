@@ -24,8 +24,13 @@ son accord.
 
 ## Contrat
 
-- **Entrées** : un groupe, `extraction`, `schemas`, `publication` ou `tout` (défaut).
-- **Sorties** : aucun fichier.
-- **Rapport `doctor.py`** (texte, pas de JSON) : une ligne par outil, `[ok]`, `[manquant]` ou `[facultatif]`, suivie de la commande d'installation.
-- **Codes de sortie** : 0 si tous les outils obligatoires sont présents, 1 sinon.
-- **Passe la main** : à l'utilisateur, qui installe lui-même l'outil manquant ; rien n'est installé sans son accord.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Un groupe : extraction, schemas, publication ou tout (défaut).
+- **Sorties** : Aucun fichier.
+- **`doctor.py`** : Vérifie les outils locaux et affiche la commande d'installation des manquants.
+  - Rapport (texte) : Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation.
+  - Codes de sortie : 0 tous les outils obligatoires sont présents ; 1 au moins un outil manque.
+- **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
+

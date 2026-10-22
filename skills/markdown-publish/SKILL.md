@@ -12,12 +12,20 @@ Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 
 ## Contrat
 
-- **Entrées** : fichiers Markdown ou notes Obsidian, avec leurs images et leurs schémas sources ; en option un modèle Word (`--reference-doc`) et le vault (`--vault`).
-- **Sorties** : dans `--out`, `<nom>.docx`, `<nom>.html` et `<nom>.xwiki` avec ses images dans `<nom>-xwiki/` ; en option un PDF et un aperçu PNG par page dans `.myskills-tmp/<nom>-apercu/`.
-- **Rapport `publish.py`** (liste JSON, un objet par document) : `input`, `outputs`, `diagrams_exported`, `warnings` ; si un format échoue : `error`. Chaque élément de `outputs` contient `format`, `file`, `images`, `tables`, et selon les options `pdf` ou `preview`.
-- **Codes de sortie** : `publish.py` 1 si un document échoue, 0 sinon.
-- **Maintenance** : `make_reference.py` régénère `references/modele.docx` ; pas de rapport JSON.
-- **Passe la main** : à `diagram-export` pour les schémas (automatique) ; à l'utilisateur, qui importe lui-même les fichiers dans SharePoint, Confluence ou XWiki.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, aperçu PNG par page dans .myskills-tmp/<nom>-apercu/.
+- **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier.
+  - Rapport (liste JSON) : Un objet par document.
+  - Champs : `input` (texte), `outputs` (liste), `diagrams_exported` (entier), `warnings` (liste) ; facultatifs : `error`.
+  - Ou, en cas d'échec : `input` (texte), `error` (texte).
+  - Codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
+- **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte.
+  - Codes de sortie : 0 modèle écrit.
+- **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
+- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki.
 
 ## 1. Produire les fichiers
 

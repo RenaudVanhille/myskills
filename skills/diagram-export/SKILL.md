@@ -30,11 +30,16 @@ fonctionne hors ligne.
 
 ## Contrat
 
-- **Entrées** : fichiers `.drawio`, `.mmd`, `.mermaid`, `.md` (blocs ```mermaid), `.excalidraw`, `.c4` ou un dossier LikeC4.
-- **Sorties** : les images à côté de la source ou dans `--out` (voir le tableau ci-dessus) ; rien avec `--check`.
-- **Rapport `export.py`** (liste JSON, un objet par source) : `source`, `format`, `outputs`, `error` ; si le rendu a réussi : `rendered`.
-- **Codes de sortie** : 1 si une source échoue, 0 sinon.
-- **Passe la main** : à `check-prerequisites` (groupe `schemas`) si un outil manque ; au skill du format pour corriger une erreur de syntaxe.
+Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
+JSON des scripts y sont décrits en JSON Schema.
+
+- **Entrées** : Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4.
+- **Sorties** : Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4 ; Rien avec --check.
+- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.
+  - Rapport (liste JSON) : Un objet par source ; error vaut null si tout va bien.
+  - Champs : `source` (texte), `format` (png | svg | pdf), `outputs` (liste), `error` (texte ou null) ; facultatifs : `rendered`.
+  - Codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
+- **Passe la main** au skill `check-prerequisites` : un outil de rendu manque (groupe schemas).
 
 ## Choisir le format de sortie
 

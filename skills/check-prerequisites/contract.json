@@ -1,0 +1,31 @@
+{
+  "skill": "check-prerequisites",
+  "inputs": [
+    "Un groupe : extraction, schemas, publication ou tout (défaut)"
+  ],
+  "outputs": [
+    "Aucun fichier"
+  ],
+  "scripts": [
+    {
+      "name": "doctor.py",
+      "role": "Vérifie les outils locaux et affiche la commande d'installation des manquants.",
+      "usage": "python scripts/doctor.py [extraction|schemas|publication|tout]",
+      "report": {
+        "format": "text",
+        "description": "Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation."
+      },
+      "exit_codes": {
+        "0": "tous les outils obligatoires sont présents",
+        "1": "au moins un outil manque"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "un outil manque : il l'installe lui-même, rien n'est installé sans son accord"
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "skill": "markdown-to-obsidian",
+  "inputs": [
+    "Notes Markdown (sortie de doc-to-markdown ou existantes)",
+    "Dossier du vault Obsidian (facultatif)"
+  ],
+  "outputs": [
+    "Note au format Obsidian, sur place ou dans VAULT/<dossier>/",
+    "Images dans le dossier de pièces jointes du vault",
+    "Avec --move : rien ne reste dans le dossier de travail"
+  ],
+  "scripts": [
+    {
+      "name": "obsidianize.py",
+      "role": "Met des notes au format Obsidian et les range dans le vault.",
+      "usage": "uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER] [--attachments attachments] [--source NOM] [--tags a,b] [--move] [--classify [--domains a,b]]",
+      "options": {
+        "NOTE.md": "notes à transformer",
+        "--vault": "vault de destination",
+        "--folder": "sous-dossier du vault",
+        "--attachments": "dossier des pièces jointes (défaut attachments)",
+        "--source": "document d'origine, pour le frontmatter",
+        "--tags": "tags séparés par des virgules",
+        "--move": "avec --vault : supprime la note et les images d'origine",
+        "--classify": "ajoute type et domaine au frontmatter (Laya)",
+        "--domains": "avec --classify : domaines possibles"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet par note.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "input",
+                  "output",
+                  "embeds",
+                  "wikilinks",
+                  "callouts",
+                  "attachments_copied",
+                  "missing"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "output": {
+                    "type": "string"
+                  },
+                  "embeds": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "wikilinks": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "callouts": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "attachments_copied": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "missing": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "classification": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "domaine",
+                      "method",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "type": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "domaine": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "method": {
+                        "type": "string"
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "classification_warning": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "input",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "toutes les notes sont traitées",
+        "1": "une note est introuvable ou une image manque (missing)"
+      }
+    },
+    {
+      "name": "vault_profile.py",
+      "role": "Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes.",
+      "usage": "uv run scripts/vault_profile.py VAULT [--top 50]",
+      "options": {
+        "VAULT": "racine du vault",
+        "--top": "nombre de tags listés (défaut 50)"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet ; tags donne le nombre de notes par tag.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "vault",
+                "notes",
+                "tags",
+                "folders",
+                "attachments"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "vault": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "tags": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "folders": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "notes",
+                      "top_tags"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "notes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "top_tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "attachments": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "error"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "profil produit",
+        "2": "vault introuvable"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "doc-to-markdown",
+      "kind": "skill",
+      "when": "valider la note avec validate.py --obsidian"
+    },
+    {
+      "to": "markdown-publish",
+      "kind": "skill",
+      "when": "exporter la note en Word, HTML ou XWiki"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "skill": "c4-architecture",
+  "inputs": [
+    "Décision de diagram-brief",
+    "Code, configuration ou description de l'architecture"
+  ],
+  "outputs": [
+    "Dossier LikeC4 : specification.c4 et model.c4",
+    "Un PNG par vue (après export)"
+  ],
+  "scripts": [],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "valider le modèle et exporter les vues"
+    },
+    {
+      "to": "excalidraw-diagram",
+      "kind": "skill",
+      "when": "une vue est destinée à un public non technique"
+    }
+  ]
+}
