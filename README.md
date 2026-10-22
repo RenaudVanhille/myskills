@@ -78,11 +78,14 @@ et la confient à l'exécutant le moins cher qui convient. En cas d'échec, ils
 remontent d'un niveau. Le modèle de chaque niveau se règle dans
 `shared/models.conf`, puis `scripts/install.sh` le reporte dans les agents :
 
-| Niveau | Claude Code | OpenCode | Kiro |
-| --- | --- | --- | --- |
-| simple | `haiku` | `anthropic/claude-haiku-5-5` | à renseigner |
-| moyen | `sonnet` | `anthropic/claude-sonnet-5-5` | à renseigner |
-| complexe | `opus` | `anthropic/claude-opus-5-5` | à renseigner |
+| Outil | Par défaut | Effet |
+| --- | --- | --- |
+| Claude Code | `haiku`, `sonnet`, `opus` | Alias résolus par Claude Code vers la dernière version disponible |
+| OpenCode | vide | Modèle de la session ; renseignez `fournisseur/modèle` pour activer les niveaux |
+| Kiro | vide | Mode Auto de Kiro, qui choisit le modèle selon la tâche |
+
+Une valeur vide laisse toujours l'outil décider. La grille des niveaux reste
+utile dans ce cas : elle découpe le travail et décide quand escalader.
 
 À vérifier à l'étape 4 :
 
@@ -92,7 +95,6 @@ remontent d'un niveau. Le modèle de chaque niveau se règle dans
 - **GitHub Copilot** lit les agents de `.claude/agents` ; reste à confirmer
   qu'il interprète les alias `haiku`, `sonnet`, `opus`. Sinon, il garde le
   modèle de la session.
-- **Kiro** : renseignez les identifiants de modèle dans `shared/models.conf`.
 
 ## Principes
 
