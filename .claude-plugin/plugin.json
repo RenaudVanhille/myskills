@@ -2,7 +2,20 @@
   "name": "myskills",
   "version": "0.1.0",
   "description": "Extraction de documents vers Markdown/Obsidian et conception de schémas (draw.io, Excalidraw, C4, Mermaid) pour l'ingénierie logicielle.",
-  "author": { "name": "RenaudVanhille" },
+  "license": "MIT",
+  "author": {
+    "name": "RenaudVanhille"
+  },
   "repository": "https://github.com/RenaudVanhille/myskills",
-  "keywords": ["markdown", "obsidian", "pdf", "docx", "pptx", "drawio", "excalidraw", "c4", "mermaid"]
+  "keywords": [
+    "markdown",
+    "obsidian",
+    "pdf",
+    "docx",
+    "pptx",
+    "drawio",
+    "excalidraw",
+    "c4",
+    "mermaid"
+  ]
 }

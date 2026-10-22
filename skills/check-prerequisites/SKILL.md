@@ -8,13 +8,15 @@ description: "Vérifie que les outils locaux nécessaires aux skills de myskills
 Lance le script fourni avec ce skill, avec le groupe utile :
 
 ```bash
-bash scripts/doctor.sh extraction   # MarkItDown, Docling
-bash scripts/doctor.sh schemas      # draw.io Desktop, Node.js, Mermaid CLI, LikeC4, Playwright
-bash scripts/doctor.sh publication  # Pandoc
-bash scripts/doctor.sh              # tout
+python scripts/doctor.py extraction   # MarkItDown, Docling
+python scripts/doctor.py schemas      # draw.io Desktop, Node.js, Mermaid CLI, LikeC4, Playwright
+python scripts/doctor.py publication  # Pandoc
+python scripts/doctor.py              # tout
 ```
 
-Le chemin `scripts/doctor.sh` est relatif au dossier de ce skill.
+Le chemin `scripts/doctor.py` est relatif au dossier de ce skill. Le script
+n'a aucune dépendance et fonctionne sous Windows, macOS et Linux (`python3`
+ou `py` selon le système, ou `uv run scripts/doctor.py`).
 
 Code de sortie 0 si tout est présent, 1 sinon. Si un outil manque, montre à
 l'utilisateur la commande d'installation affichée et ne l'installe pas sans

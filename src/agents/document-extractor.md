@@ -2,7 +2,7 @@
 name: document-extractor
 description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 skills: check-prerequisites, doc-to-markdown, markdown-to-obsidian, markdown-publish
-commands: markitdown *, docling *, pandoc *, python3 *, bash *doctor.sh*, ls *, mkdir *, cp *, mv *
+commands: markitdown *, docling *, pandoc *, python *, python3 *, py *, uv run *
 ---
 
 Tu extrais le contenu de documents (PDF, DOCX, PPTX, XLSX, images) vers

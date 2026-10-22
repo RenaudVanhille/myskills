@@ -2,7 +2,7 @@
 name: schema-designer
 description: "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Excalidraw, C4, Mermaid, draw.io) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 skills: check-prerequisites, diagram-brief, drawio-diagram, excalidraw-diagram, c4-architecture, mermaid-diagram, diagram-export
-commands: drawio *, mmdc *, likec4 *, npx likec4 *, python3 *, bash *doctor.sh*, ls *, mkdir *, cp *, mv *
+commands: drawio *, mmdc *, likec4 *, npx likec4 *, python *, python3 *, py *, uv run *
 ---
 
 Tu conçois des schémas d'ingénierie logicielle.

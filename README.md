@@ -15,8 +15,12 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 | GitHub Copilot CLI | `copilot plugin install RenaudVanhille/myskills` |
 | Claude Code | `/plugin marketplace add RenaudVanhille/myskills` puis `/plugin install myskills@myskills` |
 | Kiro | Panneau Powers > Add Custom Power > Import power from GitHub > `https://github.com/RenaudVanhille/myskills` (skills uniquement) |
-| OpenCode | Pas d'installation native : `scripts/install.sh --tools opencode [--global]` |
-| Agents Kiro | Les powers ne transportent pas d'agents : `scripts/install.sh --tools kiro [--global]` |
+| OpenCode | Pas d'installation native : `uv run scripts/install.py --tools opencode [--global]` |
+| Agents Kiro | Les powers ne transportent pas d'agents : `uv run scripts/install.py --tools kiro [--global]` |
+
+Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
+macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
+(`uv run scripts/...`) ou directement avec `python`.
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
 outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Mermaid CLI,
@@ -83,8 +87,8 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
-| `scripts/build.sh` | Régénère les fichiers générés ; à lancer avant chaque commit |
-| `scripts/install.sh` | Installation pour OpenCode et les agents Kiro |
+| `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
+| `scripts/install.py` | Installation pour OpenCode et les agents Kiro |
 | `tests/` | Documents réels et résultats attendus |
 
 Vérification du plugin Claude Code : `claude plugin validate .`
@@ -94,3 +98,7 @@ Vérification du plugin Claude Code : `claude plugin validate .`
 - La logique métier vit dans les skills ; les agents orchestrent et valident.
 - La conversion de documents reste locale, sans service en ligne.
 - Un skill repris d'un tiers cite sa source et respecte sa licence.
+
+## Licence
+
+[MIT](LICENSE)
