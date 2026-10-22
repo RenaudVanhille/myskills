@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "myskills",
+  "version": "0.1.0",
+  "description": "Extraction de documents vers Markdown/Obsidian et conception de schémas (draw.io, Excalidraw, C4, Mermaid) pour l'ingénierie logicielle.",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "obsidian",
+    "pdf",
+    "docx",
+    "pptx",
+    "drawio",
+    "excalidraw",
+    "c4",
+    "mermaid"
+  ]
+}

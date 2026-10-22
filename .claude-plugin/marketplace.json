@@ -1,0 +1,14 @@
+{
+  "name": "myskills",
+  "description": "Skills et agents pour l'extraction documentaire et les schémas d'ingénierie logicielle.",
+  "owner": {
+    "name": "RenaudVanhille"
+  },
+  "plugins": [
+    {
+      "name": "myskills",
+      "source": "./",
+      "description": "Extraction de documents vers Markdown/Obsidian et conception de schémas pour l'ingénierie logicielle."
+    }
+  ]
+}
