@@ -33,6 +33,11 @@
       "to": "urbanization-map",
       "kind": "skill",
       "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
+    },
+    {
+      "to": "cloud-architecture",
+      "kind": "skill",
+      "when": "architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA, pipeline ou modèle de menaces STRIDE"
     }
   ]
 }

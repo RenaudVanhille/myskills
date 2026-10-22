@@ -73,6 +73,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
+| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
 

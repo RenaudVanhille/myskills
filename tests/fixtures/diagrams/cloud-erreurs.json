@@ -1,0 +1,9 @@
+{
+  "title": "Description avec erreurs",
+  "provider": "aws",
+  "items": [
+    {"id": "fn", "type": "lambdda"},
+    {"id": "db", "type": "dynamodb"}
+  ],
+  "flows": [{"from": "fn", "to": "inconnu"}]
+}

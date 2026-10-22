@@ -45,6 +45,46 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - `subgraph` pour une zone (équipe, réseau, système).
 - 15 à 20 nœuds maximum ; au-delà, faites deux schémas.
 
+### Séquence cloud
+
+Pour les appels entre services sur un parcours (requête API, traitement
+asynchrone, authentification) :
+
+```text
+---
+title: Passage d'une commande
+---
+sequenceDiagram
+  autonumber
+  actor client as Client
+  box Exposition
+    participant gw as API Gateway
+  end
+  box Services
+    participant api as API commandes
+    participant db as Base commandes
+    participant bus as File SQS
+  end
+  client->>gw: POST /commandes (HTTPS, jeton OIDC)
+  gw->>api: transmet (mTLS)
+  api->>db: INSERT commande
+  alt stock insuffisant
+    api-->>client: 409 Conflit
+  else stock disponible
+    api-)bus: CommandeCréée
+    api-->>client: 201 Créé
+  end
+  Note over api,db: délai max 300 ms
+```
+
+- `autonumber` numérote les messages ; `box` regroupe les participants par
+  zone (exposition, services, données, tiers).
+- `->>` appel synchrone, `-->>` réponse, `-)` message asynchrone.
+- `alt` / `else` pour les cas d'erreur, `opt` pour une étape facultative,
+  `loop` pour une relance ; `Note over` pour un délai, un timeout ou un
+  protocole.
+- Mêmes noms de services que le schéma de déploiement (`cloud-architecture`).
+
 ## 3. Vérifier le rendu
 
 ```bash

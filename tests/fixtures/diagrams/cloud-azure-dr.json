@@ -1,0 +1,31 @@
+{
+  "title": "Portail clients : reprise d'activité Azure",
+  "provider": "azure",
+  "view": "dr",
+  "objectives": {"rpo": "15 min", "rto": "1 h"},
+  "items": [
+    {"id": "users", "type": "users", "label": "Clients"},
+    {"id": "fd", "type": "front-door"},
+    {"type": "zone", "label": "Deux régions", "layout": "column", "items": [
+      {"type": "region", "label": "France Central", "state": "active", "layout": "row", "items": [
+        {"id": "app1", "type": "app-service", "label": "Portail"},
+        {"id": "sql1", "type": "sql-database", "label": "Base clients"},
+        {"id": "st1", "type": "storage-account", "label": "Documents"}
+      ]},
+      {"type": "region", "label": "France South", "state": "passive", "layout": "row", "items": [
+        {"id": "app2", "type": "app-service", "label": "Portail (arrêté)"},
+        {"id": "sql2", "type": "sql-database", "label": "Base clients\n(géo-réplica)"},
+        {"id": "st2", "type": "storage-account", "label": "Documents (GRS)"}
+      ]}
+    ]}
+  ],
+  "flows": [
+    {"from": "users", "to": "fd", "protocol": "HTTPS"},
+    {"from": "fd", "to": "app1", "label": "trafic"},
+    {"from": "fd", "to": "app2", "label": "bascule", "style": "async"},
+    {"from": "app1", "to": "sql1"},
+    {"from": "app1", "to": "st1"},
+    {"from": "sql1", "to": "sql2", "label": "géo-réplication asynchrone", "style": "replication"},
+    {"from": "st1", "to": "st2", "label": "GRS", "style": "replication"}
+  ]
+}

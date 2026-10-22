@@ -54,12 +54,12 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 
 Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
 
-**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `urbanization-map`, `diagram-export`
+**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `urbanization-map`, `cloud-architecture`, `diagram-export`
 
 Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
 - **Reçoit** : Un contexte : description, code, ADR, Markdown ou image d'un schéma existant ; Si possible le public, la destination et le dossier de sortie.
-- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
+- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
 - **Ne fait jamais** : Modifier un fichier qu'il n'a pas créé, sauf le schéma à corriger ; Envoyer un schéma à un service en ligne.
 - **Passe la main** :
 
@@ -93,6 +93,20 @@ Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fai
 - **`doctor.py`** : Vérifie les outils locaux et affiche la commande d'installation des manquants. Rapport texte, codes de sortie : 0 tous les outils obligatoires sont présents ; 1 au moins un outil manque.
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
 
+### `cloud-architecture`
+
+Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.
+
+Résumé de [`contract.json`](skills/cloud-architecture/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, manifestes Kubernetes) à traduire en description.
+- **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
+- **`cloud_build.py`** : Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
+- **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
+- **Passe la main** au skill `diagram-export` : exporter et relire l'image.
+- **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main.
+- **Passe la main** au skill `mermaid-diagram` : diagramme de séquence des appels entre services pour un parcours.
+
 ### `diagram-brief`
 
 Grille de choix du format de schéma (Mermaid, draw.io, Excalidraw, C4) selon le public, la destination (Markdown, Obsidian, Word, PowerPoint, Confluence) et le type de schéma. À utiliser avant de produire un schéma.
@@ -107,6 +121,7 @@ Résumé de [`contract.json`](skills/diagram-brief/contract.json), qui fait foi 
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
 - **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
 - **Passe la main** au skill `urbanization-map` : cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation).
+- **Passe la main** au skill `cloud-architecture` : architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA, pipeline ou modèle de menaces STRIDE.
 
 ### `diagram-export`
 

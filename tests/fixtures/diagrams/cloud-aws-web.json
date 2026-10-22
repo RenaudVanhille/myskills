@@ -1,0 +1,44 @@
+{
+  "title": "Boutique en ligne : déploiement AWS",
+  "provider": "aws",
+  "items": [
+    {"id": "clients", "type": "users", "label": "Clients"},
+    {"id": "cdn", "type": "cloudfront"},
+    {"id": "waf", "type": "waf"},
+    {"type": "region", "label": "eu-west-3 (Paris)", "items": [
+      {"type": "vpc", "label": "VPC production", "items": [
+        {"type": "public-subnet", "label": "Sous-réseau public", "layout": "column", "items": [
+          {"id": "alb", "type": "alb"},
+          {"id": "nat", "type": "nat-gateway"}
+        ]},
+        {"type": "private-subnet", "label": "Sous-réseau privé applicatif", "items": [
+          {"id": "app", "type": "ecs", "label": "API commandes\n(ECS Fargate)", "count": 3}
+        ]},
+        {"type": "private-subnet", "label": "Sous-réseau privé données", "layout": "column", "items": [
+          {"id": "db", "type": "aurora", "label": "Aurora PostgreSQL"},
+          {"id": "cache", "type": "elasticache", "label": "Redis"}
+        ]}
+      ]},
+      {"type": "zone", "label": "Services managés (hors VPC)", "items": [
+        {"id": "queue", "type": "sqs", "label": "Commandes"},
+        {"id": "worker", "type": "lambda", "label": "Facturation"},
+        {"id": "s3", "type": "s3", "label": "Factures"},
+        {"id": "secrets", "type": "secrets-manager"}
+      ]}
+    ]},
+    {"id": "psp", "type": "external", "label": "Prestataire\nde paiement"}
+  ],
+  "flows": [
+    {"from": "clients", "to": "cdn", "protocol": "HTTPS", "port": 443},
+    {"from": "cdn", "to": "waf"},
+    {"from": "waf", "to": "alb", "protocol": "HTTPS", "port": 443},
+    {"from": "alb", "to": "app", "protocol": "HTTP", "port": 8080},
+    {"from": "app", "to": "db", "protocol": "TCP", "port": 5432},
+    {"from": "app", "to": "cache", "protocol": "TCP", "port": 6379},
+    {"from": "app", "to": "queue", "label": "publie", "style": "async"},
+    {"from": "queue", "to": "worker", "label": "déclenche", "style": "async"},
+    {"from": "worker", "to": "s3", "label": "dépose"},
+    {"from": "app", "to": "nat", "label": "sortie"},
+    {"from": "nat", "to": "psp", "protocol": "HTTPS", "port": 443}
+  ]
+}

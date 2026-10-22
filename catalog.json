@@ -95,7 +95,7 @@
         "Si possible le public, la destination et le dossier de sortie"
       ],
       "produces": [
-        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4",
+        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés",
         "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
       ],
       "never": [
@@ -130,6 +130,7 @@
         "excalidraw-diagram",
         "c4-architecture",
         "urbanization-map",
+        "cloud-architecture",
         "diagram-export"
       ]
     }
@@ -195,6 +196,258 @@
       "path": "skills/check-prerequisites"
     },
     {
+      "skill": "cloud-architecture",
+      "inputs": [
+        "Décision de diagram-brief : public et destination",
+        "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, manifestes Kubernetes) à traduire en description"
+      ],
+      "outputs": [
+        "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
+        "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
+        "Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter",
+        "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
+      ],
+      "scripts": [
+        {
+          "name": "cloud_build.py",
+          "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+          "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic]",
+          "options": {
+            "SUJET.json": "description de l'architecture",
+            "--out": "fichier .drawio (défaut : même nom)",
+            "--view": "vue, prioritaire sur celle de la description",
+            "--matrix": "écrit aussi <sujet>.flows.md (toujours en vue network)",
+            "--types": "liste les types de services et de groupes connus, puis s'arrête"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input et errors. Avec --types, une liste en texte.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "matrix",
+                    "views",
+                    "pages",
+                    "groups",
+                    "services",
+                    "flows",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "matrix": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "views": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "deployment",
+                          "network",
+                          "kubernetes",
+                          "dr",
+                          "pipeline",
+                          "threats"
+                        ]
+                      }
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "groups": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "services": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "flows": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "schéma produit sans erreur",
+            "1": "description illisible ou erreur"
+          }
+        },
+        {
+          "name": "stride.py",
+          "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
+          "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows]",
+          "options": {
+            "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
+            "--out": "fichier Markdown (défaut : <sujet>.threats.md)",
+            "--all-flows": "analyser aussi les flux internes (défaut : ceux qui traversent une frontière)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input et errors.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "boundaries",
+                    "elements",
+                    "flows",
+                    "crossing",
+                    "threats",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "boundaries": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "elements": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "flows": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "crossing": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "threats": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "modèle produit sans erreur",
+            "1": "description illisible ou erreur"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter et relire l'image"
+        },
+        {
+          "to": "drawio-diagram",
+          "kind": "skill",
+          "when": "retoucher le .drawio à la main"
+        },
+        {
+          "to": "mermaid-diagram",
+          "kind": "skill",
+          "when": "diagramme de séquence des appels entre services pour un parcours"
+        }
+      ],
+      "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
+      "path": "skills/cloud-architecture"
+    },
+    {
       "skill": "diagram-brief",
       "inputs": [
         "Contexte du schéma : description, code, ADR, Markdown ou image",
@@ -229,6 +482,11 @@
           "to": "urbanization-map",
           "kind": "skill",
           "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
+        },
+        {
+          "to": "cloud-architecture",
+          "kind": "skill",
+          "when": "architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA, pipeline ou modèle de menaces STRIDE"
         }
       ],
       "description": "Grille de choix du format de schéma (Mermaid, draw.io, Excalidraw, C4) selon le public, la destination (Markdown, Obsidian, Word, PowerPoint, Confluence) et le type de schéma. À utiliser avant de produire un schéma.",

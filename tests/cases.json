@@ -163,6 +163,53 @@
                    "statut.drawio": ["fillColor=#ffedd5", "fillColor=#f3f4f6", "Gestion vie"]}
     },
     {
+      "id": "cloud-aws",
+      "skill": "cloud-architecture",
+      "steps": [
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/aws.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "groups": 6, "services": 13, "flows": 11,
+                               "views": ["deployment"]}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/reseau.drawio", "--view", "network"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "views": ["network"]}},
+        {"script": "{skills}/cloud-architecture/scripts/stride.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/menaces.md"],
+         "exit": 0, "report": {"errors": [], "boundaries": 4, "crossing": 8},
+         "report_contains": {"warnings": "F4"}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{out}/aws.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+      ],
+      "files": ["aws.drawio", "reseau.drawio", "reseau.flows.md", "menaces.md"],
+      "contains": {"aws.drawio": ["resIcon=mxgraph.aws4.ecs", "grIcon=mxgraph.aws4.group_vpc2", "API commandes", "HTTPS 443"],
+                   "reseau.flows.md": ["| F5 | API commandes (ECS Fargate) ×3 | Aurora PostgreSQL | TCP | 5432 |"],
+                   "menaces.md": ["## Flux qui traversent une frontière", "Usurpation d'identité", "à analyser"]}
+    },
+    {
+      "id": "cloud-vues",
+      "skill": "cloud-architecture",
+      "steps": [
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-k8s.json", "--out", "{out}/k8s.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "views": ["kubernetes"], "services": 9}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-azure-dr.json", "--out", "{out}/pra.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "views": ["dr"]}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-gitops.json", "--out", "{out}/gitops.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "views": ["pipeline"], "flows": 8}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-erreurs.json", "--out", "{out}/erreurs.drawio"],
+         "exit": 1, "report_contains": {"errors": "proche : aws:lambda"}}
+      ],
+      "files": ["k8s.drawio", "pra.drawio", "gitops.drawio"],
+      "absent": ["erreurs.drawio"],
+      "contains": {"k8s.drawio": ["shape=mxgraph.kubernetes.icon2;prIcon=deploy;", "Deployment api ×3"],
+                   "pra.drawio": ["RPO 15 min · RTO 1 h", "France South (passif)", "opacity=60",
+                                  "img/lib/azure2/databases/SQL_Database.svg"],
+                   "gitops.drawio": ["Argo CD", "image=data:image/svg+xml"]}
+    },
+    {
       "id": "excalidraw",
       "skill": "excalidraw-diagram",
       "steps": [

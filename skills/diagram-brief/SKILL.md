@@ -20,6 +20,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
 - **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
 - **Passe la main** au skill `urbanization-map` : cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation).
+- **Passe la main** au skill `cloud-architecture` : architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA, pipeline ou modèle de menaces STRIDE.
 
 ## 1. Les trois questions
 
@@ -27,7 +28,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 | --- | --- |
 | Pour qui ? | technique (développeurs, architectes, ops) ou non technique (métier, direction, client) |
 | Où sera-t-il lu ? | Markdown d'un dépôt, Obsidian, Word, PowerPoint, Confluence |
-| Que montre-t-il ? | architecture (contexte, conteneurs, composants), cartographie fonctionnelle du SI (urbanisation), flux ou processus, séquence d'appels, états, modèle de données, déploiement, vue d'ensemble pour expliquer |
+| Que montre-t-il ? | architecture (contexte, conteneurs, composants), cartographie fonctionnelle du SI (urbanisation), architecture cloud (déploiement, réseau, Kubernetes, PRA, pipeline, menaces), flux ou processus, séquence d'appels, états, modèle de données, déploiement, vue d'ensemble pour expliquer |
 
 Déduisez ce que vous pouvez du contexte (un ADR vise un public technique, une
 présentation au comité un public non technique). Ne posez qu'une question, et
@@ -40,10 +41,11 @@ seulement si la réponse change le format.
 | Architecture logicielle à maintenir, plusieurs vues ou niveaux | LikeC4 (C4) | `c4-architecture` |
 | Une seule vue C4 dans un Markdown | Mermaid généré depuis LikeC4, ou Mermaid `flowchart` aux couleurs C4 | `c4-architecture` |
 | Cartographie fonctionnelle du SI, plan d'occupation des sols (zones, quartiers, îlots, applications), technique ou non | draw.io généré par script | `urbanization-map` |
+| Architecture cloud (AWS, Azure, GCP), réseau et flux, cluster Kubernetes, haute disponibilité et PRA, pipeline data ou CI/CD GitOps, modèle de menaces STRIDE | draw.io aux icônes officielles, généré par script | `cloud-architecture` |
 | Séquence d'appels, états, classes, modèle de données, Gantt | Mermaid | `mermaid-diagram` |
 | Flux ou processus simple dans un dépôt ou Obsidian | Mermaid | `mermaid-diagram` |
 | Public non technique, atelier, vue d'ensemble « pour expliquer » | Excalidraw | `excalidraw-diagram` |
-| Public technique, Word, PowerPoint ou Confluence, mise en page précise, schéma réseau ou déploiement | draw.io | `drawio-diagram` |
+| Public technique, Word, PowerPoint ou Confluence, mise en page précise, schéma réseau ou déploiement hors cloud | draw.io | `drawio-diagram` |
 
 Le public passe avant la destination. Un
 schéma pour un public non technique est un Excalidraw, même s'il finit dans

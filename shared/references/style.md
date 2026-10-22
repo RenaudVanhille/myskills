@@ -129,6 +129,32 @@ milieu, support en bas, échanges à gauche, référentiels à droite. Les blocs
 sont des conteneurs draw.io (`container=1`) : déplacer un quartier déplace
 son contenu. `pos_build.py` (skill `urbanization-map`) applique ces règles.
 
+### Cloud
+
+Les services cloud gardent l'icône officielle de leur fournisseur (AWS,
+Azure, GCP, Kubernetes), livrée dans draw.io, avec ses couleurs : un
+architecte la reconnaît au premier coup d'œil. Les groupes du fournisseur
+(région, VPC, sous-réseau public ou privé, security group, cluster,
+namespace) gardent aussi leurs couleurs. Ces styles portent `shape=mxgraph.*`,
+`image=` ou `vendor=1` et `check_drawio.py` ne les compte pas hors charte.
+Le reste suit la charte : texte `#1f2937`, libellé sous l'icône en 12 px
+sur fond blanc, services génériques (`service`, `db`, `queue`,
+`external`) aux couleurs des rôles.
+
+```text
+Flux synchrone   : strokeColor=#374151;endArrow=block;endFill=1;
+Flux asynchrone  : strokeColor=#374151;dashed=1;endArrow=open;
+Réplication      : strokeColor=#7e22ce;dashed=1;dashPattern=1 3;strokeWidth=2;
+Traverse une frontière (vue threats) : strokeColor=#b91c1c;strokeWidth=2;
+Frontière de confiance : dashed=1;dashPattern=8 4;strokeWidth=2;strokeColor=#b91c1c;fillColor=none;
+Étape de pipeline : fillColor=#f9fafb;strokeColor=#d1d5db;
+Objectifs RPO/RTO : fillColor=#fef3c7;strokeColor=#b45309;
+```
+
+Une région passive (PRA) est atténuée (`opacity=60`) et son nom suivi de
+« (passif) ». `cloud_build.py` (skill `cloud-architecture`) applique ces
+règles.
+
 ### LikeC4
 
 Le fichier `references/specification.c4` du skill `c4-architecture` définit
