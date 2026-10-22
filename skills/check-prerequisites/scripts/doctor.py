@@ -18,6 +18,19 @@ DRAWIO_PATHS = [
     Path("/Applications/draw.io.app/Contents/MacOS/draw.io"),
     Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "draw.io" / "draw.io.exe",
     Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "draw.io" / "draw.io.exe",
+    Path("/opt/drawio/drawio"),
+]
+PROGRAM_FILES = [Path(os.environ.get(v, "")) for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")]
+BROWSER_PATHS = [
+    *(base / "Microsoft" / "Edge" / "Application" / "msedge.exe" for base in PROGRAM_FILES),
+    *(base / "Google" / "Chrome" / "Application" / "chrome.exe" for base in PROGRAM_FILES),
+    Path("/Applications/Google Chrome.app"), Path("/Applications/Microsoft Edge.app"),
+]
+PLAYWRIGHT_CACHE = [
+    Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")),
+    Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
+    Path.home() / "Library" / "Caches" / "ms-playwright",
+    Path.home() / ".cache" / "ms-playwright",
 ]
 
 GROUPS = {
@@ -27,11 +40,14 @@ GROUPS = {
     ],
     "schemas": [
         ("draw.io Desktop", "drawio", None, "https://github.com/jgraph/drawio-desktop/releases"),
-        ("Node.js", "cmd", "node", "https://nodejs.org/"),
-        ("Mermaid CLI", "cmd", "mmdc", "npm install -g @mermaid-js/mermaid-cli"),
-        ("LikeC4", "cmd", "likec4", "npm install -g likec4"),
-        ("Playwright", "cmd_or_module", "playwright",
-         "uv tool install playwright, puis : playwright install chromium"),
+        ("Node.js (lance Mermaid CLI et LikeC4 via npx)", "cmd", "node", "https://nodejs.org/"),
+        ("uv (lance le rendu Excalidraw)", "cmd", "uv", "https://docs.astral.sh/uv/"),
+        ("Navigateur pour Excalidraw (Edge, Chrome ou Chromium)", "browser", None,
+         "uvx playwright install chromium"),
+        ("Mermaid CLI installé (plus rapide que npx)", "optional_cmd", "mmdc",
+         "npm install -g @mermaid-js/mermaid-cli"),
+        ("LikeC4 installé (plus rapide que npx)", "optional_cmd", "likec4",
+         "npm install -g likec4"),
     ],
     "publication": [
         ("Pandoc", "cmd", "pandoc", "https://pandoc.org/installing.html"),
@@ -49,6 +65,13 @@ def present(kind: str, target: str | None) -> bool:
         return importlib.util.find_spec(target) is not None
     if kind == "cmd_or_module":
         return present("cmd", target) or present("module", target)
+    if kind == "optional_cmd":
+        return present("cmd", target)
+    if kind == "browser":
+        return (any(shutil.which(n) for n in ("msedge", "google-chrome", "chromium", "chrome"))
+                or any(p.exists() for p in BROWSER_PATHS)
+                or any(str(p) not in ("", ".") and p.is_dir() and any(p.glob("chromium*"))
+                       for p in PLAYWRIGHT_CACHE))
     if kind == "drawio":
         return shutil.which("drawio") is not None or any(p.is_file() for p in DRAWIO_PATHS)
     raise ValueError(kind)
@@ -65,6 +88,8 @@ def main() -> int:
         for label, kind, target, hint in GROUPS[name]:
             if present(kind, target):
                 print(f"  [ok]       {label}")
+            elif kind.startswith("optional"):
+                print(f"  [facultatif] {label} -> {hint}")
             else:
                 print(f"  [manquant] {label} -> {hint}")
                 missing = True
