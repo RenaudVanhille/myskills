@@ -30,7 +30,8 @@ macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
 outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Node.js, un
-navigateur, LibreOffice en option). Pandoc, Mermaid CLI et LikeC4 sont téléchargés à la demande.
+navigateur, LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
+la demande ; les rendus passent par Playwright.
 
 ## Contenu
 

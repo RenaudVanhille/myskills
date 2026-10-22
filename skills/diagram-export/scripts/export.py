@@ -7,7 +7,7 @@
 Formats reconnus :
 - `.drawio` : draw.io Desktop, vers `<nom>.drawio.png` ou `.drawio.svg` qui gardent le
   XML et restent donc modifiables dans draw.io ;
-- `.mmd`, `.mermaid` : Mermaid CLI (`mmdc`, sinon `npx @mermaid-js/mermaid-cli`) ;
+- `.mmd`, `.mermaid` : bibliothèque Mermaid dans un navigateur local (Playwright) ;
 - `.md` : chaque bloc ```mermaid du fichier, exporté en `<nom>-1.svg`, `<nom>-2.svg`... ;
 - `.excalidraw` : bibliothèque Excalidraw dans un navigateur local (Playwright), vers
   `<nom>.excalidraw.png` ou `.excalidraw.svg` qui embarquent la scène ;
@@ -32,11 +32,12 @@ import sys
 import tarfile
 import struct
 import tempfile
+from contextlib import contextmanager
 import zlib
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-MERMAID_CLI = "@mermaid-js/mermaid-cli@11"
+MERMAID_VERSION = "11.12.0"
 LIKEC4 = "likec4@1"
 EXCALIDRAW_UTILS = "0.1.7"
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.M | re.S)
@@ -153,13 +154,32 @@ def embed_drawio(png: Path, xml: str) -> None:
 
 # --- Mermaid -----------------------------------------------------------------
 
-def mermaid_config(work: Path) -> list[str]:
-    config = {"args": (["--no-sandbox"] if NO_SANDBOX else []) + QUIET_CHROMIUM}
-    if os.environ.get("PUPPETEER_EXECUTABLE_PATH"):
-        config["executablePath"] = os.environ["PUPPETEER_EXECUTABLE_PATH"]
-    path = work / "puppeteer.json"
-    path.write_text(json.dumps(config), encoding="utf-8")
-    return ["--puppeteerConfigFile", str(path)]
+MERMAID_RENDER = """async ({code, transparent}) => {
+    if (!window.mermaid) {
+        await new Promise((ok, ko) => {
+            const s = document.createElement("script");
+            s.src = "http://local.myskills/dist/mermaid.min.js";
+            s.onload = ok; s.onerror = () => ko(new Error("mermaid.min.js introuvable"));
+            document.head.appendChild(s);
+        });
+        mermaid.initialize({startOnLoad: false, securityLevel: "strict", theme: "default",
+                            fontFamily: "Helvetica, Arial, sans-serif"});
+    }
+    document.body.innerHTML = "";
+    document.body.style.background = transparent ? "transparent" : "white";
+    try {
+        const {svg} = await mermaid.render("schema" + Date.now(), code);
+        const box = document.createElement("div");
+        box.id = "schema";
+        box.style.cssText = "display:inline-block;padding:16px";
+        box.innerHTML = svg;
+        document.body.appendChild(box);
+        return {svg};
+    } catch (error) {
+        document.querySelectorAll("[id^=dschema]").forEach((n) => n.remove());
+        return {error: String(error.message || error)};
+    }
+}"""
 
 
 def export_mermaid(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
@@ -171,24 +191,31 @@ def export_mermaid(src: Path, out: Path, fmt: str, scale: float, transparent: bo
         names = [f"{src.stem}-{i}" for i in range(1, len(blocks) + 1)]
     else:
         blocks, names = [text], [src.stem]
+    package = npm_package("mermaid", MERMAID_VERSION, "dist/mermaid.min.js")
     outputs, errors = [], []
-    with tempfile.TemporaryDirectory() as tmp:
-        work = Path(tmp)
-        base = node_tool("mmdc", MERMAID_CLI) + mermaid_config(work)
-        for index, (block, name) in enumerate(zip(blocks, names), 1):
-            source = work / f"{name}.mmd"
-            source.write_text(block, encoding="utf-8")
-            target = out / f"{name}.{fmt}"
-            cmd = base + ["--input", str(source), "--output", str(target), "--quiet",
-                          "--backgroundColor", "transparent" if transparent else "white"]
-            if fmt == "png":
-                cmd += ["--scale", str(scale)]
-            try:
-                run(cmd)
+    try:
+        with local_page(package, scale) as page:
+            for index, (block, name) in enumerate(zip(blocks, names), 1):
+                result = page.evaluate(MERMAID_RENDER, {"code": block, "transparent": transparent})
+                if result.get("error"):
+                    label = f"bloc {index}" if src.suffix.lower() == ".md" else src.name
+                    errors.append(f"{label} : {result['error'].strip()}")
+                    continue
+                target = out / f"{name}.{fmt}"
+                if fmt == "svg":
+                    target.write_text(result["svg"], encoding="utf-8")
+                elif fmt == "png":
+                    page.locator("#schema").screenshot(path=str(target), omit_background=transparent)
+                else:
+                    box = page.locator("#schema").bounding_box()
+                    page.pdf(path=str(target), width=f"{int(box['width']) + 2}px",
+                             height=f"{int(box['height']) + 2}px", print_background=True,
+                             page_ranges="1")
                 outputs.append(target)
-            except ExportError as error:
-                label = f"bloc {index}" if len(blocks) > 1 or src.suffix.lower() == ".md" else src.name
-                errors.append(f"{label} : {error}")
+    except ExportError:
+        raise
+    except Exception as error:
+        raise ExportError("Rendu Mermaid impossible : " + str(error).splitlines()[0])
     if errors:
         raise ExportError("\n".join(errors))
     return outputs
@@ -213,23 +240,25 @@ def export_likec4(src: Path, out: Path, fmt: str, scale: float, transparent: boo
 
 # --- Excalidraw --------------------------------------------------------------
 
-def excalidraw_package() -> Path:
-    root = cache_dir() / f"excalidraw-utils-{EXCALIDRAW_UTILS}"
-    entry = root / "package" / "dist" / "prod" / "index.js"
-    if entry.is_file():
+def npm_package(name: str, version: str, entry: str) -> Path:
+    """Télécharge une fois un paquet npm (npm pack, sinon le registre) dans le cache."""
+    root = cache_dir() / f"{name.strip('@').replace('/', '-')}-{version}"
+    if (root / "package" / entry).is_file():
         return root / "package"
     root.mkdir(parents=True, exist_ok=True)
+    tgz = root / "package.tgz"
     npm = shutil.which("npm")
-    tgz = root / "utils.tgz"
     if npm:
-        run([npm, "pack", f"@excalidraw/utils@{EXCALIDRAW_UTILS}", "--pack-destination", str(root),
-             "--silent"], cwd=root)
-        packed = next(root.glob("excalidraw-utils-*.tgz"), None)
+        try:
+            run([npm, "pack", f"{name}@{version}", "--pack-destination", str(root), "--silent"], cwd=root)
+        except ExportError:
+            pass
+        packed = next((p for p in root.glob("*.tgz") if p != tgz), None)
         if packed:
             packed.replace(tgz)
     if not tgz.is_file():
         import urllib.request
-        url = f"https://registry.npmjs.org/@excalidraw/utils/-/utils-{EXCALIDRAW_UTILS}.tgz"
+        url = f"https://registry.npmjs.org/{name}/-/{name.split('/')[-1]}-{version}.tgz"
         urllib.request.urlretrieve(url, tgz)
     with tarfile.open(tgz) as archive:
         archive.extractall(root, filter="data") if hasattr(tarfile, "data_filter") else archive.extractall(root)
@@ -252,39 +281,50 @@ def launch_browser(pw):
                       "lancez `uvx playwright install chromium`. " + str(last).splitlines()[0])
 
 
-def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
-    if fmt == "pdf":
-        raise ExportError("Excalidraw s'exporte en PNG ou SVG")
+@contextmanager
+def local_page(package: Path, scale: float = 1):
+    """Page Chromium (Playwright) qui ne voit que les fichiers du paquet en cache :
+    toute autre requête est bloquée, le rendu reste local."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         raise ExportError("Playwright manquant : lancez ce script avec `uv run`")
-    scene = json.loads(src.read_text(encoding="utf-8"))
-    if scene.get("type") != "excalidraw":
-        raise ExportError("Ce fichier n'est pas une scène Excalidraw "
-                          "(lancez d'abord excalidraw_build.py)")
-    package = excalidraw_package()
 
     def serve(route):
         rel = unquote(route.request.url.split("://local.myskills/", 1)[1].split("?")[0])
         path = package / rel
         if rel == "page.html":
-            route.fulfill(body="<!doctype html><html><body></body></html>", content_type="text/html")
+            route.fulfill(body="<!doctype html><html><head><meta charset='utf-8'></head>"
+                               "<body style='margin:0'></body></html>", content_type="text/html")
         elif path.is_file():
             kind = mimetypes.guess_type(path.name)[0] or "application/javascript"
             route.fulfill(body=path.read_bytes(), content_type=kind)
         else:
             route.fulfill(status=404, body="")
 
-    target = out / f"{src.stem}.excalidraw.{fmt}"
     with sync_playwright() as pw:
         browser = launch_browser(pw)
         try:
-            page = browser.new_page()
-            # Le rendu reste local : toute requête hors du cache local est bloquée.
+            page = browser.new_page(device_scale_factor=scale)
             page.route("**/*", lambda route: route.abort())
             page.route("http://local.myskills/**", serve)
             page.goto("http://local.myskills/page.html")
+            yield page
+        finally:
+            browser.close()
+
+
+def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
+    if fmt == "pdf":
+        raise ExportError("Excalidraw s'exporte en PNG ou SVG")
+    scene = json.loads(src.read_text(encoding="utf-8"))
+    if scene.get("type") != "excalidraw":
+        raise ExportError("Ce fichier n'est pas une scène Excalidraw "
+                          "(lancez d'abord excalidraw_build.py)")
+    package = npm_package("@excalidraw/utils", EXCALIDRAW_UTILS, "dist/prod/index.js")
+    target = out / f"{src.stem}.excalidraw.{fmt}"
+    try:
+        with local_page(package) as page:
             result = page.evaluate("""async ({scene, fmt, scale, transparent}) => {
                 window.EXCALIDRAW_ASSET_PATH = "http://local.myskills/dist/prod/";
                 const lib = await import("http://local.myskills/dist/prod/index.js");
@@ -300,12 +340,10 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
                     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
                 return btoa(binary);
             }""", {"scene": scene, "fmt": fmt, "scale": scale, "transparent": transparent})
-        except ExportError:
-            raise
-        except Exception as error:
-            raise ExportError("Rendu Excalidraw impossible : " + str(error).splitlines()[0])
-        finally:
-            browser.close()
+    except ExportError:
+        raise
+    except Exception as error:
+        raise ExportError("Rendu Excalidraw impossible : " + str(error).splitlines()[0])
     if fmt == "svg":
         target.write_text(result, encoding="utf-8")
     else:

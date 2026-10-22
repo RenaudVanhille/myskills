@@ -44,8 +44,10 @@ uv run ../diagram-export/scripts/export.py FICHIER.md --check
 
 Le script rend chaque bloc ```mermaid (ou le fichier `.mmd`) sans rien
 écrire et indique le bloc fautif avec le message de Mermaid. Corrigez et
-relancez jusqu'à zéro erreur. Il utilise `mmdc` s'il est installé, sinon
-`npx @mermaid-js/mermaid-cli` (Node.js requis).
+relancez jusqu'à zéro erreur. Le rendu utilise la bibliothèque Mermaid dans
+un navigateur local piloté par Playwright (Edge ou Chrome s'ils sont
+installés) ; la bibliothèque est téléchargée une fois depuis npm puis gardée
+en cache.
 
 Erreurs fréquentes : parenthèse ou deux-points non protégés dans un
 libellé, mot réservé `end` utilisé comme identifiant, flèche `->` au lieu de
