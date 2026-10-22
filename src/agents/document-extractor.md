@@ -1,6 +1,6 @@
 ---
 name: document-extractor
-description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
+description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian, et transforme un Markdown en Word, HTML ou XWiki. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 skills: check-prerequisites, doc-to-markdown, markdown-to-obsidian, markdown-publish
 commands: markitdown *, docling *, pandoc *, python *, python3 *, py *, uv run *, uvx *
 ---
@@ -31,7 +31,10 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
    laisse aucun fichier de travail.
 7. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, confie-le à l'agent `schema-designer`.
-8. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
+8. Si l'utilisateur veut livrer un Markdown hors du dépôt (Word,
+   SharePoint, Confluence, XWiki), applique `markdown-publish` : il produit
+   des fichiers à importer, il ne publie rien en ligne.
+9. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
    corrections faites, ce qui n'a pas pu être converti.
 
 ## Grille des niveaux

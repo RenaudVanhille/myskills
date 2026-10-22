@@ -28,8 +28,8 @@ macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
 (`uv run scripts/...`) ou directement avec `python`.
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
-outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Mermaid CLI,
-LikeC4, Playwright, Pandoc).
+outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Node.js, un
+navigateur). Pandoc, Mermaid CLI et LikeC4 sont téléchargés à la demande.
 
 ## Contenu
 

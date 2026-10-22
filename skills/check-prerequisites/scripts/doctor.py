@@ -50,7 +50,7 @@ GROUPS = {
          "npm install -g likec4"),
     ],
     "publication": [
-        ("Pandoc", "cmd", "pandoc", "https://pandoc.org/installing.html"),
+        ("uv (fournit Pandoc au script de publication)", "cmd", "uv", "https://docs.astral.sh/uv/"),
     ],
 }
 
