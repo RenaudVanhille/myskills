@@ -8,3 +8,6 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-22T21:53:54,lot-2,a2e3627,extraire-docx,document-extractor,sonnet,True,5,0.0647,6,13296,52524,616,0,19
 2026-10-22T21:53:54,lot-2,a2e3627,extraire-pdf-texte,document-extractor,sonnet,True,8,0.099,12,17374,131037,1620,0,28
 2026-10-22T21:53:54,lot-2,a2e3627,schema-drawio,schema-designer,sonnet,True,5,0.0979,6,18336,46487,1975,0,20
+2026-10-22T21:57:03,lot-3,d1a7da7,extraire-docx,document-extractor,sonnet,True,5,0.0821,6,17813,46910,602,0,13
+2026-10-22T21:57:03,lot-3,d1a7da7,extraire-pdf-texte,document-extractor,sonnet,True,7,0.0818,10,14893,97547,1235,0,19
+2026-10-22T21:57:03,lot-3,d1a7da7,schema-drawio,schema-designer,sonnet,True,5,0.0924,6,17787,46087,1648,0,20
