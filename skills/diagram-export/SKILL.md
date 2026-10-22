@@ -28,6 +28,14 @@ ligne. Le réseau ne sert qu'au premier usage, pour télécharger les outils
 (bibliothèques Mermaid et Excalidraw, LikeC4 via `npx`, Playwright) ; ensuite, tout
 fonctionne hors ligne.
 
+## Contrat
+
+- **Entrées** : fichiers `.drawio`, `.mmd`, `.mermaid`, `.md` (blocs ```mermaid), `.excalidraw`, `.c4` ou un dossier LikeC4.
+- **Sorties** : les images à côté de la source ou dans `--out` (voir le tableau ci-dessus) ; rien avec `--check`.
+- **Rapport `export.py`** (liste JSON, un objet par source) : `source`, `format`, `outputs`, `error` ; si le rendu a réussi : `rendered`.
+- **Codes de sortie** : 1 si une source échoue, 0 sinon.
+- **Passe la main** : à `check-prerequisites` (groupe `schemas`) si un outil manque ; au skill du format pour corriger une erreur de syntaxe.
+
 ## Choisir le format de sortie
 
 | Destination | Format |

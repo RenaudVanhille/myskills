@@ -8,6 +8,13 @@ description: "Grille de choix du format de schéma (Mermaid, draw.io, Excalidraw
 Avant de dessiner, fixez trois choses : le **public**, la **destination** et
 le **type de schéma**. Puis choisissez le format avec la grille.
 
+## Contrat
+
+- **Entrées** : le contexte du schéma (description, code, ADR, Markdown, image) et ce que l'on sait du public et de la destination.
+- **Sorties** : aucun fichier. Une décision : public, destination, type de schéma, format, skill à appliquer, et la phrase « message principal, 3 à 7 éléments, ce qu'on laisse de côté ».
+- **Rapport** : aucun script.
+- **Passe la main** : au skill du format choisi, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram` ou `c4-architecture`.
+
 ## 1. Les trois questions
 
 | Question | Réponses possibles |

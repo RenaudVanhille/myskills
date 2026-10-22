@@ -8,6 +8,16 @@ description: "Met un fichier Markdown au format Obsidian : frontmatter, embeds d
 Les chemins `scripts/...` sont relatifs au dossier de ce skill. Le script n'a
 aucune dépendance (`uv run` ou `python`).
 
+## Contrat
+
+- **Entrées** : notes Markdown (sortie de `doc-to-markdown` ou existantes) et, en option, le dossier du vault.
+- **Sorties** : la note au format Obsidian, sur place ou dans `VAULT/<dossier>/`, et ses images dans le dossier de pièces jointes du vault ; avec `--move`, plus rien dans le dossier de travail.
+- **Rapport `obsidianize.py`** (liste JSON, un objet par note) : `input`, `output`, `embeds`, `wikilinks`, `callouts`, `attachments_copied`, `missing` ; avec `--classify` : `classification`.
+- **Rapport `vault_profile.py`** (objet JSON) : `vault`, `notes`, `tags`, `folders`, `attachments`.
+- **Échec sur un fichier** : l'objet ne contient que `input` et `error`.
+- **Codes de sortie** : `obsidianize.py` 1 si une note est introuvable ou si une image manque (`missing`) ; `vault_profile.py` 0.
+- **Passe la main** : à `doc-to-markdown` (`validate.py --obsidian`) pour la validation ; à `markdown-publish` pour un export Word, HTML ou XWiki.
+
 ## 1. Classer et taguer
 
 Avant d'importer, lisez le profil du vault (lecture seule) :

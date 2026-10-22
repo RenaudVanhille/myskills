@@ -21,3 +21,11 @@ ou `py` selon le système, ou `uv run scripts/doctor.py`).
 Code de sortie 0 si tout est présent, 1 sinon. Si un outil manque, montre à
 l'utilisateur la commande d'installation affichée et ne l'installe pas sans
 son accord.
+
+## Contrat
+
+- **Entrées** : un groupe, `extraction`, `schemas`, `publication` ou `tout` (défaut).
+- **Sorties** : aucun fichier.
+- **Rapport `doctor.py`** (texte, pas de JSON) : une ligne par outil, `[ok]`, `[manquant]` ou `[facultatif]`, suivie de la commande d'installation.
+- **Codes de sortie** : 0 si tous les outils obligatoires sont présents, 1 sinon.
+- **Passe la main** : à l'utilisateur, qui installe lui-même l'outil manquant ; rien n'est installé sans son accord.

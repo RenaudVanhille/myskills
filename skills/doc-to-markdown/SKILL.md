@@ -10,6 +10,17 @@ chemins `scripts/...` sont relatifs au dossier de ce skill. Les scripts
 installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les avec
 `python` après `pip install "markitdown[docx,pptx,xlsx,pdf]" pypdf`.
 
+## Contrat
+
+- **Entrées** : fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ou images (PNG, JPG, GIF, BMP, TIFF, WEBP) ; dossiers acceptés par `classify.py`.
+- **Sorties** : `DOSSIER/<nom>.md` et ses images dans `DOSSIER/attachments/<nom>-N.<ext>`, liées en relatif.
+- **Rapport `convert.py`** (liste JSON, un objet par fichier) : `input`, `output`, `type`, `engine`, `pages`, `images`, `needs_vision`, `warnings` ; avec `--classify` : `classification`.
+- **Rapport `validate.py`** (liste JSON, un objet par fichier) : `file`, `ok`, `errors`, `warnings`.
+- **Rapport `classify.py`** (liste JSON, un objet par fichier) : `input`, `type`, `type_confidence`, `domaine`, `domaine_confidence`, `tables`, `engine`, `method`, `warnings`.
+- **Échec sur un fichier** : l'objet ne contient que `input` (ou `file`) et `error`.
+- **Codes de sortie** : 0 si tout a réussi ; 1 si un fichier a échoué (`convert.py`, `classify.py`) ou contient une erreur (`validate.py`).
+- **Passe la main** : à `markdown-to-obsidian` si la cible est un vault ; à l'agent `schema-designer` pour recréer un schéma modifiable à partir d'une image.
+
 ## 0. Trier un lot (optionnel)
 
 Pour un lot de documents, ou quand l'utilisateur veut connaître le type et le

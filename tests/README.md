@@ -24,8 +24,10 @@ uv run tests/run.py --slow     # ajoute les cas lents (Laya, Pandoc)
 uv run tests/run.py --only docx,obsidian --keep
 ```
 
-Chaque cas lance les scripts d'un skill sur les fixtures et vérifie le code
-de sortie, le rapport JSON, les fichiers produits et, s'il existe, la
+Le cas `contrats` vérifie que chaque script, chaque skill et chaque agent a
+son contrat, et que `CATALOG.md` est à jour. Chaque cas lance ensuite les
+scripts d'un skill sur les fixtures et vérifie le code de sortie, les champs
+du rapport annoncés dans le contrat, le rapport JSON, les fichiers produits et, s'il existe, la
 ressemblance avec le résultat attendu de `expected/` (90 % minimum). Code de
 sortie 1 si un cas échoue.
 

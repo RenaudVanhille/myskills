@@ -10,6 +10,15 @@ ne publie rien : il produit des fichiers que l'utilisateur importe lui-même.
 Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 à installer à part.
 
+## Contrat
+
+- **Entrées** : fichiers Markdown ou notes Obsidian, avec leurs images et leurs schémas sources ; en option un modèle Word (`--reference-doc`) et le vault (`--vault`).
+- **Sorties** : dans `--out`, `<nom>.docx`, `<nom>.html` et `<nom>.xwiki` avec ses images dans `<nom>-xwiki/` ; en option un PDF et un aperçu PNG par page dans `.myskills-tmp/<nom>-apercu/`.
+- **Rapport `publish.py`** (liste JSON, un objet par document) : `input`, `outputs`, `diagrams_exported`, `warnings` ; si un format échoue : `error`. Chaque élément de `outputs` contient `format`, `file`, `images`, `tables`, et selon les options `pdf` ou `preview`.
+- **Codes de sortie** : `publish.py` 1 si un document échoue, 0 sinon.
+- **Maintenance** : `make_reference.py` régénère `references/modele.docx` ; pas de rapport JSON.
+- **Passe la main** : à `diagram-export` pour les schémas (automatique) ; à l'utilisateur, qui importe lui-même les fichiers dans SharePoint, Confluence ou XWiki.
+
 ## 1. Produire les fichiers
 
 ```bash

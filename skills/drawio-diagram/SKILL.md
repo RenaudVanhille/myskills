@@ -7,6 +7,14 @@ description: "Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'ex
 
 Les chemins `scripts/...` sont relatifs au dossier de ce skill.
 
+## Contrat
+
+- **Entrées** : la décision de `diagram-brief` et le contenu à représenter, ou un `.drawio` existant à modifier.
+- **Sorties** : un fichier `.drawio` en XML clair ; après export, `<nom>.drawio.png` (ou `.svg`, `.pdf`).
+- **Rapport `check_drawio.py`** (liste JSON, un objet par fichier) : `file`, `pages`, `shapes`, `errors`, `warnings`.
+- **Codes de sortie** : `check_drawio.py` 1 si un fichier contient une erreur, 0 sinon.
+- **Passe la main** : à `diagram-export` pour l'export et la relecture de l'image.
+
 ## 1. Écrire le fichier
 
 Un `.drawio` est un XML non compressé :

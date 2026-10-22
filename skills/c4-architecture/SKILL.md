@@ -9,6 +9,13 @@ Le modèle C4 décrit une architecture en niveaux, du plus large au plus
 détaillé. Un seul modèle LikeC4 sert toutes les vues : on décrit les éléments
 une fois, chaque vue en montre une partie.
 
+## Contrat
+
+- **Entrées** : la décision de `diagram-brief`, et le code, la configuration ou la description de l'architecture.
+- **Sorties** : un dossier de modèle LikeC4 (`specification.c4`, `model.c4`) et un PNG par vue.
+- **Rapport** : aucun script propre ; la validation et les exports passent par `diagram-export` (`export.py DOSSIER`).
+- **Passe la main** : à `diagram-export` pour valider et exporter ; à `excalidraw-diagram` pour une vue destinée à un public non technique.
+
 ## 1. Choisir le niveau
 
 | Niveau | Montre | Pour |

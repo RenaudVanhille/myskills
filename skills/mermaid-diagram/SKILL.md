@@ -5,6 +5,13 @@ description: "Écrit des schémas Mermaid (flux, séquence, états, classes, mod
 
 # mermaid-diagram
 
+## Contrat
+
+- **Entrées** : la décision de `diagram-brief` et le contenu à représenter.
+- **Sorties** : un bloc ```mermaid dans un Markdown existant, ou un fichier `.mmd`.
+- **Rapport** : aucun script propre ; la validation passe par `diagram-export` (`export.py --check`).
+- **Passe la main** : à `diagram-export` pour vérifier le rendu et pour les exports PNG ou SVG destinés à Word, PowerPoint ou Confluence.
+
 ## 1. Choisir le type
 
 | Pour montrer | Type Mermaid |

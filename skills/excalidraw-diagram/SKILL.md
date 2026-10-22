@@ -9,6 +9,14 @@ Les chemins `scripts/...` sont relatifs au dossier de ce skill. N'écrivez pas
 le JSON Excalidraw à la main : décrivez le schéma dans un format court, le
 script construit la scène.
 
+## Contrat
+
+- **Entrées** : la décision de `diagram-brief`, puis une description JSON du schéma (`title`, `audience`, `elements`).
+- **Sorties** : `<sujet>.excalidraw`, à côté de sa description `<sujet>.json` ; après export, `<sujet>.excalidraw.png` ou `.svg`.
+- **Rapport `excalidraw_build.py`** (objet JSON) : `input`, `output`, `elements`, `errors`, `warnings`.
+- **Codes de sortie** : `excalidraw_build.py` 1 si la description est illisible ou contient une erreur, 0 sinon.
+- **Passe la main** : à `diagram-export` pour le rendu et la relecture de l'image.
+
 ## 1. Décrire le schéma
 
 Fichier `<sujet>.json` :
