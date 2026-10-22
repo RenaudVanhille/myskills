@@ -75,4 +75,8 @@ Le PNG `SCHEMA.drawio.png` garde le XML : il se rouvre dans draw.io. Ouvrez
 l'image et vérifiez la lisibilité (libellés coupés, flèches qui se croisent
 ou passent sous une forme). Corrigez les coordonnées et réexportez.
 
+Pour Confluence, livrez les deux fichiers : le `.drawio`, à importer dans la
+macro draw.io de la page pour le modifier, et le `.drawio.png`, à insérer
+dans la page.
+
 draw.io Desktop est requis pour l'export (voir `check-prerequisites`).

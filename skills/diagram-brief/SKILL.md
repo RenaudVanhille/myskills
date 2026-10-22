@@ -47,8 +47,8 @@ le schéma vivra : Mermaid dans un dépôt, draw.io dans Office et Confluence.
 | Markdown d'un dépôt (GitHub, GitLab) | bloc ```mermaid dans le fichier ; sinon export SVG à côté et lien relatif |
 | Obsidian | bloc ```mermaid, ou export `.excalidraw.svg` intégré avec `![[nom.excalidraw.svg]]` |
 | Word, PowerPoint | PNG à l'échelle 2 (`diagram-export`), plus la source à côté |
-| Confluence avec l'app draw.io | fichier `.drawio` importé dans la macro draw.io |
-| Confluence sans l'app draw.io | `.drawio.png` (garde le XML, réouvrable dans draw.io) joint à la page |
+| Confluence, schéma draw.io | le `.drawio` (à importer dans la macro draw.io pour le modifier) et le `.drawio.png` (à insérer dans la page) |
+| Confluence, autre format | le PNG à insérer dans la page, plus la source jointe à la page |
 
 ## 4. Avant de commencer à dessiner
 

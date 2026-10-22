@@ -28,7 +28,7 @@ Les exports vont à côté de la source, ou dans `--out`.
 | Destination | Format |
 | --- | --- |
 | Word, PowerPoint | `png`, `--scale 2` (net à l'impression comme à l'écran) |
-| Confluence | `png` ; pour draw.io, le `.drawio.png` reste modifiable |
+| Confluence | `png` ; pour draw.io, livrez aussi le `.drawio` à importer dans la macro draw.io |
 | Markdown, site web | `svg` |
 | Impression, pièce jointe | `pdf` (draw.io et Mermaid) |
 | Fond coloré (diapositive sombre) | ajoutez `--transparent` |
