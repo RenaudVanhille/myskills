@@ -49,8 +49,10 @@ class ExportError(Exception):
 
 
 def run(cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> None:
+    # Pas de vérification de mise à jour de draw.io Desktop pendant l'export.
+    env = {**os.environ, "DRAWIO_DISABLE_UPDATE": "true"}
     try:
-        proc = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+        proc = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
         raise ExportError(f"Délai dépassé : {Path(cmd[0]).name}")
@@ -270,6 +272,8 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
         browser = launch_browser(pw)
         try:
             page = browser.new_page()
+            # Le rendu reste local : toute requête hors du cache local est bloquée.
+            page.route("**/*", lambda route: route.abort())
             page.route("http://local.myskills/**", serve)
             page.goto("http://local.myskills/page.html")
             result = page.evaluate("""async ({scene, fmt, scale, transparent}) => {

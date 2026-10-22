@@ -23,6 +23,11 @@ uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] \
 
 Les exports vont à côté de la source, ou dans `--out`.
 
+Le rendu est entièrement local : aucun schéma n'est envoyé à un service en
+ligne. Le réseau ne sert qu'au premier usage, pour télécharger les outils
+(paquets npm via `npx`, bibliothèque Excalidraw, Playwright) ; ensuite, tout
+fonctionne hors ligne.
+
 ## Choisir le format de sortie
 
 | Destination | Format |
