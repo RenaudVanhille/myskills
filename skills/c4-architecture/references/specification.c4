@@ -1,0 +1,45 @@
+specification {
+  element person {
+    style {
+      shape person
+      color amber
+    }
+  }
+  element system {
+    style {
+      color primary
+    }
+  }
+  element external {
+    style {
+      color gray
+      border dashed
+    }
+  }
+  element container {
+    style {
+      color primary
+    }
+  }
+  element component {
+    style {
+      color sky
+    }
+  }
+  element database {
+    style {
+      shape storage
+      color green
+    }
+  }
+  element queue {
+    style {
+      shape queue
+      color indigo
+    }
+  }
+  relationship async {
+    line dashed
+    head open
+  }
+}

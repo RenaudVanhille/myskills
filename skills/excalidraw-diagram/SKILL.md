@@ -1,16 +1,81 @@
 ---
 name: excalidraw-diagram
-description: "Crée un schéma Excalidraw au style dessiné à la main, rendu en PNG et vérifié visuellement. À utiliser pour les publics non techniques."
+description: "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers et les vues d'ensemble."
 ---
 
 # excalidraw-diagram
 
-> Statut : squelette. Contenu à écrire à l'étape 3.
+Les chemins `scripts/...` sont relatifs au dossier de ce skill. N'écrivez pas
+le JSON Excalidraw à la main : décrivez le schéma dans un format court, le
+script construit la scène.
 
-## Ce que fera ce skill
+## 1. Décrire le schéma
 
-1. Générer le JSON `.excalidraw` en suivant `references/style.md`.
-2. Rendre en PNG via Playwright et relire le rendu.
-3. Corriger jusqu'à un rendu lisible.
+Fichier `<sujet>.json` :
 
-Reprise de coleam00/excalidraw-diagram-skill (licence à vérifier).
+```json
+{
+  "title": "Comment un paiement est traité",
+  "audience": "non technique",
+  "elements": [
+    {"id": "client", "role": "person", "label": "Client", "row": 0, "col": 0},
+    {"id": "boutique", "role": "zone", "label": "Notre boutique", "x": 260, "y": -40, "w": 640, "h": 360},
+    {"id": "site", "role": "system", "label": "Site web", "row": 0, "col": 1},
+    {"id": "paiement", "role": "system", "label": "Service\nde paiement", "row": 0, "col": 2},
+    {"id": "historique", "role": "db", "label": "Historique", "row": 1, "col": 2},
+    {"id": "banque", "role": "external", "label": "Banque", "row": 0, "col": 3.3},
+    {"from": "client", "to": "site", "label": "commande"},
+    {"from": "paiement", "to": "historique", "label": "enregistre", "style": "async"}
+  ]
+}
+```
+
+- **Formes** : `role` parmi `person`, `system`, `external`, `db`, `queue`,
+  `alert`, `zone` (cadre en tirets derrière les formes) et `note` (texte
+  libre). Le rôle donne la couleur de la charte. `shape` (`rectangle`,
+  `ellipse`, `diamond`) force une forme.
+- **Placement** : `row` et `col` (grille de 300 × 180 px, valeurs décimales
+  permises), ou `x` et `y` en pixels. Taille par défaut 180 × 80, ou `w` et
+  `h`.
+- **Flèches** : `from`, `to`, `label` (un verbe), `style: "async"` pour des
+  tirets. Elles sont attachées aux formes : elles suivent si on les déplace
+  dans Excalidraw.
+- **Libellés** : `\n` pour aller à la ligne.
+- `font` : `excalifont` (dessiné, par défaut) ou `nunito` (sobre, sans
+  effet main levée). `legend` : `auto` (par défaut), `true` ou `false`.
+
+## 2. Construire
+
+```bash
+uv run scripts/excalidraw_build.py SUJET.json
+```
+
+Produit `SUJET.excalidraw` et un rapport : erreurs (identifiant en double,
+flèche vers une forme inconnue) et avertissements (formes qui se
+chevauchent, forme qui déborde d'une zone, plus de 7 éléments pour un public
+non technique, pas de titre). Corrigez la description jusqu'à zéro erreur et
+zéro avertissement.
+
+## 3. Rendre et relire
+
+```bash
+uv run ../diagram-export/scripts/export.py SUJET.excalidraw --format png
+```
+
+Produit `SUJET.excalidraw.png` (ou `.svg`), qui embarque la scène : on peut le
+rouvrir dans excalidraw.com. Ouvrez l'image et vérifiez : textes qui
+débordent, flèches qui traversent une forme, schéma trop large. Ajustez `row`,
+`col` ou `w` et recommencez les étapes 2 et 3.
+
+Le rendu utilise la bibliothèque Excalidraw dans un navigateur local (Edge ou
+Chrome s'ils sont installés, sinon Chromium de Playwright). La bibliothèque est
+téléchargée une fois depuis npm puis gardée en cache.
+
+## 4. Livrer
+
+- Obsidian avec le plugin Excalidraw : livrez le `.excalidraw`. Sans le
+  plugin : le `.excalidraw.svg` et `![[SUJET.excalidraw.svg]]`.
+- Word, PowerPoint, Confluence : le `.excalidraw.png`.
+- Gardez le `.json` de description à côté : c'est lui qu'on modifie pour
+  faire évoluer le schéma. Si quelqu'un a retouché le `.excalidraw` dans
+  Excalidraw, c'est ce fichier qui fait foi : modifiez-le directement.
