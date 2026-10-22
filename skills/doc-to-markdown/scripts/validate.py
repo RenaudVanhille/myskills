@@ -8,7 +8,11 @@ tableau mal formé, image restée en base64.
 Avertissements : aucun titre, saut de niveau de titre, en-tête de tableau
 vide, contenu à transcrire par vision, frontmatter absent (avec --obsidian).
 
-Usage : uv run scripts/validate.py FICHIER.md [...] [--obsidian]
+Avec --obsidian, vérifie aussi les embeds `![[...]]` (erreur s'ils sont
+introuvables) et les wikilinks `[[...]]` (avertissement), en cherchant dans
+--vault ou, à défaut, dans le dossier de la note.
+
+Usage : uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER]
 """
 
 import argparse
@@ -21,13 +25,14 @@ from urllib.parse import unquote
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^(#{1,6})\s+\S")
 FENCE = re.compile(r"^(```|~~~)")
+WIKI = re.compile(r"(!?)\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
 
 
 def cells(line: str) -> list[str]:
     return line.strip().strip("|").split("|")
 
 
-def check(path: Path, obsidian: bool) -> dict:
+def check(path: Path, obsidian: bool, vault: Path | None = None) -> dict:
     errors, warnings = [], []
     text = path.read_text(encoding="utf-8")
     lines = text.split("\n")
@@ -41,6 +46,8 @@ def check(path: Path, obsidian: bool) -> dict:
     if obsidian and not text.startswith("---\n"):
         warnings.append("Frontmatter absent (attendu pour Obsidian).")
 
+    root = vault or path.parent
+    names = {p.name for p in root.rglob("*") if p.is_file()} if obsidian else set()
     in_code, level, has_heading, i = False, 0, False, 0
     while i < len(lines):
         line = lines[i]
@@ -57,6 +64,13 @@ def check(path: Path, obsidian: bool) -> dict:
             if has_heading and new > level + 1:
                 warnings.append(f"Ligne {number} : saut de titre H{level} vers H{new}.")
             has_heading, level = True, new
+
+        for bang, target in (WIKI.findall(line) if obsidian else []):
+            target = target.strip()
+            if bang and Path(target).name not in names:
+                errors.append(f"Ligne {number} : embed introuvable : {target}")
+            elif not bang and f"{Path(target).name}.md" not in names and Path(target).name not in names:
+                warnings.append(f"Ligne {number} : note liée absente : {target}")
 
         for target in LINK.findall(line):
             if re.match(r"^[a-z]+:", target) or target.startswith("#"):
@@ -92,9 +106,12 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("files", nargs="+", type=Path)
-    parser.add_argument("--obsidian", action="store_true", help="vérifie aussi le frontmatter")
+    parser.add_argument("--obsidian", action="store_true",
+                        help="vérifie aussi le frontmatter, les embeds et les wikilinks")
+    parser.add_argument("--vault", type=Path, help="racine du vault Obsidian")
     args = parser.parse_args()
-    results = [check(p, args.obsidian) if p.is_file()
+    vault = args.vault.resolve() if args.vault else None
+    results = [check(p, args.obsidian, vault) if p.is_file()
                else {"file": str(p), "ok": False, "errors": ["Fichier introuvable."], "warnings": []}
                for p in args.files]
     print(json.dumps(results, ensure_ascii=False, indent=2))

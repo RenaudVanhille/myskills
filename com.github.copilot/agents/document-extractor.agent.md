@@ -23,8 +23,9 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 5. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
    niveau de chaque correction avec la grille ci-dessous. Relance
    `validate.py` après chaque correction, 3 essais maximum par fichier.
-6. Si la cible est Obsidian, applique `markdown-to-obsidian`, puis
-   `validate.py --obsidian`.
+6. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, puis
+   applique `markdown-to-obsidian` (script `obsidianize.py --vault ... --move`)
+   et `validate.py --obsidian --vault`. Ne laisse aucun fichier de travail.
 7. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, confie-le à l'agent `schema-designer`.
 8. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
