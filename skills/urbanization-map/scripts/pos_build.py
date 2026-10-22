@@ -14,7 +14,11 @@ applications), vérifié ensuite comme par check_drawio.py s'il est présent.
 
     uv run scripts/pos_build.py POS.json|POS.csv [--out POS.drawio]
         [--title "..."] [--audience technique|"non technique"]
-        [--detail zone|quartier|ilot|application] [--zoom]
+        [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf]
+
+Avec --vocabulary togaf, les niveaux deviennent des capacités TOGAF (niveaux
+1 à 3, Business Capability Map) et les applications des composants
+applicatifs ; les zones s'empilent dans l'ordre donné.
 """
 
 import argparse
@@ -57,6 +61,10 @@ STATUS_WORDS = {"": "en-place", "en place": "en-place", "conserver": "en-place",
                 "nouvelle": "nouvelle", "a creer": "nouvelle", "creer": "nouvelle", "cible": "nouvelle",
                 "externe": "externe", "saas": "externe", "partenaire": "externe"}
 TITLE = "text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;fontColor=#1f2937;"
+# Noms des niveaux dans la légende : urbanisation (POS) ou capacités TOGAF.
+VOCABULARIES = {"pos": {"zone": "Zone", "quartier": "Quartier", "ilot": "Îlot", "app": "Application"},
+                "togaf": {"zone": "Capacité niveau 1", "quartier": "Capacité niveau 2",
+                          "ilot": "Capacité niveau 3", "app": "Composant applicatif"}}
 APP_W, APP_H, LEAF_SIZE = 160, 44, {"zone": (220, 90), "quartier": (180, 70), "ilot": (160, 50)}
 GAP, PAD, HEADER, LINE = 12, 12, 30, 18
 
@@ -358,7 +366,8 @@ def statuses_used(zones: list[Node]) -> list[str]:
     return [s for s in STATUSES if s in found]
 
 
-def build_page(name: str, title: str, zones: list[Node], depth: int, legend) -> ET.Element:
+def build_page(name: str, title: str, zones: list[Node], depth: int, legend,
+               vocabulary: str = "pos") -> ET.Element:
     diagram = ET.Element("diagram", id=f"p-{plain(name).replace(' ', '-')}", name=name)
     model = ET.SubElement(diagram, "mxGraphModel", grid="1", gridSize="10", page="0")
     root = ET.SubElement(model, "root")
@@ -378,14 +387,14 @@ def build_page(name: str, title: str, zones: list[Node], depth: int, legend) -> 
                   "fontSize=14;", lx, 0, 120, 20)
         side = "labelPosition=right;verticalLabelPosition=middle;align=left;spacingLeft=8;fontSize=12;"
         row = 1
-        names = {"zone": "Zone", "quartier": "Quartier", "ilot": "Îlot"}
+        names = VOCABULARIES[vocabulary]
         for level in levels:
-            style = STYLES[level].replace("fontStyle=1;", "").replace("fontSize=16;", "").replace("fontSize=14;", "").replace(
+            style = STYLES[level].replace("whiteSpace=wrap;", "").replace("fontStyle=1;", "").replace("fontSize=16;", "").replace("fontSize=14;", "").replace(
                 "fontSize=13;", "").replace("fontColor=#6b7280;", "fontColor=#1f2937;")
             text_cell(root, f"legend-{level}", names[level], side + style, lx, row * 32, 30, 20)
             row += 1
         for status in used:
-            text = STATUSES[status][1] if used != ["en-place"] else "Application"
+            text = STATUSES[status][1] if used != ["en-place"] else names["app"]
             text_cell(root, f"legend-{status}", text,
                       side + STATUSES[status][0] + "html=1;fontColor=#1f2937;", lx, row * 32, 30, 20)
             row += 1
@@ -455,6 +464,8 @@ def main() -> int:
     parser.add_argument("--audience", help="technique ou non technique")
     parser.add_argument("--detail", choices=LEVELS, help="niveau le plus fin affiché")
     parser.add_argument("--zoom", action="store_true", help="ajoute une page détaillée par zone")
+    parser.add_argument("--vocabulary", choices=list(VOCABULARIES),
+                        help="pos (défaut) ou togaf : capacités de niveau 1 à 3, zones empilées sans disposition imposée")
     args = parser.parse_args()
     errors, warnings = [], []
     try:
@@ -474,8 +485,16 @@ def main() -> int:
     zoom = bool(args.zoom or spec.get("zoom"))
     title = args.title or spec.get("title") or ""
     legend = spec.get("legend", "auto")
+    vocabulary = args.vocabulary or spec.get("vocabulary") or "pos"
+    if vocabulary not in VOCABULARIES:
+        errors.append(f"vocabulary inconnu « {vocabulary} » ({', '.join(VOCABULARIES)})")
+        vocabulary = "pos"
 
     zones = parse_spec(spec, errors)
+    if vocabulary == "togaf":
+        # TOGAF n'impose pas de disposition : les capacités de niveau 1 s'empilent dans l'ordre donné.
+        for zone in zones:
+            zone.kind = "operations"
     if not zones:
         errors.append("aucune zone")
     totals = count(zones)
@@ -483,17 +502,19 @@ def main() -> int:
     name = args.spec.name.removesuffix(".json").removesuffix(".csv").removesuffix(".pos")
     out = args.out or args.spec.with_name(name + ".drawio")
     report = {"input": str(args.spec), "output": None, "pages": 0, **totals, "detail": detail,
+              "vocabulary": vocabulary,
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
 
     mxfile = ET.Element("mxfile", host="myskills")
-    mxfile.append(build_page("Vue d'ensemble", title, zones, depth, legend))
+    mxfile.append(build_page("Vue d'ensemble", title, zones, depth, legend, vocabulary))
     if zoom and depth < 3:
+        prefix = "capacité" if vocabulary == "togaf" else "zone"
         for zone in parse_spec(spec, []):
-            mxfile.append(build_page(zone.name, f"{title}, zone {zone.name}" if title else zone.name,
-                                     [zone], 3, legend))
+            mxfile.append(build_page(zone.name, f"{title}, {prefix} {zone.name}" if title else zone.name,
+                                     [zone], 3, legend, vocabulary))
     ET.indent(mxfile)
     ET.ElementTree(mxfile).write(out, encoding="utf-8", xml_declaration=False)
     report.update(output=str(out), pages=len(mxfile))

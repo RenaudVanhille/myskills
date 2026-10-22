@@ -2,7 +2,7 @@
   "skill": "urbanization-map",
   "inputs": [
     "Décision de diagram-brief : public et destination",
-    "Description JSON du plan : title, audience, detail, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut)"
+    "Description JSON du plan : title, audience, detail, vocabulary, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut)"
   ],
   "outputs": [
     "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv",
@@ -12,14 +12,15 @@
     {
       "name": "pos_build.py",
       "role": "Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-      "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom]",
+      "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf]",
       "options": {
         "SUJET.json|SUJET.csv": "description du plan ou inventaire des applications",
         "--out": "fichier .drawio (défaut : même nom)",
         "--title": "titre, prioritaire sur celui de la description",
         "--audience": "technique (défaut) ou non technique",
         "--detail": "niveau le plus fin affiché (défaut : application en technique, quartier en non technique)",
-        "--zoom": "ajoute une page par zone, au niveau des applications"
+        "--zoom": "ajoute une page par zone, au niveau des applications",
+        "--vocabulary": "pos (défaut) ou togaf : légende en capacités de niveau 1 à 3, zones empilées dans l'ordre donné"
       },
       "report": {
         "format": "json",
@@ -38,6 +39,7 @@
                 "ilots",
                 "applications",
                 "detail",
+                "vocabulary",
                 "errors",
                 "warnings"
               ],
@@ -78,6 +80,12 @@
                     "quartier",
                     "ilot",
                     "application"
+                  ]
+                },
+                "vocabulary": {
+                  "enum": [
+                    "pos",
+                    "togaf"
                   ]
                 },
                 "errors": {

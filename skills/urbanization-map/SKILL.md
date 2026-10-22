@@ -1,6 +1,6 @@
 ---
 name: urbanization-map
-description: "Dessine le plan d'occupation des sols (POS) d'un système d'information, ou carte d'urbanisation : zones, quartiers, îlots et applications rangées dedans, colorées par statut, en draw.io et PNG. À utiliser pour une cartographie fonctionnelle du SI, technique ou pour la direction, à partir d'une liste ou d'un inventaire CSV."
+description: "Dessine le plan d'occupation des sols (POS) d'un système d'information, ou carte d'urbanisation : zones, quartiers, îlots et applications rangées dedans, colorées par statut, en draw.io et PNG. Fait aussi la carte des capacités TOGAF (Business Capability Map) avec les applications posées dessus. À utiliser pour une cartographie fonctionnelle du SI, technique ou pour la direction, à partir d'une liste ou d'un inventaire CSV."
 ---
 
 # urbanization-map
@@ -13,7 +13,7 @@ page, aux styles de la charte. N'écrivez pas le XML draw.io à la main.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON du plan : title, audience, detail, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut).
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON du plan : title, audience, detail, vocabulary, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut).
 - **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
 - **`pos_build.py`** : Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 plan produit sans erreur ; 1 description illisible ou erreur.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
@@ -65,6 +65,14 @@ Fichier `<sujet>.json` :
   vue d'ensemble reste lisible et le détail est à côté.
 - Titre et légende sont ajoutés par le script (`legend` : `auto`, `true`
   ou `false`).
+- `vocabulary: "togaf"` (ou `--vocabulary togaf`) pour une démarche TOGAF :
+  la légende parle de capacités de niveau 1, 2 et 3 et de composants
+  applicatifs, et les zones s'empilent dans l'ordre donné, sans la
+  disposition pilotage / opérations / support. Avec `detail` à `ilot`, on
+  obtient la *Business Capability Map* ; avec `application`, les
+  applications posées sur les capacités (*Application/Function Matrix* en
+  carte). Les statuts correspondent à l'analyse d'écart entre l'existant et
+  la cible.
 
 Si l'inventaire existe déjà dans un tableur, ne le recopiez pas : exportez-le
 en CSV (séparateur `;` ou `,`) avec les colonnes `zone`, `quartier`,

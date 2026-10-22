@@ -152,9 +152,14 @@
          "exit": 0, "report": {"errors": [], "warnings": [], "zones": 5, "applications": 9, "detail": "quartier"}},
         {"script": "{skills}/urbanization-map/scripts/pos_build.py",
          "args": ["{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}/statut.drawio", "--title", "POS"],
-         "exit": 0, "report": {"detail": "application"}}
+         "exit": 0, "report": {"detail": "application", "vocabulary": "pos"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}/togaf.drawio", "--title", "Capacités",
+                  "--vocabulary", "togaf", "--detail", "quartier", "--zoom"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "vocabulary": "togaf", "pages": 6}}
       ],
       "contains": {"inventaire.drawio": ["Sinistres", "Référentiels"],
+                   "togaf.drawio": ["Capacité niveau 2", "Composant applicatif"],
                    "statut.drawio": ["fillColor=#ffedd5", "fillColor=#f3f4f6", "Gestion vie"]}
     },
     {
