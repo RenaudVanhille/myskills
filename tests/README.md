@@ -7,3 +7,9 @@
 
 Chaque skill est testé dans les 4 outils sur ces fichiers avant d'être
 considéré comme terminé. Ne mettez ici aucun document confidentiel.
+
+## Exemples synthétiques
+
+`uv run tests/make_fixtures.py` régénère `fixtures/samples/` : un DOCX, un
+PPTX, un PDF texte, un PDF scanné et une image de schéma, utilisés pour tester
+`doc-to-markdown` sans document réel.
