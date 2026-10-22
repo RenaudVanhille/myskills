@@ -1,15 +1,71 @@
 ---
 name: doc-to-markdown
-description: "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local. À utiliser pour extraire le contenu d'un document vers du Markdown."
+description: "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le contenu d'un document vers du Markdown."
 ---
 
 # doc-to-markdown
 
-> Statut : squelette. Contenu à écrire à l'étape 3.
+Convertit un document en Markdown sans l'envoyer à un service en ligne. Les
+chemins `scripts/...` sont relatifs au dossier de ce skill. Les scripts
+installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les avec
+`python` après `pip install "markitdown[docx,pptx,xlsx,pdf]" pypdf`.
 
-## Ce que fera ce skill
+## 1. Convertir
 
-1. Détecter le type de fichier (Office, PDF natif, PDF scanné, image).
-2. Choisir l'outil : MarkItDown pour Office et PDF simples, Docling pour PDF scannés ou riches en tableaux, vision de l'agent pour les images.
-3. Extraire les images dans un dossier `attachments/` et les lier.
-4. Produire un rapport des éléments non convertis.
+```bash
+uv run scripts/convert.py DOCUMENT [DOCUMENT ...] --out DOSSIER
+```
+
+Le script choisit le moteur (`--engine auto`, par défaut) :
+
+| Document | Moteur | Pourquoi |
+| --- | --- | --- |
+| DOCX, PPTX, XLSX | MarkItDown | Rapide, garde titres, tableaux et images |
+| PDF avec texte | MarkItDown | Rapide |
+| PDF scanné (pages sans texte) | Docling | OCR ; repli sur MarkItDown si Docling échoue |
+| Image | Copie dans `attachments/` | Contenu à transcrire par vision (étape 3) |
+
+Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
+colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
+(~2 Go de modèles téléchargés une fois).
+
+Le script écrit `DOSSIER/<nom>.md`, extrait les images dans
+`DOSSIER/attachments/` et affiche un rapport JSON par fichier : `engine`,
+`pages`, `images`, `needs_vision`, `warnings`. Lisez-le avant de continuer.
+
+## 2. Valider
+
+```bash
+uv run scripts/validate.py DOSSIER/<nom>.md
+```
+
+Code de sortie 1 en cas d'erreur : image ou lien introuvable, tableau mal
+formé, image restée en base64, fichier vide. Les avertissements (pas de titre,
+saut de niveau, en-tête de tableau vide, contenu à transcrire) se corrigent à
+l'étape 3.
+
+## 3. Corriger
+
+Corrigez le Markdown directement, sans relancer la conversion. Ne supprimez
+aucun contenu du document : seuls les en-têtes et pieds de page répétés
+peuvent partir. Un passage en double se signale, il ne s'efface pas.
+
+- **Pas de titre** (fréquent sur les PDF) : transformez les titres visibles du
+  document en `#`, `##`, `###`, sans sauter de niveau.
+- **Mots coupés en fin de ligne** (`cli` / `ent`) : recollez-les ; réunissez
+  les lignes d'un même paragraphe.
+- **En-têtes et pieds de page répétés** sur chaque page : supprimez-les.
+- **`needs_vision: true`** ou marqueur `<!-- vision ... -->` : ouvrez l'image
+  ou la page, transcrivez le texte, et décrivez un schéma en une ou deux
+  phrases sous l'image. Si le schéma doit rester modifiable, proposez de le
+  recréer (agent `schema-designer`).
+- **Tableau illisible** : relancez avec `--engine docling` ; sinon
+  reconstituez-le à partir du document.
+
+Relancez `validate.py` jusqu'à zéro erreur.
+
+## 4. Rendre compte
+
+Indiquez à l'utilisateur, en quelques lignes : fichiers produits, moteur
+utilisé, nombre de pages et d'images, corrections faites et ce qui n'a pas pu
+être converti.
