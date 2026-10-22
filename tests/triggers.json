@@ -12,6 +12,8 @@
     {"prompt": "Dessine un schéma façon tableau blanc pour l'atelier de demain.", "skill": "excalidraw-diagram"},
     {"prompt": "Fais une vue d'ensemble simple du parcours client pour les commerciaux.", "skill": "excalidraw-diagram"},
     {"prompt": "Modélise l'architecture en C4 : contexte et conteneurs.", "skill": "c4-architecture"},
+    {"prompt": "Fais le plan d'occupation des sols de notre SI à partir de l'inventaire des applications.", "skill": "urbanization-map"},
+    {"prompt": "Dessine la carte d'urbanisation du SI : zones, quartiers et îlots, pour le comité de direction.", "skill": "urbanization-map"},
     {"prompt": "Ajoute un diagramme de séquence du login dans le README.", "skill": "mermaid-diagram"},
     {"prompt": "Écris le diagramme d'états de la commande dans la doc du dépôt.", "skill": "mermaid-diagram"},
     {"prompt": "Exporte ce schéma en PNG pour le mettre dans PowerPoint.", "skill": "diagram-export"},

@@ -1,0 +1,10 @@
+zone;quartier;ilot;application;statut
+Pilotage;Décisionnel;;Entrepôt de données;
+Pilotage;Décisionnel;;Tableaux de bord;à faire évoluer
+Opérations;Distribution;Devis;Simulateur web;
+Opérations;Distribution;Souscription;Souscription IARD;
+Opérations;Contrats;Gestion des contrats;Gestion vie;à remplacer
+Opérations;Sinistres;Indemnisation;Gestion sinistres;
+Support;Ressources humaines;;Paie;SaaS
+Référentiels;Tiers;;Référentiel clients;
+Échanges;Intégration;;Bus d'échanges;

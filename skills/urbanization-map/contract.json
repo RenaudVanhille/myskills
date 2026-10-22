@@ -1,0 +1,137 @@
+{
+  "skill": "urbanization-map",
+  "inputs": [
+    "Décision de diagram-brief : public et destination",
+    "Description JSON du plan : title, audience, detail, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut)"
+  ],
+  "outputs": [
+    "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv",
+    "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
+  ],
+  "scripts": [
+    {
+      "name": "pos_build.py",
+      "role": "Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+      "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom]",
+      "options": {
+        "SUJET.json|SUJET.csv": "description du plan ou inventaire des applications",
+        "--out": "fichier .drawio (défaut : même nom)",
+        "--title": "titre, prioritaire sur celui de la description",
+        "--audience": "technique (défaut) ou non technique",
+        "--detail": "niveau le plus fin affiché (défaut : application en technique, quartier en non technique)",
+        "--zoom": "ajoute une page par zone, au niveau des applications"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet ; si la description est illisible, seulement input et errors.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "pages",
+                "zones",
+                "quartiers",
+                "ilots",
+                "applications",
+                "detail",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pages": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "zones": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "quartiers": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ilots": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "applications": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "detail": {
+                  "enum": [
+                    "zone",
+                    "quartier",
+                    "ilot",
+                    "application"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "errors"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "plan produit sans erreur",
+        "1": "description illisible ou erreur"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "exporter et relire l'image"
+    },
+    {
+      "to": "drawio-diagram",
+      "kind": "skill",
+      "when": "retoucher le .drawio à la main, ou dessiner les flux entre applications (cartographie applicative)"
+    }
+  ]
+}

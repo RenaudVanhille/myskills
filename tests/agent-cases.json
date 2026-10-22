@@ -77,6 +77,18 @@
       ]
     },
     {
+      "id": "schema-pos",
+      "agent": "schema-designer",
+      "prompt": "À partir de l'inventaire pos-inventaire.csv, fais le plan d'occupation des sols du SI pour une page Confluence lue par la direction, dans schemas/.",
+      "inputs": ["fixtures/diagrams/pos-inventaire.csv"],
+      "output": "schemas/pos-inventaire.drawio",
+      "rubric": [
+        "Le schéma a des zones Pilotage, Opérations, Support, Référentiels et Échanges.",
+        "Le schéma montre les quartiers Distribution, Contrats et Sinistres dans la zone Opérations.",
+        "La vue d'ensemble ne montre pas chaque application, ou une page de détail les montre à part."
+      ]
+    },
+    {
       "id": "schema-excalidraw",
       "agent": "schema-designer",
       "prompt": "Explique le traitement d'un paiement à des commerciaux avec un schéma Excalidraw, d'après contexte-paiement.md, dans schemas/.",

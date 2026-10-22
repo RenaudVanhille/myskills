@@ -54,12 +54,12 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 
 Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
 
-**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `diagram-export`
+**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `urbanization-map`, `diagram-export`
 
 Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
 - **Reçoit** : Un contexte : description, code, ADR, Markdown ou image d'un schéma existant ; Si possible le public, la destination et le dossier de sortie.
-- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json, ou modèle LikeC4 ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
+- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
 - **Ne fait jamais** : Modifier un fichier qu'il n'a pas créé, sauf le schéma à corriger ; Envoyer un schéma à un service en ligne.
 - **Passe la main** :
 
@@ -106,6 +106,7 @@ Résumé de [`contract.json`](skills/diagram-brief/contract.json), qui fait foi 
 - **Passe la main** au skill `drawio-diagram` : public technique, Word, PowerPoint ou Confluence, mise en page précise.
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
 - **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
+- **Passe la main** au skill `urbanization-map` : cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation).
 
 ### `diagram-export`
 
@@ -191,3 +192,15 @@ Résumé de [`contract.json`](skills/mermaid-diagram/contract.json), qui fait fo
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
 - **Scripts** : aucun ; la validation passe par le skill suivant.
 - **Passe la main** au skill `diagram-export` : vérifier le rendu (--check) ou exporter en PNG ou SVG.
+
+### `urbanization-map`
+
+Dessine le plan d'occupation des sols (POS) d'un système d'information, ou carte d'urbanisation : zones, quartiers, îlots et applications rangées dedans, colorées par statut, en draw.io et PNG. À utiliser pour une cartographie fonctionnelle du SI, technique ou pour la direction, à partir d'une liste ou d'un inventaire CSV.
+
+Résumé de [`contract.json`](skills/urbanization-map/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON du plan : title, audience, detail, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut).
+- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
+- **`pos_build.py`** : Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 plan produit sans erreur ; 1 description illisible ou erreur.
+- **Passe la main** au skill `diagram-export` : exporter et relire l'image.
+- **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main, ou dessiner les flux entre applications (cartographie applicative).

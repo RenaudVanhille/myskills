@@ -1,0 +1,34 @@
+{
+  "title": "Plan d'occupation des sols du SI : assurance",
+  "audience": "technique",
+  "zones": [
+    {"name": "Pilotage", "quartiers": [
+      {"name": "Décisionnel", "apps": ["Entrepôt de données", {"name": "Tableaux de bord", "status": "a-faire-evoluer"}]},
+      {"name": "Finance", "ilots": [
+        {"name": "Comptabilité", "apps": ["SAP FI"]},
+        {"name": "Contrôle de gestion", "apps": [{"name": "Excel budgétaire", "status": "a-remplacer"}]}]}
+    ]},
+    {"name": "Opérations", "quartiers": [
+      {"name": "Distribution", "ilots": [
+        {"name": "Devis", "apps": ["Simulateur web", "Outil agence"]},
+        {"name": "Souscription", "apps": ["Souscription IARD", {"name": "Signature électronique", "status": "externe"}]}]},
+      {"name": "Contrats", "ilots": [
+        {"name": "Gestion des contrats", "apps": ["Gestion IARD", {"name": "Gestion vie", "status": "a-remplacer"}]},
+        {"name": "Encaissement", "apps": ["Cotisations"]}]},
+      {"name": "Sinistres", "ilots": [
+        {"name": "Déclaration", "apps": [{"name": "Déclaration en ligne", "status": "nouvelle"}]},
+        {"name": "Indemnisation", "apps": ["Gestion sinistres", "Paiements"]}]}
+    ]},
+    {"name": "Support", "quartiers": [
+      {"name": "Ressources humaines", "apps": [{"name": "Paie", "status": "externe"}, "Gestion RH"]},
+      {"name": "Achats", "apps": ["Achats"]}
+    ]},
+    {"name": "Référentiels", "quartiers": [
+      {"name": "Tiers", "apps": ["Référentiel clients"]},
+      {"name": "Produits", "apps": ["Catalogue produits"]}
+    ]},
+    {"name": "Échanges", "quartiers": [
+      {"name": "Intégration", "apps": ["Bus d'échanges", "Passerelle API"]}
+    ]}
+  ]
+}

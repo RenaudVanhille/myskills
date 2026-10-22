@@ -18,6 +18,19 @@ soit le format.
 | Point de vigilance, erreur | rectangle | `#fee2e2` | `#b91c1c` |
 | Zone, frontière (équipe, réseau, SI) | rectangle sans fond, tirets | aucun | `#9ca3af` |
 
+Dans une cartographie applicative ou un plan d'occupation des sols (POS),
+les applications sont colorées par statut. « En place » garde la couleur de
+notre système, « à remplacer » celle du point de vigilance ; deux couleurs
+s'ajoutent, réservées à ces statuts :
+
+| Statut d'application | Fond | Bordure |
+| --- | --- | --- |
+| En place | `#dbeafe` | `#1d4ed8` |
+| À faire évoluer | `#ffedd5` | `#c2410c` |
+| À remplacer ou retirer | `#fee2e2` | `#b91c1c` |
+| À créer (tirets) | `#ccfbf1` | `#0f766e` |
+| Externe, SaaS (tirets) | `#f3f4f6` | `#6b7280` |
+
 - Texte : `#1f2937`. Flèches : `#374151`.
 - Appel synchrone : trait plein. Asynchrone (message, évènement) : tirets.
 - Une couleur ne sert qu'à un rôle. Pas d'autre couleur sans raison.

@@ -114,26 +114,35 @@ def cache_dir() -> Path:
 # --- draw.io -----------------------------------------------------------------
 
 def export_drawio(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
-    target = out / f"{src.stem}.drawio.{fmt}"
-    cmd = [drawio_binary(), "--export", "--format", fmt, "--output", str(target)]
-    if fmt == "svg":
-        cmd.append("--embed-diagram")
-    if fmt == "png":
-        cmd += ["--scale", str(scale)]
-        if transparent:
-            cmd.append("--transparent")
-    if NO_SANDBOX:
-        cmd.append("--no-sandbox")
-    cmd.append(str(src))
-    if platform.system() == "Linux" and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
-        cmd = ["xvfb-run", "-a"] + cmd
-    offline = {k: DEAD_PROXY for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
-    run(cmd, env=offline | {"NO_PROXY": "", "no_proxy": ""})
-    if not target.is_file():
-        raise ExportError("draw.io n'a rien produit (fichier vide ou XML invalide ?)")
-    if fmt == "png":
-        embed_drawio(target, src.read_text(encoding="utf-8"))
-    return [target]
+    """Une image par page : <nom>.drawio.png pour la première, <nom>-2.drawio.png...
+    pour les suivantes ; un seul PDF avec toutes les pages."""
+    xml = src.read_text(encoding="utf-8")
+    pages = 1 if fmt == "pdf" else max(1, len(re.findall(r"<diagram[\s>]", xml)))
+    targets = []
+    for index in range(1, pages + 1):
+        suffix = "" if index == 1 else f"-{index}"
+        target = out / f"{src.stem}{suffix}.drawio.{fmt}"
+        cmd = [drawio_binary(), "--export", "--format", fmt, "--output", str(target)]
+        if fmt == "svg":
+            cmd.append("--embed-diagram")
+        if fmt == "png":
+            cmd += ["--scale", str(scale)]
+            if transparent:
+                cmd.append("--transparent")
+        cmd += ["--all-pages"] if fmt == "pdf" else ["--page-index", str(index)]
+        if NO_SANDBOX:
+            cmd.append("--no-sandbox")
+        cmd.append(str(src))
+        if platform.system() == "Linux" and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+            cmd = ["xvfb-run", "-a"] + cmd
+        offline = {k: DEAD_PROXY for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
+        run(cmd, env=offline | {"NO_PROXY": "", "no_proxy": ""})
+        if not target.is_file():
+            raise ExportError("draw.io n'a rien produit (fichier vide ou XML invalide ?)")
+        if fmt == "png":
+            embed_drawio(target, xml)
+        targets.append(target)
+    return targets
 
 
 def embed_drawio(png: Path, xml: str) -> None:

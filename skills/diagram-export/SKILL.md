@@ -47,6 +47,10 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 | Impression, pièce jointe | `pdf` (draw.io et Mermaid) |
 | Fond coloré (diapositive sombre) | ajoutez `--transparent` |
 
+Un `.drawio` de plusieurs pages donne une image par page :
+`<nom>.drawio.png` pour la première, `<nom>-2.drawio.png`... pour les
+suivantes ; en PDF, un seul fichier avec toutes les pages.
+
 ## Vérifier sans exporter
 
 `--check` rend le schéma dans un dossier temporaire et ne garde rien : c'est
