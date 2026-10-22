@@ -9,7 +9,7 @@ description: "Grille de choix du format de schéma selon le public (technique ou
 
 ## Ce que fera ce skill
 
-Fournir la grille de décision utilisée par l'agent `diagram-coordinator` :
+Fournir la grille de décision utilisée par l'agent `schema-designer` :
 
 | Contexte | Format |
 | --- | --- |
