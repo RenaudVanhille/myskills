@@ -20,7 +20,8 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 | Hermes | Skills : `hermes skills tap add RenaudVanhille/myskills` puis `hermes skills install RenaudVanhille/myskills/<skill>`. Tout, agents compris : `uv run scripts/install.py --tools hermes [--global]` |
 
 Hermes n'a pas d'agents personnalisés : `install.py` y installe
-`schema-designer` et `document-extractor` sous forme de skills. En projet,
+les agents (`schema-designer`, `document-extractor`, `document-publisher`) sous
+forme de skills. En projet,
 lancez ensuite `hermes skills trust` pour que Hermes charge `.hermes/skills`.
 
 Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
@@ -28,8 +29,9 @@ macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
 (`uv run scripts/...`) ou directement avec `python`.
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
-outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Mermaid CLI,
-LikeC4, Playwright, Pandoc).
+outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Node.js, un
+navigateur, LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
+la demande ; les rendus passent par Playwright.
 
 ## Contenu
 
@@ -38,7 +40,8 @@ LikeC4, Playwright, Pandoc).
 | Agent | Rôle |
 | --- | --- |
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
-| `document-extractor` | Choisit l'outil de conversion selon le document, puis valide le Markdown |
+| `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
+| `document-publisher` | Export : transforme un Markdown en Word, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 
 ### Skills
 

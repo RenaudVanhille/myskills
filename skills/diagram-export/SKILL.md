@@ -16,8 +16,8 @@ uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] \
 | Source | Outil | Sortie |
 | --- | --- | --- |
 | `.drawio` | draw.io Desktop | `nom.drawio.png`, `.svg` ou `.pdf` ; PNG et SVG gardent le XML et se rouvrent dans draw.io |
-| `.mmd` | Mermaid CLI | `nom.png`, `.svg` ou `.pdf` |
-| `.md` | Mermaid CLI, pour chaque bloc ```mermaid | `nom-1.png`, `nom-2.png`... |
+| `.mmd` | Mermaid dans un navigateur local (Playwright) | `nom.png`, `.svg` ou `.pdf` |
+| `.md` | idem, pour chaque bloc ```mermaid | `nom-1.png`, `nom-2.png`... |
 | `.excalidraw` | Excalidraw dans un navigateur local | `nom.excalidraw.png` ou `.svg`, qui embarquent la scène |
 | dossier LikeC4 ou `.c4` | LikeC4 | un PNG par vue, nommé d'après la vue |
 
@@ -25,7 +25,7 @@ Les exports vont à côté de la source, ou dans `--out`.
 
 Le rendu est entièrement local : aucun schéma n'est envoyé à un service en
 ligne. Le réseau ne sert qu'au premier usage, pour télécharger les outils
-(paquets npm via `npx`, bibliothèque Excalidraw, Playwright) ; ensuite, tout
+(bibliothèques Mermaid et Excalidraw, LikeC4 via `npx`, Playwright) ; ensuite, tout
 fonctionne hors ligne.
 
 ## Choisir le format de sortie

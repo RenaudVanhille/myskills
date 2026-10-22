@@ -1,6 +1,6 @@
 ---
 name: check-prerequisites
-description: "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (MarkItDown, Docling, draw.io Desktop, Node.js, navigateur, Pandoc) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable."
+description: "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (MarkItDown, Docling, draw.io Desktop, Node.js, navigateur) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable."
 ---
 
 # check-prerequisites
@@ -10,7 +10,7 @@ Lance le script fourni avec ce skill, avec le groupe utile :
 ```bash
 python scripts/doctor.py extraction   # MarkItDown, Docling
 python scripts/doctor.py schemas      # draw.io Desktop, Node.js, uv, navigateur
-python scripts/doctor.py publication  # Pandoc
+python scripts/doctor.py publication  # uv (Pandoc est fourni)
 python scripts/doctor.py              # tout
 ```
 

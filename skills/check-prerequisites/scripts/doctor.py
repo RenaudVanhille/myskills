@@ -26,6 +26,10 @@ BROWSER_PATHS = [
     *(base / "Google" / "Chrome" / "Application" / "chrome.exe" for base in PROGRAM_FILES),
     Path("/Applications/Google Chrome.app"), Path("/Applications/Microsoft Edge.app"),
 ]
+LIBREOFFICE_PATHS = [
+    *(base / "LibreOffice" / "program" / "soffice.exe" for base in PROGRAM_FILES),
+    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+]
 PLAYWRIGHT_CACHE = [
     Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")),
     Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
@@ -40,17 +44,18 @@ GROUPS = {
     ],
     "schemas": [
         ("draw.io Desktop", "drawio", None, "https://github.com/jgraph/drawio-desktop/releases"),
-        ("Node.js (lance Mermaid CLI et LikeC4 via npx)", "cmd", "node", "https://nodejs.org/"),
-        ("uv (lance le rendu Excalidraw)", "cmd", "uv", "https://docs.astral.sh/uv/"),
-        ("Navigateur pour Excalidraw (Edge, Chrome ou Chromium)", "browser", None,
+        ("Node.js (lance LikeC4 via npx)", "cmd", "node", "https://nodejs.org/"),
+        ("uv (lance les rendus Mermaid et Excalidraw avec Playwright)", "cmd", "uv",
+         "https://docs.astral.sh/uv/"),
+        ("Navigateur pour Playwright (Edge, Chrome ou Chromium)", "browser", None,
          "uvx playwright install chromium"),
-        ("Mermaid CLI installé (plus rapide que npx)", "optional_cmd", "mmdc",
-         "npm install -g @mermaid-js/mermaid-cli"),
         ("LikeC4 installé (plus rapide que npx)", "optional_cmd", "likec4",
          "npm install -g likec4"),
     ],
     "publication": [
-        ("Pandoc", "cmd", "pandoc", "https://pandoc.org/installing.html"),
+        ("uv (fournit Pandoc au script de publication)", "cmd", "uv", "https://docs.astral.sh/uv/"),
+        ("LibreOffice (PDF et relecture visuelle des .docx)", "optional_libreoffice", None,
+         "https://www.libreoffice.org/download/"),
     ],
 }
 
@@ -67,6 +72,8 @@ def present(kind: str, target: str | None) -> bool:
         return present("cmd", target) or present("module", target)
     if kind == "optional_cmd":
         return present("cmd", target)
+    if kind == "optional_libreoffice":
+        return present("cmd", "soffice") or any(p.is_file() for p in LIBREOFFICE_PATHS)
     if kind == "browser":
         return (any(shutil.which(n) for n in ("msedge", "google-chrome", "chromium", "chrome"))
                 or any(p.exists() for p in BROWSER_PATHS)

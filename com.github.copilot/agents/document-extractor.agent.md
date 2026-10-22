@@ -30,7 +30,9 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
    laisse aucun fichier de travail.
 7. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, confie-le à l'agent `schema-designer`.
-8. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
+8. Tu ne produis pas de Word, HTML ou page de wiki : si l'utilisateur veut
+   publier le Markdown obtenu, indique-lui l'agent `document-publisher`.
+9. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
    corrections faites, ce qui n'a pas pu être converti.
 
 ## Grille des niveaux
