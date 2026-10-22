@@ -12,7 +12,10 @@ Avec --obsidian, vérifie aussi les embeds `![[...]]` (erreur s'ils sont
 introuvables) et les wikilinks `[[...]]` (avertissement), en cherchant dans
 --vault ou, à défaut, dans le dossier de la note.
 
-Usage : uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER]
+Avec --quiet, seuls les fichiers qui ont une erreur ou un avertissement sont
+listés : utile sur un lot.
+
+Usage : uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER] [--quiet]
 """
 
 import argparse
@@ -109,12 +112,16 @@ def main() -> int:
     parser.add_argument("--obsidian", action="store_true",
                         help="vérifie aussi le frontmatter, les embeds et les wikilinks")
     parser.add_argument("--vault", type=Path, help="racine du vault Obsidian")
+    parser.add_argument("--quiet", action="store_true",
+                        help="ne lister que les fichiers avec une erreur ou un avertissement")
     args = parser.parse_args()
     vault = args.vault.resolve() if args.vault else None
     results = [check(p, args.obsidian, vault) if p.is_file()
                else {"file": str(p), "ok": False, "errors": ["Fichier introuvable."], "warnings": []}
                for p in args.files]
-    print(json.dumps(results, ensure_ascii=False, indent=2))
+    shown = [r for r in results if r["errors"] or r["warnings"]] if args.quiet else results
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in shown) + "\n]")
     return 0 if all(r["ok"] for r in results) else 1
 
 

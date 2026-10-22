@@ -1,7 +1,8 @@
 # Charte graphique des schémas
 
 Partagée par tous les skills de schémas. Source : `shared/references/style.md`,
-copiée dans `references/style.md` de chaque skill par `scripts/build.py`.
+copiée dans `references/style.md` de chaque skill par `scripts/build.py`, avec
+les seules règles du format de ce skill.
 Le but : qu'un même élément ait la même couleur et la même forme, quel que
 soit le format.
 

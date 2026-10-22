@@ -9,7 +9,10 @@
          "args": ["{samples}/architecture.docx", "--out", "{out}"],
          "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1, "0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
-         "args": ["{out}/architecture.md"], "exit": 0}
+         "args": ["{out}/architecture.md"], "exit": 0},
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/architecture.docx", "--out", "{out}", "--skip-existing"],
+         "exit": 0, "report": {"0.skipped": true}}
       ],
       "files": ["architecture.md", "attachments/architecture-1.png"],
       "contains": {"architecture.md": ["# Architecture du service de paiement",

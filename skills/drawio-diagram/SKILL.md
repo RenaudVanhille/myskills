@@ -1,6 +1,6 @@
 ---
 name: drawio-diagram
-description: "Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise."
+description: "Crée (à partir d'une description courte) ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise."
 ---
 
 # drawio-diagram
@@ -11,20 +11,12 @@ court, le script construit le fichier aux styles de la charte.
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages) ; Ou un .drawio existant à modifier.
 - **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf.
-- **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.
-  - Rapport (objet JSON) : Un objet ; si la description est illisible, seulement input et errors.
-  - Champs : `input` (texte), `output` (texte ou null), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
-  - Ou, en cas d'échec : `input` (texte), `errors` (liste).
-  - Codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
-- **`check_drawio.py`** : Vérifie un fichier draw.io avant export.
-  - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `file` (texte), `pages` (entier), `shapes` (entier), `errors` (liste), `warnings` (liste).
-  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
+- **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
 ## 1. Décrire le schéma

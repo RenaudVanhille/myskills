@@ -133,7 +133,8 @@ def main() -> int:
         print(__doc__)
         return 2
     reports = [check(Path(p)) for p in sys.argv[1:]]
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
     return 1 if any(r["errors"] for r in reports) else 0
 
 

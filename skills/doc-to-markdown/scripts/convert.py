@@ -9,7 +9,7 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]] [--no-clean]
+        [--classify [--domains a,b]] [--no-clean] [--skip-existing]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
@@ -29,6 +29,9 @@ désactive ce nettoyage.
 Les pages à transcrire par vision (scannées, sans OCR) sont rendues en PNG
 dans <sortie>/.myskills-tmp/<nom>-pages/ et listées dans `vision_pages` :
 seules ces images sont à ouvrir.
+
+Avec --skip-existing, un document dont le Markdown existe déjà et est plus
+récent que lui n'est pas reconverti : les corrections faites dessus restent.
 
 Chaque Markdown produit est vérifié comme par validate.py : le résultat est
 dans `validation` du rapport, inutile de lancer validate.py juste après.
@@ -319,6 +322,8 @@ def main() -> int:
     parser.add_argument("--classify", action="store_true",
                         help="classer d'abord les documents avec le modèle local Laya")
     parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
+    parser.add_argument("--skip-existing", action="store_true",
+                        help="ne pas reconvertir un document dont le Markdown est plus récent")
     parser.add_argument("--no-clean", action="store_true",
                         help="ne pas nettoyer le texte des PDF (paragraphes, césures, en-têtes)")
     args = parser.parse_args()
@@ -335,6 +340,10 @@ def main() -> int:
             reports.append({"input": str(path), "error": "Fichier introuvable"})
             failed = True
             continue
+        target = args.out.resolve() / f"{path.stem}.md"
+        if args.skip_existing and target.is_file() and target.stat().st_mtime >= path.stat().st_mtime:
+            reports.append({"input": str(path), "output": str(target), "skipped": True})
+            continue
         try:
             reports.append(convert(path.resolve(), args.out.resolve(), args.engine,
                                    classifications.get(path.resolve()), not args.no_clean))
@@ -343,7 +352,8 @@ def main() -> int:
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
     return 1 if failed else 0
 
 

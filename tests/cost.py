@@ -100,7 +100,7 @@ def main() -> int:
 
     new = not CSV.exists()
     with open(CSV, "a", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=COLUMNS, extrasaction="ignore")
+        writer = csv.DictWriter(handle, fieldnames=COLUMNS, extrasaction="ignore", lineterminator="\n")
         if new:
             writer.writeheader()
         writer.writerows(rows)

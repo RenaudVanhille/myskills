@@ -223,7 +223,8 @@ def main() -> int:
         if classify_warning:
             reports[-1]["classification_warning"] = classify_warning
         failed = failed or bool(reports[-1]["missing"])
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
     return 1 if failed else 0
 
 

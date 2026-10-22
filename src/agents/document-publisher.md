@@ -27,61 +27,15 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 | `document-extractor` | la source n'est pas encore en Markdown (PDF, Office) | le document ; la cible Markdown et le dossier de travail |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** ci-dessous. Si ton outil permet d'appeler un autre agent, envoie-lui
-ce bloc ; sinon, donne-le à l'utilisateur en lui indiquant l'agent à lancer.
-Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
+l'utilisateur en lui indiquant l'agent à lancer.
+
+Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
+rien à passer. Exemple, avec un message de passage dans `next` :
 
 ```json
-{
-  "agent": "schema-designer",
-  "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
-  "files": [
-    "sortie/attachments/architecture-1.png",
-    "sortie/architecture.md"
-  ],
-  "audience": "technique",
-  "destination": "confluence",
-  "output": "sortie/schemas/",
-  "constraints": [
-    "garder les noms des composants du document"
-  ]
-}
-```
-
-Termine toujours par le **rapport final** ci-dessous, en JSON, pour qu'un autre
-agent ou l'utilisateur le lise de la même façon. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage ou null.
-
-```json
-{
-  "agent": "document-extractor",
-  "status": "partiel",
-  "files": [
-    "sortie/architecture.md",
-    "sortie/attachments/architecture-1.png"
-  ],
-  "tools": "MarkItDown : document Word avec texte, tableaux et images.",
-  "level": "moyen",
-  "corrections": [
-    "en-tête de tableau vide remplacé par la première ligne"
-  ],
-  "todo": [
-    "le schéma reste une image"
-  ],
-  "next": {
-    "agent": "schema-designer",
-    "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.",
-    "files": [
-      "sortie/attachments/architecture-1.png",
-      "sortie/architecture.md"
-    ],
-    "audience": "technique",
-    "destination": "confluence",
-    "output": "sortie/schemas/",
-    "constraints": [
-      "garder les noms des composants du document"
-    ]
-  }
-}
+{"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
 
 ## Déroulé

@@ -234,7 +234,7 @@ def main() -> int:
             json.dump(document, handle, ensure_ascii=False, indent=2)
     print(json.dumps({"input": str(args.spec), "output": None if errors else str(out),
                       "elements": len(document["elements"]), "errors": errors,
-                      "warnings": warnings}, ensure_ascii=False, indent=2))
+                      "warnings": warnings}, ensure_ascii=False))
     return 1 if errors else 0
 
 

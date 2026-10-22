@@ -1,6 +1,6 @@
-drawio-diagram
-excalidraw-diagram
-c4-architecture
-mermaid-diagram
+# Skill qui reçoit la charte, puis la section « Par format » à garder (aucune : règles communes seules).
+drawio-diagram draw.io
+excalidraw-diagram Excalidraw
+c4-architecture LikeC4
+mermaid-diagram Mermaid
 diagram-brief
-diagram-export

@@ -1,14 +1,13 @@
 ---
 name: mermaid-diagram
-description: "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt ou Obsidian."
+description: "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian."
 ---
 
 # mermaid-diagram
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Décision de diagram-brief ; Contenu à représenter.
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.

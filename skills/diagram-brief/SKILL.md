@@ -10,8 +10,7 @@ le **type de schéma**. Puis choisissez le format avec la grille.
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Contexte du schéma : description, code, ADR, Markdown ou image ; Ce que l'on sait du public et de la destination.
 - **Sorties** : Aucun fichier : une décision (public, destination, type, format, skill) et la phrase message principal / 3 à 7 éléments / ce qu'on laisse de côté.

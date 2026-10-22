@@ -19,6 +19,10 @@
     {"prompt": "Transforme cette doc Markdown en fichier Word pour SharePoint.", "skill": "markdown-publish"},
     {"prompt": "Génère la page XWiki à partir de ma note.", "skill": "markdown-publish"},
     {"prompt": "La commande markitdown est introuvable, qu'est-ce qui me manque ?", "skill": "check-prerequisites"},
-    {"prompt": "Avant de commencer, vérifie que draw.io et Node sont installés.", "skill": "check-prerequisites"}
+    {"prompt": "Avant de commencer, vérifie que draw.io et Node sont installés.", "skill": "check-prerequisites"},
+    {"prompt": "Exporte ce Markdown en PDF pour le client.", "skill": "markdown-publish"},
+    {"prompt": "Numérise ce scan de facture en texte.", "skill": "doc-to-markdown"},
+    {"prompt": "Ajoute un schéma du flux de commande dans le README.", "skill": "mermaid-diagram"},
+    {"prompt": "Fais un schéma draw.io des conteneurs à partir de cette liste de services.", "skill": "drawio-diagram"}
   ]
 }

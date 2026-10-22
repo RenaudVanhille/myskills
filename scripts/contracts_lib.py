@@ -82,25 +82,19 @@ def fields_line(obj: dict) -> str:
 
 
 def render_skill(contract: dict) -> str:
+    """Section courte : les champs des rapports restent dans contract.json (le
+    modèle les lit de toute façon dans la sortie des scripts)."""
     lines = ["## Contrat", "",
-             "Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports",
-             "JSON des scripts y sont décrits en JSON Schema.", "",
+             "Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).", "",
              "- **Entrées** : " + " ; ".join(contract["inputs"]) + ".",
              "- **Sorties** : " + " ; ".join(contract["outputs"]) + "."]
     for script in contract["scripts"]:
         report = script["report"]
         tag = " (maintenance du dépôt)" if script.get("maintenance") else ""
-        lines.append(f"- **`{script['name']}`**{tag} : {script['role']}")
-        if report["format"] == "json":
-            shape = "liste JSON" if report["schema"].get("type") == "array" else "objet JSON"
-            lines.append(f"  - Rapport ({shape}) : {report.get('description', '')}")
-            for i, variant in enumerate(object_variants(report["schema"])):
-                label = "Champs" if i == 0 else "Ou, en cas d'échec"
-                lines.append(f"  - {label} : {fields_line(variant)}.")
-        elif report["format"] == "text":
-            lines.append(f"  - Rapport (texte) : {report.get('description', '')}")
+        kind = {"json": "rapport JSON", "text": "rapport texte", "none": "pas de rapport"}[report["format"]]
         codes = " ; ".join(f"{code} {meaning}" for code, meaning in script["exit_codes"].items())
-        lines.append(f"  - Codes de sortie : {codes}.")
+        lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]}, "
+                     f"codes de sortie : {codes}.")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for handoff in contract["handoffs"]:
@@ -121,14 +115,13 @@ def render_agent(contract: dict) -> str:
     lines += [f"| `{h['to']}` | {h['when']} | {' ; '.join(h['send'])} |" for h in contract["handoffs"]]
     handoff, report = schema("handoff"), schema("agent-report")
     lines += ["", "Les demandes que tu reçois et celles que tu envoies suivent le **message de",
-              "passage** ci-dessous. Si ton outil permet d'appeler un autre agent, envoie-lui",
-              "ce bloc ; sinon, donne-le à l'utilisateur en lui indiquant l'agent à lancer.",
-              "Champs : " + fields_line(handoff) + ".", "",
-              "```json", json.dumps(HANDOFF_EXAMPLE, ensure_ascii=False, indent=2), "```", "",
-              "Termine toujours par le **rapport final** ci-dessous, en JSON, pour qu'un autre",
-              "agent ou l'utilisateur le lise de la même façon. Champs : " + fields_line(report)
-              + " ; `next` est un message de passage ou null.", "",
-              "```json", json.dumps(REPORT_EXAMPLE, ensure_ascii=False, indent=2), "```"]
+              "passage** (JSON). Champs : " + fields_line(handoff) + ". Si ton outil permet",
+              "d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à",
+              "l'utilisateur en lui indiquant l'agent à lancer.", "",
+              "Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : "
+              + fields_line(report) + " ; `next` est un message de passage, ou null s'il n'y a",
+              "rien à passer. Exemple, avec un message de passage dans `next` :", "",
+              "```json", json.dumps(REPORT_EXAMPLE, ensure_ascii=False), "```"]
     return "\n".join(lines) + "\n"
 
 

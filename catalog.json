@@ -309,7 +309,7 @@
           "when": "un outil de rendu manque (groupe schemas)"
         }
       ],
-      "description": "Exporte un schéma (draw.io, Mermaid, Excalidraw, LikeC4) en PNG, SVG ou PDF pour Word, PowerPoint, Confluence ou un Markdown, ou vérifie seulement qu'il se rend. À utiliser pour intégrer un schéma dans un document ou valider sa syntaxe.",
+      "description": "Exporte un schéma (draw.io, Mermaid, Excalidraw, LikeC4) en PNG, SVG ou PDF pour Word, PowerPoint, Confluence ou un Markdown, ou vérifie seulement qu'il se rend. À utiliser pour intégrer un schéma dans un document ou valider sa syntaxe, pas pour convertir un document Markdown entier.",
       "path": "skills/diagram-export"
     },
     {
@@ -328,14 +328,15 @@
         {
           "name": "convert.py",
           "role": "Convertit les documents en Markdown, en local.",
-          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean]",
+          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
           "options": {
             "FICHIER": "documents à convertir",
             "--out": "dossier de sortie (défaut : dossier courant)",
             "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
             "--classify": "classe d'abord avec classify.py (Laya)",
             "--domains": "avec --classify : domaines possibles",
-            "--no-clean": "ne pas nettoyer le texte des PDF"
+            "--no-clean": "ne pas nettoyer le texte des PDF",
+            "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)"
           },
           "report": {
             "format": "json",
@@ -491,6 +492,26 @@
                     "type": "object",
                     "required": [
                       "input",
+                      "output",
+                      "skipped"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "output": {
+                        "type": "string"
+                      },
+                      "skipped": {
+                        "const": true
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
                       "error"
                     ],
                     "additionalProperties": false,
@@ -515,15 +536,16 @@
         {
           "name": "validate.py",
           "role": "Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.",
-          "usage": "uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER]",
+          "usage": "uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER] [--quiet]",
           "options": {
             "FICHIER.md": "Markdown à vérifier",
             "--obsidian": "vérifie aussi frontmatter, embeds et wikilinks",
-            "--vault": "racine du vault"
+            "--vault": "racine du vault",
+            "--quiet": "ne lister que les fichiers avec une erreur ou un avertissement"
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier ; un fichier introuvable donne ok false.",
+            "description": "Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "array",
@@ -695,7 +717,7 @@
           "when": "un schéma en image doit devenir modifiable"
         }
       ],
-      "description": "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le contenu d'un document vers du Markdown.",
+      "description": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le texte, les tableaux ou les images d'un document vers du Markdown.",
       "path": "skills/doc-to-markdown"
     },
     {
@@ -854,7 +876,7 @@
           "when": "exporter et relire l'image"
         }
       ],
-      "description": "Crée ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise.",
+      "description": "Crée (à partir d'une description courte) ou modifie un schéma draw.io (.drawio), le vérifie et l'exporte en PNG, SVG ou PDF modifiables. À utiliser pour les schémas destinés à Word, PowerPoint ou Confluence, ou qui demandent une mise en page précise.",
       "path": "skills/drawio-diagram"
     },
     {
@@ -952,7 +974,7 @@
           "when": "rendre et relire l'image"
         }
       ],
-      "description": "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers et les vues d'ensemble.",
+      "description": "Crée un schéma Excalidraw au style dessiné à la main à partir d'une description simple, le rend en PNG ou SVG et le relit. À utiliser pour les publics non techniques, les ateliers (façon tableau blanc) et les vues d'ensemble.",
       "path": "skills/excalidraw-diagram"
     },
     {
@@ -1117,7 +1139,7 @@
           "when": "importer les fichiers dans SharePoint, Confluence ou XWiki"
         }
       ],
-      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
+      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
       "path": "skills/markdown-publish"
     },
     {
@@ -1408,7 +1430,7 @@
           "when": "vérifier le rendu (--check) ou exporter en PNG ou SVG"
         }
       ],
-      "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt ou Obsidian.",
+      "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian.",
       "path": "skills/mermaid-diagram"
     }
   ]

@@ -416,7 +416,8 @@ def main() -> int:
             reports.append({"input": str(doc), "error": "Fichier introuvable"})
             continue
         reports.append(publish(doc.resolve(), args, exporter))
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
     return 1 if any(r.get("error") for r in reports) else 0
 
 

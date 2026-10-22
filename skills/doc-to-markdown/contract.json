@@ -14,14 +14,15 @@
     {
       "name": "convert.py",
       "role": "Convertit les documents en Markdown, en local.",
-      "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean]",
+      "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
       "options": {
         "FICHIER": "documents à convertir",
         "--out": "dossier de sortie (défaut : dossier courant)",
         "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
         "--classify": "classe d'abord avec classify.py (Laya)",
         "--domains": "avec --classify : domaines possibles",
-        "--no-clean": "ne pas nettoyer le texte des PDF"
+        "--no-clean": "ne pas nettoyer le texte des PDF",
+        "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)"
       },
       "report": {
         "format": "json",
@@ -177,6 +178,26 @@
                 "type": "object",
                 "required": [
                   "input",
+                  "output",
+                  "skipped"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "output": {
+                    "type": "string"
+                  },
+                  "skipped": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "input",
                   "error"
                 ],
                 "additionalProperties": false,
@@ -201,15 +222,16 @@
     {
       "name": "validate.py",
       "role": "Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.",
-      "usage": "uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER]",
+      "usage": "uv run scripts/validate.py FICHIER.md [...] [--obsidian] [--vault DOSSIER] [--quiet]",
       "options": {
         "FICHIER.md": "Markdown à vérifier",
         "--obsidian": "vérifie aussi frontmatter, embeds et wikilinks",
-        "--vault": "racine du vault"
+        "--vault": "racine du vault",
+        "--quiet": "ne lister que les fichiers avec une erreur ou un avertissement"
       },
       "report": {
         "format": "json",
-        "description": "Un objet par fichier ; un fichier introuvable donne ok false.",
+        "description": "Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "array",

@@ -176,7 +176,7 @@ def main() -> int:
         report.update(output=str(out), shapes=checked["shapes"])
         report["errors"] += checked["errors"]
         report["warnings"] += checked["warnings"]
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 
 

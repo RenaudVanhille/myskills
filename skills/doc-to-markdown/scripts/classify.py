@@ -210,7 +210,8 @@ def main() -> int:
         if load_warning:
             report["warnings"].insert(0, load_warning[:300])
         reports.append(report)
-    print(json.dumps(reports, ensure_ascii=False, indent=2))
+    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
+    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
     return 1 if failed else 0
 
 

@@ -1,6 +1,6 @@
 ---
 name: doc-to-markdown
-description: "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le contenu d'un document vers du Markdown."
+description: "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le texte, les tableaux ou les images d'un document vers du Markdown."
 ---
 
 # doc-to-markdown
@@ -12,25 +12,13 @@ installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les a
 
 ## Contrat
 
-Généré depuis [`contract.json`](contract.json), qui fait foi : les rapports
-JSON des scripts y sont décrits en JSON Schema.
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers (classify.py seulement).
 - **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
-- **`convert.py`** : Convertit les documents en Markdown, en local.
-  - Rapport (liste JSON) : Un objet par fichier.
-  - Champs : `input` (texte), `output` (texte), `type` (image | pdf | office | autre), `engine` (copie | markitdown | docling), `pages` (entier ou null), `images` (entier), `needs_vision` (booléen), `warnings` (liste) ; facultatifs : `hints`, `vision_pages`, `classification`, `validation`.
-  - Ou, en cas d'échec : `input` (texte), `error` (texte).
-  - Codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
-- **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian.
-  - Rapport (liste JSON) : Un objet par fichier ; un fichier introuvable donne ok false.
-  - Champs : `file` (texte), `ok` (booléen), `errors` (liste), `warnings` (liste).
-  - Codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
-- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles.
-  - Rapport (liste JSON) : Un objet par fichier ; type et domaine valent null sous le seuil de confiance.
-  - Champs : `input` (texte), `type` (specification | architecture | procedure | compte-rendu | presentation | contrat | rapport | autre | null), `type_confidence` (nombre ou null), `domaine` (texte ou null), `domaine_confidence` (nombre ou null), `tables` (nombre ou null), `engine` (markitdown | docling), `method` (texte), `warnings` (liste).
-  - Ou, en cas d'échec : `input` (texte), `error` (texte).
-  - Codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (objet avec error).
+- **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 
@@ -87,6 +75,10 @@ même paragraphe, recollé les césures et retiré les en-têtes et pieds de pag
 répétés (à partir de 3 pages). `hints` liste, avec le numéro de ligne, ce
 qu'il n'a pas pu trancher : titres probables, mots peut-être coupés.
 `--no-clean` garde le texte brut.
+
+Pour relancer sur un lot déjà en partie converti, ajoutez `--skip-existing` :
+un Markdown plus récent que son document n'est pas réécrit, les corrections
+déjà faites restent.
 
 ## 2. Valider
 
