@@ -1,6 +1,6 @@
 ---
 name: mermaid-diagram
-description: Écrit des schémas Mermaid (flux, séquence, états, classes) directement dans le Markdown et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt ou Obsidian.
+description: "Écrit des schémas Mermaid (flux, séquence, états, classes) directement dans le Markdown et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt ou Obsidian."
 ---
 
 # mermaid-diagram

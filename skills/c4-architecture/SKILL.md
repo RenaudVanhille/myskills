@@ -1,6 +1,6 @@
 ---
 name: c4-architecture
-description: Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) en LikeC4 ou Mermaid C4. À utiliser pour les schémas d'architecture.
+description: "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) en LikeC4 ou Mermaid C4. À utiliser pour les schémas d'architecture."
 ---
 
 # c4-architecture

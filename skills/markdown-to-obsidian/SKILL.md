@@ -1,6 +1,6 @@
 ---
 name: markdown-to-obsidian
-description: Met un fichier Markdown au format Obsidian : frontmatter, wikilinks, callouts, embeds, dossier attachments. À utiliser quand la cible est un vault Obsidian.
+description: "Met un fichier Markdown au format Obsidian : frontmatter, wikilinks, callouts, embeds, dossier attachments. À utiliser quand la cible est un vault Obsidian."
 ---
 
 # markdown-to-obsidian

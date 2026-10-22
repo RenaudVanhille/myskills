@@ -1,6 +1,6 @@
 ---
 name: markdown-publish
-description: Publie un Markdown vers Confluence ou Word (via Pandoc) en insérant les schémas exportés. À utiliser pour livrer une documentation hors du dépôt.
+description: "Publie un Markdown vers Confluence ou Word (via Pandoc) en insérant les schémas exportés. À utiliser pour livrer une documentation hors du dépôt."
 ---
 
 # markdown-publish

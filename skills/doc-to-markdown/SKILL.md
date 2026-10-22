@@ -1,6 +1,6 @@
 ---
 name: doc-to-markdown
-description: Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local. À utiliser pour extraire le contenu d'un document vers du Markdown.
+description: "Convertit un document PDF, DOCX, PPTX, XLSX ou une image en Markdown propre, en local. À utiliser pour extraire le contenu d'un document vers du Markdown."
 ---
 
 # doc-to-markdown

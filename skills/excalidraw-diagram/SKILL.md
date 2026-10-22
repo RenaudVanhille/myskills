@@ -1,6 +1,6 @@
 ---
 name: excalidraw-diagram
-description: Crée un schéma Excalidraw au style dessiné à la main, rendu en PNG et vérifié visuellement. À utiliser pour les publics non techniques.
+description: "Crée un schéma Excalidraw au style dessiné à la main, rendu en PNG et vérifié visuellement. À utiliser pour les publics non techniques."
 ---
 
 # excalidraw-diagram

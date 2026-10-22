@@ -1,6 +1,6 @@
 ---
 name: drawio-diagram
-description: Crée ou modifie un schéma draw.io (.drawio) et l'exporte en PNG, SVG ou PDF. À utiliser pour les schémas destinés à Office ou Confluence.
+description: "Crée ou modifie un schéma draw.io (.drawio) et l'exporte en PNG, SVG ou PDF. À utiliser pour les schémas destinés à Office ou Confluence."
 ---
 
 # drawio-diagram

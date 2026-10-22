@@ -61,26 +61,34 @@ install_skills() {
   echo "Skills -> $dest"
 }
 
+# Modèle configuré dans shared/models.conf pour l'outil $1 et le niveau $2.
+model_for() { awk -F= -v k="$1.$2" '$1==k{print $2}' "$REPO/shared/models.conf"; }
+
 # Génère les agents pour un outil : $1 = claude|opencode|kiro, $2 = dossier.
 install_agents() {
-  local flavor="$1" dest="$2" src name desc skills doctor resources s
+  local flavor="$1" dest="$2" src name desc skills role tier model doctor resources tools s
   run mkdir -p "$dest"
   if [ "$MODE" = global ]; then doctor="~/.myskills/doctor.sh"; else doctor=".myskills/doctor.sh"; fi
   for src in "$REPO"/agents/*.md; do
     name="$(field name "$src")"
     desc="$(field description "$src")"
     skills="$(field skills "$src")"
+    role="$(field role "$src")"
+    tier="$(field tier "$src")"
+    model="$(model_for "$flavor" "$tier")"
     {
       echo "---"
       case "$flavor" in
         claude)
           echo "name: $name"
           echo "description: $desc"
+          [ -n "$model" ] && echo "model: $model"
           echo "skills: $skills"
           ;;
         opencode)
           echo "description: $desc"
-          echo "mode: primary"
+          if [ "$role" = coordinateur ]; then echo "mode: primary"; else echo "mode: subagent"; fi
+          [ -n "$model" ] && echo "model: $model"
           ;;
         kiro)
           resources=""
@@ -88,9 +96,12 @@ install_agents() {
             if [ "$MODE" = global ]; then s="skill://~/.kiro/skills/$s/SKILL.md"; else s="skill://.kiro/skills/$s/SKILL.md"; fi
             resources="$resources${resources:+, }\"$s\""
           done
+          tools='"read", "write", "shell"'
+          [ "$role" = coordinateur ] && tools="$tools, \"subagent\""
           echo "name: $name"
           echo "description: $desc"
-          echo 'tools: ["read", "write", "shell"]'
+          [ -n "$model" ] && echo "model: $model"
+          echo "tools: [$tools]"
           echo "resources: [$resources]"
           ;;
       esac

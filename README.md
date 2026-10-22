@@ -13,18 +13,22 @@ Copilot**, **Claude**, **OpenCode** et **Kiro** à partir d'une source unique :
 | Dossier | Rôle |
 | --- | --- |
 | `skills/<nom>/SKILL.md` | Un skill au format [Agent Skills](https://agentskills.io), avec `references/` et `scripts/` |
-| `agents/` | Les deux agents coordinateurs, en format source neutre |
+| `agents/` | Les deux agents principaux et les trois exécutants, en format source neutre |
 | `shared/references/style.md` | Charte graphique commune aux schémas, copiée dans les skills listés dans `shared/targets.txt` |
+| `shared/models.conf` | Modèle utilisé par chaque niveau (simple, moyen, complexe), pour chaque outil |
 | `scripts/install.sh` | Installe skills et agents pour chaque outil |
 | `scripts/doctor.sh` | Vérifie les outils requis (MarkItDown, Docling, draw.io, Mermaid CLI, LikeC4, Playwright, Pandoc) |
 | `tests/` | Documents réels et résultats attendus |
 
 ### Agents
 
-| Agent | Rôle |
-| --- | --- |
-| `diagram-coordinator` | Choisit le format de schéma selon le contexte, le public et la destination, délègue au skill et valide le rendu |
-| `extraction-coordinator` | Choisit l'outil de conversion selon le document, convertit et valide le Markdown |
+| Agent | Rôle | Niveau |
+| --- | --- | --- |
+| `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, découpe le travail et valide le rendu | moyen |
+| `document-extractor` | Choisit l'outil de conversion selon le document, découpe le travail et valide le Markdown | moyen |
+| `executant-simple` | Actions mécaniques : lancer une conversion ou un export, valider un fichier | simple |
+| `executant-moyen` | Rédaction courante : schéma Mermaid ou draw.io, PDF à tableaux, format Obsidian | moyen |
+| `executant-complexe` | Actions difficiles : vision, modélisation C4, simplification pour non techniques, relecture visuelle | complexe |
 
 ### Skills
 
@@ -66,6 +70,29 @@ scripts/doctor.sh            # ou : extraction | schemas | publication
 | Kiro | `.kiro/skills` | `.kiro/agents` (skills déclarés en `skill://`) | `~/.kiro/...` |
 
 Sur claude.ai, importez un skill en zippant son dossier `skills/<nom>/`.
+
+## Niveaux et coûts
+
+Les deux agents principaux classent chaque action (grille dans leur fichier)
+et la confient à l'exécutant le moins cher qui convient. En cas d'échec, ils
+remontent d'un niveau. Le modèle de chaque niveau se règle dans
+`shared/models.conf`, puis `scripts/install.sh` le reporte dans les agents :
+
+| Niveau | Claude Code | OpenCode | Kiro |
+| --- | --- | --- | --- |
+| simple | `haiku` | `anthropic/claude-haiku-5-5` | à renseigner |
+| moyen | `sonnet` | `anthropic/claude-sonnet-5-5` | à renseigner |
+| complexe | `opus` | `anthropic/claude-opus-5-5` | à renseigner |
+
+À vérifier à l'étape 4 :
+
+- **Claude Code** : un sous-agent ne peut pas lancer d'autres sous-agents.
+  Lancez donc l'agent principal comme session (`claude --agent schema-designer`)
+  plutôt que comme sous-agent.
+- **GitHub Copilot** lit les agents de `.claude/agents` ; reste à confirmer
+  qu'il interprète les alias `haiku`, `sonnet`, `opus`. Sinon, il garde le
+  modèle de la session.
+- **Kiro** : renseignez les identifiants de modèle dans `shared/models.conf`.
 
 ## Principes
 

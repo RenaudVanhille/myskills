@@ -1,6 +1,6 @@
 ---
 name: diagram-export
-description: Exporte un schéma (draw.io, Excalidraw, LikeC4, Mermaid) en PNG haute définition ou SVG pour Word, PowerPoint ou Confluence, avec le fichier source joint. À utiliser pour intégrer un schéma dans un document Office ou une page Confluence.
+description: "Exporte un schéma (draw.io, Excalidraw, LikeC4, Mermaid) en PNG haute définition ou SVG pour Word, PowerPoint ou Confluence, avec le fichier source joint. À utiliser pour intégrer un schéma dans un document Office ou une page Confluence."
 ---
 
 # diagram-export

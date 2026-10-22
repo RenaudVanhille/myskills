@@ -1,6 +1,6 @@
 ---
 name: diagram-brief
-description: Grille de choix du format de schéma selon le public (technique ou non), la destination (Markdown, Obsidian, Office, Confluence) et le type de schéma. À utiliser avant de produire un schéma.
+description: "Grille de choix du format de schéma selon le public (technique ou non), la destination (Markdown, Obsidian, Office, Confluence) et le type de schéma. À utiliser avant de produire un schéma."
 ---
 
 # diagram-brief
