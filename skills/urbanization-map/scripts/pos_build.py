@@ -44,7 +44,16 @@ STYLES = {
             "fontSize=16;fontStyle=1;spacingLeft=8;" + "whiteSpace=wrap;html=1;",
     "quartier": "rounded=1;arcSize=4;fillColor=#ffffff;strokeColor=#6b7280;fontSize=14;fontStyle=1;"
                 "spacingLeft=6;" + BASE,
-    "ilot": "rounded=1;arcSize=6;fillColor=#f9fafb;strokeColor=#d1d5db;fontSize=13;spacingLeft=6;" + BASE,
+    "ilot": "rounded=1;arcSize=6;fillColor=#ffffff;strokeColor=#d1d5db;fontSize=13;spacingLeft=6;" + BASE,
+}
+# Teinte d'une zone selon son type -> (fond de la zone, bordure et titre, fond des quartiers).
+# Échanges reprend la couleur des files et bus de la charte, référentiels celle des données.
+TINTS = {
+    "pilotage": ("#eef2ff", "#4f46e5", "#e0e7ff"),
+    "operations": ("#fefce8", "#ca8a04", "#fef9c3"),
+    "support": ("#fdf2f8", "#db2777", "#fce7f3"),
+    "referentiel": ("#f0fdf4", "#15803d", "#dcfce7"),
+    "echanges": ("#faf5ff", "#7e22ce", "#f3e8ff"),
 }
 # Statut d'une application -> (style, nom dans la légende).
 STATUSES = {
@@ -97,6 +106,7 @@ class Node:
         self.x = self.y = self.w = self.h = 0.0
         self.leaf = False
         self.rows: list[list[Node]] = []
+        self.tint = TINTS["operations"]
 
 
 def parse_app(item, where: str, errors: list) -> Node:
@@ -260,7 +270,9 @@ def place(node: Node, w: float, h: float) -> None:
     y = PAD + header(node)
     heights = [max(c.h for c in r) for r in node.rows]
     spare = (h - PAD) - (y + sum(heights) + GAP * (len(heights) - 1))
-    heights = [height + spare / len(heights) for height in heights]
+    if node.rows[0][0].level != "application":
+        # Les blocs se partagent la hauteur en trop ; des applications restent groupées en haut.
+        heights = [height + spare / len(heights) for height in heights]
     # Les applications gardent leur taille ; leur grille est centrée dans le bloc.
     grid_w = max(sum(c.w for c in r) + GAP * (len(r) - 1) for r in node.rows)
     for row, row_h in zip(node.rows, heights):
@@ -336,6 +348,13 @@ def emit(root: ET.Element, node: Node, parent: str, ids: dict, origin: tuple = (
         style = STATUSES[node.status][0] + BASE + "fontSize=14;" + LEAF
     else:
         style = STYLES[node.level] + (LEAF if node.leaf else FRAME)
+        fill, stroke, light = node.tint
+        if node.level == "zone":
+            style = style.replace("fillColor=none;strokeColor=#9ca3af;fontColor=#6b7280;",
+                                  f"fillColor={fill};strokeColor={stroke};fontColor={stroke};")
+        elif node.level == "quartier":
+            style = style.replace("fillColor=#ffffff;strokeColor=#6b7280;",
+                                  f"fillColor={light};strokeColor={stroke};")
     cell = ET.SubElement(root, "mxCell", id=cid, value=label(node.name), style=style, vertex="1",
                          parent=parent)
     ET.SubElement(cell, "mxGeometry", x=f"{node.x + origin[0]:g}", y=f"{node.y + origin[1]:g}",
@@ -444,6 +463,17 @@ def check_spec(zones: list[Node], audience: str, depth: int, zoom: bool, totals:
                         "(une page par zone) ou baissez le niveau de détail")
 
 
+def paint(zones: list[Node], vocabulary: str) -> list[Node]:
+    """Teinte de chaque zone et de ses quartiers : selon le type de zone pour un POS,
+    une teinte par capacité de niveau 1, dans l'ordre, pour TOGAF."""
+    order = list(TINTS)
+    for index, zone in enumerate(zones):
+        tint = TINTS[order[index % len(order)]] if vocabulary == "togaf" else TINTS[zone.kind]
+        for node in [zone, *zone.children]:
+            node.tint = tint
+    return zones
+
+
 def find_checker():
     """check_drawio.py du skill drawio-diagram, s'il est installé à côté."""
     folder = Path(__file__).resolve().parents[2] / "drawio-diagram" / "scripts"
@@ -491,6 +521,7 @@ def main() -> int:
         vocabulary = "pos"
 
     zones = parse_spec(spec, errors)
+    paint(zones, vocabulary)
     if vocabulary == "togaf":
         # TOGAF n'impose pas de disposition : les capacités de niveau 1 s'empilent dans l'ordre donné.
         for zone in zones:
@@ -512,7 +543,7 @@ def main() -> int:
     mxfile.append(build_page("Vue d'ensemble", title, zones, depth, legend, vocabulary))
     if zoom and depth < 3:
         prefix = "capacité" if vocabulary == "togaf" else "zone"
-        for zone in parse_spec(spec, []):
+        for zone in paint(parse_spec(spec, []), vocabulary):
             mxfile.append(build_page(zone.name, f"{title}, {prefix} {zone.name}" if title else zone.name,
                                      [zone], 3, legend, vocabulary))
     ET.indent(mxfile)

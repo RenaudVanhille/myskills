@@ -104,11 +104,25 @@ schéma plus sobre.
 Trois niveaux imbriqués, du plus large au plus fin, puis les applications :
 
 ```text
-Zone          : rounded=1;arcSize=2;dashed=1;fillColor=none;strokeColor=#9ca3af;fontColor=#6b7280;fontSize=16;fontStyle=1;
-Quartier      : rounded=1;arcSize=4;fillColor=#ffffff;strokeColor=#6b7280;fontColor=#1f2937;fontSize=14;fontStyle=1;
-Îlot          : rounded=1;arcSize=6;fillColor=#f9fafb;strokeColor=#d1d5db;fontColor=#1f2937;fontSize=13;
+Zone          : rounded=1;arcSize=2;dashed=1;fillColor=<fond>;strokeColor=<bordure>;fontColor=<bordure>;fontSize=16;fontStyle=1;
+Quartier      : rounded=1;arcSize=4;fillColor=<fond quartier>;strokeColor=<bordure>;fontColor=#1f2937;fontSize=14;fontStyle=1;
+Îlot          : rounded=1;arcSize=6;fillColor=#ffffff;strokeColor=#d1d5db;fontColor=#1f2937;fontSize=13;
 Application   : rounded=1;fillColor=<statut>;strokeColor=<statut>;fontColor=#1f2937;fontSize=14;
 ```
+
+Chaque type de zone a sa teinte, reprise par ses quartiers ; les îlots
+restent blancs pour que les statuts des applications ressortent. Échanges
+reprend la couleur des files et bus, référentiels celle des données. En
+vocabulaire TOGAF, les capacités de niveau 1 prennent ces teintes dans
+l'ordre.
+
+| Zone | Fond | Bordure, titre | Fond des quartiers |
+| --- | --- | --- | --- |
+| Pilotage | `#eef2ff` | `#4f46e5` | `#e0e7ff` |
+| Opérations | `#fefce8` | `#ca8a04` | `#fef9c3` |
+| Support | `#fdf2f8` | `#db2777` | `#fce7f3` |
+| Référentiels | `#f0fdf4` | `#15803d` | `#dcfce7` |
+| Échanges | `#faf5ff` | `#7e22ce` | `#f3e8ff` |
 
 Disposition : zone de pilotage en haut, opérations (cœur de métier) au
 milieu, support en bas, échanges à gauche, référentiels à droite. Les blocs

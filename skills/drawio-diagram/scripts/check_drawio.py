@@ -23,7 +23,10 @@ CHARTER = {"#fef3c7", "#b45309", "#dbeafe", "#1d4ed8", "#f3f4f6", "#6b7280", "#d
            "#15803d", "#f3e8ff", "#7e22ce", "#fee2e2", "#b91c1c", "#9ca3af", "#1f2937",
            "#374151", "#ffffff", "#000000", "none", "default",
            # Statuts d'application et îlots d'un POS (charte, section « Statut d'application »).
-           "#ffedd5", "#c2410c", "#ccfbf1", "#0f766e", "#f9fafb", "#d1d5db"}
+           "#ffedd5", "#c2410c", "#ccfbf1", "#0f766e", "#f9fafb", "#d1d5db",
+           # Teintes des zones d'un POS (charte, section POS).
+           "#eef2ff", "#4f46e5", "#e0e7ff", "#fefce8", "#ca8a04", "#fef9c3", "#fdf2f8", "#db2777",
+           "#fce7f3", "#f0fdf4", "#faf5ff"}
 
 
 def style_of(cell: ET.Element) -> dict:
