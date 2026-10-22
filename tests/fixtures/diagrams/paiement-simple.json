@@ -1,0 +1,15 @@
+{
+  "title": "Comment un paiement est traité",
+  "audience": "non technique",
+  "elements": [
+    {"id": "client", "role": "person", "label": "Client", "row": 0, "col": 0},
+    {"id": "site", "role": "system", "label": "Site web", "row": 0, "col": 1},
+    {"id": "paiement", "role": "system", "label": "Service\nde paiement", "row": 0, "col": 2},
+    {"id": "banque", "role": "external", "label": "Banque", "row": 0, "col": 3},
+    {"id": "historique", "role": "db", "label": "Historique", "row": 1, "col": 2},
+    {"from": "client", "to": "site", "label": "commande"},
+    {"from": "site", "to": "paiement"},
+    {"from": "paiement", "to": "banque", "label": "débit"},
+    {"from": "paiement", "to": "historique", "label": "enregistre", "style": "async"}
+  ]
+}

@@ -100,7 +100,7 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
 | `scripts/install.py` | Installation pour OpenCode, Hermes et les agents Kiro |
-| `tests/` | Documents réels et résultats attendus |
+| `tests/` | Documents de test, résultats attendus, `run.py` (scripts) et `judge.py` (agents et déclenchement des skills) |
 
 Vérification du plugin Claude Code : `claude plugin validate .`
 

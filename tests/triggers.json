@@ -1,0 +1,24 @@
+{
+  "_doc": "Demandes d'utilisateur et skill qui doit se déclencher. tests/judge.py triggers vérifie que les descriptions des SKILL.md suffisent à choisir le bon skill.",
+  "cases": [
+    {"prompt": "Convertis ce PDF en Markdown.", "skill": "doc-to-markdown"},
+    {"prompt": "Récupère le texte et les tableaux de ce fichier Word.", "skill": "doc-to-markdown"},
+    {"prompt": "J'ai un scan de contrat, transforme-le en texte Markdown.", "skill": "doc-to-markdown"},
+    {"prompt": "Mets cette note au format Obsidian avec des wikilinks.", "skill": "markdown-to-obsidian"},
+    {"prompt": "Range ce compte rendu dans mon vault avec les bons tags.", "skill": "markdown-to-obsidian"},
+    {"prompt": "Quel type de schéma choisir pour expliquer notre SI à la direction ?", "skill": "diagram-brief"},
+    {"prompt": "Fais un schéma draw.io de l'infrastructure pour la page Confluence.", "skill": "drawio-diagram"},
+    {"prompt": "Corrige les flèches de ce fichier .drawio.", "skill": "drawio-diagram"},
+    {"prompt": "Dessine un schéma façon tableau blanc pour l'atelier de demain.", "skill": "excalidraw-diagram"},
+    {"prompt": "Fais une vue d'ensemble simple du parcours client pour les commerciaux.", "skill": "excalidraw-diagram"},
+    {"prompt": "Modélise l'architecture en C4 : contexte et conteneurs.", "skill": "c4-architecture"},
+    {"prompt": "Ajoute un diagramme de séquence du login dans le README.", "skill": "mermaid-diagram"},
+    {"prompt": "Écris le diagramme d'états de la commande dans la doc du dépôt.", "skill": "mermaid-diagram"},
+    {"prompt": "Exporte ce schéma en PNG pour le mettre dans PowerPoint.", "skill": "diagram-export"},
+    {"prompt": "Vérifie que ce fichier Mermaid se rend sans erreur.", "skill": "diagram-export"},
+    {"prompt": "Transforme cette doc Markdown en fichier Word pour SharePoint.", "skill": "markdown-publish"},
+    {"prompt": "Génère la page XWiki à partir de ma note.", "skill": "markdown-publish"},
+    {"prompt": "La commande markitdown est introuvable, qu'est-ce qui me manque ?", "skill": "check-prerequisites"},
+    {"prompt": "Avant de commencer, vérifie que draw.io et Node sont installés.", "skill": "check-prerequisites"}
+  ]
+}

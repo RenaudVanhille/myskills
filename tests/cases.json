@@ -1,0 +1,139 @@
+{
+  "_doc": "Cas de test des scripts, lancés par tests/run.py. Jetons : {skills}, {samples}, {fixtures}, {out} (dossier temporaire du cas). Chaque étape lance un script ; 'report' vérifie des valeurs du rapport JSON (chemin pointé, 0 = premier élément) ; 'report_contains' cherche un texte dans une valeur ; 'files' et 'contains' portent sur {out}.",
+  "cases": [
+    {
+      "id": "docx",
+      "skill": "doc-to-markdown",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/architecture.docx", "--out", "{out}"],
+         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}},
+        {"script": "{skills}/doc-to-markdown/scripts/validate.py",
+         "args": ["{out}/architecture.md"], "exit": 0}
+      ],
+      "files": ["architecture.md", "attachments/architecture-1.png"],
+      "contains": {"architecture.md": ["# Architecture du service de paiement",
+                                        "## Composants",
+                                        "| API | Reçoit les commandes | Java 21 |"]},
+      "expected": {"architecture.md": "architecture.md"}
+    },
+    {
+      "id": "pptx",
+      "skill": "doc-to-markdown",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/presentation.pptx", "--out", "{out}"],
+         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}}
+      ],
+      "files": ["presentation.md", "attachments/presentation-1.png"],
+      "contains": {"presentation.md": ["Flux d'un paiement"]}
+    },
+    {
+      "id": "pdf-texte",
+      "skill": "doc-to-markdown",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-texte.pdf", "--out", "{out}"],
+         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false}},
+        {"script": "{skills}/doc-to-markdown/scripts/validate.py",
+         "args": ["{out}/rapport-texte.md"], "exit": 0}
+      ],
+      "contains": {"rapport-texte.md": ["| API", "PostgreSQL"]}
+    },
+    {
+      "id": "pdf-scanne",
+      "skill": "doc-to-markdown",
+      "_note": "Docling peut manquer : le cas vérifie seulement la détection du scan.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}"],
+         "exit": 0, "report": {"0.type": "pdf"},
+         "report_contains": {"0.warnings": "Pages sans texte"}}
+      ]
+    },
+    {
+      "id": "image",
+      "skill": "doc-to-markdown",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/schema-flux.png", "--out", "{out}"],
+         "exit": 0, "report": {"0.engine": "copie", "0.needs_vision": true}}
+      ],
+      "files": ["schema-flux.md", "attachments/schema-flux.png"]
+    },
+    {
+      "id": "classify-regles",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Installe PyTorch et Laya au premier lancement, d'où --slow.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/classify.py",
+         "args": ["{samples}/presentation.pptx", "{samples}/rapport-scanne.pdf", "--rules-only"],
+         "exit": 0,
+         "report": {"0.type": "presentation", "0.method": "regles", "1.engine": "docling"}}
+      ]
+    },
+    {
+      "id": "obsidian",
+      "skill": "markdown-to-obsidian",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/architecture.docx", "--out", "{out}/tmp"], "exit": 0},
+        {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
+         "args": ["{out}/tmp/architecture.md", "--vault", "{out}/vault", "--folder", "Architecture",
+                  "--tags", "architecture,paiement", "--source", "architecture.docx", "--move"],
+         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1}},
+        {"script": "{skills}/doc-to-markdown/scripts/validate.py",
+         "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
+         "exit": 0}
+      ],
+      "files": ["vault/Architecture/architecture.md", "vault/attachments/architecture-1.png"],
+      "absent": ["tmp/architecture.md"],
+      "contains": {"vault/Architecture/architecture.md": ["source: \"architecture.docx\"",
+                                                          "  - paiement", "![[architecture-1.png]]"]}
+    },
+    {
+      "id": "drawio-valide",
+      "skill": "drawio-diagram",
+      "steps": [
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{fixtures}/diagrams/paiement-valide.drawio"],
+         "exit": 0, "report": {"0.shapes": 3, "0.errors": [], "0.warnings": []}}
+      ]
+    },
+    {
+      "id": "drawio-casse",
+      "skill": "drawio-diagram",
+      "steps": [
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{fixtures}/diagrams/paiement-casse.drawio"],
+         "exit": 1, "report_contains": {"0.errors": "identifiant en double"}}
+      ]
+    },
+    {
+      "id": "excalidraw",
+      "skill": "excalidraw-diagram",
+      "steps": [
+        {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py",
+         "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.excalidraw"],
+         "exit": 0, "report": {"errors": [], "warnings": []}}
+      ],
+      "files": ["paiement.excalidraw"],
+      "contains": {"paiement.excalidraw": ["\"type\": \"excalidraw\"", "Banque"]}
+    },
+    {
+      "id": "publish-html",
+      "skill": "markdown-publish",
+      "slow": true,
+      "_note": "Télécharge Pandoc (pypandoc_binary) au premier lancement.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/architecture.docx", "--out", "{out}"], "exit": 0},
+        {"script": "{skills}/markdown-publish/scripts/publish.py",
+         "args": ["{out}/architecture.md", "--to", "html,docx", "--out", "{out}/pub"], "exit": 0}
+      ],
+      "files": ["pub/architecture.html", "pub/architecture.docx"],
+      "contains": {"pub/architecture.html": ["Architecture du service de paiement", "PostgreSQL"]}
+    }
+  ]
+}
