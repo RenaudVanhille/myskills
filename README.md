@@ -50,7 +50,7 @@ la demande ; les rendus passent par Playwright.
 | Skill | Rôle |
 | --- | --- |
 | `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants |
-| `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision) |
+| `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
 | `markdown-to-obsidian` | Markdown vers format Obsidian |
 | `diagram-brief` | Grille de choix du format de schéma |
 | `drawio-diagram` | Schémas draw.io et exports |

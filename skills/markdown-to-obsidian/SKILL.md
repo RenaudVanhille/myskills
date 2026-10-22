@@ -28,6 +28,11 @@ jointes réglé dans Obsidian (`attachments`).
   tag existant ne couvre le sujet.
 - **Pièces jointes** : si `attachments` est renseigné, passez-le à
   `--attachments`.
+- **Type et domaine** (optionnel) : `--classify` ajoute au frontmatter les
+  propriétés `type` et `domaine`, devinées en local par le modèle Laya (voir
+  `classify.py` dans `doc-to-markdown`). Passez les tags principaux du vault
+  à `--domains` pour que `domaine` reprenne son vocabulaire. Une valeur
+  incertaine n'est pas écrite.
 - Les tags et le dossier donnés par l'utilisateur passent toujours avant.
 - Indiquez dans le rapport final le dossier et les tags choisis.
 
@@ -35,7 +40,8 @@ jointes réglé dans Obsidian (`attachments`).
 
 ```bash
 uv run scripts/obsidianize.py NOTE.md [...] --vault VAULT [--folder SOUS-DOSSIER] \
-    [--attachments attachments] [--source document.pdf] [--tags tag1,tag2] [--move]
+    [--attachments attachments] [--source document.pdf] [--tags tag1,tag2] [--move] \
+    [--classify --domains tag1,tag2,tag3]
 ```
 
 Pour importer un document, convertissez-le d'abord dans un dossier de travail
@@ -44,7 +50,7 @@ quittent le dossier de travail pour le vault, sans laisser de copie.
 
 | Transformation | Avant | Après |
 | --- | --- | --- |
-| Frontmatter (si absent) | | `title`, `source`, `created`, `tags` |
+| Frontmatter (si absent) | | `title`, `source`, `created`, `tags` (+ `type`, `domaine` avec `--classify`) |
 | Image locale | `![alt](attachments/a.png)` | `![[a.png\|alt]]` |
 | Lien vers une note | `[texte](autre.md)` | `[[autre\|texte]]` |
 | Citation avec mot-clé | `> Attention : ...` | `> [!warning]` puis le texte |

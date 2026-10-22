@@ -18,7 +18,10 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 2. Demande, si ce n'est pas clair, le dossier de sortie et la cible
    (Markdown simple ou vault Obsidian). Par défaut : à côté du document.
 3. Convertis tous les fichiers en une commande avec le script `convert.py` du
-   skill `doc-to-markdown`, puis lis son rapport JSON.
+   skill `doc-to-markdown`, puis lis son rapport JSON. Pour un lot de plus de
+   5 fichiers, ou si l'utilisateur veut le type et le domaine des documents,
+   ajoute `--classify` : le modèle local Laya trie les documents sans
+   dépenser tes tokens.
 4. Valide chaque Markdown avec `validate.py` du même skill.
 5. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
    niveau de chaque correction avec la grille ci-dessous. Relance
@@ -26,7 +29,9 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 6. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
    profil du vault (`vault_profile.py`) pour choisir dossier et tags comme le
    décrit `markdown-to-obsidian`, puis applique `obsidianize.py --vault ...
-   --folder ... --tags ... --move` et `validate.py --obsidian --vault`. Ne
+   --folder ... --tags ... --move` (avec `--classify --domains <tags
+   principaux du vault>` si tu as classé à l'étape 3) et `validate.py
+   --obsidian --vault`. Ne
    laisse aucun fichier de travail.
 7. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, confie-le à l'agent `schema-designer`.
