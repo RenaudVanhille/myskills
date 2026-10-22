@@ -8,7 +8,30 @@ description: "Met un fichier Markdown au format Obsidian : frontmatter, embeds d
 Les chemins `scripts/...` sont relatifs au dossier de ce skill. Le script n'a
 aucune dépendance (`uv run` ou `python`).
 
-## 1. Convertir
+## 1. Classer et taguer
+
+Avant d'importer, lisez le profil du vault (lecture seule) :
+
+```bash
+uv run scripts/vault_profile.py VAULT
+```
+
+Le rapport JSON donne les tags existants (du plus utilisé au moins utilisé),
+les dossiers de notes avec leurs tags fréquents, et le dossier de pièces
+jointes réglé dans Obsidian (`attachments`).
+
+- **Dossier** : choisissez le dossier dont les notes et les tags ressemblent le
+  plus au sujet du document, et passez-le à `--folder`. Si aucun ne convient,
+  proposez un nouveau dossier à l'utilisateur plutôt que d'en créer un d'office.
+- **Tags** : retenez 2 à 4 tags, en reprenant l'orthographe exacte des tags
+  existants (`architecture`, pas `archi`). N'en créez un nouveau que si aucun
+  tag existant ne couvre le sujet.
+- **Pièces jointes** : si `attachments` est renseigné, passez-le à
+  `--attachments`.
+- Les tags et le dossier donnés par l'utilisateur passent toujours avant.
+- Indiquez dans le rapport final le dossier et les tags choisis.
+
+## 2. Convertir
 
 ```bash
 uv run scripts/obsidianize.py NOTE.md [...] --vault VAULT [--folder SOUS-DOSSIER] \
@@ -38,7 +61,7 @@ script peut être relancé sans risque : il ne refait pas ce qui est déjà fait
 Le rapport JSON indique, par note, le nombre d'embeds, de wikilinks et de
 callouts créés, et les images introuvables (`missing`, code de sortie 1).
 
-## 2. Valider
+## 3. Valider
 
 Avec le script `validate.py` du skill `doc-to-markdown` :
 
@@ -49,12 +72,10 @@ uv run ../doc-to-markdown/scripts/validate.py VAULT/SOUS-DOSSIER/NOTE.md --obsid
 Un embed introuvable est une erreur ; une note liée absente n'est qu'un
 avertissement (Obsidian accepte les liens vers des notes à créer).
 
-## 3. Finir à la main
+## 4. Finir à la main
 
 - **Ancres** : un lien `[[note#section]]` doit reprendre le texte exact du
   titre visé (`[[note#Flux d'un paiement]]`), pas un identifiant web.
-- **Tags** : proposez 2 à 4 tags tirés du sujet du document si l'utilisateur
-  n'en a pas donné.
 - **Encadrés non détectés** : transformez en callout un paragraphe qui est
   clairement une note ou un avertissement.
 - Pour aller plus loin (Bases, Canvas, propriétés avancées), le skill

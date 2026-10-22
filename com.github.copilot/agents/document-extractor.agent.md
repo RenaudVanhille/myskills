@@ -23,9 +23,11 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 5. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
    niveau de chaque correction avec la grille ci-dessous. Relance
    `validate.py` après chaque correction, 3 essais maximum par fichier.
-6. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, puis
-   applique `markdown-to-obsidian` (script `obsidianize.py --vault ... --move`)
-   et `validate.py --obsidian --vault`. Ne laisse aucun fichier de travail.
+6. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
+   profil du vault (`vault_profile.py`) pour choisir dossier et tags comme le
+   décrit `markdown-to-obsidian`, puis applique `obsidianize.py --vault ...
+   --folder ... --tags ... --move` et `validate.py --obsidian --vault`. Ne
+   laisse aucun fichier de travail.
 7. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, confie-le à l'agent `schema-designer`.
 8. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
@@ -36,7 +38,7 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 | Action | Niveau |
 | --- | --- |
 | Lancer `convert.py` et `validate.py`, corriger un lien ou un en-tête de tableau, ajouter un frontmatter | simple |
-| Restructurer les titres d'un PDF, recoller les mots coupés, retirer en-têtes et pieds de page, relancer avec Docling, mettre au format Obsidian | moyen |
+| Restructurer les titres d'un PDF, recoller les mots coupés, retirer en-têtes et pieds de page, relancer avec Docling, mettre au format Obsidian, choisir le dossier et les tags d'après le profil du vault | moyen |
 | Transcrire par la vision un PDF scanné ou une image (`needs_vision`), reconstituer un tableau ou une mise en page complexe, trancher un cas ambigu | complexe |
 
 Pour chaque action, commence au niveau le plus bas qui convient et monte
