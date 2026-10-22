@@ -1,23 +1,28 @@
 # myskills
 
-Skills et agents pour l'ingénierie logicielle, utilisables dans **GitHub
-Copilot**, **Claude**, **OpenCode** et **Kiro** à partir d'une source unique :
+Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
+**GitHub Copilot**, **Claude Code**, **Kiro** et **OpenCode** :
 
 - **Extraction documentaire** : PDF, DOCX, PPTX, XLSX, images vers Markdown ou
   Obsidian.
 - **Schémas** : draw.io, Excalidraw, C4, Mermaid, adaptés à un public
   technique ou non, pour Markdown, Office et Confluence.
 
-## Contenu
+## Installation
 
-| Dossier | Rôle |
+| Outil | Commande |
 | --- | --- |
-| `skills/<nom>/SKILL.md` | Un skill au format [Agent Skills](https://agentskills.io), avec `references/` et `scripts/` |
-| `agents/` | Les deux agents, en format source neutre |
-| `shared/references/style.md` | Charte graphique commune aux schémas, copiée dans les skills listés dans `shared/targets.txt` |
-| `scripts/install.sh` | Installe skills et agents pour chaque outil |
-| `scripts/doctor.sh` | Vérifie les outils requis (MarkItDown, Docling, draw.io, Mermaid CLI, LikeC4, Playwright, Pandoc) |
-| `tests/` | Documents réels et résultats attendus |
+| GitHub Copilot CLI | `copilot plugin install RenaudVanhille/myskills` |
+| Claude Code | `/plugin marketplace add RenaudVanhille/myskills` puis `/plugin install myskills@myskills` |
+| Kiro | Panneau Powers > Add Custom Power > Import power from GitHub > `https://github.com/RenaudVanhille/myskills` (skills uniquement) |
+| OpenCode | Pas d'installation native : `scripts/install.sh --tools opencode [--global]` |
+| Agents Kiro | Les powers ne transportent pas d'agents : `scripts/install.sh --tools kiro [--global]` |
+
+Avant une première utilisation, le skill `check-prerequisites` liste les
+outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Mermaid CLI,
+LikeC4, Playwright, Pandoc).
+
+## Contenu
 
 ### Agents
 
@@ -30,6 +35,7 @@ Copilot**, **Claude**, **OpenCode** et **Kiro** à partir d'une source unique :
 
 | Skill | Rôle |
 | --- | --- |
+| `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision) |
 | `markdown-to-obsidian` | Markdown vers format Obsidian |
 | `diagram-brief` | Grille de choix du format de schéma |
@@ -40,32 +46,22 @@ Copilot**, **Claude**, **OpenCode** et **Kiro** à partir d'une source unique :
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Confluence ou Word |
 
-## Installation
+## Outils autorisés
 
-```bash
-# Dans un projet (défaut : dossier courant)
-scripts/install.sh --project ~/code/mon-projet
+Chaque agent n'a que le strict nécessaire : lecture et écriture de fichiers,
+le shell pour les commandes de conversion et d'export, et le lancement d'un
+sous-agent (pour les niveaux de coût, ci-dessous). Aucun accès web : la
+conversion reste locale.
 
-# Pour tous vos projets
-scripts/install.sh --global
+| Outil | Outils de l'agent | Commandes shell |
+| --- | --- | --- |
+| Claude Code | `Read, Write, Edit, Bash, Skill, Agent` | Toutes (Claude Code ne filtre pas les commandes au niveau de l'agent) |
+| GitHub Copilot | `read, edit, execute, agent` | Toutes |
+| OpenCode | `read, glob, edit, skill, subagent` + `shell` filtré | Seulement la liste `commands` de l'agent |
+| Kiro | `read, write, shell, subagent` | Toutes |
 
-# Seulement certains outils, en simulation
-scripts/install.sh --tools copilot,kiro --dry-run
-
-# Vérifier les prérequis
-scripts/doctor.sh            # ou : extraction | schemas | publication
-```
-
-### Où chaque outil trouve les fichiers
-
-| Outil | Skills (projet) | Agents (projet) | Global |
-| --- | --- | --- | --- |
-| Claude | `.claude/skills` | `.claude/agents` | `~/.claude/...` |
-| GitHub Copilot | `.claude/skills` | `.claude/agents` | `~/.copilot/skills`, `~/.claude/agents` |
-| OpenCode | `.claude/skills` | `.opencode/agents` | `~/.claude/skills`, `~/.config/opencode/agents` |
-| Kiro | `.kiro/skills` | `.kiro/agents` (skills déclarés en `skill://`) | `~/.kiro/...` |
-
-Sur claude.ai, importez un skill en zippant son dossier `skills/<nom>/`.
+La liste des commandes autorisées se trouve dans le champ `commands` de
+chaque agent source (`src/agents/`).
 
 ## Niveaux et coûts
 
@@ -75,6 +71,23 @@ agent classe ses actions en trois niveaux (simple, moyen, complexe) avec une
 grille, et adapte son effort en conséquence. Quand l'outil permet de lancer un
 sous-agent sur un autre modèle (par exemple `haiku` ou `opus` dans Claude
 Code), l'agent l'utilise pour les actions simples ou complexes.
+
+## Organisation du dépôt
+
+| Chemin | Rôle |
+| --- | --- |
+| `plugin.json` | Manifeste [Agent Plugins 1.0](https://vercel.com/kb/guide/agent-plugins), lu par Copilot et Kiro |
+| `.claude-plugin/` | Manifeste et marketplace Claude Code |
+| `skills/<nom>/SKILL.md` | Skills au format [Agent Skills](https://agentskills.io) |
+| `src/agents/` | **Source** des agents, en format neutre (à modifier ici) |
+| `agents/` | Agents Claude Code, générés |
+| `com.github.copilot/agents/` | Agents Copilot, générés |
+| `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` |
+| `scripts/build.sh` | Régénère les fichiers générés ; à lancer avant chaque commit |
+| `scripts/install.sh` | Installation pour OpenCode et les agents Kiro |
+| `tests/` | Documents réels et résultats attendus |
+
+Vérification du plugin Claude Code : `claude plugin validate .`
 
 ## Principes
 
