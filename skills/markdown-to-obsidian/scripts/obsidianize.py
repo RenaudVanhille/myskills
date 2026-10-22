@@ -4,6 +4,8 @@
 """Met un fichier Markdown au format Obsidian.
 
 - ajoute un frontmatter (title, source, created, tags) s'il n'y en a pas ;
+  avec --classify, y ajoute aussi `type` et `domaine`, devinés en local par
+  le modèle Laya (script classify.py du skill doc-to-markdown) ;
 - transforme les images locales en embeds `![[nom.png]]` ;
 - transforme les liens vers d'autres .md en wikilinks `[[note|texte]]` ;
 - transforme les citations « Note : », « Attention : »... en callouts ;
@@ -14,6 +16,7 @@
 Affiche un rapport JSON. Usage :
     uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER]
         [--attachments attachments] [--source NOM] [--tags a,b] [--move]
+        [--classify [--domains a,b]]
 """
 
 import argparse
@@ -21,10 +24,12 @@ import datetime
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+CLASSIFY = Path(__file__).resolve().parents[2] / "doc-to-markdown" / "scripts" / "classify.py"
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+\.md)(#[^)]*)?\)")
 H1 = re.compile(r"^#\s+(.+)$", re.M)
@@ -42,7 +47,24 @@ def yaml_string(value: str) -> str:
     return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def frontmatter(text: str, path: Path, source: str | None, tags: list[str]) -> str:
+def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
+    """Lance classify.py dans son propre environnement (dépendances lourdes)."""
+    if not CLASSIFY.is_file():
+        return {}, f"Classification impossible : {CLASSIFY} introuvable"
+    command = (["uv", "run", "--quiet", str(CLASSIFY)] if shutil.which("uv")
+               else [sys.executable, str(CLASSIFY)])
+    command += [str(f) for f in files] + (["--domains", domains] if domains else [])
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    try:
+        reports = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        lines = (result.stderr or "sortie vide").strip().splitlines()
+        return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
+    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
+
+
+def frontmatter(text: str, path: Path, source: str | None, tags: list[str],
+                extra: dict | None = None) -> str:
     if text.startswith("---\n"):
         return text
     match = H1.search(text)
@@ -51,6 +73,8 @@ def frontmatter(text: str, path: Path, source: str | None, tags: list[str]) -> s
     if source:
         lines.append(f"source: {yaml_string(source)}")
     lines.append(f"created: {datetime.date.today().isoformat()}")
+    for key, value in (extra or {}).items():
+        lines.append(f"{key}: {yaml_string(value)}")
     if tags:
         lines.append("tags:")
         lines += [f"  - {tag}" for tag in tags]
@@ -74,10 +98,18 @@ def callouts(text: str) -> tuple[str, int]:
     return "\n".join(out), count
 
 
-def process(path: Path, args) -> dict:
+def process(path: Path, args, classification: dict | None = None) -> dict:
     text = path.read_text(encoding="utf-8")
     report = {"input": str(path), "output": None, "embeds": 0, "wikilinks": 0,
               "callouts": 0, "attachments_copied": 0, "missing": []}
+    extra = {}
+    if classification:
+        extra = {key: classification[key] for key in ("type", "domaine") if classification[key]}
+        report["classification"] = {key: classification[key] for key in
+                                    ("type", "domaine", "method", "warnings")}
+        if text.startswith("---\n") and extra:
+            report["classification"]["warnings"].append(
+                "Frontmatter déjà présent : type et domaine non ajoutés")
     images: list[Path] = []
 
     def embed(match: re.Match) -> str:
@@ -104,7 +136,7 @@ def process(path: Path, args) -> dict:
     text = MD_LINK.sub(wikilink, text)
     text, report["callouts"] = callouts(text)
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
-    text = frontmatter(text, path, args.source, tags)
+    text = frontmatter(text, path, args.source, tags, extra)
 
     if args.vault:
         note_dir = args.vault / (args.folder or "")
@@ -151,17 +183,27 @@ def main() -> int:
     parser.add_argument("--tags", help="tags séparés par des virgules")
     parser.add_argument("--move", action="store_true",
                         help="avec --vault : supprimer la note et les images d'origine")
+    parser.add_argument("--classify", action="store_true",
+                        help="ajouter type et domaine au frontmatter (modèle local Laya)")
+    parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
     args = parser.parse_args()
     if args.vault:
         args.vault = args.vault.resolve()
 
     reports, failed = [], False
+    classifications, classify_warning = {}, None
+    if args.classify:
+        existing = [path.resolve() for path in args.files if path.is_file()]
+        if existing:
+            classifications, classify_warning = run_classifier(existing, args.domains)
     for path in args.files:
         if not path.is_file():
             reports.append({"input": str(path), "error": "Fichier introuvable"})
             failed = True
             continue
-        reports.append(process(path.resolve(), args))
+        reports.append(process(path.resolve(), args, classifications.get(path.resolve())))
+        if classify_warning:
+            reports[-1]["classification_warning"] = classify_warning
         failed = failed or bool(reports[-1]["missing"])
     print(json.dumps(reports, ensure_ascii=False, indent=2))
     return 1 if failed else 0

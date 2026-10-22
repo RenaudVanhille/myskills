@@ -10,6 +10,28 @@ chemins `scripts/...` sont relatifs au dossier de ce skill. Les scripts
 installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les avec
 `python` après `pip install "markitdown[docx,pptx,xlsx,pdf]" pypdf`.
 
+## 0. Trier un lot (optionnel)
+
+Pour un lot de documents, ou quand l'utilisateur veut connaître le type et le
+domaine de chacun, classez-les d'abord en local avec le petit modèle de
+décision [Laya](https://github.com/NandhaKishorM/laya) (Apache-2.0, CPU) :
+
+```bash
+uv run scripts/classify.py DOSSIER|DOCUMENT [...] [--domains a,b,c]
+```
+
+Le rapport JSON donne, par fichier, `type` (specification, architecture,
+procedure, compte-rendu, presentation, contrat, rapport, autre), `domaine`
+(liste par défaut ou `--domains`), `tables` (probabilité de tableaux ou de
+colonnes, PDF seulement) et `engine` conseillé. Un type ou un domaine dont la
+confiance est sous 0,5 reste vide et le rapport le signale : décidez alors en
+lisant le document. Premier lancement long (PyTorch CPU puis ~1,3 Go de
+modèle, téléchargés une fois). Si le modèle ne peut pas être chargé, le script
+se replie sur des règles simples (`method: regles`) au lieu d'échouer.
+
+Pour ne lancer qu'une commande, passez plutôt `--classify` à `convert.py` :
+le classement est ajouté au rapport de conversion et oriente le moteur.
+
 ## 1. Convertir
 
 ```bash
@@ -25,7 +47,8 @@ Le script choisit le moteur (`--engine auto`, par défaut) :
 | PDF scanné (pages sans texte) | Docling | OCR ; repli sur MarkItDown si Docling échoue |
 | Image | Copie dans `attachments/` | Contenu à transcrire par vision (étape 3) |
 
-Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
+Avec `--classify`, un PDF que Laya juge riche en tableaux ou en colonnes part
+aussi sur Docling. Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
 colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
 (~2 Go de modèles téléchargés une fois).
 

@@ -9,11 +9,16 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER [--out DOSSIER] [--engine auto|markitdown|docling]
+        [--classify [--domains a,b]]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
     docling     PDF scannés (OCR) ou riches en tableaux ; lancé via `uvx`
                 s'il n'est pas installé (premier lancement long : ~2 Go)
+
+Avec --classify, chaque document passe d'abord par classify.py (modèle local
+Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
+ou en colonnes part sur Docling en mode auto.
 """
 
 import argparse
@@ -30,6 +35,7 @@ OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
 MIN_CHARS_PER_PAGE = 30
+CLASSIFY = Path(__file__).with_name("classify.py")
 DATA_URI = re.compile(r"!\[([^\]]*)\]\(data:image/([a-zA-Z0-9.+-]+);base64,([^)]+)\)")
 
 
@@ -116,13 +122,30 @@ def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
     return markdown, count
 
 
-def convert(path: Path, out: Path, engine: str) -> dict:
+def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
+    """Lance classify.py dans son propre environnement (dépendances lourdes)."""
+    command = (["uv", "run", "--quiet", str(CLASSIFY)] if shutil.which("uv")
+               else [sys.executable, str(CLASSIFY)])
+    command += [str(f) for f in files] + (["--domains", domains] if domains else [])
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    try:
+        reports = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        lines = (result.stderr or "sortie vide").strip().splitlines()
+        return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
+    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
+
+
+def convert(path: Path, out: Path, engine: str, classification: dict | None = None) -> dict:
     suffix = path.suffix.lower()
     stem = path.stem
     attachments = out / "attachments"
     report = {"input": str(path), "output": str(out / f"{stem}.md"),
               "type": None, "engine": None, "pages": None, "images": 0,
               "needs_vision": False, "warnings": []}
+    if classification:
+        report["classification"] = {key: classification[key] for key in
+                                    ("type", "domaine", "tables", "engine", "method", "warnings")}
 
     if suffix in IMAGES:
         report["type"], report["engine"] = "image", "copie"
@@ -141,6 +164,10 @@ def convert(path: Path, out: Path, engine: str) -> dict:
                     f"Pages sans texte (scannées ?) : {profile['scanned_pages']}")
                 if engine == "auto":
                     engine = "docling"
+            if engine == "auto" and classification and classification["engine"] == "docling":
+                report["warnings"].append(
+                    f"Tableaux ou colonnes probables ({classification['tables']}) : Docling")
+                engine = "docling"
         elif suffix in OFFICE:
             report["type"] = "office"
         else:
@@ -178,16 +205,28 @@ def main() -> int:
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--out", type=Path, default=Path("."))
     parser.add_argument("--engine", choices=["auto", "markitdown", "docling"], default="auto")
+    parser.add_argument("--classify", action="store_true",
+                        help="classer d'abord les documents avec le modèle local Laya")
+    parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
     args = parser.parse_args()
 
     reports, failed = [], False
+    classifications, classify_warning = {}, None
+    if args.classify:
+        existing = [path.resolve() for path in args.files
+                    if path.is_file() and path.suffix.lower() not in IMAGES]
+        if existing:
+            classifications, classify_warning = run_classifier(existing, args.domains)
     for path in args.files:
         if not path.is_file():
             reports.append({"input": str(path), "error": "Fichier introuvable"})
             failed = True
             continue
         try:
-            reports.append(convert(path.resolve(), args.out.resolve(), args.engine))
+            reports.append(convert(path.resolve(), args.out.resolve(), args.engine,
+                                   classifications.get(path.resolve())))
+            if classify_warning:
+                reports[-1]["warnings"].append(classify_warning)
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
