@@ -14,7 +14,7 @@ Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 
 ```bash
 uv run scripts/publish.py DOC.md [...] --to docx,html,xwiki [--out DOSSIER] \
-    [--reference-doc modele.docx] [--toc] [--vault VAULT]
+    [--reference-doc modele.docx] [--toc] [--pdf] [--preview] [--vault VAULT]
 ```
 
 Avant la conversion, le script :
@@ -44,24 +44,49 @@ Les exports de schémas passent par `diagram-export` (outils locaux, voir
 Sans précision de l'utilisateur, produisez `docx` et `html` : à eux deux, ils
 couvrent SharePoint, Confluence et XWiki.
 
-Options :
+## 3. Un Word prêt à l'emploi
 
-- `--reference-doc modele.docx` : applique les styles d'un modèle Word
-  (polices, couleurs des titres, en-tête et pied de page). Demandez à
-  l'utilisateur si un modèle d'entreprise existe.
-- `--toc` : ajoute un sommaire.
+Le .docx doit pouvoir partir sans retouche. Le script s'en charge :
 
-## 3. Vérifier
+- **Modèle** : par défaut `references/modele.docx` (Calibri, titres bleus de
+  la charte, tableaux à bordures fines avec ligne d'en-tête colorée et
+  répétée, citations encadrées, légendes, A4, numéros de page « Page x / y »).
+  Si l'utilisateur a un modèle d'entreprise, passez-le avec
+  `--reference-doc` : Pandoc en reprend les styles, l'en-tête et le pied de
+  page (pas le contenu, donc pas de page de garde).
+- **Images** : schémas et captures à leur taille naturelle, réduits pour
+  tenir dans la page, centrés. Le texte alternatif devient une légende
+  numérotée (« Figure 1 : ... ») : donnez un texte alternatif parlant à
+  chaque image (`![Flux d'un paiement](...)`).
+- **Tableaux** : pleine largeur, ligne d'en-tête répétée sur chaque page.
+- `--toc` ajoute un sommaire ; Word le remplit à l'ouverture (il demande de
+  mettre à jour les champs : répondre oui).
+
+Le modèle se régénère avec `uv run scripts/make_reference.py` si la charte
+change.
+
+## 4. Relire le rendu
+
+Avec LibreOffice installé (facultatif, détecté aussi hors du PATH, par
+exemple dans `C:\Program Files\LibreOffice`) :
+
+- `--preview` produit une image PNG par page dans
+  `.myskills-tmp/<nom>-apercu/` à côté du .docx. **Ouvrez chaque page** et
+  vérifiez : image trop grande ou coupée, tableau qui déborde, titre seul en
+  bas de page, légende manquante. Corrigez la source et relancez, puis
+  supprimez le dossier `.myskills-tmp/`.
+- `--pdf` livre aussi un PDF.
+
+Sans LibreOffice, le script le signale et produit le .docx quand même.
+
+## 5. Vérifier les comptes
 
 Le rapport JSON donne, par format, le fichier produit et le nombre d'images
 et de tableaux trouvés dedans, comparés au Markdown. Un avertissement signale
 une image introuvable, un schéma non exporté ou un écart dans les comptes.
 Corrigez la source (chemin d'image, schéma invalide) et relancez.
 
-Pour un document important, ouvrez le `.html` produit et relisez-le : c'est le
-moyen le plus rapide de voir le rendu final.
-
-## 4. Livrer
+## 6. Livrer
 
 Indiquez les fichiers produits et, pour chacun, en une ligne, comment
 l'importer dans l'outil visé (tableau ci-dessus). Pour XWiki, rappelez que

@@ -32,7 +32,8 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
    version modifiable, confie-le à l'agent `schema-designer`.
 8. Si l'utilisateur veut livrer un Markdown hors du dépôt (Word,
    SharePoint, Confluence, XWiki), applique `markdown-publish` : il produit
-   des fichiers à importer, il ne publie rien en ligne.
+   des fichiers à importer, il ne publie rien en ligne. Pour un .docx,
+   ajoute `--preview` et relis chaque page avant de livrer.
 9. Livre un rapport court : fichiers produits, moteur et niveau utilisés,
    corrections faites, ce qui n'a pas pu être converti.
 

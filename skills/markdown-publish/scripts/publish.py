@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pypandoc_binary>=1.13", "playwright>=1.48"]
+# dependencies = ["pypandoc_binary>=1.13", "python-docx>=1.1", "pypdfium2>=4.30", "pillow>=10", "playwright>=1.48"]
 # ///
 """Publie un Markdown en Word, HTML ou XWiki, schémas compris, sans rien envoyer.
 
@@ -14,7 +14,7 @@ Les exports passent par le script `export.py` du skill `diagram-export`.
 Affiche un rapport JSON. Usage :
     uv run scripts/publish.py DOC.md [...] [--to docx,html,xwiki] [--out DOSSIER]
         [--reference-doc modele.docx]
-        [--toc] [--vault VAULT]
+        [--toc] [--pdf] [--preview] [--vault VAULT]
 
 - docx : Word, import Word de Confluence, Office Importer de XWiki, SharePoint ;
 - html : page autonome (images intégrées), à ouvrir ou à coller dans un éditeur ;
@@ -25,7 +25,10 @@ import argparse
 import importlib.util
 import json
 import re
+import os
 import shutil
+import struct
+import subprocess
 import sys
 import tempfile
 import zipfile
@@ -44,6 +47,31 @@ CALLOUT_TITLES = {"note": "Note", "info": "Information", "tip": "Astuce", "impor
                   "failure": "Échec", "bug": "Anomalie", "quote": "Citation", "abstract": "Résumé"}
 TABLE_SEPARATOR = re.compile(r"^\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$", re.M)
 DIAGRAM_SOURCES = {".drawio", ".excalidraw", ".mmd", ".mermaid"}
+REFERENCE_DOC = Path(__file__).resolve().parents[1] / "references" / "modele.docx"
+MAX_WIDTH_CM, MAX_HEIGHT_CM = 16.6, 20.0  # zone de texte A4 du modèle
+SOFFICE_PATHS = [
+    Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.exe",
+    Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "LibreOffice" / "program" / "soffice.exe",
+    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+    Path("/usr/bin/soffice"), Path("/usr/lib/libreoffice/program/soffice"),
+]
+
+
+def size_attr(path: Path, hidpi: bool) -> str:
+    """Taille d'affichage d'un PNG : sa taille naturelle à 96 ppp (ou 192 pour
+    les exports de schémas, rendus à l'échelle 2), réduite pour tenir dans la page."""
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(24)
+    except OSError:
+        return ""
+    if head[:8] != b"\x89PNG\r\n\x1a\n":
+        return ""
+    width, height = struct.unpack(">II", head[16:24])
+    cm = 2.54 / (192 if hidpi else 96)
+    w, h = width * cm, height * cm
+    ratio = min(1.0, MAX_WIDTH_CM / w, MAX_HEIGHT_CM / h)
+    return "{width=%.2fcm}" % (w * ratio)
 
 
 def load_exporter():
@@ -95,7 +123,7 @@ class Prepared:
         title = re.search(r"^title:\s*(.+)$", match.group(1), re.M)
         caption = title.group(1).strip().strip("\"'") if title else ""
         self.images += 1
-        return f"![{caption}]({png.as_posix()})"
+        return f"![{caption}]({png.as_posix()}){size_attr(png, True)}"
 
     def image(self, alt: str, target: str) -> str:
         if re.match(r"^[a-z]+:", target):
@@ -110,7 +138,8 @@ class Prepared:
                 return f"*[Schéma non exporté : {path.name}]*"
             path = png
         self.images += 1
-        return f"![{alt}](<{path.as_posix()}>)"
+        hidpi = path.parent == self.work / "diagrams" or re.search(r"\.(drawio|excalidraw)\.png$", path.name)
+        return f"![{alt}](<{path.as_posix()}>){size_attr(path, bool(hidpi))}"
 
     def run(self, text: str) -> str:
         # Images standard d'abord : les remplacements suivants n'en produisent
@@ -130,6 +159,89 @@ class Prepared:
 
 FORMATS = {"docx": "docx", "html": "html", "xwiki": "xwiki"}
 XWIKI_IMAGE = re.compile(r"\[\[image:([^|\]]+)")
+
+
+def finish_docx(path: Path, toc: bool) -> None:
+    """Retouches que Pandoc ne fait pas : légendes numérotées, tableaux pleine
+    largeur avec ligne d'en-tête répétée, sommaire mis à jour à l'ouverture."""
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    doc = Document(path)
+    figure = 0
+    for paragraph in doc.paragraphs:
+        if paragraph.style.name == "Image Caption" and paragraph.runs:
+            figure += 1
+            first = paragraph.runs[0]
+            first.text = f"Figure {figure} : {first.text}"
+    for table in doc.tables:
+        tbl_pr = table._tbl.tblPr
+        width = tbl_pr.find(qn("w:tblW"))
+        if width is None:
+            width = OxmlElement("w:tblW")
+            tbl_pr.append(width)
+        width.set(qn("w:w"), "5000")
+        width.set(qn("w:type"), "pct")
+        if table.rows:
+            tr_pr = table.rows[0]._tr.get_or_add_trPr()
+            if tr_pr.find(qn("w:tblHeader")) is None:
+                tr_pr.append(OxmlElement("w:tblHeader"))
+    if toc:
+        settings = doc.settings.element
+        if settings.find(qn("w:updateFields")) is None:
+            update = OxmlElement("w:updateFields")
+            update.set(qn("w:val"), "true")
+            settings.append(update)
+    doc.save(path)
+
+
+def soffice_binary() -> str | None:
+    for name in ("soffice", "libreoffice"):
+        if shutil.which(name):
+            return shutil.which(name)
+    return next((str(p) for p in SOFFICE_PATHS if p.is_file()), None)
+
+
+def render_docx(docx: Path, keep_pdf: bool, preview: bool) -> dict:
+    """PDF et aperçu des pages avec LibreOffice, pour relire le rendu."""
+    soffice = soffice_binary()
+    if not soffice:
+        return {"warning": "LibreOffice introuvable : pas de PDF ni d'aperçu "
+                           "(https://www.libreoffice.org/download/)"}
+    result = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        profile = Path(tmp, "profil").as_uri()  # profil isolé : marche même si LibreOffice est ouvert
+        try:
+            subprocess.run([soffice, f"-env:UserInstallation={profile}", "--headless",
+                            "--convert-to", "pdf", "--outdir", tmp, str(docx)],
+                           capture_output=True, timeout=300, check=True)
+        except (subprocess.SubprocessError, OSError) as error:
+            return {"warning": f"LibreOffice : conversion PDF impossible ({error})"}
+        pdf = Path(tmp) / f"{docx.stem}.pdf"
+        if not pdf.is_file():
+            return {"warning": "LibreOffice n'a pas produit de PDF"}
+        if preview:
+            import pypdfium2 as pdfium
+
+            folder = docx.parent / ".myskills-tmp" / f"{docx.stem}-apercu"
+            if folder.exists():
+                shutil.rmtree(folder)
+            folder.mkdir(parents=True)
+            document = pdfium.PdfDocument(str(pdf))
+            pages = []
+            for index in range(len(document)):
+                image = document[index].render(scale=1.0).to_pil()
+                page = folder / f"page-{index + 1}.png"
+                image.save(page)
+                pages.append(str(page))
+            document.close()
+            result["preview"] = pages
+        if keep_pdf:
+            target = docx.with_suffix(".pdf")
+            shutil.copy2(pdf, target)
+            result["pdf"] = str(target)
+    return result
 
 
 def check_output(path: Path, fmt: str) -> dict:
@@ -186,8 +298,8 @@ def publish(doc: Path, args, exporter) -> dict:
             extra = list(base)
             if fmt == "docx":
                 target = out_dir / f"{doc.stem}.docx"
-                if args.reference_doc:
-                    extra += ["--reference-doc", str(args.reference_doc.resolve())]
+                reference = args.reference_doc.resolve() if args.reference_doc else REFERENCE_DOC
+                extra += ["--reference-doc", str(reference)]
             elif fmt == "html":
                 target = out_dir / f"{doc.stem}.html"
                 extra += ["--standalone", "--embed-resources"]
@@ -199,13 +311,20 @@ def publish(doc: Path, args, exporter) -> dict:
                 folder.mkdir(exist_ok=True)
                 target = folder / f"{doc.stem}.xwiki"
             try:
-                pypandoc.convert_file(str(source), FORMATS[fmt], format="gfm+yaml_metadata_block",
+                pypandoc.convert_file(str(source), FORMATS[fmt], format="gfm+yaml_metadata_block+attributes+implicit_figures",
                                       outputfile=str(target), extra_args=extra)
             except RuntimeError as error:
                 report["error"] = f"Pandoc ({fmt}) : {str(error).strip().splitlines()[-1]}"
                 return report
             if fmt == "xwiki":
                 attach_xwiki_images(target)
+            if fmt == "docx":
+                finish_docx(target, args.toc)
+                if args.pdf or args.preview:
+                    rendered = render_docx(target, args.pdf, args.preview)
+                    report.update({k: v for k, v in rendered.items() if k != "warning"})
+                    if rendered.get("warning"):
+                        report["warnings"].append(rendered["warning"])
             found = check_output(target, fmt)
             report["outputs"].append({"format": fmt, "file": str(target), **found})
             if found["images"] < prepared.images:
@@ -226,6 +345,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="dossier de sortie (défaut : à côté du Markdown)")
     parser.add_argument("--reference-doc", type=Path, help="modèle Word (styles, en-tête, pied de page)")
     parser.add_argument("--toc", action="store_true", help="ajouter une table des matières")
+    parser.add_argument("--pdf", action="store_true", help="docx : produire aussi un PDF (LibreOffice)")
+    parser.add_argument("--preview", action="store_true",
+                        help="docx : aperçu PNG de chaque page dans .myskills-tmp/ (LibreOffice)")
     parser.add_argument("--vault", type=Path, help="vault Obsidian, pour retrouver les pièces jointes")
     args = parser.parse_args()
     args.formats = [f.strip().lower() for f in args.to.split(",") if f.strip()]

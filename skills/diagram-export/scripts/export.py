@@ -40,6 +40,16 @@ MERMAID_CLI = "@mermaid-js/mermaid-cli@11"
 LIKEC4 = "likec4@1"
 EXCALIDRAW_UTILS = "0.1.7"
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.M | re.S)
+# Pendant un rendu, rien ne doit sortir de la machine : les navigateurs passent
+# par un proxy qui n'existe pas (les fichiers locaux n'en ont pas besoin), ce qui
+# coupe aussi leurs requêtes de fond (mises à jour de composants, pings).
+DEAD_PROXY = "http://127.0.0.1:9"
+QUIET_CHROMIUM = [f"--proxy-server={DEAD_PROXY}", "--proxy-bypass-list=<-loopback>",
+    "--disable-background-networking", "--disable-component-update", "--no-pings",
+    "--disable-domain-reliability", "--no-first-run", "--no-default-browser-check",
+    "--disable-features=OptimizationHints,MediaRouter,Translate,AutofillServerCommunication,"
+    "CertificateTransparencyComponentUpdater",
+]
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 NO_SANDBOX = platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0
 
@@ -48,9 +58,10 @@ class ExportError(Exception):
     pass
 
 
-def run(cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> None:
+def run(cmd: list[str], cwd: Path | None = None, timeout: int = 300,
+        env: dict | None = None) -> None:
     # Pas de vérification de mise à jour de draw.io Desktop pendant l'export.
-    env = {**os.environ, "DRAWIO_DISABLE_UPDATE": "true"}
+    env = {**os.environ, "DRAWIO_DISABLE_UPDATE": "true", **(env or {})}
     try:
         proc = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True,
                               encoding="utf-8", errors="replace", timeout=timeout)
@@ -115,7 +126,8 @@ def export_drawio(src: Path, out: Path, fmt: str, scale: float, transparent: boo
     cmd.append(str(src))
     if platform.system() == "Linux" and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
         cmd = ["xvfb-run", "-a"] + cmd
-    run(cmd)
+    offline = {k: DEAD_PROXY for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
+    run(cmd, env=offline | {"NO_PROXY": "", "no_proxy": ""})
     if not target.is_file():
         raise ExportError("draw.io n'a rien produit (fichier vide ou XML invalide ?)")
     if fmt == "png":
@@ -142,15 +154,12 @@ def embed_drawio(png: Path, xml: str) -> None:
 # --- Mermaid -----------------------------------------------------------------
 
 def mermaid_config(work: Path) -> list[str]:
-    args = []
-    if NO_SANDBOX:
-        config = {"args": ["--no-sandbox"]}
-        if os.environ.get("PUPPETEER_EXECUTABLE_PATH"):
-            config["executablePath"] = os.environ["PUPPETEER_EXECUTABLE_PATH"]
-        path = work / "puppeteer.json"
-        path.write_text(json.dumps(config), encoding="utf-8")
-        args += ["--puppeteerConfigFile", str(path)]
-    return args
+    config = {"args": (["--no-sandbox"] if NO_SANDBOX else []) + QUIET_CHROMIUM}
+    if os.environ.get("PUPPETEER_EXECUTABLE_PATH"):
+        config["executablePath"] = os.environ["PUPPETEER_EXECUTABLE_PATH"]
+    path = work / "puppeteer.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    return ["--puppeteerConfigFile", str(path)]
 
 
 def export_mermaid(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
@@ -230,13 +239,13 @@ def excalidraw_package() -> Path:
 
 def launch_browser(pw):
     custom = os.environ.get("MYSKILLS_BROWSER")
-    args = ["--no-sandbox"] if NO_SANDBOX else []
+    args = (["--no-sandbox"] if NO_SANDBOX else []) + QUIET_CHROMIUM
     attempts = [{"executable_path": custom}] if custom else []
     attempts += [{"channel": "msedge"}, {"channel": "chrome"}, {}]
     last = None
     for options in attempts:
         try:
-            return pw.chromium.launch(args=args, **options)
+            return pw.chromium.launch(args=args, proxy={"server": DEAD_PROXY}, **options)
         except Exception as error:  # navigateur absent : on essaie le suivant
             last = error
     raise ExportError("Aucun navigateur trouvé (Edge, Chrome ou Chromium de Playwright) : "
