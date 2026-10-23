@@ -1,0 +1,8 @@
+{
+  "requirements": "exigences.json",
+  "options": [
+    {"id": "A", "name": "Seule option", "summary": "Une seule option.", "components": [{"id": "api", "label": "API"}],
+     "scores": {"performance": 7}, "gap": {}}
+  ],
+  "recommendation": {"option": "A", "why": "unique"}
+}

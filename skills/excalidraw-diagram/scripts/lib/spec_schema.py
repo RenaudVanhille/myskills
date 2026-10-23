@@ -2,8 +2,8 @@
 
 Sans dépendance : couvre le sous-ensemble de JSON Schema utilisé par les
 contrats (type, required, properties, patternProperties,
-additionalProperties, items, enum, minimum, minItems, minLength, anyOf,
-$ref vers #/$defs). Les messages donnent le chemin de l'erreur et, pour une
+additionalProperties, items, enum, minimum, maximum, minItems, maxItems,
+minLength, pattern, anyOf, $ref vers #/$defs). Les messages donnent le chemin de l'erreur et, pour une
 clé inconnue, la clé attendue la plus proche : l'agent corrige en une fois.
 
 Source : shared/scripts/spec_schema.py, copiée dans scripts/lib/ des skills
@@ -68,11 +68,18 @@ def check(value, schema: dict, root: dict | None = None, path: str = "") -> list
     if isinstance(value, (int, float)) and not isinstance(value, bool) and "minimum" in schema \
             and value < schema["minimum"]:
         errors.append(f"{where} : {value} inférieur au minimum {schema['minimum']}")
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and "maximum" in schema \
+            and value > schema["maximum"]:
+        errors.append(f"{where} : {value} supérieur au maximum {schema['maximum']}")
     if isinstance(value, str) and len(value) < schema.get("minLength", 0):
         errors.append(f"{where} : texte vide")
+    if isinstance(value, str) and "pattern" in schema and not re.search(schema["pattern"], value):
+        errors.append(f"{where} : « {value} » ne suit pas le format {schema['pattern']}")
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{where} : au moins {schema['minItems']} élément(s) attendu(s)")
+        if len(value) > schema.get("maxItems", len(value)):
+            errors.append(f"{where} : au plus {schema['maxItems']} élément(s) attendu(s), reçu {len(value)}")
         if "items" in schema:
             for index, item in enumerate(value):
                 errors += check(item, schema["items"], root, f"{path}/{index}" if path else str(index))

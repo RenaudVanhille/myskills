@@ -8,6 +8,63 @@
   },
   "agents": [
     {
+      "agent": "architecture-workflow",
+      "receives": [
+        "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
+        "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
+      ],
+      "produces": [
+        "sources/*.md : les documents en Markdown",
+        "exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées",
+        "options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur",
+        "schemas/architectures.drawio et un PNG par option",
+        "workflow.json et journal.md : état des étapes, choix, questions, retours et validations"
+      ],
+      "never": [
+        "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur",
+        "Valider une étape à la place de l'utilisateur",
+        "Modifier les documents d'origine de documents/",
+        "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
+      ],
+      "handoffs": [
+        {
+          "to": "document-extractor",
+          "when": "des documents demandent une transcription par vision page à page (scans, schémas en image) en lot",
+          "send": [
+            "les documents",
+            "la cible markdown et le dossier sources/"
+          ]
+        },
+        {
+          "to": "schema-designer",
+          "when": "l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces",
+          "send": [
+            "options.md et options.json",
+            "l'option retenue et ses noms de composants",
+            "le dossier schemas/"
+          ]
+        },
+        {
+          "to": "document-publisher",
+          "when": "le dossier d'architecture doit être livré en Word, HTML ou XWiki",
+          "send": [
+            "exigences.md, options.md, adr-architecture.md et les PNG",
+            "l'outil cible"
+          ]
+        }
+      ],
+      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
+      "skills": [
+        "check-prerequisites",
+        "decision-log",
+        "doc-to-markdown",
+        "requirements-catalog",
+        "architecture-options",
+        "drawio-diagram",
+        "diagram-export"
+      ]
+    },
+    {
       "agent": "document-extractor",
       "receives": [
         "Fichiers PDF, DOCX, PPTX, XLSX, images, ou un dossier",
@@ -136,6 +193,456 @@
     }
   ],
   "skills": [
+    {
+      "skill": "architecture-options",
+      "inputs": [
+        "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
+        "Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision",
+        "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
+      ],
+      "outputs": [
+        "<nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision)",
+        "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
+        "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné"
+      ],
+      "scripts": [
+        {
+          "name": "options_build.py",
+          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR.",
+          "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
+          "options": {
+            "options.json": "description des options ; requirements est relatif à ce fichier",
+            "--decision": "décision de l'utilisateur après la revue (option, by, why, date, refs, comme le champ decision) : n'écrit que l'ADR, sans toucher la comparaison validée",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, note hors de 1 à 5, moins de 2 ou plus de 3 options donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "options",
+                "recommendation"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Contexte de la décision, repris dans l'ADR."
+                },
+                "audience": {
+                  "enum": [
+                    "technique",
+                    "non technique"
+                  ]
+                },
+                "requirements": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Catalogue d'exigences, relatif au .json (défaut : exigences.json)."
+                },
+                "criteria": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Facultatif : par défaut, une catégorie d'exigence non fonctionnelle par critère.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "weight"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "weight": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(EF|ENF)-[0-9]{3}$"
+                        }
+                      }
+                    }
+                  }
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "summary",
+                      "components",
+                      "scores"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Z]$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "components": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "label"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "role": {
+                              "enum": [
+                                "person",
+                                "system",
+                                "external",
+                                "db",
+                                "queue"
+                              ]
+                            },
+                            "tech": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "flows": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "style": {
+                              "enum": [
+                                "sync",
+                                "async"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "gaps": {
+                        "type": "object",
+                        "description": "Exigences couvertes en partie ou pas du tout ; les autres sont couvertes.",
+                        "additionalProperties": false,
+                        "patternProperties": {
+                          "^(EF|ENF)-[0-9]{3}$": {
+                            "type": "object",
+                            "required": [
+                              "level",
+                              "note"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "level": {
+                                "enum": [
+                                  "partiel",
+                                  "non"
+                                ]
+                              },
+                              "note": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "scores": {
+                        "type": "object",
+                        "description": "Note de 1 à 5 par identifiant de critère.",
+                        "additionalProperties": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 5
+                        }
+                      },
+                      "score_notes": {
+                        "type": "object",
+                        "description": "Justification courte de chaque note, par identifiant de critère.",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "pros": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "cons": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "risks": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "recommendation": {
+                  "type": "object",
+                  "required": [
+                    "option",
+                    "why"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "option": {
+                      "type": "string"
+                    },
+                    "why": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^(EF|ENF)-[0-9]{3}$"
+                      }
+                    }
+                  }
+                },
+                "decision": {
+                  "type": "object",
+                  "description": "Choix de l'utilisateur à la revue ; produit l'ADR.",
+                  "required": [
+                    "option",
+                    "by",
+                    "why"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "option": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "why": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^(EF|ENF)-[0-9]{3}$"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "outputs",
+                    "options",
+                    "criteria",
+                    "ranking",
+                    "recommended",
+                    "decided",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "options": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "criteria": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ranking": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "option",
+                          "score",
+                          "blocking"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "option": {
+                            "type": "string"
+                          },
+                          "score": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "blocking": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "recommended": {
+                      "type": "string"
+                    },
+                    "decided": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "comparaison produite sans erreur (avertissements possibles)",
+            "1": "description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "drawio-diagram",
+          "kind": "skill",
+          "when": "construire schemas/architectures.drawio avec drawio_build.py"
+        },
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter les pages en PNG et les relire"
+        },
+        {
+          "to": "schema-designer",
+          "kind": "agent",
+          "when": "un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+        }
+      ],
+      "description": "Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exigences : écarts de couverture, notes par critère justifiées, score pondéré et rang calculés par script, recommandation, puis ADR de la décision et un schéma draw.io par option. À utiliser pour proposer des architectures, comparer des scénarios ou documenter un choix d'architecture.",
+      "path": "skills/architecture-options"
+    },
     {
       "skill": "c4-architecture",
       "inputs": [
@@ -1046,6 +1553,136 @@
       ],
       "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
       "path": "skills/cloud-architecture"
+    },
+    {
+      "skill": "decision-log",
+      "inputs": [
+        "Dossier du workflow",
+        "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)"
+      ],
+      "outputs": [
+        "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande"
+      ],
+      "scripts": [
+        {
+          "name": "journal.py",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis.",
+          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+          "options": {
+            "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title",
+            "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+            "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
+            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
+            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
+            "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+          },
+          "report": {
+            "format": "json",
+            "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "workflow",
+                "command",
+                "stages",
+                "current",
+                "next",
+                "entry",
+                "questions",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "workflow": {
+                  "type": "string"
+                },
+                "command": {
+                  "enum": [
+                    "init",
+                    "start",
+                    "log",
+                    "submit",
+                    "review",
+                    "status"
+                  ]
+                },
+                "stages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": [
+                          "a-faire",
+                          "en-cours",
+                          "en-revue",
+                          "validee",
+                          "a-reprendre"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "current": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "next": {
+                  "type": "string"
+                },
+                "entry": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "questions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "commande appliquée",
+            "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une étape est soumise : l'utilisateur la valide ou fait un retour"
+        }
+      ],
+      "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
+      "path": "skills/decision-log"
     },
     {
       "skill": "diagram-brief",
@@ -2595,6 +3232,310 @@
       ],
       "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian.",
       "path": "skills/mermaid-diagram"
+    },
+    {
+      "skill": "requirements-catalog",
+      "inputs": [
+        "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
+        "Description JSON des exigences : title, sources, requirements (id EF-/ENF-, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
+      ],
+      "outputs": [
+        "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées)",
+        "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)"
+      ],
+      "scripts": [
+        {
+          "name": "req_build.py",
+          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
+          "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] | --schema",
+          "options": {
+            "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, identifiant mal formé ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "requirements"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "sources": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dossier des documents Markdown, relatif au .json (défaut : sources)."
+                },
+                "requirements": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "title",
+                      "text",
+                      "priority"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^(EF|ENF)-[0-9]{3}$",
+                        "description": "EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "priority": {
+                        "enum": [
+                          "indispensable",
+                          "importante",
+                          "souhaitable",
+                          "hors-perimetre"
+                        ]
+                      },
+                      "domain": {
+                        "type": "string",
+                        "description": "Domaine fonctionnel (exigence fonctionnelle)."
+                      },
+                      "category": {
+                        "enum": [
+                          "performance",
+                          "disponibilite",
+                          "securite",
+                          "conformite",
+                          "exploitabilite",
+                          "maintenabilite",
+                          "evolutivite",
+                          "interoperabilite",
+                          "utilisabilite",
+                          "portabilite",
+                          "cout",
+                          "autre"
+                        ]
+                      },
+                      "metric": {
+                        "type": "string",
+                        "description": "Mesure vérifiable (exigence non fonctionnelle)."
+                      },
+                      "sources": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "doc"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "doc": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Chemin du Markdown, relatif au dossier sources."
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "Citation exacte, retrouvée par le script."
+                            },
+                            "page": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "derived": {
+                        "type": "string",
+                        "description": "Exigence sans citation : d'où elle est déduite."
+                      },
+                      "questions": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "status": {
+                        "enum": [
+                          "retenue",
+                          "retiree"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "Raison du retrait."
+                      }
+                    }
+                  }
+                },
+                "ignored": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "doc",
+                      "quote",
+                      "reason"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "doc": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Compteurs, fichiers produits, erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase normative non reprise, exigence non mesurable, doublon).",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "outputs",
+                    "functional",
+                    "non_functional",
+                    "retired",
+                    "ignored",
+                    "questions",
+                    "documents",
+                    "uncovered",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "functional": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "non_functional": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "retired": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ignored": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "questions": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "documents": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "uncovered": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "catalogue produit sans erreur (avertissements possibles)",
+            "1": "description invalide, citation introuvable ou autre erreur ; aucun fichier produit"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "doc-to-markdown",
+          "kind": "skill",
+          "when": "les documents ne sont pas encore en Markdown"
+        },
+        {
+          "to": "architecture-options",
+          "kind": "skill",
+          "when": "le catalogue est validé : proposer des architectures"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "noter les choix (exigence déduite, phrase écartée, priorité) et soumettre le catalogue à la revue"
+        }
+      ],
+      "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV. À utiliser pour recenser, tracer ou exporter les exigences d'un projet.",
+      "path": "skills/requirements-catalog"
     },
     {
       "skill": "urbanization-map",

@@ -1,0 +1,9 @@
+{
+  "option": "A",
+  "by": "Reno (utilisateur)",
+  "why": "couvre l'authentification forte ; B dépend trop de l'éditeur",
+  "date": "2026-10-23",
+  "refs": [
+    "ENF-004"
+  ]
+}

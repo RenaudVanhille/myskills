@@ -1,0 +1,448 @@
+{
+  "skill": "architecture-options",
+  "inputs": [
+    "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
+    "Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision",
+    "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
+  ],
+  "outputs": [
+    "<nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision)",
+    "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
+    "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné"
+  ],
+  "scripts": [
+    {
+      "name": "options_build.py",
+      "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR.",
+      "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
+      "options": {
+        "options.json": "description des options ; requirements est relatif à ce fichier",
+        "--decision": "décision de l'utilisateur après la revue (option, by, why, date, refs, comme le champ decision) : n'écrit que l'ADR, sans toucher la comparaison validée",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, note hors de 1 à 5, moins de 2 ou plus de 3 options donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "options",
+            "recommendation"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string",
+              "description": "Contexte de la décision, repris dans l'ADR."
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "requirements": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Catalogue d'exigences, relatif au .json (défaut : exigences.json)."
+            },
+            "criteria": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Facultatif : par défaut, une catégorie d'exigence non fonctionnelle par critère.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "weight"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "weight": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^(EF|ENF)-[0-9]{3}$"
+                    }
+                  }
+                }
+              }
+            },
+            "options": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "summary",
+                  "components",
+                  "scores"
+                ],
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "components": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "label"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "role": {
+                          "enum": [
+                            "person",
+                            "system",
+                            "external",
+                            "db",
+                            "queue"
+                          ]
+                        },
+                        "tech": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "flows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "style": {
+                          "enum": [
+                            "sync",
+                            "async"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "gaps": {
+                    "type": "object",
+                    "description": "Exigences couvertes en partie ou pas du tout ; les autres sont couvertes.",
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^(EF|ENF)-[0-9]{3}$": {
+                        "type": "object",
+                        "required": [
+                          "level",
+                          "note"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "level": {
+                            "enum": [
+                              "partiel",
+                              "non"
+                            ]
+                          },
+                          "note": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "scores": {
+                    "type": "object",
+                    "description": "Note de 1 à 5 par identifiant de critère.",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5
+                    }
+                  },
+                  "score_notes": {
+                    "type": "object",
+                    "description": "Justification courte de chaque note, par identifiant de critère.",
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "pros": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "cons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "risks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "recommendation": {
+              "type": "object",
+              "required": [
+                "option",
+                "why"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "option": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(EF|ENF)-[0-9]{3}$"
+                  }
+                }
+              }
+            },
+            "decision": {
+              "type": "object",
+              "description": "Choix de l'utilisateur à la revue ; produit l'ADR.",
+              "required": [
+                "option",
+                "by",
+                "why"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "option": {
+                  "type": "string"
+                },
+                "by": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "why": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "date": {
+                  "type": "string"
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(EF|ENF)-[0-9]{3}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "outputs",
+                "options",
+                "criteria",
+                "ranking",
+                "recommended",
+                "decided",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "options": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "criteria": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ranking": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "option",
+                      "score",
+                      "blocking"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "option": {
+                        "type": "string"
+                      },
+                      "score": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "blocking": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "recommended": {
+                  "type": "string"
+                },
+                "decided": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "errors"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "comparaison produite sans erreur (avertissements possibles)",
+        "1": "description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "drawio-diagram",
+      "kind": "skill",
+      "when": "construire schemas/architectures.drawio avec drawio_build.py"
+    },
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "exporter les pages en PNG et les relire"
+    },
+    {
+      "to": "schema-designer",
+      "kind": "agent",
+      "when": "un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue"
+    },
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+    }
+  ]
+}

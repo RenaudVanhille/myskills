@@ -109,6 +109,18 @@
         "La page contient le titre Architecture du service de paiement.",
         "La page contient le tableau des composants sous forme de tableau HTML."
       ]
+    },
+    {
+      "id": "workflow-premiere-revue",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md et compte-rendu-atelier.md.",
+      "inputs": ["fixtures/workflow/sources/cahier-des-charges.md", "fixtures/workflow/sources/compte-rendu-atelier.md"],
+      "output": "journal.md",
+      "rubric": [
+        "Le journal montre l'étape documents en revue et les étapes exigences, architectures et schemas à faire.",
+        "Le journal contient une entrée de soumission de l'étape documents.",
+        "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
     }
   ]
 }

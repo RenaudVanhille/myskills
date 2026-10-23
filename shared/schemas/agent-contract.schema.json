@@ -7,7 +7,7 @@
   "required": ["agent", "receives", "produces", "handoffs"],
   "additionalProperties": false,
   "properties": {
-    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher"]},
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow"]},
     "receives": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "produces": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "never": {"type": "array", "items": {"type": "string"}, "description": "Ce que l'agent ne fait jamais."},
@@ -18,7 +18,7 @@
         "required": ["to", "when", "send"],
         "additionalProperties": false,
         "properties": {
-          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher"]},
+          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow"]},
           "when": {"type": "string"},
           "send": {"type": "array", "items": {"type": "string"}, "minItems": 1,
                    "description": "Ce qui va dans files, objective et constraints du message de passage."}

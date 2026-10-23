@@ -1,0 +1,65 @@
+{
+  "skill": "decision-log",
+  "inputs": [
+    "Dossier du workflow",
+    "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)"
+  ],
+  "outputs": [
+    "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+    "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande"
+  ],
+  "scripts": [
+    {
+      "name": "journal.py",
+      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis.",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+      "options": {
+        "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title",
+        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+        "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
+        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
+        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
+        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+      },
+      "report": {
+        "format": "json",
+        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": ["workflow", "command", "stages", "current", "next", "entry", "questions", "errors", "warnings"],
+          "additionalProperties": false,
+          "properties": {
+            "workflow": {"type": "string"},
+            "command": {"enum": ["init", "start", "log", "submit", "review", "status"]},
+            "stages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "status"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {"type": "string"},
+                  "status": {"enum": ["a-faire", "en-cours", "en-revue", "validee", "a-reprendre"]}
+                }
+              }
+            },
+            "current": {"type": ["string", "null"]},
+            "next": {"type": "string"},
+            "entry": {"type": ["string", "null"]},
+            "questions": {"type": "integer", "minimum": 0},
+            "errors": {"type": "array", "items": {"type": "string"}},
+            "warnings": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "commande appliquée",
+        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+      }
+    }
+  ],
+  "handoffs": [
+    {"to": "utilisateur", "kind": "utilisateur", "when": "une étape est soumise : l'utilisateur la valide ou fait un retour"}
+  ]
+}

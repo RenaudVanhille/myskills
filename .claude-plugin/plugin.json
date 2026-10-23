@@ -16,6 +16,9 @@
     "drawio",
     "excalidraw",
     "c4",
-    "mermaid"
+    "mermaid",
+    "exigences",
+    "architecture",
+    "adr"
   ]
 }

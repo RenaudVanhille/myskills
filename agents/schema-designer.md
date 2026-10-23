@@ -24,11 +24,11 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 | `document-publisher` | le schéma doit être intégré dans un Word, une page HTML ou XWiki | le Markdown qui référence le schéma ; la source et l'export ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
-Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
+Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
 rien à passer. Exemple, avec un message de passage dans `next` :
 
 ```json
