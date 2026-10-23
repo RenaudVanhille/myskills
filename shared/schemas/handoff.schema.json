@@ -13,7 +13,7 @@
     "files": {"type": "array", "items": {"type": "string"}, "minItems": 1,
               "description": "Chemins des fichiers d'entrée."},
     "audience": {"enum": ["technique", "non technique"], "description": "Public visé."},
-    "destination": {"enum": ["markdown", "obsidian", "word", "powerpoint", "confluence", "sharepoint", "xwiki", "html"],
+    "destination": {"enum": ["markdown", "obsidian", "word", "powerpoint", "pdf", "confluence", "sharepoint", "xwiki", "html"],
                     "description": "Où le résultat sera lu."},
     "output": {"type": "string", "minLength": 1, "description": "Dossier ou fichier attendu."},
     "constraints": {"type": "array", "items": {"type": "string"},

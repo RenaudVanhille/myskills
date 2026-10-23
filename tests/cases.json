@@ -47,13 +47,36 @@
     {
       "id": "pdf-scanne",
       "skill": "doc-to-markdown",
-      "_note": "Docling peut manquer : le cas vérifie seulement la détection du scan.",
+      "_note": "Sans Docling (MarkItDown imposé) : vérifie la détection du scan et les pages à transcrire par la vision.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}", "--engine", "markitdown"],
+         "exit": 0, "report": {"0.type": "pdf", "0.needs_vision": true},
+         "report_contains": {"0.warnings": "Pages sans texte"}}
+      ]
+    },
+    {
+      "id": "pdf-scanne-docling",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Docling (environ 2 Go au premier lancement) : OCR du scan, repli sur MarkItDown s'il échoue.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}"],
          "exit": 0, "report": {"0.type": "pdf"},
          "report_contains": {"0.warnings": "Pages sans texte"}}
       ]
+    },
+    {
+      "id": "homonymes",
+      "skill": "doc-to-markdown",
+      "_note": "Un dossier dont deux documents portent le même nom : aucun Markdown ni aucune image écrasés.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{fixtures}/homonymes", "--out", "{out}"],
+         "exit": 0, "report_contains": {"1.warnings": "rapport-png.md"}}
+      ],
+      "files": ["rapport-pdf.md", "rapport-png.md", "attachments/rapport-png.png"]
     },
     {
       "id": "image",
@@ -95,6 +118,14 @@
       "absent": ["tmp/architecture.md"],
       "contains": {"vault/Architecture/architecture.md": ["source: \"architecture.docx\"",
                                                           "  - paiement", "![[architecture-1.png]]"]}
+    },
+    {
+      "id": "prerequis",
+      "skill": "check-prerequisites",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["inconnu"], "exit": 1,
+         "report_contains": {"errors": "groupe inconnu"}}
+      ]
     },
     {
       "id": "drawio-valide",

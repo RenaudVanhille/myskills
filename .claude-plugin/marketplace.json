@@ -1,6 +1,6 @@
 {
   "name": "myskills",
-  "description": "Skills et agents pour l'extraction documentaire et les schémas d'ingénierie logicielle.",
+  "description": "Skills et agents d'ingénierie logicielle, tout en local : documents vers Markdown/Obsidian, schémas (draw.io, Excalidraw, C4, Mermaid, cloud AWS/Azure/GCP/Kubernetes, plan d'occupation des sols du SI), publication Word/HTML/XWiki, et workflow des documents aux architectures avec revue humaine et journal des décisions.",
   "owner": {
     "name": "RenaudVanhille"
   },
@@ -8,7 +8,8 @@
     {
       "name": "myskills",
       "source": "./",
-      "description": "Extraction de documents vers Markdown/Obsidian et conception de schémas pour l'ingénierie logicielle."
+      "version": "0.2.0",
+      "description": "Skills et agents d'ingénierie logicielle, tout en local : documents vers Markdown/Obsidian, schémas (draw.io, Excalidraw, C4, Mermaid, cloud AWS/Azure/GCP/Kubernetes, plan d'occupation des sols du SI), publication Word/HTML/XWiki, et workflow des documents aux architectures avec revue humaine et journal des décisions."
     }
   ]
 }

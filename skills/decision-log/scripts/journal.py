@@ -28,6 +28,7 @@ entrée du journal, reliées par des wikilinks.
     uv run scripts/journal.py submit DOSSIER ETAPE --files F [F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py status DOSSIER
+    uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
 
 import argparse
@@ -38,7 +39,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from vault_sync import sync  # noqa: E402
+from lib.spec_schema import print_schema, validate  # noqa: E402
+from vault_sync import safe_folder, safe_name, sync  # noqa: E402
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
@@ -153,13 +155,17 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                 errors.append(f"vault introuvable : {args.vault}")
                 return None, None
             state["memory"] = {"vault": str(args.vault.resolve()),
-                               "folder": args.folder_in_vault or f"Workflows/{state['title']}"}
+                               "folder": safe_folder(args.folder_in_vault or f"Workflows/{safe_name(state['title'])}")}
         return state, None
 
     try:
         state = json.loads((folder / STATE).read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
+        return None, None
+    invalid = validate(state, __file__)
+    if invalid:
+        errors += [e.replace("description :", f"{STATE} :", 1) for e in invalid]
         return None, None
     for stage in state["stages"]:
         if stage["status"] == "validee":
@@ -232,6 +238,9 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+    if sys.argv[1:] == ["--schema"]:
+        print_schema(__file__)
+        return 0
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
     init = sub.add_parser("init", help="crée workflow.json")
@@ -270,6 +279,7 @@ def main() -> int:
     if state and not errors and state.get("memory"):
         synced = sync(args.folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
         warnings += [f"vault : {e}" for e in synced["errors"]]
+        warnings += [f"vault : {w}" for w in synced["warnings"]]
         memory = {"folder": synced["folder"], "notes": synced["notes"]}
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     report = {"workflow": str(args.folder / STATE), "command": args.command,

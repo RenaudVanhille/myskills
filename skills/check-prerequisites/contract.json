@@ -9,15 +9,83 @@
   "scripts": [
     {
       "name": "doctor.py",
-      "role": "Vérifie les outils locaux et affiche la commande d'installation des manquants.",
-      "usage": "python scripts/doctor.py [extraction|schemas|publication|tout]",
+      "role": "Vérifie les outils locaux et donne la commande d'installation des manquants.",
+      "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout]",
       "report": {
-        "format": "text",
-        "description": "Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation."
+        "format": "json",
+        "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
+        "schema": {
+          "type": "object",
+          "required": [
+            "group",
+            "tools",
+            "missing",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string"
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "group",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "group": {
+                    "enum": [
+                      "extraction",
+                      "schemas",
+                      "publication"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "manquant",
+                      "absent"
+                    ]
+                  },
+                  "install": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
       },
       "exit_codes": {
         "0": "tous les outils obligatoires sont présents",
-        "1": "au moins un outil manque"
+        "1": "au moins un outil obligatoire manque, ou groupe inconnu"
       }
     }
   ],

@@ -1,12 +1,14 @@
 # Jeu de tests
 
-- `fixtures/` : documents réels et anonymisés (PDF, DOCX, PPTX, XLSX, images)
-  et contextes de schémas (descriptions, ADR, extraits de code).
+- `fixtures/` : documents synthétiques (PDF texte et scanné, DOCX, PPTX,
+  image), descriptions de schémas, exigences et options d'un projet fictif
+  (portail de sinistres).
 - `expected/` : pour chaque fixture, le résultat attendu, avec le même nom de
   base (`rapport.pdf` -> `rapport.md`, `contexte-paiement.md` -> `contexte-paiement.drawio`).
 
-Chaque skill est testé dans les 5 outils sur ces fichiers avant d'être
-considéré comme terminé. Ne mettez ici aucun document confidentiel.
+Les scripts sont testés par `run.py` sous Linux, macOS et Windows (CI
+GitHub Actions) ; les agents se testent dans chaque outil avec
+`agent-cases.json`. Ne mettez ici aucun document confidentiel.
 
 ## Exemples synthétiques
 

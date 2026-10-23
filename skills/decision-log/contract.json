@@ -14,14 +14,15 @@
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
         "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
         "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
         "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
-        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
+        "--schema": "affiche le schéma de workflow.json sur une ligne"
       },
       "report": {
         "format": "json",
@@ -142,7 +143,147 @@
       },
       "exit_codes": {
         "0": "commande appliquée",
-        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable, workflow.json non conforme à son schéma) ; workflow.json inchangé"
+      },
+      "input": {
+        "format": "json",
+        "description": "workflow.json, écrit par le script : relu et validé à chaque commande ; une version modifiée à la main et non conforme est refusée avec le chemin de chaque erreur.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "title",
+            "created",
+            "stages",
+            "entries"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "created": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "object",
+              "required": [
+                "vault",
+                "folder"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "vault": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "folder": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "stages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                  },
+                  "status": {
+                    "enum": [
+                      "a-faire",
+                      "en-cours",
+                      "en-revue",
+                      "validee",
+                      "a-reprendre"
+                    ]
+                  },
+                  "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "description": "Fichier soumis -> empreinte SHA-256."
+                  }
+                }
+              }
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "date",
+                  "stage",
+                  "kind",
+                  "by",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^D-[0-9]{3,}$"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "stage": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "choix",
+                      "hypothese",
+                      "question",
+                      "soumission",
+                      "retour",
+                      "validation",
+                      "invalidation"
+                    ]
+                  },
+                  "by": {
+                    "enum": [
+                      "agent",
+                      "utilisateur"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "why": {
+                    "type": "string"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     {
@@ -202,7 +343,7 @@
       },
       "exit_codes": {
         "0": "notes écrites, tous les liens résolus",
-        "1": "workflow.json ou vault introuvable, ou lien cassé"
+        "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
       }
     }
   ],

@@ -31,13 +31,14 @@ forme de skills. Hermes ne lit que `~/.hermes/skills` : en projet, `install.py`
 affiche la commande `hermes config set skills.external_dirs "<dossier>"` à
 lancer une fois (elle remplace les `external_dirs` déjà configurés).
 
-Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
-macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
-(`uv run scripts/...`) ou directement avec `python`.
+Les scripts sont en Python 3.10+ et fonctionnent sous Windows, macOS et
+Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/) (`uv run scripts/...`) :
+uv installe les dépendances déclarées en tête de chaque script (MarkItDown,
+Playwright, Pandoc...). Ceux qui n'en ont pas tournent aussi avec `python`.
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
-outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Node.js, un
-navigateur, LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
+outils locaux manquants (uv, draw.io Desktop, un navigateur ; Node.js et
+LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
 la demande ; les rendus passent par Playwright.
 
 ## Contenu

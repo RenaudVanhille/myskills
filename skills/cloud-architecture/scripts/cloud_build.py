@@ -623,6 +623,8 @@ def main() -> int:
             checked = check(out)
             report["errors"] += checked["errors"]
             report["warnings"] += checked["warnings"]
+        else:
+            report["warnings"].append("fichier non vérifié : check_drawio.py introuvable (installez aussi le skill drawio-diagram)")
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

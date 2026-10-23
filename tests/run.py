@@ -204,12 +204,9 @@ def check_contracts() -> dict:
     for name, contract in agents.items():
         if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
             stale.append(f"src/agents/{name}.md")
-    validator = (ROOT / "shared" / "scripts" / "spec_schema.py").read_text(encoding="utf-8")
-    for name, contract in skills.items():
-        copy = ROOT / "skills" / name / "scripts" / "lib" / "spec_schema.py"
-        if any(s.get("input") for s in contract["scripts"]) and \
-                (not copy.exists() or copy.read_text(encoding="utf-8") != validator):
-            stale.append(f"skills/{name}/scripts/lib/spec_schema.py")
+    for copy, text in {**contracts_lib.generated_libs(), **contracts_lib.plugin_manifests()}.items():
+        if not copy.exists() or copy.read_text(encoding="utf-8") != text:
+            stale.append(copy.relative_to(ROOT).as_posix())
     from agents_lib import parse_agent, source_agents
 
     meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}

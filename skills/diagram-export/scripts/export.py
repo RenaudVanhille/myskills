@@ -37,6 +37,9 @@ import zlib
 from pathlib import Path
 from urllib.parse import quote, unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import local_tools  # noqa: E402
+
 MERMAID_VERSION = "11.12.0"
 LIKEC4 = "likec4@1"
 EXCALIDRAW_UTILS = "0.1.7"
@@ -89,26 +92,15 @@ def node_tool(binary: str, package: str) -> list[str]:
 
 
 def drawio_binary() -> str:
-    for name in ("drawio", "draw.io"):
-        if shutil.which(name):
-            return shutil.which(name)
-    candidates = [
-        Path("/Applications/draw.io.app/Contents/MacOS/draw.io"),
-        Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "draw.io" / "draw.io.exe",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "draw.io" / "draw.io.exe",
-        Path("/opt/drawio/drawio"),
-    ]
-    for path in candidates:
-        if path.is_file():
-            return str(path)
-    raise ExportError("draw.io Desktop introuvable : "
-                      "https://github.com/jgraph/drawio-desktop/releases")
+    found = local_tools.drawio_binary()
+    if not found:
+        raise ExportError("draw.io Desktop introuvable : "
+                          "https://github.com/jgraph/drawio-desktop/releases")
+    return found
 
 
 def cache_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else None
-    root = Path(base) if base else Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    return root / "myskills"
+    return local_tools.cache_dir()
 
 
 # --- draw.io -----------------------------------------------------------------

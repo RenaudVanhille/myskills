@@ -55,10 +55,20 @@ def load_catalog(base: Path, spec: dict, errors: list[str]) -> dict[str, dict]:
     path = base / spec.get("requirements", "exigences.json")
     try:
         catalog = json.loads(path.read_text(encoding="utf-8"))
-        return {r["id"]: r for r in catalog["requirements"]}
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError) as error:
         errors.append(f"requirements : catalogue illisible {path} ({error})")
         return {}
+    # Le catalogue est validé contre le schéma de req_build.py (skill requirements-catalog), s'il est installé.
+    req_build = Path(__file__).resolve().parents[2] / "requirements-catalog" / "scripts" / "req_build.py"
+    schema = input_schema(req_build) if (req_build.parent.parent / "contract.json").exists() else None
+    invalid = check(catalog, schema) if schema else []
+    if invalid:
+        errors += [f"requirements : {path.name} : {e}" for e in invalid[:10]]
+        return {}
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("requirements"), list):
+        errors.append(f"requirements : {path.name} sans liste requirements")
+        return {}
+    return {r["id"]: r for r in catalog["requirements"] if isinstance(r, dict) and "id" in r}
 
 
 def default_criteria(catalog: dict[str, dict]) -> list[dict]:
