@@ -18,19 +18,19 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 
 Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.
 
-**Skills** : `check-prerequisites`, `decision-log`, `doc-to-markdown`, `requirements-catalog`, `architecture-options`, `drawio-diagram`, `diagram-export`
+**Skills** : `check-prerequisites`, `decision-log`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `drawio-diagram`, `diagram-export`
 
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
-- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
-- **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations.
+- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
+- **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks.
 - **Ne fait jamais** : Démarrer une étape avant la validation explicite de la précédente par l'utilisateur ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
 | `document-extractor` | des documents demandent une transcription par vision page à page (scans, schémas en image) en lot | les documents ; la cible markdown et le dossier sources/ |
-| `schema-designer` | l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces | options.md et options.json ; l'option retenue et ses noms de composants ; le dossier schemas/ |
+| `schema-designer` | l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces | options.md et options.json ; l'option retenue et ses noms de composants ; le dossier schemas/ ; la note de l'option dans le vault |
 | `document-publisher` | le dossier d'architecture doit être livré en Word, HTML ou XWiki | exigences.md, options.md, adr-architecture.md et les PNG ; l'outil cible |
 
 ### `document-extractor`
@@ -149,10 +149,12 @@ Tient l'état d'un workflow à étapes avec portes de revue humaine et trace cha
 
 Résumé de [`contract.json`](skills/decision-log/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Dossier du workflow ; Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées).
-- **Sorties** : workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande.
-- **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Rapport JSON, codes de sortie : 0 commande appliquée ; 1 commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé.
+- **Entrées** : Dossier du workflow ; Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées) ; Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur.
+- **Sorties** : workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande ; Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md.
+- **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). Rapport JSON, codes de sortie : 0 commande appliquée ; 1 commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé.
+- **`vault_sync.py`** : Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu. Rapport JSON, codes de sortie : 0 notes écrites, tous les liens résolus ; 1 workflow.json ou vault introuvable, ou lien cassé.
 - **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
+- **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
 
 ### `diagram-brief`
 

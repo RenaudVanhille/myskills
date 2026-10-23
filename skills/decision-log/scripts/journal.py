@@ -18,7 +18,11 @@ Règles appliquées par le script, pas par le modèle :
   suivantes déjà commencées ;
 - une validation ou un retour est toujours attribué à l'utilisateur.
 
-    uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c]
+Avec `init --vault VAULT`, chaque commande écrit aussi la mémoire partagée
+dans le vault Obsidian (vault_sync.py) : une note par exigence, option et
+entrée du journal, reliées par des wikilinks.
+
+    uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE
     uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
     uv run scripts/journal.py submit DOSSIER ETAPE --files F [F ...]
@@ -32,6 +36,9 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from vault_sync import sync  # noqa: E402
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
@@ -141,6 +148,12 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         folder.mkdir(parents=True, exist_ok=True)
         state = {"title": args.title or folder.resolve().name, "created": now(),
                  "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
+        if args.vault:
+            if not args.vault.is_dir():
+                errors.append(f"vault introuvable : {args.vault}")
+                return None, None
+            state["memory"] = {"vault": str(args.vault.resolve()),
+                               "folder": args.folder_in_vault or f"Workflows/{state['title']}"}
         return state, None
 
     try:
@@ -225,6 +238,9 @@ def main() -> int:
     init.add_argument("folder", type=Path)
     init.add_argument("--title", help="titre du workflow (défaut : nom du dossier)")
     init.add_argument("--stages", help=f"étapes dans l'ordre (défaut : {','.join(STAGES)})")
+    init.add_argument("--vault", type=Path, help="vault Obsidian où écrire la mémoire partagée")
+    init.add_argument("--folder", dest="folder_in_vault", help="dossier des notes dans le vault "
+                                                                "(défaut : Workflows/<titre>)")
     status = sub.add_parser("status", help="état, prochaine action, fichiers validés modifiés")
     status.add_argument("folder", type=Path)
     for name in ("start", "log", "submit", "review"):
@@ -250,11 +266,17 @@ def main() -> int:
     state, entry = run(args, errors, warnings)
     if state and not errors and args.command != "status":
         save(args.folder, state)
+    memory = None
+    if state and not errors and state.get("memory"):
+        synced = sync(args.folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
+        warnings += [f"vault : {e}" for e in synced["errors"]]
+        memory = {"folder": synced["folder"], "notes": synced["notes"]}
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
               "current": current, "next": action, "entry": entry,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
+              "memory": memory,
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0

@@ -11,6 +11,7 @@
       "agent": "architecture-workflow",
       "receives": [
         "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
+        "Le vault Obsidian qui sert de mémoire partagée",
         "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
       ],
       "produces": [
@@ -18,7 +19,8 @@
         "exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées",
         "options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur",
         "schemas/architectures.drawio et un PNG par option",
-        "workflow.json et journal.md : état des étapes, choix, questions, retours et validations"
+        "workflow.json et journal.md : état des étapes, choix, questions, retours et validations",
+        "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
       ],
       "never": [
         "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur",
@@ -41,7 +43,8 @@
           "send": [
             "options.md et options.json",
             "l'option retenue et ses noms de composants",
-            "le dossier schemas/"
+            "le dossier schemas/",
+            "la note de l'option dans le vault"
           ]
         },
         {
@@ -58,6 +61,7 @@
         "check-prerequisites",
         "decision-log",
         "doc-to-markdown",
+        "markdown-to-obsidian",
         "requirements-catalog",
         "architecture-options",
         "drawio-diagram",
@@ -1558,19 +1562,21 @@
       "skill": "decision-log",
       "inputs": [
         "Dossier du workflow",
-        "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)"
+        "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
+        "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
         "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
-        "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande"
+        "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
+        "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
       ],
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis.",
-          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
+          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
           "options": {
-            "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title",
+            "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
             "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
@@ -1591,6 +1597,7 @@
                 "next",
                 "entry",
                 "questions",
+                "memory",
                 "errors",
                 "warnings"
               ],
@@ -1653,6 +1660,31 @@
                   "type": "integer",
                   "minimum": 0
                 },
+                "memory": {
+                  "description": "Notes écrites dans le vault, ou null sans vault.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "folder",
+                        "notes"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
+                },
                 "errors": {
                   "type": "array",
                   "items": {
@@ -1672,6 +1704,66 @@
             "0": "commande appliquée",
             "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
           }
+        },
+        {
+          "name": "vault_sync.py",
+          "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
+          "usage": "uv run scripts/vault_sync.py DOSSIER [--vault VAULT] [--folder DOSSIER_DU_VAULT] [--data DOSSIER_DES_LIVRABLES]",
+          "options": {
+            "DOSSIER": "dossier du workflow",
+            "--vault": "vault Obsidian (défaut : celui donné à journal.py init)",
+            "--folder": "dossier des notes dans le vault (défaut : celui de workflow.json, sinon Workflows/<titre>)",
+            "--data": "dossier des livrables (exigences.json, options.json, decision.json, adr-architecture.md), défaut : DOSSIER"
+          },
+          "report": {
+            "format": "json",
+            "description": "Vault, dossier, nombre de notes écrites et supprimées, liens cassés en erreur.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "vault",
+                "folder",
+                "notes",
+                "removed",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "vault": {
+                  "type": "string"
+                },
+                "folder": {
+                  "type": "string"
+                },
+                "notes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "notes écrites, tous les liens résolus",
+            "1": "workflow.json ou vault introuvable, ou lien cassé"
+          }
         }
       ],
       "handoffs": [
@@ -1679,6 +1771,11 @@
           "to": "utilisateur",
           "kind": "utilisateur",
           "when": "une étape est soumise : l'utilisateur la valide ou fait un retour"
+        },
+        {
+          "to": "markdown-to-obsidian",
+          "kind": "skill",
+          "when": "choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault"
         }
       ],
       "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",

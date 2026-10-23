@@ -13,10 +13,12 @@ ni `journal.md` à la main.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Dossier du workflow ; Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées).
-- **Sorties** : workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande.
-- **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Rapport JSON, codes de sortie : 0 commande appliquée ; 1 commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé.
+- **Entrées** : Dossier du workflow ; Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées) ; Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur.
+- **Sorties** : workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande ; Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md.
+- **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). Rapport JSON, codes de sortie : 0 commande appliquée ; 1 commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé.
+- **`vault_sync.py`** : Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu. Rapport JSON, codes de sortie : 0 notes écrites, tous les liens résolus ; 1 workflow.json ou vault introuvable, ou lien cassé.
 - **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
+- **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
 
 ## 1. Le cycle d'une étape
 
@@ -28,7 +30,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 
 | Commande | Quand | Le script refuse si |
 | --- | --- | --- |
-| `init DOSSIER [--stages a,b,c] [--title T]` | une fois, au début | `workflow.json` existe déjà |
+| `init DOSSIER [--stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, vault introuvable |
 | `start DOSSIER ETAPE` | avant de travailler sur l'étape | une étape précédente n'est pas validée |
 | `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
 | `submit DOSSIER ETAPE --files F ...` | livrables vérifiés par leurs scripts | l'étape n'est pas en cours, fichier introuvable |
@@ -57,3 +59,20 @@ action) : suivez `next`, ne le déduisez pas vous-même.
   (`review --decision retour`) plutôt que de continuer.
 
 `journal.md` est la version lisible, à joindre au dossier livré.
+
+## 3. Mémoire partagée dans Obsidian
+
+Avec `init --vault VAULT` (et `--folder`, défaut `Workflows/<titre>`),
+chaque commande réécrit dans le vault une note par exigence
+(`Exigences/EF-001`), par option (`Options/Option A`), par entrée du
+journal (`Décisions/D-001`), l'ADR et une note d'index, reliées par des
+wikilinks et décrites par leur frontmatter (`type`, `priorite`, `etape`,
+`par`...). C'est la mémoire commune des agents, des sessions et de
+l'utilisateur : pour reprendre un workflow ou retrouver une décision, lisez
+la note d'index puis les notes liées, pas tout le dossier.
+
+Ces notes sont générées (`genere: decision-log`) : ne les modifiez pas, un
+retour passe par `review`. Les autres notes du vault ne sont jamais
+touchées. Pour choisir le dossier, lisez d'abord le profil du vault
+(`vault_profile.py` du skill `markdown-to-obsidian`). Hors journal,
+`vault_sync.py DOSSIER --vault VAULT` refait la synchronisation.

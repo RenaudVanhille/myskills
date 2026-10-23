@@ -10,7 +10,8 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 - **Publication** : Markdown vers Word, HTML ou XWiki, schémas compris.
 - **Des documents à l'architecture** : exigences fonctionnelles et non
   fonctionnelles tracées jusqu'aux sources, 2 ou 3 architectures comparées,
-  schémas, avec une revue humaine à chaque étape et un journal des décisions.
+  schémas, avec une revue humaine à chaque étape, un journal des décisions et
+  une mémoire partagée dans le vault Obsidian.
 
 ## Installation
 
@@ -80,7 +81,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, export Markdown et CSV |
 | `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, un schéma draw.io par option |
-| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite) et journal des décisions |
+| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, et mémoire partagée dans un vault Obsidian (une note par exigence, option et décision) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
