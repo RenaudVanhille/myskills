@@ -5,8 +5,8 @@
 
 Lit les fichiers qui font foi dans le dossier du workflow (`workflow.json`
 et, s'ils existent, `exigences.json`, `options.json`, `decision.json`,
-`adr-architecture.md`) et en tire une note par exigence, option et entrée
-du journal, plus une note d'index, reliées par des wikilinks : un autre
+`adr-architecture.md`) et en tire une note par exigence, terme du glossaire,
+option et entrée du journal, plus une note d'index, reliées par des wikilinks : un autre
 agent, une autre session ou l'utilisateur retrouvent dans le vault l'état
 du workflow, chaque décision et ce qu'elle concerne.
 
@@ -23,6 +23,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -80,6 +81,17 @@ def user_part(path: Path, submission: str) -> tuple[str, str]:
     value = next((line.split(":", 1)[1].strip() for line in head.splitlines() if line.startswith("revue:")), "")
     feedback = text.split("## Votre retour", 1)[1].strip("\n") if "## Votre retour" in text else ""
     return value.strip('"'), feedback
+
+
+def normalize(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    return " ".join("".join(c for c in text if not unicodedata.combining(c)).lower().split())
+
+
+def mentions(text: str, words: list[str]) -> bool:
+    """Même règle que req_build.py : sans casse ni accents, pluriel en s ou x admis."""
+    text = normalize(text)
+    return any(re.search(rf"(?<!\w){re.escape(normalize(w))}[sx]?(?!\w)", text) for w in words if normalize(w))
 
 
 def load(path: Path):
@@ -151,6 +163,12 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         names[req["id"]] = f"{base}/Exigences/{req['id']}"
     for opt in options.get("options", []):
         names[opt["id"]] = f"{base}/Options/Option {opt['id']}"
+    glossary = catalog.get("glossary", [])
+    for entry in glossary:
+        names["terme:" + entry["term"]] = f"{base}/Glossaire/{safe_name(entry['term'])}"
+    kept = [r for r in catalog.get("requirements", []) if r.get("status", "retenue") == "retenue"]
+    uses = {g["term"]: [r["id"] for r in kept if mentions(f"{r['title']} {r['text']}", [g["term"], *g.get("aliases", [])])]
+            for g in glossary}
     for entry in state["entries"]:
         names[entry["id"]] = f"{base}/Décisions/{entry['id']}"
     index = f"{base}/{safe_name(state['title'])}"
@@ -172,6 +190,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         body = [f"# {rid} {req['title']}", "", req["text"], "", up, ""]
         if req.get("metric"):
             body += [f"**Mesure** : {req['metric']}", ""]
+        terms = [g["term"] for g in glossary if rid in uses[g["term"]]]
+        if terms:
+            body += ["**Termes** : " + ", ".join(f"[[{names['terme:' + term]}|{alias(term)}]]" for term in terms), ""]
         body += ["## Sources", ""] + [f"- {s}" for s in sources] + ([f"- déduite : {req['derived']}"]
                                                                    if req.get("derived") else [])
         if req.get("questions"):
@@ -207,6 +228,16 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             body += ["", f"Retenue : [[{names['ADR']}|ADR]]"]
         notes[names[opt["id"]]] = note({"id": f"option-{opt['id']}", "type": "option-architecture",
                                         "retenue": chosen, "tags": ["architecture"]}, body)
+
+    for entry in glossary:
+        sources = [s["doc"] + (f" : « {s['quote']} »" if s.get("quote") else "") for s in entry.get("sources", [])]
+        body = [f"# {entry['term']}", "", entry["definition"], "", up]
+        if sources:
+            body += ["", "## Sources", ""] + [f"- {s}" for s in sources]
+        if uses[entry["term"]]:
+            body += ["", "## Exigences", ""] + [f"- {link(r)}" for r in uses[entry["term"]]]
+        notes[names["terme:" + entry["term"]]] = note({"type": "terme", "aliases": entry.get("aliases", []),
+                                                         "tags": ["glossaire"]}, body)
 
     for entry in state["entries"]:
         refs = [link(r) for r in entry.get("refs", [])]
@@ -257,6 +288,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     for title, refs in groups:
         if refs:
             body += ["", f"## {title}", ""] + [f"- {link(r)}" for r in refs]
+    if glossary:
+        body += ["", "## Glossaire", ""] + [f"- [[{names['terme:' + g['term']]}|{alias(g['term'])}]]"
+                                           for g in sorted(glossary, key=lambda g: normalize(g["term"]))]
     if reviews:
         body += ["", "## Revues en attente", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in reviews]
     if "ADR" in names:

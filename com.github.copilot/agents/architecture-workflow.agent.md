@@ -91,8 +91,9 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      `vision_pages`. Note dans le journal un document écarté et pourquoi.
    - `exigences` : lis chaque `sources/*.md` une fois, écris
      `exigences.json` (en gardant la numérotation des documents quand elle
-     existe), lance `req_build.py` jusqu'à zéro erreur et zéro
-     phrase normative non reprise.
+     existe) avec le glossaire des termes métier et sigles employés,
+     lance `req_build.py` jusqu'à zéro erreur et zéro phrase normative non
+     reprise.
    - `architectures` : écris `options.json` (2 ou 3 options, notes
      justifiées, `refs` des composants ; `provider` et `type` pour une
      option cloud), lance `options_build.py`.

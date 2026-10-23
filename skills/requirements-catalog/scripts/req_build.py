@@ -63,6 +63,19 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def mentions(text: str, words: list[str]) -> bool:
+    """Le texte emploie-t-il un des mots (sans casse ni accents, pluriel en s ou x admis) ?"""
+    text = normalize(text)
+    return any(re.search(rf"(?<!\w){re.escape(normalize(w))}[sx]?(?!\w)", text) for w in words if normalize(w))
+
+
+def glossary_refs(spec: dict) -> dict[str, list[str]]:
+    """Terme -> exigences retenues qui l'emploient (titre ou texte)."""
+    kept = [r for r in spec["requirements"] if r.get("status", "retenue") == "retenue"]
+    return {g["term"]: [r["id"] for r in kept if mentions(f"{r['title']} {r['text']}", [g["term"], *g.get("aliases", [])])]
+            for g in spec.get("glossary", [])}
+
+
 def load_sources(folder: Path) -> dict[str, list[str]]:
     return {path.relative_to(folder).as_posix(): path.read_text(encoding="utf-8", errors="replace").splitlines()
             for path in sorted(folder.rglob("*.md")) if ".myskills-tmp" not in path.parts}
@@ -121,7 +134,7 @@ def cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
-def render_md(spec: dict, items: list[dict], ignored: list[dict]) -> str:
+def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None) -> str:
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     functional = [r for r in kept if nature(r) == "fonctionnelle"]
     non_functional = [r for r in kept if nature(r) == "non-fonctionnelle"]
@@ -150,6 +163,11 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict]) -> str:
     retired = [r for r in items if r.get("status") == "retiree"]
     if retired:
         lines += ["", "## Exigences retirées", ""] + [f"- **{r['id']}** {r['title']} : {r['reason']}" for r in retired]
+    if glossary:
+        lines += ["", "## Glossaire", "", "| Terme | Définition | Exigences |", "| --- | --- | --- |"]
+        for g in sorted(glossary, key=lambda g: normalize(g["term"])):
+            term = g["term"] + (f" ({', '.join(g['aliases'])})" if g.get("aliases") else "")
+            lines.append(f"| **{cell(term)}** | {cell(g['definition'])} | {', '.join(g['_refs']) or '-'} |")
     if ignored:
         lines += ["", "## Phrases des sources écartées", "", "| Source | Phrase | Raison |", "| --- | --- | --- |"]
         lines += [f"| {cell(i['_where'])} | {cell(i['quote'])} | {cell(i['reason'])} |" for i in ignored]
@@ -251,6 +269,23 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> tup
         ignored.append({**item, "_where": where})
         quotes.setdefault(normalize(item["quote"]), "écartée")
 
+    glossary, names = [], {}
+    refs_of = glossary_refs(spec)
+    for index, entry in enumerate(spec.get("glossary", [])):
+        where = f"glossary/{index} ({entry['term']})"
+        for word in [entry["term"], *entry.get("aliases", [])]:
+            key = normalize(word)
+            if key in names and names[key] != entry["term"]:
+                errors.append(f"{where} : « {word} » déjà défini par « {names[key]} »")
+            elif key in names:
+                warnings.append(f"{where} : « {word} » répété")
+            names.setdefault(key, entry["term"])
+        for i, ref in enumerate(entry.get("sources", [])):
+            locate(f"{where}/sources/{i}", ref)
+        if not refs_of[entry["term"]]:
+            warnings.append(f"{where} : terme employé par aucune exigence retenue")
+        glossary.append({**entry, "_refs": refs_of[entry["term"]]})
+
     uncovered = []
     for doc, lines in sources.items():
         for number, sentence in sentences(lines):
@@ -261,7 +296,7 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> tup
         warnings.append(f"phrase normative non reprise ni écartée : {line}")
     if len(uncovered) > MAX_LISTED:
         warnings.append(f"... et {len(uncovered) - MAX_LISTED} autres phrases normatives non reprises")
-    return items, ignored, {"documents": len(sources), "uncovered": len(uncovered)}
+    return items, ignored, {"documents": len(sources), "uncovered": len(uncovered), "glossary": glossary}
 
 
 def main() -> int:
@@ -298,6 +333,7 @@ def main() -> int:
               "retired": len(items) - len(kept), "ignored": len(ignored),
               "questions": sum(len(r.get("questions", [])) for r in kept),
               "documents": counts.get("documents", 0), "uncovered": counts.get("uncovered", 0),
+              "glossary": len(spec.get("glossary", [])),
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
@@ -307,7 +343,7 @@ def main() -> int:
     stem = args.spec.name.removesuffix(".json")
     md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, items, ignored))
+        handle.write(render_md(spec, items, ignored, counts.get("glossary")))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

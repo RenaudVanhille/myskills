@@ -56,5 +56,22 @@
       "priority": "souhaitable",
       "derived": "test"
     }
+  ],
+  "glossary": [
+    {
+      "term": "Assuré",
+      "definition": "Titulaire d'un contrat."
+    },
+    {
+      "term": "Client",
+      "aliases": [
+        "assuré"
+      ],
+      "definition": "Synonyme mal placé."
+    },
+    {
+      "term": "Expert",
+      "definition": "Expert mandaté par la mutuelle."
+    }
   ]
 }

@@ -8,7 +8,7 @@
   "outputs": [
     "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
-    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
+    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
   ],
   "scripts": [
     {

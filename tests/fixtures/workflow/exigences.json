@@ -152,6 +152,13 @@
       ]
     }
   ],
+  "glossary": [
+    {"term": "Sinistre", "definition": "Événement (accident, dégât des eaux, tempête...) qui donne lieu à une indemnisation au titre d'un contrat auto ou habitation.",
+     "sources": [{"doc": "cahier-des-charges.md", "quote": "déclarer un sinistre auto ou habitation en ligne"}]},
+    {"term": "Assuré", "definition": "Titulaire d'un contrat de la mutuelle, qui déclare et suit ses sinistres."},
+    {"term": "Déclaration", "aliases": ["déclaration de sinistre"], "definition": "Demande d'indemnisation saisie par l'assuré, avec photos et justificatifs."},
+    {"term": "Gestionnaire", "definition": "Collaborateur de la mutuelle qui instruit les déclarations dans l'outil de gestion des sinistres."}
+  ],
   "ignored": [
     {
       "doc": "compte-rendu-atelier.md",

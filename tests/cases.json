@@ -373,7 +373,8 @@
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "ligne proche : « L'assuré doit pouvoir déclarer", "warnings": "cahier-des-charges.md:11 « Il doit pouvoir suivre l'avancement de son dossier. »"}},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « cahier-des-charges.md » ?"}},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "(REQ-100) : nature manquante", "warnings": "porte déjà l'identifiant SEC-01, conservez-le comme id"}},
-        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}}
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "glossary/1 (Client) : « assuré » déjà défini par « Assuré »", "warnings": "glossary/2 (Expert) : terme employé par aucune exigence retenue"}}
       ],
       "absent": ["exigences-invalide.md", "exigences-citation.md"]
     },
@@ -663,12 +664,16 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "documents", "--kind", "choix", "--text", "Compte rendu retenu comme source", "--refs", "ENF-004,A"], "exit": 0, "report": {"memory.folder": "Projets/Sinistres", "memory.notes": 2, "warnings": []}},
-        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 14, "removed": 0, "errors": []}}
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 18, "removed": 0, "errors": []}}
       ],
       "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
       "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],
                    "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001]]"],
-                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte"]}
+                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte",
+                                                                      "**Termes** : [[Projets/Sinistres/Glossaire/Assuré|Assuré]]"],
+                   "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases: [\"déclaration de sinistre\"]",
+                                                                         "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
+                   "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
     }
   ]
 }

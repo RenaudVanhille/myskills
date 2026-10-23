@@ -2,10 +2,10 @@
   "skill": "requirements-catalog",
   "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
+    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
   ],
   "outputs": [
-    "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées)",
+    "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme)",
     "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)"
   ],
   "scripts": [
@@ -183,6 +183,66 @@
                   }
                 }
               }
+            },
+            "glossary": {
+              "type": "array",
+              "description": "Glossaire du projet : termes métier et sigles employés par les exigences.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "term",
+                  "definition"
+                ],
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "term": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "definition": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "aliases": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "Synonymes, sigle ou forme développée."
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "doc"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "doc": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Chemin du Markdown, relatif au dossier sources."
+                        },
+                        "quote": {
+                          "type": "string",
+                          "description": "Citation exacte, retrouvée par le script."
+                        },
+                        "page": {
+                          "type": [
+                            "integer",
+                            "string"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -206,7 +266,8 @@
                 "documents",
                 "uncovered",
                 "errors",
-                "warnings"
+                "warnings",
+                "glossary"
               ],
               "additionalProperties": false,
               "properties": {
@@ -258,6 +319,10 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "glossary": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               }
             },
