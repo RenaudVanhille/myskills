@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.15"
 # dependencies = ["laya>=0.4", "markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5"]
 #
 # [[tool.uv.index]]
