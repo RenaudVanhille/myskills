@@ -2150,7 +2150,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien. Chaque image produite est contrôlée sans être regardée (taille, image presque uniforme, SVG vide) : warnings du résultat.",
             "schema": {
               "type": "object",
               "required": [
@@ -2198,6 +2198,13 @@
                       "rendered": {
                         "type": "integer",
                         "minimum": 0
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Contrôle automatique des images : trop petite, presque uniforme, SVG vide."
                       }
                     }
                   }

@@ -1,0 +1,24 @@
+# Cas rapides de tests/run.py (contrats, règles d'AGENTS.md, scripts des skills)
+# sous Linux, macOS et Windows, à chaque PR et sur main. Aucun modèle, aucun secret.
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Tests des scripts
+        run: uv run tests/run.py

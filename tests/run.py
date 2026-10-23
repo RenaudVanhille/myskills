@@ -30,7 +30,7 @@ from pathlib import Path
 TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
 TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" / "samples"),
-          "{fixtures}": str(TESTS / "fixtures")}
+          "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
 MIN_RATIO = 0.9
 sys.path.insert(0, str(ROOT / "scripts"))

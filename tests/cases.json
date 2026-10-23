@@ -2,6 +2,19 @@
   "_doc": "Cas de test des scripts, lancés par tests/run.py. Jetons : {skills}, {samples}, {fixtures}, {out} (dossier temporaire du cas). Chaque étape lance un script ; 'report' vérifie des valeurs du rapport JSON (chemin pointé, 0 = premier élément) ; 'report_contains' cherche un texte dans une valeur ; 'files' et 'contains' portent sur {out}.",
   "cases": [
     {
+      "id": "installation",
+      "skill": "tous",
+      "_note": "install.py pour OpenCode, Kiro et Hermes dans un projet : agents au format de chaque outil, skills copiés, chemins skill:// de Kiro valides.",
+      "steps": [
+        {"script": "{root}/scripts/install.py", "args": ["--project", "{out}"], "exit": 0}
+      ],
+      "files": [".opencode/agents/schema-designer.md", ".opencode/skills/decision-log/scripts/journal.py",
+                ".kiro/agents/architecture-workflow.md", ".kiro/skills/decision-log/SKILL.md",
+                ".hermes/skills/document-publisher/SKILL.md", ".hermes/skills/drawio-diagram/scripts/lib/charter.json"],
+      "contains": {".kiro/agents/schema-designer.md": ["skill://.kiro/skills/decision-log/SKILL.md", "capability: shell"],
+                   ".opencode/agents/document-extractor.md": ["webfetch: deny", "\"uv run *\": allow"]}
+    },
+    {
       "id": "docx",
       "skill": "doc-to-markdown",
       "steps": [
@@ -265,6 +278,26 @@
          "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}}
       ],
       "absent": ["d.drawio", "d.excalidraw", "p.drawio", "c.drawio", "c.threats.md"]
+    },
+    {
+      "id": "export-erreurs",
+      "skill": "diagram-export",
+      "steps": [
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/absent.drawio", "{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}"],
+         "exit": 1, "report": {"results.0.error": "Fichier introuvable"}, "report_contains": {"errors": "Format non reconnu"}}
+      ]
+    },
+    {
+      "id": "export-rendus",
+      "skill": "diagram-export",
+      "slow": true,
+      "_note": "Navigateur local (MYSKILLS_BROWSER ou Playwright) et téléchargement de Mermaid et Excalidraw au premier lancement.",
+      "steps": [
+        {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py", "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.excalidraw"], "exit": 0},
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "{out}/paiement.excalidraw", "--out", "{out}"],
+         "exit": 0, "report": {"errors": [], "results.0.warnings": [], "results.1.warnings": []}}
+      ],
+      "files": ["flux.png", "paiement.excalidraw.png"]
     },
     {
       "id": "excalidraw",

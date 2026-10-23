@@ -71,6 +71,8 @@ workflow, la commande les trace aussi au journal.
 6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
    public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.
+   Si son rapport signale une image vide ou trop petite, corrige avant de
+   l'ouvrir.
    Garde `--check` pour un bloc Mermaid qui reste dans un Markdown, sans
    export.
 7. Si la relecture ou une validation échoue, corrige en montant d'un niveau,

@@ -29,14 +29,14 @@ def install_skills(dest: Path, dry: bool) -> None:
     print(f"Skills -> {dest}")
 
 
-def install_agents(flavor: str, dest: Path, dry: bool) -> None:
+def install_agents(flavor: str, dest: Path, dry: bool, skills_dir: str = ".kiro/skills") -> None:
     for src in source_agents():
         name = parse_agent(src)[0]["name"]
         target = dest / name / "SKILL.md" if flavor == "hermes" else dest / f"{name}.md"
         if dry:
             print(f"+ écrire {target}")
             continue
-        write_text(target, render_agent(src, flavor))
+        write_text(target, render_agent(src, flavor, skills_dir))
     print(f"Agents ({flavor}) -> {dest}")
 
 
@@ -64,7 +64,8 @@ def main() -> None:
 
     if "kiro" in tools:
         install_skills(root / ".kiro" / "skills", args.dry_run)
-        install_agents("kiro", root / ".kiro" / "agents", args.dry_run)
+        install_agents("kiro", root / ".kiro" / "agents", args.dry_run,
+                       "~/.kiro/skills" if args.global_ else ".kiro/skills")
 
     if "hermes" in tools:
         skills = root / ".hermes" / "skills"

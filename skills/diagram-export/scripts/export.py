@@ -355,6 +355,38 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
 
 # --- Commun ------------------------------------------------------------------
 
+def image_warnings(path: Path) -> list[str]:
+    """Contrôle du rendu sans le regarder : image trop petite, presque uniforme (vide),
+    SVG sans texte ni tracé. Le modèle n'ouvre l'image que s'il y a un doute ou pour la relecture."""
+    name = path.name
+    if path.suffix.lower() == ".svg":
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return [] if re.search(r"<(text|path|foreignObject|rect|line|polygon)\b", text) else \
+            [f"{name} : SVG sans texte ni tracé (rendu vide ?)"]
+    if path.suffix.lower() != ".png":
+        return []
+    data = path.read_bytes()
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 33:
+        return [f"{name} : PNG illisible"]
+    width, height, depth, color = struct.unpack(">IIBB", data[16:26])
+    warnings = []
+    if min(width, height) < 64:
+        warnings.append(f"{name} : image de {width} x {height} px, trop petite pour être lue")
+    # Taille compressée des pixels rapportée à leur taille brute : une image presque
+    # uniforme se compresse à presque rien.
+    idat, pos = 0, 8
+    while pos + 8 <= len(data):
+        length, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        if kind == b"IDAT":
+            idat += length
+        pos += 12 + length
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color, 4)
+    raw = height * (width * channels * max(depth, 8) // 8 + 1)
+    if raw and idat / raw < 0.004:
+        warnings.append(f"{name} : image presque uniforme (rendu vide ?)")
+    return warnings
+
+
 EXPORTERS = {
     ".drawio": export_drawio, ".mmd": export_mermaid, ".mermaid": export_mermaid,
     ".md": export_mermaid, ".excalidraw": export_excalidraw, ".c4": export_likec4,
@@ -401,6 +433,7 @@ def main() -> int:
                     files = EXPORTERS[kind](src, out, fmt, args.scale, args.transparent)
                     report["outputs"] = [] if args.check else [str(f) for f in files]
                     report["rendered"] = len(files)
+                    report["warnings"] = [w for f in files for w in image_warnings(Path(f))]
                 except ExportError as error:
                     report["error"] = str(error)
                 except OSError as error:
