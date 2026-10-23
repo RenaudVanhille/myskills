@@ -9,7 +9,8 @@ les documents de tests/fixtures/ et vérifie codes de sortie, rapports JSON,
 fichiers produits et, si un résultat attendu existe, sa ressemblance avec
 tests/expected/. Chaque rapport JSON est validé contre le JSON Schema déclaré
 dans le contract.json du skill, et le cas `contrats` vérifie les contrats
-eux-mêmes et les fichiers qui en sont générés. Les cas marqués `slow` (gros téléchargements au premier
+eux-mêmes et les fichiers qui en sont générés ; le cas `regles` vérifie les
+règles mécaniques d'AGENTS.md. Les cas marqués `slow` (gros téléchargements au premier
 lancement) ne tournent qu'avec --slow.
 
 Usage :
@@ -19,6 +20,7 @@ Usage :
 import argparse
 import difflib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -221,6 +223,63 @@ def check_contracts() -> dict:
     return {"id": "contrats", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 
+# Skills d'import et d'export : jamais dans le même agent (AGENTS.md, section 4).
+IMPORT_SKILLS = {"doc-to-markdown", "markdown-to-obsidian"}
+EXPORT_SKILLS = {"markdown-publish"}
+NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
+def check_rules() -> dict:
+    """Règles mécaniques d'AGENTS.md, celles marquées « vérifiée »."""
+    from agents_lib import parse_agent, render_agent, source_agents, split_list
+
+    failures = []
+    for folder in sorted((ROOT / "skills").glob("*/")):
+        name, skill_md = folder.name, folder / "SKILL.md"
+        if not NAME.match(name):
+            failures.append(f"{name} : nom en minuscules avec tirets attendu")
+        if not skill_md.exists():
+            failures.append(f"{name} : pas de SKILL.md")
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        head = contracts_lib.FRONTMATTER.match(text)
+        meta = dict(re.findall(r'^(\w+):\s*"?(.*?)"?\s*$', head.group(1), re.M)) if head else {}
+        if meta.get("name") != name:
+            failures.append(f"{name}/SKILL.md : name = {meta.get('name')!r}, attendu le nom du dossier")
+        if not 0 < len(meta.get("description", "")) <= 1024:
+            failures.append(f"{name}/SKILL.md : description absente ou de plus de 1024 caractères")
+        if text.count("\n") > 500:
+            failures.append(f"{name}/SKILL.md : plus de 500 lignes, déplacez le détail dans references/")
+        for script in sorted((folder / "scripts").glob("*.py")):
+            if not script.read_text(encoding="utf-8").startswith("# /// script"):
+                failures.append(f"{name}/scripts/{script.name} : en-tête PEP 723 (# /// script) manquant")
+    for name, contract in contracts_lib.skill_contracts().items():
+        for script in contract.get("scripts", []):
+            if script["report"]["format"] == "json" and not script["report"].get("schema"):
+                failures.append(f"{name}/{script['name']} : rapport JSON sans schéma dans le contrat")
+
+    for src in source_agents():
+        meta = parse_agent(src)[0]
+        name, skills = meta.get("name", src.stem), set(split_list(meta.get("skills", "")))
+        if not NAME.match(name):
+            failures.append(f"agent {name} : nom en minuscules avec tirets attendu")
+        if skills & IMPORT_SKILLS and skills & EXPORT_SKILLS:
+            failures.append(f"agent {name} : importe et exporte, séparez en deux agents")
+        for flavor in ("claude", "copilot"):
+            tools = next((line for line in render_agent(src, flavor).splitlines() if line.startswith("tools:")), "")
+            if "web" in tools.lower():
+                failures.append(f"agent {name} : outil web autorisé ({flavor})")
+        commands = meta.get("commands", "").lower()
+        failures += [f"agent {name} : commande réseau autorisée « {c} »"
+                     for c in ("curl", "wget", "invoke-webrequest") if c in commands]
+
+    for path in sorted([*(ROOT / "skills").rglob("*"), *(ROOT / "src").rglob("*")]):
+        if path.is_file() and path.suffix in {".md", ".py", ".json"}:
+            if "puppeteer" in path.read_text(encoding="utf-8", errors="replace").lower():
+                failures.append(f"{path.relative_to(ROOT)} : Puppeteer, utilisez Playwright")
+    return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
+
+
 def run_case(case: dict, keep: bool) -> dict:
     out = Path(tempfile.mkdtemp(prefix=f"myskills-{case['id']}-"))
     failures: list[str] = []
@@ -248,10 +307,12 @@ def main() -> int:
     cases = json.loads((TESTS / "cases.json").read_text(encoding="utf-8"))["cases"]
     only = set(args.only.split(",")) if args.only else None
     results, skipped = [], []
-    if not only or "contrats" in only:
-        results.append(check_contracts())
+    for case_id, check in (("contrats", check_contracts), ("regles", check_rules)):
+        if only and case_id not in only:
+            continue
+        results.append(check())
         if not args.json:
-            print(f"{'OK  ' if results[-1]['ok'] else 'ÉCHEC'} contrats (tous)", flush=True)
+            print(f"{'OK  ' if results[-1]['ok'] else 'ÉCHEC'} {case_id} (tous)", flush=True)
             for failure in results[-1]["failures"]:
                 print(f"      - {failure}")
     for case in cases:
