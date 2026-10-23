@@ -1,0 +1,7 @@
+{
+  "name": "revue-code",
+  "stages": [
+    {"id": "analyse", "deliverable": ["analyse.md"]},
+    {"id": "analyse", "deliverables": ["rapport.md"], "skills": "doc-to-markdown"}
+  ]
+}

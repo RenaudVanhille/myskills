@@ -144,6 +144,23 @@
       ]
     },
     {
+      "id": "workflow-cloud-existant",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow cloud-existant sur le Terraform de infra/, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/iac/terraform/main.tf",
+          "to": "infra/main.tf"
+        }
+      ],
+      "output": "journal.md",
+      "rubric": [
+        "Le journal montre l'étape description en revue et les étapes schemas et menaces à faire.",
+        "schemas/architecture.json a été produit depuis le Terraform (iac_import.py) et soumis à la revue.",
+        "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
       "id": "workflow-retour",
       "agent": "architecture-workflow",
       "prompt": "Mon retour sur les exigences : ajoute une exigence d'accessibilité (RGAA niveau AA) pour les assurés, puis soumets de nouveau l'étape.",

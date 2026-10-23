@@ -426,6 +426,36 @@
       "contains": {"w/journal.md": ["| D-001 |", "Arrêt de l'ancienne application écarté", "Catalogue validé", "Invalidation", "à reprendre après le retour D-005 sur exigences"]}
     },
     {
+      "id": "workflow-definition",
+      "skill": "decision-log",
+      "_note": "Workflow décrit en JSON (cloud-existant, livré) : le rapport donne l'étape à produire, submit prend les livrables dans la définition et refuse s'il en manque.",
+      "steps": [
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "architectur"], "exit": 1,
+         "report_contains": {"errors": "vouliez-vous « architecture » ?"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "{fixtures}/workflow/definition-invalide.json"], "exit": 1,
+         "report_contains": {"errors": "stages/0 : clé inconnue « deliverable » ; vouliez-vous « deliverables » ?"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "{fixtures}/workflow/definition-invalide.json"], "exit": 1,
+         "report_contains": {"errors": "étape « analyse » en double"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "cloud-existant"], "exit": 0,
+         "report": {"current": "description", "stage.skills": ["cloud-architecture"], "stages.2.id": "menaces"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "description"], "exit": 0, "report": {"stage.deliverables": ["schemas/architecture.json"]}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu introuvable : schemas/architecture.json"}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py", "args": ["{fixtures}/iac/terraform", "--out", "{out}/w/schemas/architecture.json"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description"], "exit": 0, "report": {"stages.0.status": "en-revue", "stage": null}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "description", "--decision", "valide", "--text", "Description relue"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "schemas"], "exit": 0, "report": {"stage.agent": "schema-designer"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/w/schemas/architecture.json"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas", "--files", "schemas/architecture.drawio"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu non soumis : schemas/*.png"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu introuvable : schemas/*.png"}}
+      ],
+      "files": ["w/workflow.json", "w/schemas/architecture.drawio"],
+      "absent": ["x"],
+      "contains": {"w/workflow.json": ["\"name\": \"cloud-existant\"", "\"schemas/architecture.json\": \""]}
+    },
+    {
       "id": "revue-differentielle",
       "skill": "decision-log",
       "_note": "Retour, nouvelle version des exigences : submit liste les changements ; un livrable validé modifié bloque l'étape suivante ; passages de main et rapports validés.",

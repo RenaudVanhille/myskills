@@ -1,0 +1,21 @@
+{
+  "name": "cloud-existant",
+  "title": "Schémas et menaces d'une infrastructure existante",
+  "description": "Du code d'infrastructure (Terraform, docker-compose, Kubernetes) au schéma cloud relu, puis au modèle de menaces STRIDE.",
+  "stages": [
+    {"id": "description", "label": "Description tirée du code", "skills": ["cloud-architecture"],
+     "inputs": ["infra/**/*"], "deliverables": ["schemas/architecture.json"],
+     "checks": ["cloud-architecture : iac_import.py <sources> --out schemas/architecture.json"],
+     "instructions": "Compléter la description produite : titre, acteurs externes, protocoles et ports, flux que le code ne montre pas ; vérifier le sens des flux."},
+    {"id": "schemas", "label": "Schémas cloud", "skills": ["cloud-architecture", "diagram-export"],
+     "agent": "schema-designer",
+     "inputs": ["schemas/architecture.json"], "deliverables": ["schemas/architecture.drawio", "schemas/*.png"],
+     "optional": ["schemas/architecture.flows.md"],
+     "checks": ["cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
+                "diagram-export : export.py schemas/architecture.drawio, puis relire l'image"]},
+    {"id": "menaces", "label": "Modèle de menaces STRIDE", "skills": ["cloud-architecture"],
+     "inputs": ["schemas/architecture.json"], "deliverables": ["schemas/architecture.threats.md"],
+     "checks": ["cloud-architecture : stride.py schemas/architecture.json"],
+     "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue."}
+  ]
+}

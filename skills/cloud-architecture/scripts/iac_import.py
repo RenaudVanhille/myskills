@@ -497,6 +497,7 @@ def main() -> int:
             model.errors += errors
             report["groups"] = sum(len(b.groups) for _, b, _ in pages)
         if not model.errors:
+            out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(spec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             report["output"] = str(out)
     print(json.dumps(report, ensure_ascii=False))

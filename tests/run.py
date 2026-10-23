@@ -98,7 +98,7 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
     # La description passée au script (premier argument .json) doit respecter son schéma d'entrée.
     spec_schema = INPUTS.get(name)
     first = expand(step.get("args", [""])[0], out) if step.get("args") else ""
-    if spec_schema and first.endswith(".json") and step.get("exit", 0) == 0:
+    if spec_schema and first.endswith(".json") and step.get("exit", 0) == 0 and Path(first).is_file():
         spec = json.loads(Path(first).read_text(encoding="utf-8"))
         failures += [f"{name} : description {Path(first).name} non conforme au schéma d'entrée, {e}"
                      for e in schema_errors(spec, spec_schema)]
@@ -190,6 +190,20 @@ def check_contracts() -> dict:
             known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"}}[handoff["kind"]]
             if handoff["to"] not in known:
                 failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
+
+    # Workflows livrés : conformes au schéma de définition, skills et agents existants.
+    journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
+    definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
+    for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
+        definition = json.loads(path.read_text(encoding="utf-8"))
+        failures += [f"workflows/{path.name} : {e}" for e in schema_errors(definition, definition_schema)]
+        if definition.get("name") != path.stem:
+            failures.append(f"workflows/{path.name} : name = {definition.get('name')!r}, attendu {path.stem!r}")
+        for stage in definition.get("stages", []):
+            failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill inconnu « {s} »"
+                         for s in stage.get("skills", []) if s not in skills]
+            if stage.get("agent") and stage["agent"] not in agents:
+                failures.append(f"workflows/{path.name} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
 
     for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
         if path.stem not in agents:

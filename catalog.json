@@ -56,7 +56,7 @@
           ]
         }
       ],
-      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
+      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
       "skills": [
         "check-prerequisites",
         "decision-log",
@@ -1812,7 +1812,7 @@
         "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
-        "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
         "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
       ],
@@ -1820,12 +1820,12 @@
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
+          "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
           "options": {
-            "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
-            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
+            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
             "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
@@ -1849,7 +1849,8 @@
                 "memory",
                 "errors",
                 "warnings",
-                "changes"
+                "changes",
+                "stage"
               ],
               "additionalProperties": false,
               "properties": {
@@ -1992,6 +1993,17 @@
                     }
                   ],
                   "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
+                },
+                "stage": {
+                  "description": "Avec une définition : l'étape courante à produire (skills, livrables, contrôles, consignes), sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
@@ -2151,6 +2163,109 @@
                           "obsidian"
                         ],
                         "description": "Décision lue dans la note de revue du vault."
+                      }
+                    }
+                  }
+                },
+                "definition": {
+                  "$ref": "#/$defs/definition"
+                }
+              },
+              "$defs": {
+                "definition": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "stages"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "description": "Définition d'un workflow (workflows/<nom>.json ou fichier passé à init --definition).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "stages": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "deliverables"
+                        ],
+                        "additionalProperties": false,
+                        "patternProperties": {
+                          "^_": {}
+                        },
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "skills": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "skills à appliquer pour produire les livrables"
+                          },
+                          "agent": {
+                            "type": "string",
+                            "description": "agent à qui passer la main pour cette étape, s'il y a lieu"
+                          },
+                          "inputs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "fichiers lus (motifs relatifs au dossier)"
+                          },
+                          "deliverables": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "description": "motifs des livrables soumis à la revue ; chacun doit correspondre à au moins un fichier"
+                          },
+                          "optional": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "motifs de livrables soumis s'ils existent"
+                          },
+                          "checks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "scripts à lancer jusqu'à zéro erreur avant la soumission"
+                          },
+                          "instructions": {
+                            "type": "string",
+                            "description": "consignes propres à l'étape, en une ou deux phrases"
+                          }
+                        }
                       }
                     }
                   }

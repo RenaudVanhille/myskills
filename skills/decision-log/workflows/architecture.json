@@ -1,0 +1,29 @@
+{
+  "name": "architecture",
+  "title": "Des documents du projet aux schémas d'architecture",
+  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées, choix de l'utilisateur et schémas.",
+  "stages": [
+    {"id": "documents", "label": "Documents en Markdown", "skills": ["doc-to-markdown"],
+     "inputs": ["documents/*"], "deliverables": ["sources/*.md"],
+     "checks": ["doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources"],
+     "instructions": "Un document déjà en Markdown est copié tel quel ; les pages de vision_pages sont transcrites par la vision."},
+    {"id": "exigences", "label": "Catalogue des exigences", "skills": ["requirements-catalog"],
+     "inputs": ["sources/*.md"], "deliverables": ["exigences.json", "exigences.md", "exigences.csv"],
+     "checks": ["requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"]},
+    {"id": "architectures", "label": "Options d'architecture", "skills": ["architecture-options"],
+     "inputs": ["exigences.json"], "deliverables": ["options.json", "options.md"],
+     "optional": ["schemas/option-*.cloud.json"],
+     "checks": ["architecture-options : options_build.py options.json"],
+     "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud."},
+    {"id": "schemas", "label": "Décision et schémas", "skills": ["architecture-options", "drawio-diagram", "cloud-architecture", "diagram-export"],
+     "agent": "schema-designer",
+     "inputs": ["options.json", "exigences.json"],
+     "deliverables": ["decision.json", "adr-architecture.md", "tracabilite.md", "schemas/architectures.drawio", "schemas/*.png"],
+     "optional": ["tracabilite.csv", "schemas/option-*.drawio"],
+     "checks": ["architecture-options : options_build.py options.json --decision decision.json",
+                "drawio-diagram : drawio_build.py schemas/architectures.json",
+                "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json (option cloud retenue)",
+                "diagram-export : export.py en PNG, puis relire chaque image"],
+     "instructions": "decision.json reprend le choix de l'utilisateur à la revue précédente (ses mots dans why)."}
+  ]
+}

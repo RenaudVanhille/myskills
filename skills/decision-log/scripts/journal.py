@@ -28,14 +28,19 @@ entrée du journal, reliées par des wikilinks, et une note de revue par étape
 soumise, où l'utilisateur valide (propriété `revue`) ; `review --from-vault`
 la lit.
 
+Avec `init --definition`, le workflow suit une définition JSON (livrée dans
+workflows/ ou fournie) : étapes, skills, livrables attendus et contrôles. Le
+rapport donne alors l'étape à produire (`stage`), et `submit` prend les
+livrables dans la définition et refuse s'il en manque un.
+
 `handoff` et `report` valident un message de passage et un rapport final
 d'agent contre leurs schémas (shared/schemas/) et vérifient que leurs
 fichiers existent ; dans un dossier de workflow, ils les notent au journal.
 
-    uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c] [--vault VAULT [--folder F]]
+    uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c | --definition NOM|DEF.json] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE
     uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
-    uv run scripts/journal.py submit DOSSIER ETAPE --files F [F ...]
+    uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
     uv run scripts/journal.py handoff|report DOSSIER --file MESSAGE.json | --json '{...}'
@@ -45,16 +50,19 @@ fichiers existent ; dans un dossier de workflow, ils les notent au journal.
 
 import argparse
 import datetime
+import difflib
+import fnmatch
 import hashlib
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib.spec_schema import check, print_schema, validate  # noqa: E402
+from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import review_note, safe_folder, safe_name, sync  # noqa: E402
 
 LIB = Path(__file__).resolve().parent / "lib"
+WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
@@ -169,6 +177,53 @@ def message_errors(kind: str, message, folder: Path) -> list[str]:
     return [f"files : {f} introuvable" for f in missing]
 
 
+def load_definition(value: str, errors: list[str]) -> dict | None:
+    """Définition d'un workflow : nom d'un workflow livré (workflows/<nom>.json) ou fichier JSON."""
+    path = Path(value)
+    if not path.is_file():
+        known = sorted(p.stem for p in WORKFLOWS.glob("*.json"))
+        if value not in known:
+            close = difflib.get_close_matches(value, known, n=1)
+            errors.append(f"définition introuvable « {value} » : fichier JSON ou workflow livré ("
+                          f"{', '.join(known)})" + (f" ; vouliez-vous « {close[0]} » ?" if close else ""))
+            return None
+        path = WORKFLOWS / f"{value}.json"
+    try:
+        definition = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"{path.name} illisible : {error}")
+        return None
+    schema = input_schema(__file__)
+    invalid = check(definition, schema["$defs"]["definition"], schema)
+    ids = [s.get("id") for s in definition.get("stages", []) if isinstance(s, dict)]
+    invalid += [f"stages : étape « {i} » en double" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    errors += [f"{path.name} : {e}" for e in invalid]
+    return None if invalid else {k: v for k, v in definition.items() if not k.startswith("_")}
+
+
+def stage_definition(state: dict, name: str | None) -> dict | None:
+    for stage in (state.get("definition") or {}).get("stages", []):
+        if stage["id"] == name:
+            return {k: v for k, v in stage.items() if not k.startswith("_")}
+    return None
+
+
+def deliverables(folder: Path, definition: dict, errors: list[str]) -> list[str]:
+    """Fichiers qui correspondent aux livrables de l'étape ; une erreur par livrable attendu absent."""
+    files = []
+    for pattern in definition["deliverables"] + definition.get("optional", []):
+        found = sorted(p.relative_to(folder).as_posix() for p in folder.glob(pattern) if p.is_file())
+        if not found and pattern in definition["deliverables"]:
+            errors.append(f"livrable attendu introuvable : {pattern} (étape {definition['id']})")
+        files += [f for f in found if f not in files]
+    return files
+
+
+def uncovered(files: list[str], definition: dict) -> list[str]:
+    """Livrables attendus qu'aucun fichier soumis ne couvre."""
+    return [p for p in definition["deliverables"] if not any(fnmatch.fnmatch(f, p) for f in files)]
+
+
 def changed_files(folder: Path, stage: dict) -> list[str]:
     """Fichiers soumis ou validés qui ont changé ou disparu depuis."""
     changed = []
@@ -250,13 +305,22 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         if (folder / STATE).exists():
             errors.append(f"{folder / STATE} existe déjà : utilisez status pour reprendre le workflow")
             return None, None
-        stages = split(args.stages) or STAGES
+        definition = None
+        if args.definition:
+            definition = load_definition(args.definition, errors)
+            if not definition:
+                return None, None
+            stages = [s["id"] for s in definition["stages"]]
+        else:
+            stages = split(args.stages) or STAGES
         if len(set(stages)) != len(stages):
             errors.append("étapes en double dans --stages")
             return None, None
         folder.mkdir(parents=True, exist_ok=True)
-        state = {"title": args.title or folder.resolve().name, "created": now(),
+        state = {"title": args.title or (definition or {}).get("title") or folder.resolve().name, "created": now(),
                  "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
+        if definition:
+            state["definition"] = definition
         if args.vault:
             if not args.vault.is_dir():
                 errors.append(f"vault introuvable : {args.vault}")
@@ -320,10 +384,21 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
     elif args.command == "submit":
         if stage["status"] != "en-cours":
             errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en cours se soumet")
-        missing = [f for f in args.files if not (folder / f).is_file()]
-        errors += [f"fichier introuvable : {f} (chemin relatif au dossier du workflow)" for f in missing]
+        expected = stage_definition(state, stage["id"])
+        if not args.files and not expected:
+            errors.append("submit : --files (pas de définition de workflow qui donne les livrables)")
+            return None, None
+        if args.files:
+            missing = [f for f in args.files if not (folder / f).is_file()]
+            errors += [f"fichier introuvable : {f} (chemin relatif au dossier du workflow)" for f in missing]
+            submitted = [Path(f).as_posix() for f in args.files]
+            if expected:
+                errors += [f"livrable attendu non soumis : {p} (étape {stage['id']})"
+                           for p in uncovered(submitted, expected)]
+        else:
+            submitted = deliverables(folder, expected, errors)
         if not errors:
-            files = sorted(dict.fromkeys(Path(f).as_posix() for f in args.files))
+            files = sorted(dict.fromkeys(submitted))
             hashes = {f: digest(folder / f) for f in files}
             items = {f: found for f in files if (found := items_of(folder / f))}
             changes = differences(stage, hashes, items)
@@ -404,7 +479,10 @@ def main() -> int:
     init = sub.add_parser("init", help="crée workflow.json")
     init.add_argument("folder", type=Path)
     init.add_argument("--title", help="titre du workflow (défaut : nom du dossier)")
-    init.add_argument("--stages", help=f"étapes dans l'ordre (défaut : {','.join(STAGES)})")
+    shape = init.add_mutually_exclusive_group()
+    shape.add_argument("--stages", help=f"étapes dans l'ordre (défaut : {','.join(STAGES)})")
+    shape.add_argument("--definition", help="workflow livré (" + ", ".join(sorted(p.stem for p in WORKFLOWS.glob("*.json")))
+                       + ") ou fichier JSON de définition")
     init.add_argument("--vault", type=Path, help="vault Obsidian où écrire la mémoire partagée")
     init.add_argument("--folder", dest="folder_in_vault", help="dossier des notes dans le vault "
                                                                 "(défaut : Workflows/<titre>)")
@@ -421,7 +499,8 @@ def main() -> int:
             command.add_argument("--refs", help="exigences, options ou entrées concernées, séparées par des virgules")
             command.add_argument("--by", choices=["agent", "utilisateur"], default="agent")
         if name == "submit":
-            command.add_argument("--files", nargs="+", required=True, help="chemins relatifs au dossier")
+            command.add_argument("--files", nargs="+", help="chemins relatifs au dossier (défaut : livrables de la "
+                                                              "définition du workflow)")
         if name == "review":
             command.add_argument("--decision", choices=["valide", "retour"])
             command.add_argument("--text", help="les mots de l'utilisateur")
@@ -448,9 +527,13 @@ def main() -> int:
         warnings += [f"vault : {w}" for w in synced["warnings"]]
         memory = {"folder": synced["folder"], "notes": synced["notes"]}
     current, action = next_action(state) if state else (None, "corriger l'erreur")
+    # L'étape à produire, seulement quand l'agent en a besoin : au démarrage ou à la reprise.
+    todo = state and current and args.command in ("init", "start", "status") and \
+        next(s for s in state["stages"] if s["id"] == current)["status"] != "en-revue"
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
               "current": current, "next": action, "entry": entry, "changes": getattr(args, "changes", None),
+              "stage": stage_definition(state, current) if todo else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
               "memory": memory,
               "errors": errors, "warnings": warnings}
