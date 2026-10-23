@@ -5,7 +5,8 @@
 
 Erreurs : XML illisible, identifiants en double, parent ou extrémité de flèche
 introuvable, forme sans géométrie. Avertissements : formes qui se chevauchent,
-forme sans libellé, flèche sans extrémité, couleur hors charte, pas de titre.
+forme sans libellé, flèche sans extrémité, couleur hors charte (sauf
+icônes et groupes officiels AWS, Azure, GCP, Kubernetes), pas de titre.
 Lit aussi les diagrammes compressés. Affiche un rapport JSON. Usage :
     uv run scripts/check_drawio.py SCHEMA.drawio [...]
 """
@@ -27,6 +28,10 @@ CHARTER = {"#fef3c7", "#b45309", "#dbeafe", "#1d4ed8", "#f3f4f6", "#6b7280", "#d
            # Teintes des zones d'un POS (charte, section POS).
            "#eef2ff", "#4f46e5", "#e0e7ff", "#fefce8", "#ca8a04", "#fef9c3", "#fdf2f8", "#db2777",
            "#fce7f3", "#f0fdf4", "#faf5ff"}
+# Icônes et groupes officiels des fournisseurs cloud (AWS, Azure, GCP, Kubernetes) : leurs couleurs
+# sont imposées par le fournisseur, pas par la charte.
+VENDOR = ("mxgraph.aws4.", "mxgraph.gcp2.", "mxgraph.kubernetes.", "mxgraph.azure", "image=img/lib/",
+          "image=data:image/", "vendor=1")
 
 
 def style_of(cell: ET.Element) -> dict:
@@ -81,7 +86,8 @@ def check_page(name: str, model: ET.Element, errors: list, warnings: list) -> in
         style = style_of(cell)
         label = holder.get("label") if holder is not cell else cell.get("value")
         label = re.sub(r"<[^>]+>", " ", label or "").strip()
-        for key in ("fillColor", "strokeColor", "fontColor"):
+        vendor = any(mark in (cell.get("style") or "") for mark in VENDOR)
+        for key in ("fillColor", "strokeColor", "fontColor") if not vendor else ():
             color = style.get(key, "").lower()
             if color and color not in CHARTER:
                 warnings.append(f"{name} : {cid} utilise {key}={color}, hors charte")

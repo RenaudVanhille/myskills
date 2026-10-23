@@ -1,0 +1,36 @@
+{
+  "title": "Chaîne CI/CD GitOps",
+  "view": "pipeline",
+  "provider": "gcp",
+  "items": [
+    {"type": "stage", "label": "Code", "items": [
+      {"id": "dev", "type": "user", "label": "Développeur"},
+      {"id": "repo", "type": "repo", "label": "Dépôt applicatif"}
+    ]},
+    {"type": "stage", "label": "Intégration continue", "items": [
+      {"id": "build", "type": "cloud-build", "label": "Build et tests"},
+      {"id": "scan", "type": "service", "label": "Analyse de sécurité\n(SAST, image)"}
+    ]},
+    {"type": "stage", "label": "Livraison", "items": [
+      {"id": "registry", "type": "artifact-registry"},
+      {"id": "gitops", "type": "repo", "label": "Dépôt GitOps\n(manifestes)"}
+    ]},
+    {"type": "stage", "label": "Déploiement", "items": [
+      {"id": "argocd", "type": "service", "label": "Argo CD"},
+      {"type": "env", "label": "Environnements GKE", "layout": "column", "items": [
+        {"id": "staging", "type": "gke", "label": "Recette"},
+        {"id": "prod", "type": "gke", "label": "Production"}
+      ]}
+    ]}
+  ],
+  "flows": [
+    {"from": "dev", "to": "repo", "label": "push"},
+    {"from": "repo", "to": "build", "label": "déclenche", "style": "async"},
+    {"from": "build", "to": "scan"},
+    {"from": "scan", "to": "registry", "label": "publie l'image"},
+    {"from": "registry", "to": "gitops", "label": "met à jour le tag"},
+    {"from": "gitops", "to": "argocd", "label": "lu par", "style": "async"},
+    {"from": "argocd", "to": "staging", "label": "synchronise"},
+    {"from": "argocd", "to": "prod", "label": "synchronise\naprès validation"}
+  ]
+}

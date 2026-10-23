@@ -1,0 +1,32 @@
+{
+  "title": "Chemin d'une requête dans le cluster",
+  "provider": "k8s",
+  "view": "kubernetes",
+  "items": [
+    {"id": "user", "type": "user", "label": "Utilisateur"},
+    {"type": "cluster", "label": "Cluster AKS production", "items": [
+      {"type": "namespace", "label": "ingress-nginx", "items": [
+        {"id": "ing", "type": "ing", "label": "Ingress\nshop.exemple.fr"}
+      ]},
+      {"type": "namespace", "label": "boutique", "items": [
+        {"id": "svc", "type": "svc", "label": "Service api"},
+        {"id": "deploy", "type": "deploy", "label": "Deployment api", "count": 3},
+        {"id": "hpa", "type": "hpa"},
+        {"id": "cm", "type": "cm", "label": "ConfigMap api"},
+        {"id": "secret", "type": "secret", "label": "Secret db"}
+      ], "wrap": 3},
+      {"type": "namespace", "label": "données", "items": [
+        {"id": "sts", "type": "sts", "label": "StatefulSet\nPostgreSQL"},
+        {"id": "pvc", "type": "pvc"}
+      ], "layout": "column"}
+    ]}
+  ],
+  "flows": [
+    {"from": "user", "to": "ing", "protocol": "HTTPS", "port": 443},
+    {"from": "ing", "to": "svc", "port": 80},
+    {"from": "svc", "to": "deploy", "port": 8080},
+    {"from": "deploy", "to": "sts", "port": 5432},
+    {"from": "hpa", "to": "deploy", "label": "ajuste", "style": "async"},
+    {"from": "sts", "to": "pvc", "label": "monte"}
+  ]
+}

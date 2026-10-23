@@ -5,7 +5,7 @@
     "Si possible le public, la destination et le dossier de sortie"
   ],
   "produces": [
-    "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4",
+    "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés",
     "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
   ],
   "never": [
