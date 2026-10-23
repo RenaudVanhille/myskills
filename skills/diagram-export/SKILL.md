@@ -25,8 +25,10 @@ Les exports vont à côté de la source, ou dans `--out`.
 
 Le rendu est entièrement local : aucun schéma n'est envoyé à un service en
 ligne. Le réseau ne sert qu'au premier usage, pour télécharger les outils
-(bibliothèques Mermaid et Excalidraw, LikeC4 via `npx`, Playwright) ; ensuite, tout
-fonctionne hors ligne.
+(bibliothèques Mermaid et Excalidraw à version fixée et empreinte vérifiée,
+LikeC4 via `npx`, Playwright) ; ensuite, tout fonctionne hors ligne. Pour
+une machine sans réseau : `doctor.py --prefetch` (skill
+`check-prerequisites`) avant, puis `MYSKILLS_OFFLINE=1`.
 
 ## Contrat
 
@@ -34,7 +36,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Entrées** : Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4.
 - **Sorties** : Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4 ; Rien avec --check.
-- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Rapport JSON, codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
+- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé. Rapport JSON, codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
 - **Passe la main** au skill `check-prerequisites` : un outil de rendu manque (groupe schemas).
 
 ## Choisir le format de sortie

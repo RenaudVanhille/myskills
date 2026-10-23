@@ -736,16 +736,17 @@
     {
       "skill": "check-prerequisites",
       "inputs": [
-        "Un groupe : extraction, schemas, publication ou tout (défaut)"
+        "Un groupe : extraction, schemas, publication ou tout (défaut)",
+        "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"
       ],
       "outputs": [
-        "Aucun fichier"
+        "Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills"
       ],
       "scripts": [
         {
           "name": "doctor.py",
-          "role": "Vérifie les outils locaux et donne la commande d'installation des manquants.",
-          "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout]",
+          "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne.",
+          "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]",
           "report": {
             "format": "json",
             "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
@@ -819,8 +820,12 @@
             }
           },
           "exit_codes": {
-            "0": "tous les outils obligatoires sont présents",
-            "1": "au moins un outil obligatoire manque, ou groupe inconnu"
+            "0": "tous les outils obligatoires sont présents (et le préchargement a réussi)",
+            "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
+          },
+          "options": {
+            "GROUPE": "extraction, schemas, publication ou tout (défaut)",
+            "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement"
           }
         }
       ],
@@ -2407,7 +2412,7 @@
       "scripts": [
         {
           "name": "export.py",
-          "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+          "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé.",
           "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
           "options": {
             "SCHEMA": "sources à exporter",

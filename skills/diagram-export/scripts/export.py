@@ -29,7 +29,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import struct
 import tempfile
 from contextlib import contextmanager
@@ -41,9 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import local_tools  # noqa: E402
 from script_report import print_report  # noqa: E402
 
-MERMAID_VERSION = "11.12.0"
 LIKEC4 = "likec4@1"
-EXCALIDRAW_UTILS = "0.1.7"
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.M | re.S)
 # Pendant un rendu, rien ne doit sortir de la machine : les navigateurs passent
 # par un proxy qui n'existe pas (les fichiers locaux n'en ont pas besoin), ce qui
@@ -85,6 +82,9 @@ def node_tool(binary: str, package: str) -> list[str]:
     found = shutil.which(binary)
     if found:
         return [found]
+    if local_tools.offline():
+        raise ExportError(f"{binary} introuvable (mode hors ligne, npx ne peut rien télécharger) : "
+                          f"installez-le avant, `npm install -g {package.split('@')[0] or package}`")
     npx = shutil.which("npx")
     if not npx:
         raise ExportError(f"{binary} introuvable et Node.js absent : installez Node.js "
@@ -193,7 +193,7 @@ def export_mermaid(src: Path, out: Path, fmt: str, scale: float, transparent: bo
         names = [f"{src.stem}-{i}" for i in range(1, len(blocks) + 1)]
     else:
         blocks, names = [text], [src.stem]
-    package = npm_package("mermaid", MERMAID_VERSION, "dist/mermaid.min.js")
+    package = npm_package("mermaid")
     outputs, errors = [], []
     try:
         with local_page(package, scale) as page:
@@ -242,30 +242,12 @@ def export_likec4(src: Path, out: Path, fmt: str, scale: float, transparent: boo
 
 # --- Excalidraw --------------------------------------------------------------
 
-def npm_package(name: str, version: str, entry: str) -> Path:
-    """Télécharge une fois un paquet npm (npm pack, sinon le registre) dans le cache."""
-    root = cache_dir() / f"{name.strip('@').replace('/', '-')}-{version}"
-    if (root / "package" / entry).is_file():
-        return root / "package"
-    root.mkdir(parents=True, exist_ok=True)
-    tgz = root / "package.tgz"
-    npm = shutil.which("npm")
-    if npm:
-        try:
-            run([npm, "pack", f"{name}@{version}", "--pack-destination", str(root), "--silent"], cwd=root)
-        except ExportError:
-            pass
-        packed = next((p for p in root.glob("*.tgz") if p != tgz), None)
-        if packed:
-            packed.replace(tgz)
-    if not tgz.is_file():
-        import urllib.request
-        url = f"https://registry.npmjs.org/{name}/-/{name.split('/')[-1]}-{version}.tgz"
-        urllib.request.urlretrieve(url, tgz)
-    with tarfile.open(tgz) as archive:
-        archive.extractall(root, filter="data") if hasattr(tarfile, "data_filter") else archive.extractall(root)
-    tgz.unlink()
-    return root / "package"
+def npm_package(name: str) -> Path:
+    """Paquet npm à version fixée, vérifié par son empreinte (local_tools)."""
+    try:
+        return local_tools.npm_package(name)
+    except local_tools.PackageError as error:
+        raise ExportError(str(error)) from error
 
 
 def launch_browser(pw):
@@ -323,7 +305,7 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
     if scene.get("type") != "excalidraw":
         raise ExportError("Ce fichier n'est pas une scène Excalidraw "
                           "(lancez d'abord excalidraw_build.py)")
-    package = npm_package("@excalidraw/utils", EXCALIDRAW_UTILS, "dist/prod/index.js")
+    package = npm_package("@excalidraw/utils")
     target = out / f"{src.stem}.excalidraw.{fmt}"
     try:
         with local_page(package) as page:

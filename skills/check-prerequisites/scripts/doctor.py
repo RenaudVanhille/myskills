@@ -8,9 +8,13 @@ MarkItDown, Pandoc et Playwright sont fournis par uv aux scripts qui les
 utilisent (dépendances PEP 723), Docling par `uvx` : seul uv est alors
 obligatoire, leur installation à part est facultative.
 
-Usage : uv run scripts/doctor.py [extraction|schemas|publication|tout]
+Usage : uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]
 Code de sortie : 0 si tous les outils obligatoires sont présents, 1 sinon
-(ou groupe inconnu).
+(ou groupe inconnu, ou préchargement en échec).
+
+--prefetch télécharge dans le cache les bibliothèques JavaScript des rendus
+(Mermaid, Excalidraw), à version fixée, et vérifie leur empreinte : la
+machine peut ensuite travailler hors ligne (MYSKILLS_OFFLINE=1).
 """
 
 import json
@@ -38,8 +42,11 @@ GROUPS = {
         ("Navigateur pour Playwright (Edge, Chrome ou Chromium)", "obligatoire", local_tools.browser_available,
          "uvx playwright install chromium"),
         ("Node.js (LikeC4 via npx)", "facultatif", lambda: shutil.which("node") is not None, "https://nodejs.org/"),
-        ("LikeC4 installé (plus rapide que npx)", "facultatif", lambda: shutil.which("likec4") is not None,
-         "npm install -g likec4"),
+        ("LikeC4 installé (plus rapide que npx, nécessaire hors ligne)", "facultatif",
+         lambda: shutil.which("likec4") is not None, "npm install -g likec4"),
+        *((f"{name} {version} dans le cache (rendus hors ligne)", "facultatif",
+           lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py --prefetch")
+          for name, (version, _, _) in local_tools.PACKAGES.items()),
     ],
     "publication": [
         UV,
@@ -52,12 +59,22 @@ GROUPS = {
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    group = sys.argv[1] if len(sys.argv) > 1 else "tout"
+    args = sys.argv[1:]
+    prefetch = "--prefetch" in args
+    args = [a for a in args if a != "--prefetch"]
+    group = args[0] if args else "tout"
     if group != "tout" and group not in GROUPS:
         print(json.dumps({"group": group, "tools": [], "missing": [],
                           "errors": [f"groupe inconnu « {group} » (extraction, schemas, publication, tout)"],
                           "warnings": []}, ensure_ascii=False))
         return 1
+    errors = []
+    if prefetch:
+        for name in local_tools.PACKAGES:
+            try:
+                local_tools.npm_package(name)
+            except local_tools.PackageError as error:
+                errors.append(str(error))
     tools, seen = [], set()
     for name in GROUPS if group == "tout" else [group]:
         for label, need, test, install in GROUPS[name]:
@@ -69,11 +86,13 @@ def main() -> int:
                           **({"install": install} if status != "ok" else {})})
     missing = [t["name"] for t in tools if t["status"] == "manquant"]
     report = {"group": group, "tools": tools, "missing": missing,
-              "errors": [f"{t['name']} manquant : {t['install']}" for t in tools if t["status"] == "manquant"],
+              "errors": errors + [f"{t['name']} manquant : {t['install']}" for t in tools if t["status"] == "manquant"],
               "warnings": [f"{t['name']} absent (facultatif) : {t['install']}" for t in tools
                            if t["status"] == "absent"]}
+    if local_tools.offline():
+        report["warnings"].append("mode hors ligne (MYSKILLS_OFFLINE) : rien ne sera téléchargé")
     print(json.dumps(report, ensure_ascii=False))
-    return 1 if missing else 0
+    return 1 if missing or errors else 0
 
 
 if __name__ == "__main__":

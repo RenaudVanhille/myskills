@@ -10,7 +10,7 @@
   "scripts": [
     {
       "name": "export.py",
-      "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+      "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé.",
       "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
       "options": {
         "SCHEMA": "sources à exporter",

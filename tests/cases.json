@@ -317,6 +317,37 @@
       ]
     },
     {
+      "id": "hors-ligne",
+      "skill": "diagram-export",
+      "_note": "MYSKILLS_OFFLINE=1 et cache vide : aucun téléchargement, erreur qui dit comment préparer la machine.",
+      "steps": [
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "--out", "{out}"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 1, "report_contains": {"errors": "absent du cache"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 0, "report_contains": {"warnings": "mode hors ligne"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["schemas"],
+         "env": {"XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": "any", "report_contains": {"warnings": "mermaid 11.12.0 dans le cache (rendus hors ligne) absent (facultatif)"}}
+      ],
+      "absent": ["flux.png", "cache/myskills"]
+    },
+    {
+      "id": "prefetch",
+      "skill": "check-prerequisites",
+      "slow": true,
+      "_note": "Réseau : télécharge Mermaid et Excalidraw, vérifie leur empreinte, puis rend hors ligne.",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction", "--prefetch"],
+         "env": {"XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"}, "exit": 0, "report": {"errors": []}},
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "--out", "{out}"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 0, "report": {"errors": []}}
+      ],
+      "files": ["flux.png", "cache/myskills/mermaid-11.12.0/VERIFIED", "cache/myskills/excalidraw-utils-0.1.7/VERIFIED"]
+    },
+    {
       "id": "export-rendus",
       "skill": "diagram-export",
       "slow": true,

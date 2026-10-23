@@ -20,6 +20,7 @@ Usage :
 import argparse
 import difflib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -89,9 +90,11 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
         return
     script = expand(step["script"], out)
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
-    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    # "env" : variables propres à l'étape (cache isolé, mode hors ligne...).
+    env = {**os.environ, **{k: expand(v, out) for k, v in step.get("env", {}).items()}}
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=env)
     name = Path(script).name
-    if result.returncode != step.get("exit", 0):
+    if step.get("exit", 0) != "any" and result.returncode != step.get("exit", 0):
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or [""]
         failures.append(f"{name} : code {result.returncode} au lieu de {step.get('exit', 0)} "
                         f"({tail[0][:200]})")

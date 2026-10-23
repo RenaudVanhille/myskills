@@ -122,9 +122,9 @@ Vérifie que les outils locaux nécessaires aux skills de myskills sont install�
 
 Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Un groupe : extraction, schemas, publication ou tout (défaut).
-- **Sorties** : Aucun fichier.
-- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents ; 1 au moins un outil obligatoire manque, ou groupe inconnu.
+- **Entrées** : Un groupe : extraction, schemas, publication ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne.
+- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills.
+- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
 
 ### `cloud-architecture`
@@ -182,7 +182,7 @@ Résumé de [`contract.json`](skills/diagram-export/contract.json), qui fait foi
 
 - **Entrées** : Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4.
 - **Sorties** : Images à côté de la source ou dans --out : <nom>.drawio.png, <nom>-1.png, <nom>.excalidraw.svg, un PNG par vue LikeC4 ; Rien avec --check.
-- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Rapport JSON, codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
+- **`export.py`** : Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé. Rapport JSON, codes de sortie : 0 toutes les sources sont rendues ; 1 au moins une source échoue.
 - **Passe la main** au skill `check-prerequisites` : un outil de rendu manque (groupe schemas).
 
 ### `doc-to-markdown`

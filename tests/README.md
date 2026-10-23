@@ -22,7 +22,7 @@ PPTX, un PDF texte, un PDF scanné et une image de schéma, utilisés pour teste
 
 ```bash
 uv run tests/run.py            # cas de tests/cases.json
-uv run tests/run.py --slow     # ajoute les cas lents (Laya, Pandoc)
+uv run tests/run.py --slow     # ajoute les cas lents (navigateur, Pandoc, réseau)
 uv run tests/run.py --only docx,obsidian --keep
 ```
 
@@ -41,6 +41,10 @@ sortie, la conformité du rapport au JSON Schema du contrat, des
 valeurs du rapport, les fichiers produits et, s'il existe, la
 ressemblance avec le résultat attendu de `expected/` (90 % minimum). Code de
 sortie 1 si un cas échoue.
+
+Une étape peut aussi être `{"copy": [source, destination]}` (fichier de
+travail), porter `"env"` (variables de l'étape, `{out}` permis : cache isolé,
+`MYSKILLS_OFFLINE`) ou `"exit": "any"` quand le code dépend de la machine.
 
 ### 2. Agents (dans chaque outil)
 
