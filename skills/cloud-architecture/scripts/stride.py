@@ -23,6 +23,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cloud_build import build  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from spec_schema import print_schema, validate  # noqa: E402
 
 CATEGORIES = {"S": "Usurpation d'identité", "T": "Altération", "R": "Répudiation",
               "I": "Divulgation d'information", "D": "Déni de service", "E": "Élévation de privilèges"}
@@ -127,15 +129,27 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("spec", type=Path)
+    parser.add_argument("spec", type=Path, nargs="?")
     parser.add_argument("--out", type=Path, help="fichier Markdown (défaut : <sujet>.threats.md)")
     parser.add_argument("--all-flows", action="store_true",
                         help="analyser aussi les flux internes (par défaut : ceux qui traversent une frontière)")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        return 1
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    invalid = validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
         return 1
     text, report = model(spec, args.all_flows)
     out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json") + ".threats.md")

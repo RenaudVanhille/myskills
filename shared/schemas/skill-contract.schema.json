@@ -23,6 +23,17 @@
           "maintenance": {"type": "boolean", "description": "Outil de maintenance du dépôt, pas à lancer par un agent."},
           "options": {"type": "object", "additionalProperties": {"type": "string"},
                       "description": "Option ou argument -> description."},
+          "input": {
+            "type": "object",
+            "required": ["format", "schema"],
+            "additionalProperties": false,
+            "description": "Fichier d'entrée que le script valide avant tout traitement (scripts/lib/spec_schema.py).",
+            "properties": {
+              "format": {"enum": ["json"]},
+              "description": {"type": "string"},
+              "schema": {"type": "object", "description": "JSON Schema de la description en entrée."}
+            }
+          },
           "report": {
             "type": "object",
             "required": ["format"],

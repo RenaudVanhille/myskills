@@ -40,6 +40,10 @@ from referencing import Registry, Resource  # noqa: E402
 # Schéma du rapport de chaque script, d'après les contract.json (None : pas de JSON).
 CONTRACTS = {script["name"]: script["report"].get("schema")
              for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
+# Schéma d'entrée (description JSON) de chaque script qui en déclare un.
+INPUTS = {script["name"]: script["input"]["schema"]
+          for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
+          if script.get("input")}
 
 
 def closest(error):
@@ -84,6 +88,13 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or [""]
         failures.append(f"{name} : code {result.returncode} au lieu de {step.get('exit', 0)} "
                         f"({tail[0][:200]})")
+    # La description passée au script (premier argument .json) doit respecter son schéma d'entrée.
+    spec_schema = INPUTS.get(name)
+    first = expand(step.get("args", [""])[0], out) if step.get("args") else ""
+    if spec_schema and first.endswith(".json") and step.get("exit", 0) == 0:
+        spec = json.loads(Path(first).read_text(encoding="utf-8"))
+        failures += [f"{name} : description {Path(first).name} non conforme au schéma d'entrée, {e}"
+                     for e in schema_errors(spec, spec_schema)]
     report_schema = CONTRACTS.get(name)
     if not (step.get("report") or step.get("report_contains") or report_schema):
         return
@@ -158,6 +169,11 @@ def check_contracts() -> dict:
         failures += [f"{name} : script {s} absent du contrat" for s in sorted(present - declared)]
         failures += [f"{name} : script {s} du contrat introuvable" for s in sorted(declared - present)]
         for script in contract.get("scripts", []):
+            if script.get("input"):
+                try:
+                    Draft202012Validator.check_schema(script["input"]["schema"])
+                except Exception as error:  # noqa: BLE001 - message du validateur
+                    failures.append(f"{name}/{script['name']} : schéma d'entrée invalide ({error})")
             if script["report"]["format"] == "json":
                 try:
                     Draft202012Validator.check_schema(script["report"].get("schema", {}))
@@ -186,6 +202,12 @@ def check_contracts() -> dict:
     for name, contract in agents.items():
         if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
             stale.append(f"src/agents/{name}.md")
+    validator = (ROOT / "shared" / "scripts" / "spec_schema.py").read_text(encoding="utf-8")
+    for name, contract in skills.items():
+        copy = ROOT / "skills" / name / "scripts" / "lib" / "spec_schema.py"
+        if any(s.get("input") for s in contract["scripts"]) and \
+                (not copy.exists() or copy.read_text(encoding="utf-8") != validator):
+            stale.append(f"skills/{name}/scripts/lib/spec_schema.py")
     from agents_lib import parse_agent, source_agents
 
     meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}

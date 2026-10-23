@@ -22,7 +22,9 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from check_drawio import check
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from spec_schema import print_schema, validate  # noqa: E402
+from check_drawio import check  # noqa: E402
 
 TEXT, ARROW = "#1f2937", "#374151"
 BASE = "whiteSpace=wrap;html=1;fontColor=#1f2937;fontSize=14;"
@@ -156,13 +158,25 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("spec", type=Path)
+    parser.add_argument("spec", type=Path, nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        return 1
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    invalid = validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
         return 1
     mxfile, errors, warnings = build(spec)
     name = args.spec.name.removesuffix(".json").removesuffix(".diagram")

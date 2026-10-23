@@ -29,6 +29,9 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from spec_schema import print_schema, validate  # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 ICONS = {k: v for k, v in json.loads((HERE / "icons.json").read_text(encoding="utf-8")).items()
          if not k.startswith("_")}
@@ -579,7 +582,12 @@ def main() -> int:
     parser.add_argument("--matrix", action="store_true", help="écrit aussi <sujet>.flows.md, la matrice des flux (toujours en vue network)")
     parser.add_argument("--types", nargs="?", const="", metavar="FOURNISSEUR",
                         help="liste les types connus (aws, azure, gcp, k8s, generic) et s'arrête")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
     if args.types is not None:
         print(list_types(args.types or None))
         return 0
@@ -589,6 +597,11 @@ def main() -> int:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        return 1
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    invalid = validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
         return 1
     mxfile, pages, errors, warnings = build(spec, args.view)
     name = args.spec.name.removesuffix(".json")

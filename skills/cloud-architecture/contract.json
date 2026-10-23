@@ -14,13 +14,313 @@
     {
       "name": "cloud_build.py",
       "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-      "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic]",
+      "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic] | --schema",
       "options": {
         "SUJET.json": "description de l'architecture",
         "--out": "fichier .drawio (défaut : même nom)",
         "--view": "vue, prioritaire sur celle de la description",
         "--matrix": "écrit aussi <sujet>.flows.md (toujours en vue network)",
-        "--types": "liste les types de services et de groupes connus, puis s'arrête"
+        "--types": "liste les types de services et de groupes connus, puis s'arrête",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "provider": {
+              "enum": [
+                "aws",
+                "azure",
+                "gcp",
+                "k8s"
+              ]
+            },
+            "view": {
+              "enum": [
+                "deployment",
+                "network",
+                "kubernetes",
+                "dr",
+                "pipeline",
+                "threats"
+              ]
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "legend": {
+              "enum": [
+                "auto",
+                true,
+                false
+              ]
+            },
+            "layout": {
+              "enum": [
+                "row",
+                "column"
+              ]
+            },
+            "wrap": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "chain": {
+              "type": "boolean"
+            },
+            "objectives": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/item"
+              }
+            },
+            "flows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/flow"
+              }
+            },
+            "pages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "enum": [
+                      "aws",
+                      "azure",
+                      "gcp",
+                      "k8s"
+                    ]
+                  },
+                  "view": {
+                    "enum": [
+                      "deployment",
+                      "network",
+                      "kubernetes",
+                      "dr",
+                      "pipeline",
+                      "threats"
+                    ]
+                  },
+                  "audience": {
+                    "enum": [
+                      "technique",
+                      "non technique"
+                    ]
+                  },
+                  "legend": {
+                    "enum": [
+                      "auto",
+                      true,
+                      false
+                    ]
+                  },
+                  "layout": {
+                    "enum": [
+                      "row",
+                      "column"
+                    ]
+                  },
+                  "wrap": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "chain": {
+                    "type": "boolean"
+                  },
+                  "objectives": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/item"
+                    }
+                  },
+                  "flows": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/flow"
+                    }
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "$defs": {
+            "item": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/item"
+                      }
+                    },
+                    "layout": {
+                      "enum": [
+                        "row",
+                        "column"
+                      ]
+                    },
+                    "wrap": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "chain": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "enum": [
+                        "active",
+                        "passive"
+                      ]
+                    },
+                    "boundary": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "kind": {
+                      "enum": [
+                        "external",
+                        "process",
+                        "store",
+                        "network"
+                      ]
+                    },
+                    "w": {
+                      "type": "number",
+                      "minimum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "flow": {
+              "type": "object",
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "protocol": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "style": {
+                  "enum": [
+                    "sync",
+                    "async",
+                    "replication"
+                  ]
+                },
+                "both": {
+                  "type": "boolean"
+                },
+                "encrypted": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
       },
       "report": {
         "format": "json",
@@ -132,11 +432,311 @@
     {
       "name": "stride.py",
       "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
-      "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows]",
+      "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] | --schema",
       "options": {
         "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
         "--out": "fichier Markdown (défaut : <sujet>.threats.md)",
-        "--all-flows": "analyser aussi les flux internes (défaut : ceux qui traversent une frontière)"
+        "--all-flows": "analyser aussi les flux internes (défaut : ceux qui traversent une frontière)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires. Même schéma que cloud_build.py.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "provider": {
+              "enum": [
+                "aws",
+                "azure",
+                "gcp",
+                "k8s"
+              ]
+            },
+            "view": {
+              "enum": [
+                "deployment",
+                "network",
+                "kubernetes",
+                "dr",
+                "pipeline",
+                "threats"
+              ]
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "legend": {
+              "enum": [
+                "auto",
+                true,
+                false
+              ]
+            },
+            "layout": {
+              "enum": [
+                "row",
+                "column"
+              ]
+            },
+            "wrap": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "chain": {
+              "type": "boolean"
+            },
+            "objectives": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/item"
+              }
+            },
+            "flows": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/flow"
+              }
+            },
+            "pages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "enum": [
+                      "aws",
+                      "azure",
+                      "gcp",
+                      "k8s"
+                    ]
+                  },
+                  "view": {
+                    "enum": [
+                      "deployment",
+                      "network",
+                      "kubernetes",
+                      "dr",
+                      "pipeline",
+                      "threats"
+                    ]
+                  },
+                  "audience": {
+                    "enum": [
+                      "technique",
+                      "non technique"
+                    ]
+                  },
+                  "legend": {
+                    "enum": [
+                      "auto",
+                      true,
+                      false
+                    ]
+                  },
+                  "layout": {
+                    "enum": [
+                      "row",
+                      "column"
+                    ]
+                  },
+                  "wrap": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "chain": {
+                    "type": "boolean"
+                  },
+                  "objectives": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/item"
+                    }
+                  },
+                  "flows": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/flow"
+                    }
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "$defs": {
+            "item": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/item"
+                      }
+                    },
+                    "layout": {
+                      "enum": [
+                        "row",
+                        "column"
+                      ]
+                    },
+                    "wrap": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "chain": {
+                      "type": "boolean"
+                    },
+                    "state": {
+                      "enum": [
+                        "active",
+                        "passive"
+                      ]
+                    },
+                    "boundary": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "kind": {
+                      "enum": [
+                        "external",
+                        "process",
+                        "store",
+                        "network"
+                      ]
+                    },
+                    "w": {
+                      "type": "number",
+                      "minimum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "flow": {
+              "type": "object",
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "protocol": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "style": {
+                  "enum": [
+                    "sync",
+                    "async",
+                    "replication"
+                  ]
+                },
+                "both": {
+                  "type": "boolean"
+                },
+                "encrypted": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
       },
       "report": {
         "format": "json",

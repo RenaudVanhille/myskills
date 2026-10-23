@@ -30,6 +30,9 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from spec_schema import print_schema, validate  # noqa: E402
+
 LEVELS = ["zone", "quartier", "ilot", "application"]
 KINDS = ["pilotage", "operations", "support", "referentiel", "echanges"]
 # Mots du nom d'une zone qui en donnent le type quand `kind` manque.
@@ -488,7 +491,7 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("spec", type=Path, help="description .json ou inventaire .csv")
+    parser.add_argument("spec", type=Path, help="description .json ou inventaire .csv", nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
     parser.add_argument("--title", help="titre (remplace celui de la description)")
     parser.add_argument("--audience", help="technique ou non technique")
@@ -496,7 +499,14 @@ def main() -> int:
     parser.add_argument("--zoom", action="store_true", help="ajoute une page détaillée par zone")
     parser.add_argument("--vocabulary", choices=list(VOCABULARIES),
                         help="pos (défaut) ou togaf : capacités de niveau 1 à 3, zones empilées sans disposition imposée")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
     errors, warnings = [], []
     try:
         if args.spec.suffix.lower() == ".csv":
@@ -505,6 +515,11 @@ def main() -> int:
             spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        return 1
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    invalid = args.spec.suffix.lower() != ".csv" and validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
         return 1
     audience = str(args.audience or spec.get("audience") or "technique")
     detail = args.detail or spec.get("detail") or ("quartier" if audience.startswith("non") else "application")

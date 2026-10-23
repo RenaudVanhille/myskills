@@ -1,0 +1,10 @@
+{
+  "title": "Description invalide",
+  "provider": "aws",
+  "items": [
+    {"id": "fn", "type": "lambda"},
+    {"type": "vpc", "label": "VPC", "layout": "grille", "items": [{"id": "db", "type": "rds"}]}
+  ],
+  "flow": [{"from": "fn", "to": "db"}],
+  "flows": [{"from": "fn", "to": "db", "style": "asyn", "port": [5432]}]
+}

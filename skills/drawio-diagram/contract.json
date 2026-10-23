@@ -12,10 +12,170 @@
     {
       "name": "drawio_build.py",
       "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
-      "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio]",
+      "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] | --schema",
       "options": {
         "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
-        "--out": "fichier .drawio (défaut : même nom)"
+        "--out": "fichier .drawio (défaut : même nom)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "legend": {
+              "enum": [
+                "auto",
+                true,
+                false
+              ]
+            },
+            "elements": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/element"
+              }
+            },
+            "pages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "legend": {
+                    "enum": [
+                      "auto",
+                      true,
+                      false
+                    ]
+                  },
+                  "elements": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/element"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "$defs": {
+            "element": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "style": {
+                      "enum": [
+                        "sync",
+                        "async"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "enum": [
+                        "person",
+                        "system",
+                        "external",
+                        "db",
+                        "queue",
+                        "alert",
+                        "zone",
+                        "note"
+                      ]
+                    },
+                    "shape": {
+                      "enum": [
+                        "rectangle",
+                        "ellipse",
+                        "diamond"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "row": {
+                      "type": "number"
+                    },
+                    "col": {
+                      "type": "number"
+                    },
+                    "x": {
+                      "type": "number"
+                    },
+                    "y": {
+                      "type": "number"
+                    },
+                    "w": {
+                      "type": "number",
+                      "minimum": 1
+                    },
+                    "h": {
+                      "type": "number",
+                      "minimum": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
       },
       "report": {
         "format": "json",

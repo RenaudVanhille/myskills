@@ -29,7 +29,9 @@ que chaque script est déclaré, que les passages de main visent des skills et
 des agents qui existent, que les exemples de message de passage et de
 rapport final sont conformes, et que les fichiers générés sont à jour.
 Chaque cas lance ensuite les scripts d'un skill sur les fixtures et vérifie
-le code de sortie, la conformité du rapport au JSON Schema du contrat, des
+la conformité de la description JSON en entrée au schéma `input` du contrat
+(avec `jsonschema`, en plus du validateur intégré aux scripts), le code de
+sortie, la conformité du rapport au JSON Schema du contrat, des
 valeurs du rapport, les fichiers produits et, s'il existe, la
 ressemblance avec le résultat attendu de `expected/` (90 % minimum). Code de
 sortie 1 si un cas échoue.

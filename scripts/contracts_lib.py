@@ -95,6 +95,9 @@ def render_skill(contract: dict) -> str:
         codes = " ; ".join(f"{code} {meaning}" for code, meaning in script["exit_codes"].items())
         lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]}, "
                      f"codes de sortie : {codes}.")
+        if script.get("input"):
+            lines.append("  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors "
+                         "liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for handoff in contract["handoffs"]:

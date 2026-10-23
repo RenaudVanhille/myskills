@@ -1,0 +1,5 @@
+{
+  "title": "POS invalide",
+  "detail": "ilots",
+  "zones": [{"name": "Opérations", "quartier": [{"name": "Contrats", "apps": ["Gestion"]}]}]
+}
