@@ -76,6 +76,7 @@ TF_LINKS = {"aws_lambda_event_source_mapping": ("event_source_arn", "function_na
             "aws_sns_topic_subscription": ("topic_arn", "endpoint"),
             "aws_cloudwatch_event_target": ("rule", "arn"),
             "aws_lambda_permission": ("source_arn", "function_name"),
+            "aws_lb_target_group_attachment": ("target_group_arn", "target_id"),
             "google_pubsub_subscription": ("topic", "push_config")}
 LABEL_ATTRS = ("name", "function_name", "identifier", "cluster_identifier", "bucket", "domain_name", "cluster_name")
 TF_PROVIDERS = {"aws": "aws", "azurerm": "azure", "google": "gcp"}
@@ -230,7 +231,17 @@ def build_terraform(resources: dict, model: Model) -> None:
         for ref in tf_refs(resources[key]["body"], resources):
             if ref in nodes:
                 model.flow(ids[key], ids[ref])
+    # Répartiteur -> cibles : écouteur (aws_lb_listener) vers un groupe cible que référencent les services.
     for key, res in resources.items():
+        if res["kind"] in ("aws_lb_listener", "aws_lb_listener_rule"):
+            balancers = [r for r in tf_refs(res["body"], resources) if r in nodes]
+            pools = [r for r in tf_refs(res["body"], resources) if resources[r]["kind"] == "aws_lb_target_group"]
+            for lb in balancers:
+                for target in nodes:
+                    if any(pool in tf_refs(resources[target]["body"], resources) for pool in pools):
+                        model.flow(ids[lb], ids[target])
+            if balancers and pools:
+                continue
         if res["kind"] in TF_LINKS:
             source_attr, target_attr = TF_LINKS[res["kind"]]
             sources = [r for r in attr_refs(res["body"], source_attr, resources) if r in nodes]

@@ -260,7 +260,7 @@
       "steps": [
         {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
          "args": ["{fixtures}/iac/terraform", "--out", "{out}/tf.json", "--title", "Boutique"],
-         "exit": 0, "report": {"errors": [], "provider": "aws", "groups": 5, "services": 6, "flows": 4, "ignored": 3,
+         "exit": 0, "report": {"errors": [], "provider": "aws", "groups": 5, "services": 6, "flows": 5, "ignored": 3,
                                "sources.terraform": 1},
          "report_contains": {"warnings": "aws_iam_role (1)"}},
         {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
@@ -278,7 +278,7 @@
       "files": ["tf.json", "tf.drawio", "mixte.json"],
       "absent": ["vide.json"],
       "contains": {"tf.json": ["\"type\": \"aws:public-subnet\"", "\"label\": \"facturation\"",
-                               "\"from\": \"sqs-queue-orders\""],
+                               "\"from\": \"sqs-queue-orders\"", "\"from\": \"web\",\n      \"to\": \"ecs-service-api\""],
                    "tf.drawio": ["grIcon=mxgraph.aws4.group_vpc2", "api-commandes"],
                    "mixte.json": ["\"type\": \"k8s:hpa\"", "\"type\": \"queue\""]}
     },

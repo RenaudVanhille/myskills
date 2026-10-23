@@ -23,3 +23,5 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-23T18:56:58,revue-complete-2,50d551a,extraire-docx,document-extractor,sonnet,True,7,0.0815,10,14709,105658,1195,0,18
 2026-10-23T18:56:58,revue-complete-2,50d551a,schema-drawio,schema-designer,sonnet,True,7,0.0976,9,16412,109491,2088,0,24
 2026-10-23T18:56:58,revue-complete-2,50d551a,workflow-premiere-revue,architecture-workflow,sonnet,True,8,0.127,15,22050,179946,2049,0,37
+2026-10-23T19:05:44,workflows-json,7738c3a,workflow-premiere-revue,architecture-workflow,sonnet,True,7,0.1229,13,22488,157460,1689,0,32
+2026-10-23T19:05:44,workflows-json,7738c3a,workflow-cloud-existant,architecture-workflow,sonnet,True,12,0.1537,15,25525,226725,2875,0,31

@@ -40,6 +40,15 @@ resource "aws_ecs_service" "api" {
   depends_on = [aws_db_instance.orders, aws_sqs_queue.orders]
 }
 
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.web.arn
+  port              = 443
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
+  }
+}
+
 resource "aws_lb_target_group" "api" {
   vpc_id = aws_vpc.prod.id
 }
