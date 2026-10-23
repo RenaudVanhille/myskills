@@ -131,7 +131,7 @@
     {
       "id": "workflow-premiere-revue",
       "agent": "architecture-workflow",
-      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md et compte-rendu-atelier.md.",
+      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md et compte-rendu-atelier.md, sans vault Obsidian.",
       "inputs": [
         "fixtures/workflow/sources/cahier-des-charges.md",
         "fixtures/workflow/sources/compte-rendu-atelier.md"
