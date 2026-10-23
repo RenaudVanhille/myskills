@@ -46,6 +46,11 @@ def cell(text) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+def nature(req: dict) -> str | None:
+    """Comme requirements-catalog : champ nature, sinon préfixe EF- ou ENF-."""
+    return req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
+
+
 def load_catalog(base: Path, spec: dict, errors: list[str]) -> dict[str, dict]:
     path = base / spec.get("requirements", "exigences.json")
     try:
@@ -59,7 +64,7 @@ def load_catalog(base: Path, spec: dict, errors: list[str]) -> dict[str, dict]:
 def default_criteria(catalog: dict[str, dict]) -> list[dict]:
     criteria: dict[str, dict] = {}
     for req in catalog.values():
-        if req["id"].startswith("ENF-") and req.get("status", "retenue") == "retenue" \
+        if nature(req) == "non-fonctionnelle" and req.get("status", "retenue") == "retenue" \
                 and req.get("category") and req["priority"] in WEIGHTS:
             item = criteria.setdefault(req["category"], {"id": req["category"],
                                                          "name": CATEGORY_LABELS.get(req["category"], req["category"]),

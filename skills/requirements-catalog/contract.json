@@ -2,7 +2,7 @@
   "skill": "requirements-catalog",
   "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-    "Description JSON des exigences : title, sources, requirements (id EF-/ENF-, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
+    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
   ],
   "outputs": [
     "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées)",
@@ -11,7 +11,7 @@
   "scripts": [
     {
       "name": "req_build.py",
-      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
+      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
       "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] | --schema",
       "options": {
         "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
@@ -24,45 +24,137 @@
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
-          "required": ["requirements"],
+          "required": [
+            "requirements"
+          ],
           "additionalProperties": false,
-          "patternProperties": {"^_": {}},
+          "patternProperties": {
+            "^_": {}
+          },
           "properties": {
-            "title": {"type": "string"},
-            "sources": {"type": "string", "minLength": 1, "description": "Dossier des documents Markdown, relatif au .json (défaut : sources)."},
+            "title": {
+              "type": "string"
+            },
+            "sources": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Dossier des documents Markdown, relatif au .json (défaut : sources)."
+            },
             "requirements": {
               "type": "array",
               "minItems": 1,
               "items": {
                 "type": "object",
-                "required": ["id", "title", "text", "priority"],
+                "required": [
+                  "id",
+                  "title",
+                  "text",
+                  "priority"
+                ],
                 "additionalProperties": false,
-                "patternProperties": {"^_": {}},
+                "patternProperties": {
+                  "^_": {}
+                },
                 "properties": {
-                  "id": {"type": "string", "pattern": "^(EF|ENF)-[0-9]{3}$", "description": "EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."},
-                  "title": {"type": "string", "minLength": 1},
-                  "text": {"type": "string", "minLength": 1},
-                  "priority": {"enum": ["indispensable", "importante", "souhaitable", "hors-perimetre"]},
-                  "domain": {"type": "string", "description": "Domaine fonctionnel (exigence fonctionnelle)."},
-                  "category": {"enum": ["performance", "disponibilite", "securite", "conformite", "exploitabilite", "maintenabilite", "evolutivite", "interoperabilite", "utilisabilite", "portabilite", "cout", "autre"]},
-                  "metric": {"type": "string", "description": "Mesure vérifiable (exigence non fonctionnelle)."},
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
+                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                  },
+                  "nature": {
+                    "enum": [
+                      "fonctionnelle",
+                      "non-fonctionnelle"
+                    ],
+                    "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "priority": {
+                    "enum": [
+                      "indispensable",
+                      "importante",
+                      "souhaitable",
+                      "hors-perimetre"
+                    ]
+                  },
+                  "domain": {
+                    "type": "string",
+                    "description": "Domaine fonctionnel (exigence fonctionnelle)."
+                  },
+                  "category": {
+                    "enum": [
+                      "performance",
+                      "disponibilite",
+                      "securite",
+                      "conformite",
+                      "exploitabilite",
+                      "maintenabilite",
+                      "evolutivite",
+                      "interoperabilite",
+                      "utilisabilite",
+                      "portabilite",
+                      "cout",
+                      "autre"
+                    ]
+                  },
+                  "metric": {
+                    "type": "string",
+                    "description": "Mesure vérifiable (exigence non fonctionnelle)."
+                  },
                   "sources": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["doc"],
+                      "required": [
+                        "doc"
+                      ],
                       "additionalProperties": false,
                       "properties": {
-                        "doc": {"type": "string", "minLength": 1, "description": "Chemin du Markdown, relatif au dossier sources."},
-                        "quote": {"type": "string", "description": "Citation exacte, retrouvée par le script."},
-                        "page": {"type": ["integer", "string"]}
+                        "doc": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Chemin du Markdown, relatif au dossier sources."
+                        },
+                        "quote": {
+                          "type": "string",
+                          "description": "Citation exacte, retrouvée par le script."
+                        },
+                        "page": {
+                          "type": [
+                            "integer",
+                            "string"
+                          ]
+                        }
                       }
                     }
                   },
-                  "derived": {"type": "string", "description": "Exigence sans citation : d'où elle est déduite."},
-                  "questions": {"type": "array", "items": {"type": "string"}},
-                  "status": {"enum": ["retenue", "retiree"]},
-                  "reason": {"type": "string", "description": "Raison du retrait."}
+                  "derived": {
+                    "type": "string",
+                    "description": "Exigence sans citation : d'où elle est déduite."
+                  },
+                  "questions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "status": {
+                    "enum": [
+                      "retenue",
+                      "retiree"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Raison du retrait."
+                  }
                 }
               }
             },
@@ -70,12 +162,25 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["doc", "quote", "reason"],
+                "required": [
+                  "doc",
+                  "quote",
+                  "reason"
+                ],
                 "additionalProperties": false,
                 "properties": {
-                  "doc": {"type": "string", "minLength": 1},
-                  "quote": {"type": "string", "minLength": 1},
-                  "reason": {"type": "string", "minLength": 1}
+                  "doc": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quote": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
                 }
               }
             }
@@ -90,29 +195,89 @@
           "anyOf": [
             {
               "type": "object",
-              "required": ["input", "outputs", "functional", "non_functional", "retired", "ignored", "questions", "documents", "uncovered", "errors", "warnings"],
+              "required": [
+                "input",
+                "outputs",
+                "functional",
+                "non_functional",
+                "retired",
+                "ignored",
+                "questions",
+                "documents",
+                "uncovered",
+                "errors",
+                "warnings"
+              ],
               "additionalProperties": false,
               "properties": {
-                "input": {"type": "string"},
-                "outputs": {"type": "array", "items": {"type": "string"}},
-                "functional": {"type": "integer", "minimum": 0},
-                "non_functional": {"type": "integer", "minimum": 0},
-                "retired": {"type": "integer", "minimum": 0},
-                "ignored": {"type": "integer", "minimum": 0},
-                "questions": {"type": "integer", "minimum": 0},
-                "documents": {"type": "integer", "minimum": 0},
-                "uncovered": {"type": "integer", "minimum": 0},
-                "errors": {"type": "array", "items": {"type": "string"}},
-                "warnings": {"type": "array", "items": {"type": "string"}}
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "functional": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "non_functional": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "retired": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ignored": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "questions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "documents": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "uncovered": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               }
             },
             {
               "type": "object",
-              "required": ["input", "errors"],
+              "required": [
+                "input",
+                "errors"
+              ],
               "additionalProperties": false,
               "properties": {
-                "input": {"type": "string"},
-                "errors": {"type": "array", "items": {"type": "string"}}
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
               }
             }
           ]
@@ -125,8 +290,20 @@
     }
   ],
   "handoffs": [
-    {"to": "doc-to-markdown", "kind": "skill", "when": "les documents ne sont pas encore en Markdown"},
-    {"to": "architecture-options", "kind": "skill", "when": "le catalogue est validé : proposer des architectures"},
-    {"to": "decision-log", "kind": "skill", "when": "noter les choix (exigence déduite, phrase écartée, priorité) et soumettre le catalogue à la revue"}
+    {
+      "to": "doc-to-markdown",
+      "kind": "skill",
+      "when": "les documents ne sont pas encore en Markdown"
+    },
+    {
+      "to": "architecture-options",
+      "kind": "skill",
+      "when": "le catalogue est validé : proposer des architectures"
+    },
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "noter les choix (exigence déduite, phrase écartée, priorité) et soumettre le catalogue à la revue"
+    }
   ]
 }

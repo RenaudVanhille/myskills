@@ -283,7 +283,7 @@
                         "type": "array",
                         "items": {
                           "type": "string",
-                          "pattern": "^(EF|ENF)-[0-9]{3}$"
+                          "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
                         }
                       }
                     }
@@ -386,7 +386,7 @@
                         "description": "Exigences couvertes en partie ou pas du tout ; les autres sont couvertes.",
                         "additionalProperties": false,
                         "patternProperties": {
-                          "^(EF|ENF)-[0-9]{3}$": {
+                          "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$": {
                             "type": "object",
                             "required": [
                               "level",
@@ -465,7 +465,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "pattern": "^(EF|ENF)-[0-9]{3}$"
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
                       }
                     }
                   }
@@ -498,7 +498,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "pattern": "^(EF|ENF)-[0-9]{3}$"
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
                       }
                     }
                   }
@@ -3334,7 +3334,7 @@
       "skill": "requirements-catalog",
       "inputs": [
         "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-        "Description JSON des exigences : title, sources, requirements (id EF-/ENF-, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
+        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
       ],
       "outputs": [
         "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées)",
@@ -3343,7 +3343,7 @@
       "scripts": [
         {
           "name": "req_build.py",
-          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
+          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
           "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] | --schema",
           "options": {
             "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
@@ -3390,8 +3390,15 @@
                     "properties": {
                       "id": {
                         "type": "string",
-                        "pattern": "^(EF|ENF)-[0-9]{3}$",
-                        "description": "EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                      },
+                      "nature": {
+                        "enum": [
+                          "fonctionnelle",
+                          "non-fonctionnelle"
+                        ],
+                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
                       },
                       "title": {
                         "type": "string",

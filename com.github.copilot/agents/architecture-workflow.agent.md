@@ -75,7 +75,8 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
      `sources/`. Transcris par la vision les pages listées dans
      `vision_pages`. Note dans le journal un document écarté et pourquoi.
    - `exigences` : lis chaque `sources/*.md` une fois, écris
-     `exigences.json`, lance `req_build.py` jusqu'à zéro erreur et zéro
+     `exigences.json` (en gardant la numérotation des documents quand elle
+     existe), lance `req_build.py` jusqu'à zéro erreur et zéro
      phrase normative non reprise.
    - `architectures` : écris `options.json` (2 ou 3 options, notes
      justifiées), lance `options_build.py`.
@@ -101,7 +102,7 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
 6. **Retour sur une étape validée** : `review --decision retour` sur cette
    étape remet à reprendre elle et les suivantes ; reprends-les dans
    l'ordre, chacune avec sa revue. Modifie les fichiers existants par
-   éditions ciblées et garde les identifiants (EF-, ENF-, options).
+   éditions ciblées et garde les identifiants (exigences, options).
 7. **Fin** : quand `status` dit que tout est validé, livre le rapport final
    (`status` à `ok`, tous les livrables et `journal.md` dans `files`).
    Pour un dossier Word ou Confluence, `next` passe la main à

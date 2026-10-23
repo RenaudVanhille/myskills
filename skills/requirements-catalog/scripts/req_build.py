@@ -4,12 +4,15 @@
 """Construit le catalogue des exigences fonctionnelles et non fonctionnelles.
 
 Entrée : une description JSON courte (`exigences.json`) où chaque exigence a
-un identifiant stable (EF-001 fonctionnelle, ENF-001 non fonctionnelle), sa
+un identifiant stable (celui des documents s'ils numérotent déjà leurs
+exigences, sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle), sa
 priorité et la citation exacte de sa source dans un document Markdown du
 dossier `sources`. Le script, et non le modèle :
 - vérifie que chaque citation existe dans son document et en donne la ligne ;
 - repère les phrases normatives des sources (doit, devra, il faut, shall,
   must...) reprises par aucune exigence ni écartées avec une raison ;
+- signale une exigence renumérotée alors que sa source porte déjà un
+  identifiant, et un identifiant repris absent des sources ;
 - signale doublons, exigences non mesurables et questions ouvertes ;
 - écrit `exigences.md` (revue) et `exigences.csv` (tableur, séparateur ;).
 
@@ -39,6 +42,16 @@ NORMATIVE = re.compile(
     r"\b(doit|doivent|devra|devront|devrait|devraient|il faut|il faudra|est necessaire|sont necessaires|"
     r"obligatoire\w*|imperatif|exige|exigee?s?|ne pourra pas|pourra|shall|must|should|is required|are required)\b")
 MAX_LISTED = 20
+# Identifiant d'exigence dans un document : REQ-012, EX_F_03, RG.45, RF12...
+SOURCE_ID = re.compile(r"\b[A-Z]{1,6}(?:[-_.][A-Z]{1,6}){0,2}[-_.]?\d{1,4}\b")
+GENERATED_ID = re.compile(r"^(EF|ENF)-\d{3}$")
+
+
+def nature(req: dict) -> str | None:
+    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe EF- ou ENF-."""
+    if req.get("nature"):
+        return req["nature"]
+    return {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
 
 
 def normalize(text: str) -> str:
@@ -110,8 +123,8 @@ def cell(text: str) -> str:
 
 def render_md(spec: dict, items: list[dict], ignored: list[dict]) -> str:
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
-    functional = [r for r in kept if r["id"].startswith("EF-")]
-    non_functional = [r for r in kept if r["id"].startswith("ENF-")]
+    functional = [r for r in kept if nature(r) == "fonctionnelle"]
+    non_functional = [r for r in kept if nature(r) == "non-fonctionnelle"]
     lines = [f"# {spec.get('title') or 'Exigences'}", "",
              "Fichier généré par `req_build.py` depuis `exigences.json`, qui fait foi.", "",
              f"{len(functional)} exigences fonctionnelles, {len(non_functional)} non fonctionnelles, "
@@ -150,7 +163,7 @@ def write_csv(path: Path, items: list[dict]) -> None:
         writer.writerow(["id", "type", "titre", "texte", "domaine_ou_categorie", "priorite", "mesure", "statut",
                          "sources", "questions"])
         for r in items:
-            kind = "fonctionnelle" if r["id"].startswith("EF-") else "non fonctionnelle"
+            kind = nature(r).replace("-", " ")
             writer.writerow([r["id"], kind, r["title"], r["text"], r.get("domain") or r.get("category", ""),
                              r["priority"], r.get("metric", ""), r.get("status", "retenue"), r["_where"],
                              " / ".join(r.get("questions", []))])
@@ -191,7 +204,11 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> tup
         if req["id"] in seen:
             errors.append(f"{where} : identifiant en double")
         seen.add(req["id"])
-        functional = req["id"].startswith("EF-")
+        if nature(req) is None:
+            errors.append(f"{where} : nature manquante (fonctionnelle ou non-fonctionnelle) pour un identifiant "
+                          "repris des documents")
+            continue
+        functional = nature(req) == "fonctionnelle"
         if not functional and not req.get("category"):
             errors.append(f"{where} : category manquante pour une exigence non fonctionnelle "
                           f"({', '.join(CATEGORY_LABELS)})")
@@ -202,6 +219,20 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> tup
         if not req.get("sources") and not req.get("derived"):
             errors.append(f"{where} : ni sources ni derived : citez le document ou expliquez la déduction")
         refs = [locate(f"{where}/sources/{i}", ref) for i, ref in enumerate(req.get("sources", []))]
+        # Numérotation existante : on la garde, et on vérifie qu'elle vient bien des documents.
+        if GENERATED_ID.match(req["id"]):
+            for ref in req.get("sources", []):
+                doc = ref["doc"].replace("\\", "/")
+                line = find_quote(indexes[doc], ref["quote"]) if doc in sources and ref.get("quote") else None
+                found = SOURCE_ID.findall(sources[doc][line - 1]) if line else []
+                found = [f for f in found if not GENERATED_ID.match(f)]
+                if found:
+                    warnings.append(f"{where} : la source {doc}:{line} porte déjà l'identifiant {found[0]}, "
+                                    "conservez-le comme id")
+        elif not any(re.search(rf"(?<![\w-]){re.escape(req['id'])}(?![\w-])", "\n".join(lines))
+                     for lines in sources.values()):
+            warnings.append(f"{where} : identifiant {req['id']} absent des sources : numérotation existante "
+                            "ou EF-/ENF- ?")
         if req.get("sources") and not any(ref.get("quote") for ref in req["sources"]) and not req.get("derived"):
             warnings.append(f"{where} : aucune citation, source non vérifiable")
         for ref in req.get("sources", []):
@@ -262,8 +293,8 @@ def main() -> int:
     items, ignored, counts = check(spec, args.spec.parent, errors, warnings)
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     report = {"input": str(args.spec), "outputs": [],
-              "functional": sum(r["id"].startswith("EF-") for r in kept),
-              "non_functional": sum(r["id"].startswith("ENF-") for r in kept),
+              "functional": sum(nature(r) == "fonctionnelle" for r in kept),
+              "non_functional": sum(nature(r) == "non-fonctionnelle" for r in kept),
               "retired": len(items) - len(kept), "ignored": len(ignored),
               "questions": sum(len(r.get("questions", [])) for r in kept),
               "documents": counts.get("documents", 0), "uncovered": counts.get("uncovered", 0),

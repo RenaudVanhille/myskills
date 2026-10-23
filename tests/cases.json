@@ -264,11 +264,11 @@
       "id": "exigences",
       "skill": "requirements-catalog",
       "steps": [
-        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}"], "exit": 0, "report": {"functional": 3, "non_functional": 5, "ignored": 1, "questions": 2, "uncovered": 0, "errors": [], "warnings": []}}
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}"], "exit": 0, "report": {"functional": 3, "non_functional": 7, "ignored": 1, "questions": 2, "uncovered": 0, "errors": [], "warnings": []}}
       ],
       "files": ["exigences.md", "exigences.csv"],
-      "contains": {"exigences.md": ["EF-003", "cahier-des-charges.md:14", "compte-rendu-atelier.md:5", "## Questions ouvertes", "traité dans un autre projet"],
-                   "exigences.csv": ["ENF-004;non fonctionnelle"]}
+      "contains": {"exigences.md": ["EF-003", "| SEC-01 |", "exigences-securite.md:5", "cahier-des-charges.md:14", "compte-rendu-atelier.md:5", "## Questions ouvertes", "traité dans un autre projet"],
+                   "exigences.csv": ["ENF-004;non fonctionnelle", "SEC-02;non fonctionnelle"]}
     },
     {
       "id": "exigences-erreurs",
@@ -276,9 +276,11 @@
       "_note": "Description non conforme, citation inventée, document mal nommé et exigences oubliées : refusés avec le chemin, la ligne proche et les phrases non reprises.",
       "steps": [
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "requirements/1 : clé inconnue « prority » ; vouliez-vous « priority » ?"}},
-        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "requirements/0/id : « EF-1 » ne suit pas le format"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "requirements/0/id : « EF 1 » ne suit pas le format"}},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "ligne proche : « L'assuré doit pouvoir déclarer", "warnings": "cahier-des-charges.md:11 « Il doit pouvoir suivre l'avancement de son dossier. »"}},
-        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « cahier-des-charges.md » ?"}}
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « cahier-des-charges.md » ?"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "(REQ-100) : nature manquante", "warnings": "porte déjà l'identifiant SEC-01, conservez-le comme id"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}}
       ],
       "absent": ["exigences-invalide.md", "exigences-citation.md"]
     },
@@ -337,7 +339,7 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "documents", "--kind", "choix", "--text", "Compte rendu retenu comme source", "--refs", "ENF-004,A"], "exit": 0, "report": {"memory.folder": "Projets/Sinistres", "memory.notes": 2, "warnings": []}},
-        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 12, "removed": 0, "errors": []}}
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 14, "removed": 0, "errors": []}}
       ],
       "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
       "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],

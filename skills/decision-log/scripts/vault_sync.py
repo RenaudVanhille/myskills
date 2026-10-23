@@ -107,7 +107,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             body += ["", "## Décisions", ""] + [f"- {link(e['id'])} {KIND_LABELS[e['kind']]} : {e['text']}"
                                                for e in by_ref[rid]]
         notes[names[rid]] = note({"id": rid, "type": "exigence",
-                                  "nature": "fonctionnelle" if rid.startswith("EF-") else "non fonctionnelle",
+                                  "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
+                                                                   else "non-fonctionnelle"),
                                   "priorite": req["priority"], "categorie": req.get("category"),
                                   "domaine": req.get("domain"), "statut": req.get("status", "retenue"),
                                   "tags": ["exigence"]}, body)
@@ -145,8 +146,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
 
     if "ADR" in names:
         text = adr.read_text(encoding="utf-8")
-        for ref in sorted(set(re.findall(r"\b(?:EF|ENF)-\d{3}\b", text)) & set(names), reverse=True):
-            text = re.sub(rf"(?<![\[|/]){ref}\b", link(ref), text)
+        ids = sorted((r["id"] for r in catalog.get("requirements", [])), key=len, reverse=True)
+        for ref in ids:
+            text = re.sub(rf"(?<![\[|/\w-]){re.escape(ref)}(?![\w-])", lambda _, r=ref: link(r), text)
         notes[names["ADR"]] = note({"type": "adr", "statut": "acceptée", "tags": ["adr", "architecture"]},
                                    [text, "", up])
 
