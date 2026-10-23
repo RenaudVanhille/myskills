@@ -28,6 +28,10 @@ Le cas `contrats` valide chaque `contract.json` contre son schéma, vérifie
 que chaque script est déclaré, que les passages de main visent des skills et
 des agents qui existent, que les exemples de message de passage et de
 rapport final sont conformes, et que les fichiers générés sont à jour.
+Le cas `regles` vérifie les règles mécaniques d'[`AGENTS.md`](../AGENTS.md) :
+`SKILL.md` (nom, description, taille), en-tête PEP 723 des scripts, schéma
+de chaque rapport JSON, agents sans outil web ni commande réseau, import et
+export séparés, pas de Puppeteer.
 Chaque cas lance ensuite les scripts d'un skill sur les fixtures et vérifie
 le code de sortie, la conformité du rapport au JSON Schema du contrat, des
 valeurs du rapport, les fichiers produits et, s'il existe, la

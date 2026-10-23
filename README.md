@@ -108,6 +108,7 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 
 | Chemin | Rôle |
 | --- | --- |
+| `AGENTS.md` | Règles que suit tout skill et tout agent, présent ou à venir (lu par Claude Code via `CLAUDE.md`) |
 | `plugin.json` | Manifeste [Agent Plugins 1.0](https://vercel.com/kb/guide/agent-plugins), lu par Copilot et Kiro |
 | `.claude-plugin/` | Manifeste et marketplace Claude Code |
 | `skills/<nom>/SKILL.md` | Skills au format [Agent Skills](https://agentskills.io) |
@@ -124,6 +125,9 @@ Code), l'agent l'utilise pour les actions simples ou complexes.
 Vérification du plugin Claude Code : `claude plugin validate .`
 
 ## Principes
+
+Les règles complètes sont dans [`AGENTS.md`](AGENTS.md) ; `tests/run.py` vérifie
+celles qui sont mécaniques (cas `regles`).
 
 - La logique métier vit dans les skills ; les agents orchestrent et valident.
 - Tout script de skill est déclaré dans le `contract.json` de son skill ;
