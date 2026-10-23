@@ -37,13 +37,13 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 - **Entrée** : un script qui lit une description JSON déclare son JSON Schema
   dans le champ `input` du contrat et la valide avant tout travail avec
   `scripts/lib/spec_schema.py` (copie de `shared/scripts/spec_schema.py` faite
-  par `build.py`). Toutes les erreurs d'un coup, chacune précise et
-  actionnable : le chemin (`items/2/type`), la valeur reçue et les valeurs
-  possibles ou proches (« lamda » : lambda ?). `--schema` affiche le schéma
-  sur une ligne, pour que le modèle l'obtienne sans lire le contrat. Une
-  entrée CSV est contrôlée de la même façon (colonnes, ligne fautive). Une
-  entrée invalide donne le code 1 et un rapport avec `errors`, sans fichier
-  produit à moitié.
+  par `build.py`) **(vérifiée : `input` et `--schema` déclarés)**. Toutes les
+  erreurs d'un coup, chacune précise et actionnable : le chemin
+  (`items/2/type`), la valeur reçue et les valeurs possibles ou proches («
+  lamda » : lambda ?). `--schema` affiche le schéma sur une ligne, pour que le
+  modèle l'obtienne sans lire le contrat. Une entrée CSV est contrôlée de la
+  même façon (colonnes, ligne fautive). Une entrée invalide donne le code 1 et
+  un rapport avec `errors`, sans fichier produit à moitié.
 - **Sortie** : le livrable est vérifié par un script avant d'être rendu
   (`check_drawio.py`, `validate.py`, export et relecture de l'image...).
   Un livrable non vérifié est signalé comme tel dans le rapport final.

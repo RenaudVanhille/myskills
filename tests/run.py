@@ -257,6 +257,14 @@ def check_rules() -> dict:
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):
                 failures.append(f"{name}/{script['name']} : rapport JSON sans schéma dans le contrat")
+            # Premier argument du usage en .json : description à valider contre un schéma d'entrée.
+            words = script["usage"].split()
+            at = next((i for i, w in enumerate(words) if w.endswith(script["name"])), len(words))
+            first = (words[at + 1:at + 2] or [""])[0]
+            if ".json" in first and not script.get("input"):
+                failures.append(f"{name}/{script['name']} : lit {first} sans schéma d'entrée (input) dans le contrat")
+            if script.get("input") and "--schema" not in script["usage"]:
+                failures.append(f"{name}/{script['name']} : option --schema absente du usage")
 
     for src in source_agents():
         meta = parse_agent(src)[0]
