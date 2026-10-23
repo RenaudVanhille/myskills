@@ -254,6 +254,35 @@
                    "gitops.drawio": ["Argo CD", "image=data:image/svg+xml"]}
     },
     {
+      "id": "cloud-iac",
+      "skill": "cloud-architecture",
+      "_note": "Terraform, docker-compose et Kubernetes vers la description de cloud_build.py ; un gabarit Helm et un fichier sans ressource.",
+      "steps": [
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/terraform", "--out", "{out}/tf.json", "--title", "Boutique"],
+         "exit": 0, "report": {"errors": [], "provider": "aws", "groups": 5, "services": 6, "flows": 4, "ignored": 3,
+                               "sources.terraform": 1},
+         "report_contains": {"warnings": "aws_iam_role (1)"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{out}/tf.json", "--out", "{out}/tf.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "services": 6}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/docker-compose.yml", "{fixtures}/iac/k8s", "--out", "{out}/mixte.json"],
+         "exit": 0, "report": {"errors": [], "provider": "k8s", "services": 13, "flows": 11,
+                               "sources.compose": 1, "sources.kubernetes": 1},
+         "report_contains": {"warnings": "YAML illisible, ligne 6"}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/vide.tf", "{fixtures}/iac/absent.tf", "--out", "{out}/vide.json"],
+         "exit": 1, "report": {"output": null}, "report_contains": {"errors": "absent.tf : fichier introuvable"}}
+      ],
+      "files": ["tf.json", "tf.drawio", "mixte.json"],
+      "absent": ["vide.json"],
+      "contains": {"tf.json": ["\"type\": \"aws:public-subnet\"", "\"label\": \"facturation\"",
+                               "\"from\": \"sqs-queue-orders\""],
+                   "tf.drawio": ["grIcon=mxgraph.aws4.group_vpc2", "api-commandes"],
+                   "mixte.json": ["\"type\": \"k8s:hpa\"", "\"type\": \"queue\""]}
+    },
+    {
       "id": "entrees-invalides",
       "skill": "drawio-diagram",
       "_note": "Chaque script refuse une description non conforme au schéma d'entrée de son contrat, avec le chemin de l'erreur.",

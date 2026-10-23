@@ -14,12 +14,13 @@ téléchargé). N'écrivez pas le XML draw.io à la main.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, manifestes Kubernetes) à traduire en description.
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
 - **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
 - **`cloud_build.py`** : Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 - **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main.
 - **Passe la main** au skill `mermaid-diagram` : diagramme de séquence des appels entre services pour un parcours.
@@ -91,9 +92,20 @@ Fichier `<sujet>.json` :
   `replication`, et `"objectives": {"rpo": "15 min", "rto": "1 h"}`.
 - **Plusieurs vues** : `"pages": [{"name", "view", "items", "flows"}, ...]`.
 
-Si l'architecture existe en code (Terraform, manifestes Kubernetes, Bicep),
-lisez-en seulement les ressources et leurs liens pour écrire la
-description ; ne recopiez pas leurs attributs.
+Si l'architecture existe en code (Terraform AWS, Azure ou Google,
+docker-compose, manifestes Kubernetes), ne le lisez pas : le script écrit la
+description, que vous complétez ensuite (titre, acteurs externes, protocoles,
+flux que le code ne montre pas) :
+
+```bash
+uv run scripts/iac_import.py infra/ k8s/ --out boutique.json --title "Boutique"
+```
+
+Le rapport compte services, groupes et flux ; `ignored` et `warnings`
+nomment ce qui n'a pas d'équivalent (rôles IAM, règles...). Le sens d'un flux
+tiré d'une référence est « utilise » ; vérifiez-le. Un gabarit Helm se rend
+d'abord (`helm template`). Pour Bicep ou CloudFormation, écrivez la
+description à la main à partir des ressources et de leurs liens.
 
 ## 3. Construire
 
