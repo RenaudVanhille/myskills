@@ -1,0 +1,78 @@
+---
+name: decision-log
+description: "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées."
+---
+
+# decision-log
+
+Les chemins `scripts/...` sont relatifs au dossier de ce skill. Le script
+tient l'état et applique les règles ; vous n'écrivez jamais `workflow.json`
+ni `journal.md` à la main.
+
+## Contrat
+
+Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Entrées** : Dossier du workflow ; Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées) ; Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur.
+- **Sorties** : workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande ; Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md.
+- **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). Rapport JSON, codes de sortie : 0 commande appliquée ; 1 commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé.
+- **`vault_sync.py`** : Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu. Rapport JSON, codes de sortie : 0 notes écrites, tous les liens résolus ; 1 workflow.json ou vault introuvable, ou lien cassé.
+- **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
+- **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
+
+## 1. Le cycle d'une étape
+
+```text
+a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
+                                            |
+                                            +--review retour--> a-reprendre --start--> en-cours ...
+```
+
+| Commande | Quand | Le script refuse si |
+| --- | --- | --- |
+| `init DOSSIER [--stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, vault introuvable |
+| `start DOSSIER ETAPE` | avant de travailler sur l'étape | une étape précédente n'est pas validée |
+| `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
+| `submit DOSSIER ETAPE --files F ...` | livrables vérifiés par leurs scripts | l'étape n'est pas en cours, fichier introuvable |
+| `review DOSSIER ETAPE --decision valide\|retour --text "..."` | quand l'utilisateur a répondu | validation : étape pas en revue, ou fichiers modifiés depuis la soumission |
+| `status DOSSIER` | pour reprendre un workflow | - |
+
+Le rapport donne toujours `current` (étape courante) et `next` (prochaine
+action) : suivez `next`, ne le déduisez pas vous-même.
+
+## 2. Règles
+
+- **Revue humaine** : n'appelez `review` qu'avec la réponse explicite de
+  l'utilisateur, et mettez ses mots dans `--text`. Une validation n'est
+  jamais déduite d'un silence.
+- **Retour** : `review --decision retour` remet l'étape à reprendre, ainsi
+  que toutes les étapes suivantes déjà commencées (entrées « invalidation »).
+  Il vaut aussi pour une étape déjà validée : c'est la seule façon de revenir
+  en arrière.
+- **Choix tracés** : notez avec `log` chaque décision prise sans
+  l'utilisateur (outil choisi, exigence déduite, phrase écartée, note
+  attribuée, hypothèse), en une phrase, avec sa justification (`--why`) et
+  les identifiants concernés (`--refs`). Une question que seul l'utilisateur
+  peut trancher se note `--kind question` et se pose à la revue.
+- **Fichiers figés** : `submit` enregistre l'empreinte de chaque fichier. Si
+  un fichier validé change, `status` l'avertit : faites revoir l'étape
+  (`review --decision retour`) plutôt que de continuer.
+
+`journal.md` est la version lisible, à joindre au dossier livré.
+
+## 3. Mémoire partagée dans Obsidian
+
+Avec `init --vault VAULT` (et `--folder`, défaut `Workflows/<titre>`),
+chaque commande réécrit dans le vault une note par exigence
+(`Exigences/EF-001`), par option (`Options/Option A`), par entrée du
+journal (`Décisions/D-001`), l'ADR et une note d'index, reliées par des
+wikilinks et décrites par leur frontmatter (`type`, `priorite`, `etape`,
+`par`...). C'est la mémoire commune des agents, des sessions et de
+l'utilisateur : pour reprendre un workflow ou retrouver une décision, lisez
+la note d'index puis les notes liées, pas tout le dossier.
+
+Ces notes sont générées (`genere: decision-log`) : ne les modifiez pas, un
+retour passe par `review`. Les autres notes du vault ne sont jamais
+touchées. Pour choisir le dossier, lisez d'abord le profil du vault
+(`vault_profile.py` du skill `markdown-to-obsidian`). Hors journal,
+`vault_sync.py DOSSIER --vault VAULT` refait la synchronisation.

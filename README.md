@@ -8,6 +8,10 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 - **Schémas** : draw.io, Excalidraw, C4, Mermaid, plan d'occupation des sols du SI, adaptés à un public
   technique ou non, pour Markdown, Office et Confluence.
 - **Publication** : Markdown vers Word, HTML ou XWiki, schémas compris.
+- **Des documents à l'architecture** : exigences fonctionnelles et non
+  fonctionnelles tracées jusqu'aux sources, 2 ou 3 architectures comparées,
+  schémas, avec une revue humaine à chaque étape, un journal des décisions et
+  une mémoire partagée dans le vault Obsidian.
 
 ## Installation
 
@@ -21,7 +25,8 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
 | Hermes | Skills : `hermes skills tap add RenaudVanhille/myskills` puis `hermes skills install RenaudVanhille/myskills/skills/<skill>`. Tout, agents compris : `uv run scripts/install.py --tools hermes [--global]` |
 
 Hermes n'a pas d'agents personnalisés : `install.py` y installe
-les agents (`schema-designer`, `document-extractor`, `document-publisher`) sous
+les agents (`schema-designer`, `document-extractor`, `document-publisher`,
+`architecture-workflow`) sous
 forme de skills. Hermes ne lit que `~/.hermes/skills` : en projet, `install.py`
 affiche la commande `hermes config set skills.external_dirs "<dossier>"` à
 lancer une fois (elle remplace les `external_dirs` déjà configurés).
@@ -44,6 +49,7 @@ la demande ; les rendus passent par Playwright.
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
+| `architecture-workflow` | Workflow en 4 étapes fixes : documents, exigences, 2 ou 3 architectures, schémas ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
 foi :
@@ -73,6 +79,9 @@ lire par un autre agent ou outil qui appelle myskills.
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
+| `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, export Markdown et CSV |
+| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, un schéma draw.io par option |
+| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, et mémoire partagée dans un vault Obsidian (une note par exigence, option et décision) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |

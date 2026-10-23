@@ -1,0 +1,221 @@
+{
+  "skill": "decision-log",
+  "inputs": [
+    "Dossier du workflow",
+    "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
+    "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
+  ],
+  "outputs": [
+    "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+    "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
+    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
+  ],
+  "scripts": [
+    {
+      "name": "journal.py",
+      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+      "options": {
+        "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+        "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
+        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
+        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
+        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+      },
+      "report": {
+        "format": "json",
+        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "workflow",
+            "command",
+            "stages",
+            "current",
+            "next",
+            "entry",
+            "questions",
+            "memory",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "workflow": {
+              "type": "string"
+            },
+            "command": {
+              "enum": [
+                "init",
+                "start",
+                "log",
+                "submit",
+                "review",
+                "status"
+              ]
+            },
+            "stages": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "a-faire",
+                      "en-cours",
+                      "en-revue",
+                      "validee",
+                      "a-reprendre"
+                    ]
+                  }
+                }
+              }
+            },
+            "current": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "next": {
+              "type": "string"
+            },
+            "entry": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "questions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "memory": {
+              "description": "Notes écrites dans le vault, ou null sans vault.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "folder",
+                    "notes"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "folder": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "commande appliquée",
+        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+      }
+    },
+    {
+      "name": "vault_sync.py",
+      "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
+      "usage": "uv run scripts/vault_sync.py DOSSIER [--vault VAULT] [--folder DOSSIER_DU_VAULT] [--data DOSSIER_DES_LIVRABLES]",
+      "options": {
+        "DOSSIER": "dossier du workflow",
+        "--vault": "vault Obsidian (défaut : celui donné à journal.py init)",
+        "--folder": "dossier des notes dans le vault (défaut : celui de workflow.json, sinon Workflows/<titre>)",
+        "--data": "dossier des livrables (exigences.json, options.json, decision.json, adr-architecture.md), défaut : DOSSIER"
+      },
+      "report": {
+        "format": "json",
+        "description": "Vault, dossier, nombre de notes écrites et supprimées, liens cassés en erreur.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "vault",
+            "folder",
+            "notes",
+            "removed",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "vault": {
+              "type": "string"
+            },
+            "folder": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "notes écrites, tous les liens résolus",
+        "1": "workflow.json ou vault introuvable, ou lien cassé"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "une étape est soumise : l'utilisateur la valide ou fait un retour"
+    },
+    {
+      "to": "markdown-to-obsidian",
+      "kind": "skill",
+      "when": "choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault"
+    }
+  ]
+}

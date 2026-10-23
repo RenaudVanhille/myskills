@@ -259,6 +259,92 @@
       ],
       "files": ["pub/architecture.html", "pub/architecture.docx"],
       "contains": {"pub/architecture.html": ["Architecture du service de paiement", "PostgreSQL"]}
+    },
+    {
+      "id": "exigences",
+      "skill": "requirements-catalog",
+      "steps": [
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}"], "exit": 0, "report": {"functional": 3, "non_functional": 7, "ignored": 1, "questions": 2, "uncovered": 0, "errors": [], "warnings": []}}
+      ],
+      "files": ["exigences.md", "exigences.csv"],
+      "contains": {"exigences.md": ["EF-003", "| SEC-01 |", "exigences-securite.md:5", "cahier-des-charges.md:14", "compte-rendu-atelier.md:5", "## Questions ouvertes", "traité dans un autre projet"],
+                   "exigences.csv": ["ENF-004;non fonctionnelle", "SEC-02;non fonctionnelle"]}
+    },
+    {
+      "id": "exigences-erreurs",
+      "skill": "requirements-catalog",
+      "_note": "Description non conforme, citation inventée, document mal nommé et exigences oubliées : refusés avec le chemin, la ligne proche et les phrases non reprises.",
+      "steps": [
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "requirements/1 : clé inconnue « prority » ; vouliez-vous « priority » ?"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "requirements/0/id : « EF 1 » ne suit pas le format"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "ligne proche : « L'assuré doit pouvoir déclarer", "warnings": "cahier-des-charges.md:11 « Il doit pouvoir suivre l'avancement de son dossier. »"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « cahier-des-charges.md » ?"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "(REQ-100) : nature manquante", "warnings": "porte déjà l'identifiant SEC-01, conservez-le comme id"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}}
+      ],
+      "absent": ["exigences-invalide.md", "exigences-citation.md"]
+    },
+    {
+      "id": "options",
+      "skill": "architecture-options",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}"], "exit": 0, "report": {"options": 2, "criteria": 5, "ranking.0.option": "A", "ranking.0.score": 82, "ranking.1.blocking": ["ENF-004"], "decided": null, "errors": [], "warnings": []}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py", "args": ["{out}/schemas/architectures.json"], "exit": 0, "report": {"pages": 2, "errors": [], "warnings": []}}
+      ],
+      "files": ["options.md", "adr-architecture.md", "schemas/architectures.drawio"],
+      "contains": {"options.md": ["| 1 | **A**", "éliminée : ENF-004", "5 : mise à l'échelle automatique"],
+                   "adr-architecture.md": ["acceptée, le 2026-10-23", "Reno (utilisateur)", "éliminée (ENF-004)"],
+                   "schemas/architectures.drawio": ["Option A", "Outil de gestion des sinistres"]}
+    },
+    {
+      "id": "options-erreurs",
+      "skill": "architecture-options",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "options/0/scores/performance : 7 supérieur au maximum 5"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "options : au moins 2 élément(s) attendu(s)"}}
+      ],
+      "absent": ["options-invalide.md", "schemas"]
+    },
+    {
+      "id": "journal",
+      "skill": "decision-log",
+      "_note": "Portes de revue : ordre des étapes imposé, soumission, validation par l'utilisateur, retour qui invalide les étapes suivantes.",
+      "steps": [
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--stages", "exigences,architectures,schemas"], "exit": 0, "report": {"current": "exigences"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "architectures"], "exit": 1, "report_contains": {"errors": "étape(s) non validée(s) avant elle : exigences"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "exigences"], "exit": 0},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}/w"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "exigences", "--kind", "choix", "--text", "Arrêt de l'ancienne application écarté", "--why", "autre projet", "--refs", "ENF-005"], "exit": 0, "report": {"entry": "D-001"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "exigences", "--decision", "valide", "--text", "ok"], "exit": 1, "report_contains": {"errors": "seule une étape en revue se valide"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "exigences", "--files", "exigences.md", "exigences.csv"], "exit": 0, "report": {"stages.0.status": "en-revue"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "exigences", "--decision", "valide", "--text", "Catalogue validé"], "exit": 0, "report": {"stages.0.status": "validee", "current": "architectures"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "architectures"], "exit": 0},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}/w"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "architectures", "--files", "options.md", "options-absent.md"], "exit": 1, "report_contains": {"errors": "fichier introuvable : options-absent.md"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "architectures", "--files", "options.md"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "exigences", "--decision", "retour", "--text", "Ajouter l'exigence d'accessibilité"], "exit": 0, "report": {"stages.0.status": "a-reprendre", "stages.1.status": "a-reprendre", "current": "exigences"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["status", "{out}/w"], "exit": 0, "report": {"next": "démarrer l'étape exigences (start)", "warnings": []}}
+      ],
+      "files": ["w/workflow.json", "w/journal.md"],
+      "contains": {"w/journal.md": ["| D-001 |", "Arrêt de l'ancienne application écarté", "Catalogue validé", "Invalidation", "à reprendre après le retour D-005 sur exigences"]}
+    },
+    {
+      "id": "vault",
+      "skill": "decision-log",
+      "_note": "Mémoire partagée : une note par exigence, option et décision dans le vault, liens vérifiés, autres fichiers du vault intacts.",
+      "steps": [
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault-absent"], "exit": 1, "report_contains": {"errors": "vault introuvable"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}/vault"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "documents", "--kind", "choix", "--text", "Compte rendu retenu comme source", "--refs", "ENF-004,A"], "exit": 0, "report": {"memory.folder": "Projets/Sinistres", "memory.notes": 2, "warnings": []}},
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 14, "removed": 0, "errors": []}}
+      ],
+      "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
+      "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],
+                   "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001]]"],
+                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte"]}
     }
   ]
 }

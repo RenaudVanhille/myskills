@@ -1,0 +1,8 @@
+{
+  "sources": "sources",
+  "requirements": [
+    {"id": "EF 1", "title": "Déclarer", "text": "Déclarer un sinistre.", "priority": "indispensable",
+     "sources": [{"doc": "cahier-des-charges.md", "quote": "déclarer un sinistre"}]},
+    {"id": "ENF-001", "title": "Charge", "text": "Tenir la charge.", "category": "perf", "prority": "importante"}
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "_note": "Citation inventée, document mal nommé, exigence renumérotée alors que la source a un identifiant, identifiant inventé, exigences oubliées : erreurs et avertissements attendus.",
+  "sources": "sources",
+  "requirements": [
+    {
+      "id": "EF-001",
+      "title": "Déclarer",
+      "text": "Déclarer un sinistre en ligne.",
+      "priority": "indispensable",
+      "sources": [
+        {
+          "doc": "cahier-des-charges.md",
+          "quote": "L'assuré peut déclarer un sinistre par téléphone"
+        }
+      ]
+    },
+    {
+      "id": "ENF-001",
+      "title": "Charge",
+      "text": "Tenir la charge.",
+      "category": "performance",
+      "priority": "importante",
+      "sources": [
+        {
+          "doc": "cahier-des-charge.md",
+          "quote": "supporter 2 000 déclarations par jour"
+        }
+      ]
+    },
+    {
+      "id": "ENF-002",
+      "title": "Chiffrement",
+      "text": "TLS.",
+      "category": "securite",
+      "metric": "TLS 1.2",
+      "priority": "indispensable",
+      "sources": [
+        {
+          "doc": "exigences-securite.md",
+          "quote": "chiffrés en TLS 1.2"
+        }
+      ]
+    },
+    {
+      "id": "REQ-099",
+      "nature": "fonctionnelle",
+      "title": "Inventée",
+      "text": "x",
+      "priority": "souhaitable",
+      "derived": "test"
+    },
+    {
+      "id": "REQ-100",
+      "title": "Sans nature",
+      "text": "x",
+      "priority": "souhaitable",
+      "derived": "test"
+    }
+  ]
+}
