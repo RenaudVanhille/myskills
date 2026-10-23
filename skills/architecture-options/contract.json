@@ -8,12 +8,14 @@
   "outputs": [
     "<nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision)",
     "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
-    "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné"
+    "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
+    "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
+    "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)"
   ],
   "scripts": [
     {
       "name": "options_build.py",
-      "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR.",
+      "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles.",
       "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
       "options": {
         "options.json": "description des options ; requirements est relatif à ce fichier",
@@ -150,6 +152,19 @@
                         },
                         "tech": {
                           "type": "string"
+                        },
+                        "refs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                          },
+                          "description": "Exigences que ce composant porte : matrice de traçabilité."
+                        },
+                        "type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Type cloud_build.py du composant (ecs, aurora, sqs... ; cloud_build.py --types) si l'option a un provider ; sinon déduit du rôle."
                         }
                       }
                     }
@@ -243,6 +258,15 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "provider": {
+                    "enum": [
+                      "aws",
+                      "azure",
+                      "gcp",
+                      "k8s"
+                    ],
+                    "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
                   }
                 }
               }
@@ -324,7 +348,8 @@
                 "recommended",
                 "decided",
                 "errors",
-                "warnings"
+                "warnings",
+                "trace"
               ],
               "additionalProperties": false,
               "properties": {
@@ -391,6 +416,30 @@
                   "type": "array",
                   "items": {
                     "type": "string"
+                  }
+                },
+                "trace": {
+                  "type": "object",
+                  "required": [
+                    "uncovered",
+                    "unassigned"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "uncovered": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                    },
+                    "unassigned": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                    }
                   }
                 }
               }

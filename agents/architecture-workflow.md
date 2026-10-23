@@ -54,7 +54,7 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
 | `documents` | `sources/*.md` | `doc-to-markdown` |
 | `exigences` | `exigences.json`, `exigences.md`, `exigences.csv` | `requirements-catalog` |
 | `architectures` | `options.json`, `options.md` | `architecture-options` |
-| `schemas` | `decision.json`, `adr-architecture.md`, `schemas/architectures.drawio` et ses PNG | `drawio-diagram`, `diagram-export` |
+| `schemas` | `decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio` et ses PNG (et `schemas/option-<id>.drawio` d'une option cloud) | `drawio-diagram`, `cloud-architecture`, `diagram-export` |
 
 1. **Reprendre** : lance `journal.py status DOSSIER` (skill `decision-log`).
    S'il n'y a pas de `workflow.json`, lance `journal.py init DOSSIER --title
@@ -87,14 +87,17 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
      existe), lance `req_build.py` jusqu'à zéro erreur et zéro
      phrase normative non reprise.
    - `architectures` : écris `options.json` (2 ou 3 options, notes
-     justifiées), lance `options_build.py`.
+     justifiées, `refs` des composants ; `provider` et `type` pour une
+     option cloud), lance `options_build.py`.
    - `schemas` : écris `decision.json` avec le choix fait par
      l'utilisateur à la revue précédente (`option`, `by`, ses mots dans
      `why`, `date`, `refs`), lance `options_build.py options.json
      --decision decision.json` (il n'écrit que l'ADR : `options.json` et
-     `options.md` validés ne changent pas), puis `drawio_build.py
-     schemas/architectures.json` et `export.py schemas/architectures.drawio
-     --format png` ; relis chaque PNG une fois.
+     `options.md` validés ne changent pas ; il met à jour `tracabilite.md`
+     pour l'option retenue), puis `drawio_build.py
+     schemas/architectures.json`, `cloud_build.py` sur le
+     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe, et
+     `export.py` en PNG ; relis chaque PNG une fois.
 4. **Tracer** : pendant l'étape, note avec `journal.py log` chaque choix
    qui demande du jugement (exigence déduite, priorité non explicite,
    phrase écartée, critère ou note, hypothèse), en une phrase, avec `--why`

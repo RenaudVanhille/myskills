@@ -354,12 +354,15 @@
       "steps": [
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}"], "exit": 0, "report": {"options": 2, "criteria": 5, "ranking.0.option": "A", "ranking.0.score": 82, "ranking.1.blocking": ["ENF-004"], "decided": null, "errors": [], "warnings": []}},
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
-        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py", "args": ["{out}/schemas/architectures.json"], "exit": 0, "report": {"pages": 2, "errors": [], "warnings": []}}
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py", "args": ["{out}/schemas/architectures.json"], "exit": 0, "report": {"pages": 2, "errors": [], "warnings": []}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/schemas/option-a.cloud.json", "--out", "{out}/schemas/option-a.drawio"], "exit": 0, "report": {"errors": []}}
       ],
-      "files": ["options.md", "adr-architecture.md", "schemas/architectures.drawio"],
+      "files": ["options.md", "adr-architecture.md", "schemas/architectures.drawio", "tracabilite.csv",
+                "schemas/option-a.cloud.json", "schemas/option-a.drawio"],
       "contains": {"options.md": ["| 1 | **A**", "éliminée : ENF-004", "5 : mise à l'échelle automatique"],
                    "adr-architecture.md": ["acceptée, le 2026-10-23", "Reno (utilisateur)", "éliminée (ENF-004)"],
-                   "schemas/architectures.drawio": ["Option A", "Outil de gestion des sinistres"]}
+                   "schemas/architectures.drawio": ["Option A", "Outil de gestion des sinistres"],
+                   "tracabilite.md": ["| EF-003 | Transmettre au gestionnaire | indispensable | couverte |", "File de déclarations, Outil de gestion des sinistres"]}
     },
     {
       "id": "options-erreurs",

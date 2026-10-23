@@ -16,27 +16,52 @@
         {
           "id": "portail",
           "label": "Portail web",
-          "tech": "React"
+          "tech": "React",
+          "type": "cloudfront",
+          "refs": [
+            "EF-001",
+            "SEC-01"
+          ]
         },
         {
           "id": "api",
           "label": "API déclarations",
-          "tech": "conteneurs managés"
+          "tech": "conteneurs managés",
+          "type": "ecs",
+          "refs": [
+            "EF-001",
+            "EF-002",
+            "ENF-001",
+            "ENF-003",
+            "ENF-005",
+            "SEC-02"
+          ]
         },
         {
           "id": "file",
           "label": "File de déclarations",
-          "role": "queue"
+          "role": "queue",
+          "type": "sqs",
+          "refs": [
+            "EF-003",
+            "ENF-002"
+          ]
         },
         {
           "id": "gestion",
           "label": "Outil de gestion des sinistres",
-          "role": "external"
+          "role": "external",
+          "refs": [
+            "EF-003"
+          ]
         },
         {
           "id": "annuaire",
           "label": "Annuaire des assurés",
-          "role": "external"
+          "role": "external",
+          "refs": [
+            "ENF-004"
+          ]
         }
       ],
       "flows": [
@@ -88,7 +113,8 @@
       ],
       "risks": [
         "coût variable pendant les pics"
-      ]
+      ],
+      "provider": "aws"
     },
     {
       "id": "B",

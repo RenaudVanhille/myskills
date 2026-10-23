@@ -10,12 +10,20 @@ tokens, le nombre de tours et si le fichier attendu a été produit, puis
 ajoute une ligne par cas à tests/costs.csv. On le lance avant et après une
 modification des agents ou des skills pour en chiffrer l'effet.
 
+Un cas peut préparer son dossier : `inputs` copie des fichiers (chaîne, ou
+{"from", "to"} pour garder un sous-dossier) et `setup` lance des scripts de
+skills avant l'agent (par exemple un workflow déjà soumis à la revue).
+
+Avec --max-increase P, un cas qui coûte plus de P % de plus que sa dernière
+mesure avec le même modèle (dans costs.csv) fait échouer la mesure : la
+sobriété est vérifiée, pas seulement déclarée.
+
 Rien ne part ailleurs que chez le modèle de la session Claude Code. Les
 commandes de l'agent sont acceptées sans confirmation : elles ne touchent
 que le dossier temporaire.
 
 Usage :
-    uv run tests/cost.py [--only ID[,ID]] [--model sonnet] [--label TEXTE] [--keep]
+    uv run tests/cost.py [--only ID[,ID]] [--model sonnet] [--label TEXTE] [--keep] [--max-increase 20]
 """
 
 import argparse
@@ -42,10 +50,31 @@ def commit() -> str:
     return result.stdout.strip() or "?"
 
 
+def prepare(case: dict, work: Path) -> None:
+    """Copie les inputs et lance le setup du cas dans le dossier de travail."""
+    for item in case["inputs"]:
+        source, target = (item, Path(item).name) if isinstance(item, str) else (item["from"], item["to"])
+        (work / target).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(TESTS / source, work / target)
+    runner = ["uv", "run", "--quiet"] if shutil.which("uv") else [sys.executable]
+    for step in case.get("setup", []):
+        script = ROOT / "skills" / step["script"]
+        subprocess.run(runner + [str(script)] + [a.replace("{work}", str(work)) for a in step.get("args", [])],
+                       cwd=work, capture_output=True, text=True, encoding="utf-8", check=True)
+
+
+def last_costs(model: str) -> dict[str, float]:
+    """Dernier coût mesuré de chaque cas avec ce modèle."""
+    if not CSV.exists():
+        return {}
+    with open(CSV, encoding="utf-8", newline="") as handle:
+        return {row["case"]: float(row["cost_usd"]) for row in csv.DictReader(handle)
+                if row["model"] == model and row["ok"] == "True" and row["cost_usd"]}
+
+
 def run_case(case: dict, model: str, keep: bool) -> dict:
     work = Path(tempfile.mkdtemp(prefix=f"myskills-cost-{case['id']}-"))
-    for rel in case["inputs"]:
-        shutil.copy2(TESTS / rel, work / Path(rel).name)
+    prepare(case, work)
     command = ["claude", "-p", case["prompt"], "--output-format", "json",
                "--plugin-dir", str(ROOT), "--agent", f"myskills:{case['agent']}",
                "--model", model, "--permission-mode", "bypassPermissions"]
@@ -82,10 +111,13 @@ def main() -> int:
     parser.add_argument("--label", default="", help="étiquette de la mesure (ex. avant, lot-1)")
     parser.add_argument("--keep", action="store_true",
                         help="garder les dossiers de travail (pour tests/judge.py outputs)")
+    parser.add_argument("--max-increase", type=float,
+                        help="échec si un cas coûte plus de ce pourcentage de plus que sa dernière mesure")
     args = parser.parse_args()
     if not shutil.which("claude"):
         print("Commande claude introuvable : installez Claude Code.", file=sys.stderr)
-        return 2
+        return 1
+    previous = last_costs(args.model)
 
     cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
     only = set(args.only.split(",")) if args.only else None
@@ -95,6 +127,12 @@ def main() -> int:
         if only and case["id"] not in only:
             continue
         row = {"date": stamp, "label": args.label, "commit": commit(), **run_case(case, args.model, args.keep)}
+        before = previous.get(case["id"])
+        if before and row["ok"]:
+            row["increase_pct"] = round((row["cost_usd"] - before) / before * 100, 1)
+            if args.max_increase is not None and row["increase_pct"] > args.max_increase:
+                row["ok"] = False
+                row["regression"] = f"+{row['increase_pct']} % (dernière mesure {before} USD)"
         rows.append(row)
         print(json.dumps(row, ensure_ascii=False), flush=True)
 
