@@ -82,6 +82,11 @@ def lookup(data, dotted: str):
 
 
 def run_step(step: dict, out: Path, failures: list[str]) -> None:
+    if "copy" in step:  # prépare un fichier de travail : {"copy": [source, destination]}
+        source, target = (Path(expand(p, out)) for p in step["copy"])
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        return
     script = expand(step["script"], out)
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
@@ -254,6 +259,11 @@ def check_rules() -> dict:
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):
                 failures.append(f"{name}/{script['name']} : rapport JSON sans schéma dans le contrat")
+            report_schema = script["report"].get("schema") or {}
+            variants = report_schema.get("anyOf", [report_schema]) if report_schema else []
+            if any(v.get("type") != "object" or not {"errors", "warnings"} <= set(v.get("required", []))
+                   for v in variants):
+                failures.append(f"{name}/{script['name']} : rapport sans objet à errors et warnings obligatoires")
             # Premier argument du usage en .json : description à valider contre un schéma d'entrée.
             words = script["usage"].split()
             at = next((i for i, w in enumerate(words) if w.endswith(script["name"])), len(words))

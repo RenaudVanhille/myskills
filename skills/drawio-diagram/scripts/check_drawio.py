@@ -20,6 +20,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 # Couleurs de la charte, extraites de shared/references/style.md par scripts/build.py.
 CHARTER = set(json.loads((Path(__file__).resolve().parent / "lib" / "charter.json").read_text(encoding="utf-8"))
               ["colors"]) | {"#000000", "none", "default"}
@@ -136,11 +139,10 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if len(sys.argv) < 2:
-        print(__doc__)
-        return 2
+        print_report([], ["aucun fichier : uv run scripts/check_drawio.py SCHEMA.drawio [...]"])
+        return 1
     reports = [check(Path(p)) for p in sys.argv[1:]]
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if any(r["errors"] for r in reports) else 0
 
 

@@ -399,7 +399,8 @@
               "type": "object",
               "required": [
                 "input",
-                "errors"
+                "errors",
+                "warnings"
               ],
               "additionalProperties": false,
               "properties": {
@@ -407,6 +408,12 @@
                   "type": "string"
                 },
                 "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
                   "type": "array",
                   "items": {
                     "type": "string"

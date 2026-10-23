@@ -106,7 +106,8 @@
       "skills": [
         "check-prerequisites",
         "doc-to-markdown",
-        "markdown-to-obsidian"
+        "markdown-to-obsidian",
+        "decision-log"
       ]
     },
     {
@@ -146,7 +147,8 @@
       "skills": [
         "check-prerequisites",
         "markdown-publish",
-        "diagram-export"
+        "diagram-export",
+        "decision-log"
       ]
     },
     {
@@ -192,7 +194,8 @@
         "c4-architecture",
         "urbanization-map",
         "cloud-architecture",
-        "diagram-export"
+        "diagram-export",
+        "decision-log"
       ]
     }
   ],
@@ -598,7 +601,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -606,6 +610,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -1182,7 +1192,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -1190,6 +1201,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -1582,7 +1599,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -1590,6 +1608,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -1642,15 +1666,17 @@
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] | --schema",
+          "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
-            "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+            "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
-            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
-            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
+            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
+            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
-            "--schema": "affiche le schéma de workflow.json sur une ligne"
+            "--schema": "affiche le schéma de workflow.json sur une ligne",
+            "handoff DOSSIER": "valide un message de passage (--file ou --json) contre shared/schemas/handoff.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json",
+            "report DOSSIER": "valide un rapport final d'agent contre shared/schemas/agent-report.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json"
           },
           "report": {
             "format": "json",
@@ -1668,7 +1694,8 @@
                 "questions",
                 "memory",
                 "errors",
-                "warnings"
+                "warnings",
+                "changes"
               ],
               "additionalProperties": false,
               "properties": {
@@ -1682,7 +1709,9 @@
                     "log",
                     "submit",
                     "review",
-                    "status"
+                    "status",
+                    "handoff",
+                    "report"
                   ]
                 },
                 "stages": {
@@ -1765,13 +1794,57 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "changes": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "added",
+                        "removed",
+                        "modified",
+                        "files"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "added": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "modified": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
                 }
               }
             }
           },
           "exit_codes": {
             "0": "commande appliquée",
-            "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable, workflow.json non conforme à son schéma) ; workflow.json inchangé"
+            "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, message ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
           },
           "input": {
             "format": "json",
@@ -1843,6 +1916,16 @@
                           "pattern": "^[0-9a-f]{64}$"
                         },
                         "description": "Fichier soumis -> empreinte SHA-256."
+                      },
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
                       }
                     }
                   }
@@ -1879,7 +1962,9 @@
                           "soumission",
                           "retour",
                           "validation",
-                          "invalidation"
+                          "invalidation",
+                          "passage",
+                          "rapport"
                         ]
                       },
                       "by": {
@@ -1906,6 +1991,12 @@
                         "items": {
                           "type": "string"
                         }
+                      },
+                      "via": {
+                        "enum": [
+                          "obsidian"
+                        ],
+                        "description": "Décision lue dans la note de revue du vault."
                       }
                     }
                   }
@@ -2059,46 +2150,71 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par source ; error vaut null si tout va bien.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "source",
-                  "format",
-                  "outputs",
-                  "error"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "source": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "source",
+                      "format",
+                      "outputs",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "source": {
+                        "type": "string"
+                      },
+                      "format": {
+                        "enum": [
+                          "png",
+                          "svg",
+                          "pdf"
+                        ]
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rendered": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
                     "type": "string"
                   },
-                  "format": {
-                    "enum": [
-                      "png",
-                      "svg",
-                      "pdf"
-                    ]
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
                   },
-                  "outputs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "error": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "rendered": {
-                    "type": "integer",
-                    "minimum": 0
-                  }
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -2147,197 +2263,222 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "type",
-                      "engine",
-                      "pages",
-                      "images",
-                      "needs_vision",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "type": {
-                        "enum": [
-                          "image",
-                          "pdf",
-                          "office",
-                          "autre"
-                        ]
-                      },
-                      "engine": {
-                        "enum": [
-                          "copie",
-                          "markitdown",
-                          "docling"
-                        ]
-                      },
-                      "pages": {
-                        "type": [
-                          "integer",
-                          "null"
-                        ],
-                        "minimum": 0
-                      },
-                      "images": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "needs_vision": {
-                        "type": "boolean"
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "hints": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "vision_pages": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "classification": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
                         "type": "object",
                         "required": [
+                          "input",
+                          "output",
                           "type",
-                          "domaine",
-                          "tables",
                           "engine",
-                          "method",
+                          "pages",
+                          "images",
+                          "needs_vision",
                           "warnings"
                         ],
                         "additionalProperties": false,
                         "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "output": {
+                            "type": "string"
+                          },
                           "type": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "domaine": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "tables": {
-                            "type": [
-                              "number",
-                              "null"
+                            "enum": [
+                              "image",
+                              "pdf",
+                              "office",
+                              "autre"
                             ]
                           },
                           "engine": {
                             "enum": [
+                              "copie",
                               "markitdown",
                               "docling"
                             ]
                           },
-                          "method": {
-                            "type": "string"
+                          "pages": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "minimum": 0
+                          },
+                          "images": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "needs_vision": {
+                            "type": "boolean"
                           },
                           "warnings": {
                             "type": "array",
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "hints": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "vision_pages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "classification": {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "domaine",
+                              "tables",
+                              "engine",
+                              "method",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "domaine": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "tables": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "engine": {
+                                "enum": [
+                                  "markitdown",
+                                  "docling"
+                                ]
+                              },
+                              "method": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "validation": {
+                            "type": "object",
+                            "required": [
+                              "ok",
+                              "errors",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
                           }
                         }
                       },
-                      "validation": {
+                      {
                         "type": "object",
                         "required": [
-                          "ok",
-                          "errors",
-                          "warnings"
+                          "input",
+                          "output",
+                          "skipped"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "ok": {
-                            "type": "boolean"
+                          "input": {
+                            "type": "string"
                           },
-                          "errors": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "output": {
+                            "type": "string"
                           },
-                          "warnings": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "skipped": {
+                            "const": true
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
                           }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "skipped"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "skipped": {
-                        "const": true
-                      }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
           "exit_codes": {
             "0": "tous les fichiers sont convertis",
-            "1": "au moins un fichier a échoué (objet avec error)"
+            "1": "au moins un fichier a échoué (error dans son résultat, repris dans errors)"
           }
         },
         {
@@ -2352,38 +2493,63 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "file",
-                  "ok",
-                  "errors",
-                  "warnings"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "file": {
-                    "type": "string"
-                  },
-                  "ok": {
-                    "type": "boolean"
-                  },
-                  "errors": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "file",
+                      "ok",
+                      "errors",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -2405,104 +2571,129 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "type",
-                      "type_confidence",
-                      "domaine",
-                      "domaine_confidence",
-                      "tables",
-                      "engine",
-                      "method",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "type": {
-                        "enum": [
-                          "specification",
-                          "architecture",
-                          "procedure",
-                          "compte-rendu",
-                          "presentation",
-                          "contrat",
-                          "rapport",
-                          "autre",
-                          null
-                        ]
-                      },
-                      "type_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "domaine": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "domaine_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "tables": {
-                        "type": [
-                          "number",
-                          "null"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "type",
+                          "type_confidence",
+                          "domaine",
+                          "domaine_confidence",
+                          "tables",
+                          "engine",
+                          "method",
+                          "warnings"
                         ],
-                        "minimum": 0,
-                        "maximum": 1
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "enum": [
+                              "specification",
+                              "architecture",
+                              "procedure",
+                              "compte-rendu",
+                              "presentation",
+                              "contrat",
+                              "rapport",
+                              "autre",
+                              null
+                            ]
+                          },
+                          "type_confidence": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "domaine": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "domaine_confidence": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "tables": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "engine": {
+                            "enum": [
+                              "markitdown",
+                              "docling"
+                            ]
+                          },
+                          "method": {
+                            "type": "string",
+                            "pattern": "^(regles|laya \\(.*\\))$"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
                       },
-                      "engine": {
-                        "enum": [
-                          "markitdown",
-                          "docling"
-                        ]
-                      },
-                      "method": {
-                        "type": "string",
-                        "pattern": "^(regles|laya \\(.*\\))$"
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -2759,7 +2950,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -2767,6 +2959,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -2788,44 +2986,69 @@
           "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
           "report": {
             "format": "json",
-            "description": "Un objet par fichier.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "file",
-                  "pages",
-                  "shapes",
-                  "errors",
-                  "warnings"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "file": {
-                    "type": "string"
-                  },
-                  "pages": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "shapes": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "errors": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "file",
+                      "pages",
+                      "shapes",
+                      "errors",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "pages": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "shapes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -3049,7 +3272,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3057,6 +3281,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -3112,106 +3342,131 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par document.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par document.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "outputs",
-                      "diagrams_exported",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "outputs": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "required": [
-                            "format",
-                            "file",
-                            "images",
-                            "tables"
-                          ],
-                          "additionalProperties": false,
-                          "properties": {
-                            "format": {
-                              "enum": [
-                                "docx",
-                                "html",
-                                "xwiki"
-                              ]
-                            },
-                            "file": {
-                              "type": "string"
-                            },
-                            "images": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "tables": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "pdf": {
-                              "type": "string"
-                            },
-                            "preview": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "preview_pages": {
-                              "type": "array",
-                              "items": {
-                                "type": "integer",
-                                "minimum": 1
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "outputs",
+                          "diagrams_exported",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "outputs": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "format",
+                                "file",
+                                "images",
+                                "tables"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "format": {
+                                  "enum": [
+                                    "docx",
+                                    "html",
+                                    "xwiki"
+                                  ]
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "images": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "tables": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "pdf": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "preview_pages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
                               }
                             }
+                          },
+                          "diagrams_exported": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "error": {
+                            "type": "string"
                           }
                         }
                       },
-                      "diagrams_exported": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
                         }
-                      },
-                      "error": {
-                        "type": "string"
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -3277,134 +3532,159 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par note.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par note.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "embeds",
-                      "wikilinks",
-                      "callouts",
-                      "attachments_copied",
-                      "missing"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "embeds": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "wikilinks": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "callouts": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "attachments_copied": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "missing": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "classification": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
                         "type": "object",
                         "required": [
-                          "type",
-                          "domaine",
-                          "method",
-                          "warnings"
+                          "input",
+                          "output",
+                          "embeds",
+                          "wikilinks",
+                          "callouts",
+                          "attachments_copied",
+                          "missing"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "type": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "domaine": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "method": {
+                          "input": {
                             "type": "string"
                           },
-                          "warnings": {
+                          "output": {
+                            "type": "string"
+                          },
+                          "embeds": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "wikilinks": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "callouts": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "attachments_copied": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "missing": {
                             "type": "array",
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "classification": {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "domaine",
+                              "method",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "domaine": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "method": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "classification_warning": {
+                            "type": "string"
+                          },
+                          "validation": {
+                            "type": "object",
+                            "required": [
+                              "ok",
+                              "errors",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
                           }
                         }
                       },
-                      "classification_warning": {
-                        "type": "string"
-                      },
-                      "validation": {
+                      {
                         "type": "object",
                         "required": [
-                          "ok",
-                          "errors",
-                          "warnings"
+                          "input",
+                          "error"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "ok": {
-                            "type": "boolean"
+                          "input": {
+                            "type": "string"
                           },
-                          "errors": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "warnings": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "error": {
+                            "type": "string"
                           }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -3434,7 +3714,9 @@
                     "notes",
                     "tags",
                     "folders",
-                    "attachments"
+                    "attachments",
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3480,18 +3762,44 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 },
                 {
                   "type": "object",
                   "required": [
-                    "error"
+                    "vault",
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
-                    "error": {
+                    "vault": {
                       "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 }
@@ -3500,7 +3808,7 @@
           },
           "exit_codes": {
             "0": "profil produit",
-            "2": "vault introuvable"
+            "1": "vault introuvable"
           }
         }
       ],
@@ -3806,7 +4114,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3814,6 +4123,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -4108,7 +4423,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -4116,6 +4432,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"

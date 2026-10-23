@@ -514,12 +514,12 @@ def main() -> int:
         else:
             spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
         return 1
     # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
     invalid = args.spec.suffix.lower() != ".csv" and validate(spec, __file__)
     if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
     audience = str(args.audience or spec.get("audience") or "technique")
     detail = args.detail or spec.get("detail") or ("quartier" if audience.startswith("non") else "application")

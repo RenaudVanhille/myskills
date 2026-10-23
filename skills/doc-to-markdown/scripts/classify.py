@@ -31,6 +31,9 @@ import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 PDF = {".pdf"}
 TEXT = {".md", ".markdown", ".txt"}
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
@@ -210,8 +213,7 @@ def main() -> int:
         if load_warning:
             report["warnings"].insert(0, load_warning[:300])
         reports.append(report)
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if failed else 0
 
 

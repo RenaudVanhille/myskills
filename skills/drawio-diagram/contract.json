@@ -230,7 +230,8 @@
               "type": "object",
               "required": [
                 "input",
-                "errors"
+                "errors",
+                "warnings"
               ],
               "additionalProperties": false,
               "properties": {
@@ -238,6 +239,12 @@
                   "type": "string"
                 },
                 "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -259,44 +266,69 @@
       "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
       "report": {
         "format": "json",
-        "description": "Un objet par fichier.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
         "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "file",
-              "pages",
-              "shapes",
-              "errors",
-              "warnings"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "file": {
-                "type": "string"
-              },
-              "pages": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "shapes": {
-                "type": "integer",
-                "minimum": 0
-              },
-              "errors": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "warnings": {
-                "type": "array",
-                "items": {
-                  "type": "string"
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "pages",
+                  "shapes",
+                  "errors",
+                  "warnings"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "pages": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "shapes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
             }
           }
         }

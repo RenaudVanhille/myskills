@@ -32,6 +32,9 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 CLASSIFY = Path(__file__).resolve().parents[2] / "doc-to-markdown" / "scripts" / "classify.py"
 VALIDATE = CLASSIFY.with_name("validate.py")
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
@@ -220,11 +223,10 @@ def main() -> int:
             failed = True
             continue
         reports.append(process(path.resolve(), args, classifications.get(path.resolve())))
-        if classify_warning:
-            reports[-1]["classification_warning"] = classify_warning
         failed = failed or bool(reports[-1]["missing"])
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports, [f"{Path(r['input']).name} : liens sans fichier : {', '.join(map(str, r['missing']))}"
+                           for r in reports if r.get("missing")],
+                 [classify_warning] if classify_warning else [])
     return 1 if failed else 0
 
 

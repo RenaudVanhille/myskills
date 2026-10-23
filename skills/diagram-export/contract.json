@@ -22,46 +22,71 @@
       },
       "report": {
         "format": "json",
-        "description": "Un objet par source ; error vaut null si tout va bien.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien.",
         "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "source",
-              "format",
-              "outputs",
-              "error"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "source": {
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "format",
+                  "outputs",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "enum": [
+                      "png",
+                      "svg",
+                      "pdf"
+                    ]
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rendered": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
                 "type": "string"
               },
-              "format": {
-                "enum": [
-                  "png",
-                  "svg",
-                  "pdf"
-                ]
+              "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
               },
-              "outputs": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "error": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "rendered": {
-                "type": "integer",
-                "minimum": 0
-              }
+              "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
             }
           }
         }

@@ -38,6 +38,12 @@ rien à passer. Exemple, avec un message de passage dans `next` :
 {"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
 
+Avant de l'envoyer, valide chaque message de passage et le rapport final
+avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill
+`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro
+erreur : schéma respecté, fichiers cités existants. Dans un dossier de
+workflow, la commande les trace aussi au journal.
+
 ## Déroulé
 
 Le dossier du projet est celui que donne l'utilisateur, sinon le dossier
@@ -61,11 +67,13 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
    Pour retrouver le contexte (reprise, retour, autre session), lis la note
    d'index du workflow dans le vault puis les notes liées utiles, plutôt
    que de relire les livrables.
-2. **Une revue en attente** (`next` dit d'attendre la revue) : si le message
-   de l'utilisateur valide l'étape, `review --decision valide --text "<ses
-   mots>"` ; s'il fait un retour, `review --decision retour --text "<ses
-   mots>"`, puis reprends l'étape en tenant compte du retour. Sinon,
-   rappelle-lui ce qui attend sa revue et arrête-toi.
+2. **Une revue en attente** (`next` dit d'attendre la revue) : avec un
+   vault, lance d'abord `review --from-vault` (l'utilisateur a pu valider
+   dans sa note de revue Obsidian). Sinon, si son message valide l'étape,
+   `review --decision valide --text "<ses mots>"` ; s'il fait un retour,
+   `review --decision retour --text "<ses mots>"`, puis reprends l'étape en
+   tenant compte du retour. Sans réponse, rappelle-lui ce qui attend sa
+   revue et arrête-toi.
 3. **Une étape à faire** : `start`, puis produis ses livrables avec son
    skill, jusqu'à zéro erreur des scripts :
    - `documents` : les documents nommés par l'utilisateur, sinon ceux de
@@ -94,8 +102,10 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
    `--kind question`.
 5. **Soumettre** : `journal.py submit DOSSIER ETAPE --files <livrables>`,
    puis arrête-toi. Présente à l'utilisateur, en quelques lignes : les
-   chemins des livrables, les compteurs du rapport du script, les
-   questions ouvertes et ce qui attend sa décision (à l'étape
+   chemins des livrables, les compteurs du rapport du script, après un
+   retour les changements de `changes` (seuls à relire), les questions
+   ouvertes, la note de revue du vault s'il y en a une, et ce qui attend sa
+   décision (à l'étape
    `architectures` : l'option recommandée et le choix à faire). Termine par
    le rapport final JSON, `status` à `partiel` et, dans `todo`, « revue de
    l'étape <étape> ».

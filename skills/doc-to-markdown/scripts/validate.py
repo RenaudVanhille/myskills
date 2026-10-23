@@ -25,6 +25,9 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^(#{1,6})\s+\S")
 FENCE = re.compile(r"^(```|~~~)")
@@ -120,8 +123,7 @@ def main() -> int:
                else {"file": str(p), "ok": False, "errors": ["Fichier introuvable."], "warnings": []}
                for p in args.files]
     shown = [r for r in results if r["errors"] or r["warnings"]] if args.quiet else results
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in shown) + "\n]")
+    print_report(shown)
     return 0 if all(r["ok"] for r in results) else 1
 
 

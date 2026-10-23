@@ -41,6 +41,7 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import local_tools  # noqa: E402
+from script_report import print_report  # noqa: E402
 
 EXPORT_SCRIPT = Path(__file__).resolve().parents[2] / "diagram-export" / "scripts" / "export.py"
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
@@ -410,8 +411,7 @@ def main() -> int:
             reports.append({"input": str(doc), "error": "Fichier introuvable"})
             continue
         reports.append(publish(doc.resolve(), args, exporter))
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if any(r.get("error") for r in reports) else 0
 
 

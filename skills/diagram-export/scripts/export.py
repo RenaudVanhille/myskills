@@ -39,6 +39,7 @@ from urllib.parse import quote, unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import local_tools  # noqa: E402
+from script_report import print_report  # noqa: E402
 
 MERMAID_VERSION = "11.12.0"
 LIKEC4 = "likec4@1"
@@ -406,8 +407,7 @@ def main() -> int:
                     report["error"] = f"{type(error).__name__} : {error}"
         failed = failed or bool(report["error"])
         reports.append(report)
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if failed else 0
 
 

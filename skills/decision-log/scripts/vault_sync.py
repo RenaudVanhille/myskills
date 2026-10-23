@@ -37,7 +37,11 @@ SCHEMAS = {"workflow.json": HERE / "journal.py",
 
 MARK = "genere: decision-log"
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
-               "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation"}
+               "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
+               "passage": "Passage de main", "rapport": "Rapport d'agent"}
+REVIEW_HELP = ("Pour valider, mettez la propriété **revue** à `validée` ; pour demander une reprise, mettez "
+               "`retour` et écrivez votre retour sous « Votre retour ». L'agent lit cette note "
+               "(`journal.py review --from-vault`) : seules la propriété revue et cette section sont gardées.")
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
                  "validee": "validée", "a-reprendre": "à reprendre"}
 
@@ -58,6 +62,24 @@ def safe_name(text: str) -> str:
 def safe_folder(path: str) -> str:
     """Dossier du vault : chaque niveau (séparé par /) rendu sûr."""
     return "/".join(safe_name(part) for part in re.split(r"[\\/]+", path) if part.strip())
+
+
+def review_note(target: str, stage: str) -> str:
+    """Chemin (sans .md) de la note de revue d'une étape, relatif au vault."""
+    return f"{safe_folder(target)}/Revues/Revue {safe_name(stage)}"
+
+
+def user_part(path: Path, submission: str) -> tuple[str, str]:
+    """Propriété revue et section « Votre retour » déjà remplies par l'utilisateur pour cette soumission."""
+    if not path.is_file():
+        return "", ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    head = text.split("\n---", 1)[0]
+    if f"soumission: {json.dumps(submission)}" not in head:
+        return "", ""
+    value = next((line.split(":", 1)[1].strip() for line in head.splitlines() if line.startswith("revue:")), "")
+    feedback = text.split("## Votre retour", 1)[1].strip("\n") if "## Votre retour" in text else ""
+    return value.strip('"'), feedback
 
 
 def load(path: Path):
@@ -195,6 +217,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             body += ["**Concerne** : " + ", ".join(refs), ""]
         if entry.get("files"):
             body += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"])]
+        if entry.get("via") == "obsidian":
+            body += ["", "Décision prise par l'utilisateur dans sa note de revue Obsidian."]
         notes[names[entry["id"]]] = note({"id": entry["id"], "type": "decision", "nature": entry["kind"],
                                           "etape": entry["stage"], "par": entry["by"], "date": entry["date"],
                                           "tags": ["decision"]}, body)
@@ -207,6 +231,23 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         notes[names["ADR"]] = note({"type": "adr", "statut": "acceptée", "tags": ["adr", "architecture"]},
                                    [text, "", up])
 
+    reviews = []
+    for stage in state["stages"]:
+        if stage["status"] != "en-revue":
+            continue
+        submission = next((e for e in reversed(state["entries"])
+                           if e["stage"] == stage["id"] and e["kind"] == "soumission"), None)
+        if not submission:
+            continue
+        rel = review_note(target, stage["id"])
+        value, feedback = user_part(vault / f"{rel}.md", submission["id"])
+        body = [f"# Revue de l'étape {stage['id']}", "", up, "", f"Soumission {link(submission['id'])} : "
+                f"{submission['text']}.", "", "**Fichiers** : " + ", ".join(f"`{f}`" for f in stage.get("files", {})),
+                "", REVIEW_HELP, "", "## Votre retour", "", feedback]
+        notes[rel] = note({"type": "revue", "etape": stage["id"], "soumission": submission["id"],
+                           "tags": ["revue"]}, body).replace("\n---\n", f"\nrevue: {json.dumps(value)}\n---\n", 1)
+        reviews.append(rel)
+
     body = [f"# {state['title']}", "", "Mémoire partagée du workflow, générée depuis `workflow.json` : "
             "ne modifiez pas ces notes, elles sont réécrites à chaque étape.", "",
             "## Étapes", "", "| Étape | Statut |", "| --- | --- |"]
@@ -216,6 +257,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     for title, refs in groups:
         if refs:
             body += ["", f"## {title}", ""] + [f"- {link(r)}" for r in refs]
+    if reviews:
+        body += ["", "## Revues en attente", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in reviews]
     if "ADR" in names:
         body += ["", "## Décision d'architecture", "", f"- [[{names['ADR']}|ADR]]"]
     if state["entries"]:

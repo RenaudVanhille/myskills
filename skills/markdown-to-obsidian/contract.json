@@ -27,134 +27,159 @@
       },
       "report": {
         "format": "json",
-        "description": "Un objet par note.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par note.",
         "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "object",
-                "required": [
-                  "input",
-                  "output",
-                  "embeds",
-                  "wikilinks",
-                  "callouts",
-                  "attachments_copied",
-                  "missing"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "input": {
-                    "type": "string"
-                  },
-                  "output": {
-                    "type": "string"
-                  },
-                  "embeds": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "wikilinks": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "callouts": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "attachments_copied": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "missing": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "classification": {
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
                     "type": "object",
                     "required": [
-                      "type",
-                      "domaine",
-                      "method",
-                      "warnings"
+                      "input",
+                      "output",
+                      "embeds",
+                      "wikilinks",
+                      "callouts",
+                      "attachments_copied",
+                      "missing"
                     ],
                     "additionalProperties": false,
                     "properties": {
-                      "type": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "domaine": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "method": {
+                      "input": {
                         "type": "string"
                       },
-                      "warnings": {
+                      "output": {
+                        "type": "string"
+                      },
+                      "embeds": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "wikilinks": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "callouts": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "attachments_copied": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "missing": {
                         "type": "array",
                         "items": {
                           "type": "string"
                         }
+                      },
+                      "classification": {
+                        "type": "object",
+                        "required": [
+                          "type",
+                          "domaine",
+                          "method",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "type": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "domaine": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "method": {
+                            "type": "string"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "classification_warning": {
+                        "type": "string"
+                      },
+                      "validation": {
+                        "type": "object",
+                        "required": [
+                          "ok",
+                          "errors",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "errors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
                       }
                     }
                   },
-                  "classification_warning": {
-                    "type": "string"
-                  },
-                  "validation": {
+                  {
                     "type": "object",
                     "required": [
-                      "ok",
-                      "errors",
-                      "warnings"
+                      "input",
+                      "error"
                     ],
                     "additionalProperties": false,
                     "properties": {
-                      "ok": {
-                        "type": "boolean"
+                      "input": {
+                        "type": "string"
                       },
-                      "errors": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
+                      "error": {
+                        "type": "string"
                       }
                     }
                   }
-                }
-              },
-              {
-                "type": "object",
-                "required": [
-                  "input",
-                  "error"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "input": {
-                    "type": "string"
-                  },
-                  "error": {
-                    "type": "string"
-                  }
-                }
+                ]
               }
-            ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+            }
           }
         }
       },
@@ -184,7 +209,9 @@
                 "notes",
                 "tags",
                 "folders",
-                "attachments"
+                "attachments",
+                "errors",
+                "warnings"
               ],
               "additionalProperties": false,
               "properties": {
@@ -230,18 +257,44 @@
                     "string",
                     "null"
                   ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             },
             {
               "type": "object",
               "required": [
-                "error"
+                "vault",
+                "errors",
+                "warnings"
               ],
               "additionalProperties": false,
               "properties": {
-                "error": {
+                "vault": {
                   "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -250,7 +303,7 @@
       },
       "exit_codes": {
         "0": "profil produit",
-        "2": "vault introuvable"
+        "1": "vault introuvable"
       }
     }
   ],

@@ -1,7 +1,7 @@
 ---
 name: schema-designer
 description: "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
-skills: check-prerequisites, diagram-brief, mermaid-diagram, drawio-diagram, excalidraw-diagram, c4-architecture, urbanization-map, cloud-architecture, diagram-export
+skills: check-prerequisites, diagram-brief, mermaid-diagram, drawio-diagram, excalidraw-diagram, c4-architecture, urbanization-map, cloud-architecture, diagram-export, decision-log
 commands: uv run *, uvx *, python *, python3 *, py *, npx likec4 *
 ---
 
@@ -35,6 +35,12 @@ rien à passer. Exemple, avec un message de passage dans `next` :
 ```json
 {"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
+
+Avant de l'envoyer, valide chaque message de passage et le rapport final
+avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill
+`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro
+erreur : schéma respecté, fichiers cités existants. Dans un dossier de
+workflow, la commande les trace aussi au journal.
 
 ## Déroulé
 

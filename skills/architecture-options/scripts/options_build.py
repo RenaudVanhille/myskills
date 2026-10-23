@@ -216,22 +216,22 @@ def main() -> int:
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
         return 1
     invalid = validate(spec, __file__)
     if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
 
     if args.decision:
         try:
             spec["decision"] = json.loads(args.decision.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
-            print(json.dumps({"input": str(args.decision), "errors": [str(error)]}, ensure_ascii=False))
+            print(json.dumps({"input": str(args.decision), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
             return 1
         invalid = [f"décision : {e}" for e in check(spec["decision"], input_schema(__file__)["properties"]["decision"])]
         if invalid:
-            print(json.dumps({"input": str(args.decision), "errors": invalid}, ensure_ascii=False))
+            print(json.dumps({"input": str(args.decision), "errors": invalid, "warnings": []}, ensure_ascii=False))
             return 1
 
     errors: list[str] = []

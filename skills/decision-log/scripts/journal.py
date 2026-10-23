@@ -16,17 +16,29 @@ Règles appliquées par le script, pas par le modèle :
   n'ont pas changé depuis la soumission ;
 - un retour sur une étape remet à reprendre cette étape et toutes les
   suivantes déjà commencées ;
-- une validation ou un retour est toujours attribué à l'utilisateur.
+- une étape ne démarre pas si un livrable déjà validé a changé depuis ;
+- une validation ou un retour est toujours attribué à l'utilisateur ;
+- à une nouvelle soumission, les exigences, options et fichiers ajoutés,
+  retirés ou modifiés depuis la version relue sont listés (revue
+  différentielle).
 
 Avec `init --vault VAULT`, chaque commande écrit aussi la mémoire partagée
 dans le vault Obsidian (vault_sync.py) : une note par exigence, option et
-entrée du journal, reliées par des wikilinks.
+entrée du journal, reliées par des wikilinks, et une note de revue par étape
+soumise, où l'utilisateur valide (propriété `revue`) ; `review --from-vault`
+la lit.
+
+`handoff` et `report` valident un message de passage et un rapport final
+d'agent contre leurs schémas (shared/schemas/) et vérifient que leurs
+fichiers existent ; dans un dossier de workflow, ils les notent au journal.
 
     uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE
     uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
     uv run scripts/journal.py submit DOSSIER ETAPE --files F [F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
+    uv run scripts/journal.py review DOSSIER ETAPE --from-vault
+    uv run scripts/journal.py handoff|report DOSSIER --file MESSAGE.json | --json '{...}'
     uv run scripts/journal.py status DOSSIER
     uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
@@ -39,14 +51,20 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib.spec_schema import print_schema, validate  # noqa: E402
-from vault_sync import safe_folder, safe_name, sync  # noqa: E402
+from lib.spec_schema import check, print_schema, validate  # noqa: E402
+from vault_sync import review_note, safe_folder, safe_name, sync  # noqa: E402
+
+LIB = Path(__file__).resolve().parent / "lib"
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
                  "validee": "validée", "a-reprendre": "à reprendre"}
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
-               "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation"}
+               "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
+               "passage": "Passage de main", "rapport": "Rapport d'agent"}
+# Valeurs de la propriété `revue` d'une note de revue dans le vault.
+VAULT_DECISIONS = {"validée": "valide", "validee": "valide", "valide": "valide", "ok": "valide",
+                   "retour": "retour", "à reprendre": "retour", "a reprendre": "retour"}
 STATE, JOURNAL = "workflow.json", "journal.md"
 
 
@@ -71,7 +89,7 @@ def stage_of(state: dict, name: str, errors: list[str]) -> dict | None:
 
 
 def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str = "",
-              refs: list[str] | None = None, files: list[str] | None = None) -> str:
+              refs: list[str] | None = None, files: list[str] | None = None, via: str | None = None) -> str:
     entry_id = f"D-{len(state['entries']) + 1:03d}"
     entry = {"id": entry_id, "date": now(), "stage": stage, "kind": kind, "by": by, "text": text}
     if why:
@@ -80,8 +98,75 @@ def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str =
         entry["refs"] = refs
     if files:
         entry["files"] = files
+    if via:
+        entry["via"] = via
     state["entries"].append(entry)
     return entry_id
+
+
+def items_of(path: Path) -> dict[str, str]:
+    """Empreinte de chaque élément identifié (exigence, option...) d'un livrable JSON."""
+    if path.suffix.lower() != ".json":
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    found = {}
+    for value in (data.values() if isinstance(data, dict) else []):
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict) and isinstance(item.get("id"), str):
+                    canonical = json.dumps(item, ensure_ascii=False, sort_keys=True)
+                    found[item["id"]] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return found
+
+
+def differences(stage: dict, files: dict[str, str], items: dict[str, dict]) -> dict | None:
+    """Ce qui a changé depuis la soumission précédente de l'étape (None à la première)."""
+    if not stage.get("files"):
+        return None
+    before, after = stage.get("items", {}), items
+    old = {i: h for f in before.values() for i, h in f.items()}
+    new = {i: h for f in after.values() for i, h in f.items()}
+    return {"added": sorted(new.keys() - old.keys()), "removed": sorted(old.keys() - new.keys()),
+            "modified": sorted(i for i in new.keys() & old.keys() if new[i] != old[i]),
+            "files": sorted(f for f in files.keys() | stage["files"].keys()
+                            if files.get(f) != stage["files"].get(f))}
+
+
+def describe(changes: dict) -> str:
+    parts = [f"{label} : {', '.join(changes[key])}" for key, label in
+             (("added", "ajoutés"), ("removed", "retirés"), ("modified", "modifiés")) if changes[key]]
+    return "; ".join(parts) or ("fichiers modifiés : " + ", ".join(changes["files"]) if changes["files"]
+                                else "aucun changement")
+
+
+def load_message(args, errors: list[str]):
+    """Message de passage ou rapport final passé par --file ou --json."""
+    try:
+        text = args.file.read_text(encoding="utf-8") if args.file else args.json
+        return json.loads(text)
+    except (OSError, ValueError, TypeError) as error:
+        errors.append(f"message illisible ({error})")
+        return None
+
+
+def message_errors(kind: str, message, folder: Path) -> list[str]:
+    """Erreurs d'un message de passage (handoff) ou d'un rapport final (report) : schéma, puis fichiers."""
+    handoff = json.loads((LIB / "handoff.schema.json").read_text(encoding="utf-8"))
+    if kind == "handoff":
+        schema = handoff
+    else:
+        schema = json.loads((LIB / "agent-report.schema.json").read_text(encoding="utf-8"))
+        schema["$defs"] = {"handoff.schema.json": handoff}
+    errors = check(message, schema)
+    if errors or not isinstance(message, dict):
+        return errors
+    files = list(message["files"]) + (list(message["next"]["files"]) if kind == "report" and message.get("next")
+                                      else [])
+    missing = [f for f in dict.fromkeys(files) if not (Path(f).exists() or (folder / f).exists())]
+    return [f"files : {f} introuvable" for f in missing]
 
 
 def changed_files(folder: Path, stage: dict) -> list[str]:
@@ -137,8 +222,30 @@ def save(folder: Path, state: dict) -> None:
         handle.write(render(state))
 
 
+def read_review(note: Path) -> tuple[str | None, str]:
+    """Propriété `revue` et texte sous « Votre retour » d'une note de revue du vault."""
+    if not note.is_file():
+        return None, ""
+    text = note.read_text(encoding="utf-8", errors="replace")
+    head = text.split("\n---", 1)[0] if text.startswith("---") else ""
+    value = next((line.split(":", 1)[1].strip().strip('"').strip("'").lower() for line in head.splitlines()
+                  if line.startswith("revue:")), "")
+    feedback = text.split("## Votre retour", 1)[1].strip() if "## Votre retour" in text else ""
+    return value or None, " ".join(feedback.split())
+
+
 def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
     folder: Path = args.folder
+    if args.command in ("handoff", "report"):
+        message = load_message(args, errors)
+        if message is None:
+            return None, None
+        errors += message_errors(args.command, message, folder)
+        if errors:
+            return None, None
+        if not (folder / STATE).exists():
+            warnings.append(f"message valide, non tracé : pas de {STATE} dans {folder}")
+            return None, None
     if args.command == "init":
         if (folder / STATE).exists():
             errors.append(f"{folder / STATE} existe déjà : utilisez status pour reprendre le workflow")
@@ -175,6 +282,15 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                                 "faites-les revoir (review --decision retour)")
     if args.command == "status":
         return state, None
+    if args.command in ("handoff", "report"):
+        current = next_action(state)[0] or state["stages"][-1]["id"]
+        if args.command == "handoff":
+            text = f"vers {message['agent']} : {message['objective']}"
+        else:
+            text = f"{message['agent']} : {message['status']}, {len(message['files'])} fichier(s)" + (
+                f", à faire : {'; '.join(message['todo'])}" if message["todo"] else "")
+        return state, add_entry(state, current, "passage" if args.command == "handoff" else "rapport", "agent",
+                                text, files=message["files"])
 
     stage = stage_of(state, args.stage, errors)
     if not stage:
@@ -183,9 +299,14 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
     entry = None
     if args.command == "start":
         blocking = [s["id"] for s in state["stages"][:index] if s["status"] != "validee"]
+        stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in state["stages"][:index]
+                 if s["status"] == "validee" and changed_files(folder, s)]
         if blocking:
             errors.append(f"{stage['id']} ne peut pas démarrer : étape(s) non validée(s) avant elle : "
                           f"{', '.join(blocking)}")
+        elif stale:
+            errors.append(f"{stage['id']} ne peut pas démarrer : livrable(s) validé(s) modifié(s) depuis : "
+                          f"{'; '.join(stale)} ; faites-les revoir (review --decision retour)")
         elif stage["status"] not in ("a-faire", "a-reprendre"):
             errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]}, pas à démarrer")
         else:
@@ -203,11 +324,47 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         errors += [f"fichier introuvable : {f} (chemin relatif au dossier du workflow)" for f in missing]
         if not errors:
             files = sorted(dict.fromkeys(Path(f).as_posix() for f in args.files))
-            stage["files"] = {f: digest(folder / f) for f in files}
-            stage["status"] = "en-revue"
-            entry = add_entry(state, stage["id"], "soumission", "agent", f"{len(files)} fichier(s) soumis à la revue",
-                              files=files)
+            hashes = {f: digest(folder / f) for f in files}
+            items = {f: found for f in files if (found := items_of(folder / f))}
+            changes = differences(stage, hashes, items)
+            stage["files"], stage["status"] = hashes, "en-revue"
+            if items:
+                stage["items"] = items
+            else:
+                stage.pop("items", None)
+            text = f"{len(files)} fichier(s) soumis à la revue"
+            if changes is not None:
+                text += f" ; depuis la version relue : {describe(changes)}"
+                args.changes = changes
+            entry = add_entry(state, stage["id"], "soumission", "agent", text, files=files,
+                              refs=(changes["added"] + changes["modified"]) if changes else None)
     elif args.command == "review":
+        via = None
+        if not args.from_vault and not (args.decision and args.text):
+            errors.append("review : --decision et --text (les mots de l'utilisateur), ou --from-vault")
+            return None, None
+        if args.from_vault:
+            memory = state.get("memory")
+            if not memory:
+                errors.append("pas de vault pour ce workflow : review --decision ... --text ...")
+                return None, None
+            if stage["status"] != "en-revue":
+                errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : pas de revue en attente")
+                return None, None
+            note = Path(memory["vault"]) / f"{review_note(memory['folder'], stage['id'])}.md"
+            value, text = read_review(note)
+            if value is None:
+                errors.append(f"pas encore de revue dans {note} : propriété revue à « validée » ou « retour »")
+                return None, None
+            args.decision = VAULT_DECISIONS.get(value)
+            if not args.decision:
+                errors.append(f"{note.name} : revue « {value} » non permise (validée, retour)")
+                return None, None
+            args.text = text or ("validé dans Obsidian" if args.decision == "valide" else "")
+            if not args.text:
+                errors.append(f"{note.name} : retour sans texte sous « Votre retour »")
+                return None, None
+            via = "obsidian"
         if args.decision == "valide":
             if stage["status"] != "en-revue":
                 errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en revue "
@@ -220,13 +377,14 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                 else:
                     stage["status"] = "validee"
                     entry = add_entry(state, stage["id"], "validation", "utilisateur", args.text,
-                                      refs=split(args.refs), files=list(stage["files"]))
+                                      refs=split(args.refs), files=list(stage["files"]), via=via)
         else:
             if stage["status"] not in ("en-revue", "validee", "en-cours"):
                 errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : rien à reprendre")
             else:
                 stage["status"] = "a-reprendre"
-                entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs))
+                entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs),
+                                  via=via)
                 for later in state["stages"][index + 1:]:
                     if later["status"] != "a-faire":
                         later["status"] = "a-reprendre"
@@ -265,9 +423,17 @@ def main() -> int:
         if name == "submit":
             command.add_argument("--files", nargs="+", required=True, help="chemins relatifs au dossier")
         if name == "review":
-            command.add_argument("--decision", required=True, choices=["valide", "retour"])
-            command.add_argument("--text", required=True, help="les mots de l'utilisateur")
+            command.add_argument("--decision", choices=["valide", "retour"])
+            command.add_argument("--text", help="les mots de l'utilisateur")
             command.add_argument("--refs", help="exigences, options ou fichiers concernés")
+            command.add_argument("--from-vault", action="store_true",
+                                 help="lire la décision dans la note de revue du vault (propriété revue)")
+    for name, what in (("handoff", "message de passage"), ("report", "rapport final d'agent")):
+        command = sub.add_parser(name, help=f"valide un {what} et le note au journal")
+        command.add_argument("folder", type=Path, help="dossier du workflow, ou dossier de travail")
+        source = command.add_mutually_exclusive_group(required=True)
+        source.add_argument("--file", type=Path, help=f"{what} en JSON")
+        source.add_argument("--json", help=f"{what} en JSON sur une ligne")
     args = parser.parse_args()
 
     errors: list[str] = []
@@ -284,7 +450,7 @@ def main() -> int:
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
-              "current": current, "next": action, "entry": entry,
+              "current": current, "next": action, "entry": entry, "changes": getattr(args, "changes", None),
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
               "memory": memory,
               "errors": errors, "warnings": warnings}

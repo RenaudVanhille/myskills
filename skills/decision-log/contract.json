@@ -14,15 +14,17 @@
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] | --schema",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
-        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
         "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
-        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
-        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
+        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
+        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
-        "--schema": "affiche le schéma de workflow.json sur une ligne"
+        "--schema": "affiche le schéma de workflow.json sur une ligne",
+        "handoff DOSSIER": "valide un message de passage (--file ou --json) contre shared/schemas/handoff.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json",
+        "report DOSSIER": "valide un rapport final d'agent contre shared/schemas/agent-report.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json"
       },
       "report": {
         "format": "json",
@@ -40,7 +42,8 @@
             "questions",
             "memory",
             "errors",
-            "warnings"
+            "warnings",
+            "changes"
           ],
           "additionalProperties": false,
           "properties": {
@@ -54,7 +57,9 @@
                 "log",
                 "submit",
                 "review",
-                "status"
+                "status",
+                "handoff",
+                "report"
               ]
             },
             "stages": {
@@ -137,13 +142,57 @@
               "items": {
                 "type": "string"
               }
+            },
+            "changes": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "files"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "added": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "removed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "modified": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ],
+              "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
             }
           }
         }
       },
       "exit_codes": {
         "0": "commande appliquée",
-        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable, workflow.json non conforme à son schéma) ; workflow.json inchangé"
+        "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, message ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
       },
       "input": {
         "format": "json",
@@ -215,6 +264,16 @@
                       "pattern": "^[0-9a-f]{64}$"
                     },
                     "description": "Fichier soumis -> empreinte SHA-256."
+                  },
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
                   }
                 }
               }
@@ -251,7 +310,9 @@
                       "soumission",
                       "retour",
                       "validation",
-                      "invalidation"
+                      "invalidation",
+                      "passage",
+                      "rapport"
                     ]
                   },
                   "by": {
@@ -278,6 +339,12 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "via": {
+                    "enum": [
+                      "obsidian"
+                    ],
+                    "description": "Décision lue dans la note de revue du vault."
                   }
                 }
               }

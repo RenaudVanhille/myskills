@@ -52,6 +52,9 @@ from pathlib import Path
 
 from validate import check
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
 # Documents pris dans un dossier passé en argument.
@@ -237,8 +240,8 @@ def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | 
     command += [str(f) for f in files] + (["--domains", domains] if domains else [])
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
     try:
-        reports = json.loads(result.stdout)
-    except json.JSONDecodeError:
+        reports = json.loads(result.stdout)["results"]
+    except (json.JSONDecodeError, KeyError, TypeError):
         lines = (result.stderr or "sortie vide").strip().splitlines()
         return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
     return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
@@ -391,13 +394,10 @@ def main() -> int:
                                    classifications.get(path.resolve()), not args.no_clean, stems[path]))
             if stems[path] != path.stem:
                 reports[-1]["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
-            if classify_warning:
-                reports[-1]["warnings"].append(classify_warning)
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports, warnings=[classify_warning] if classify_warning else [])
     return 1 if failed else 0
 
 

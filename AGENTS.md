@@ -49,8 +49,10 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   Un livrable non vérifié est signalé comme tel dans le rapport final.
 - **Rapport** : un script écrit un rapport JSON court sur la sortie standard,
   dont le JSON Schema est dans le contrat **(vérifiée : schéma présent et
-  valide)** ; `tests/run.py` valide chaque rapport contre ce schéma. Champs
-  `errors` et `warnings` toujours présents.
+  valide)** ; `tests/run.py` valide chaque rapport contre ce schéma. Le
+  rapport est un objet avec `errors` et `warnings` toujours présents
+  **(vérifiée)** ; un script qui traite plusieurs fichiers
+  met un objet par fichier dans `results` (`shared/scripts/script_report.py`).
 - **Entre agents** : une demande suit `shared/schemas/handoff.schema.json`,
   un agent termine par le rapport final de
   `shared/schemas/agent-report.schema.json`, en JSON sur une ligne. Un passage

@@ -64,7 +64,10 @@ def check(value, schema: dict, root: dict | None = None, path: str = "") -> list
     errors = []
     if "enum" in schema and value not in schema["enum"]:
         allowed = ", ".join(json.dumps(v, ensure_ascii=False) for v in schema["enum"])
-        errors.append(f"{where} : « {value} » non permis ({allowed})")
+        texts = [v for v in schema["enum"] if isinstance(v, str)]
+        close = difflib.get_close_matches(value, texts, n=1, cutoff=0.6) if isinstance(value, str) else []
+        hint = f" ; vouliez-vous « {close[0]} » ?" if close else ""
+        errors.append(f"{where} : « {value} » non permis ({allowed}){hint}")
     if isinstance(value, (int, float)) and not isinstance(value, bool) and "minimum" in schema \
             and value < schema["minimum"]:
         errors.append(f"{where} : {value} inférieur au minimum {schema['minimum']}")

@@ -7,12 +7,12 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1, "0.validation.ok": true}},
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.images": 1, "results.0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/architecture.md"], "exit": 0},
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}", "--skip-existing"],
-         "exit": 0, "report": {"0.skipped": true}}
+         "exit": 0, "report": {"results.0.skipped": true}}
       ],
       "files": ["architecture.md", "attachments/architecture-1.png"],
       "contains": {"architecture.md": ["# Architecture du service de paiement",
@@ -26,7 +26,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/presentation.pptx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}}
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.images": 1}}
       ],
       "files": ["presentation.md", "attachments/presentation-1.png"],
       "contains": {"presentation.md": ["Flux d'un paiement"]}
@@ -37,8 +37,8 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-texte.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false},
-         "report_contains": {"0.hints": "titre probable"}},
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.pages": 2, "results.0.needs_vision": false},
+         "report_contains": {"results.0.hints": "titre probable"}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/rapport-texte.md"], "exit": 0}
       ],
@@ -51,8 +51,8 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}", "--engine", "markitdown"],
-         "exit": 0, "report": {"0.type": "pdf", "0.needs_vision": true},
-         "report_contains": {"0.warnings": "Pages sans texte"}}
+         "exit": 0, "report": {"results.0.type": "pdf", "results.0.needs_vision": true},
+         "report_contains": {"results.0.warnings": "Pages sans texte"}}
       ]
     },
     {
@@ -63,8 +63,8 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.type": "pdf"},
-         "report_contains": {"0.warnings": "Pages sans texte"}}
+         "exit": 0, "report": {"results.0.type": "pdf"},
+         "report_contains": {"results.0.warnings": "Pages sans texte"}}
       ]
     },
     {
@@ -74,7 +74,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{fixtures}/homonymes", "--out", "{out}"],
-         "exit": 0, "report_contains": {"1.warnings": "rapport-png.md"}}
+         "exit": 0, "report_contains": {"results.1.warnings": "rapport-png.md"}}
       ],
       "files": ["rapport-pdf.md", "rapport-png.md", "attachments/rapport-png.png"]
     },
@@ -84,7 +84,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/schema-flux.png", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "copie", "0.needs_vision": true}}
+         "exit": 0, "report": {"results.0.engine": "copie", "results.0.needs_vision": true}}
       ],
       "files": ["schema-flux.md", "attachments/schema-flux.png"]
     },
@@ -97,7 +97,7 @@
         {"script": "{skills}/doc-to-markdown/scripts/classify.py",
          "args": ["{samples}/presentation.pptx", "{samples}/rapport-scanne.pdf", "--rules-only"],
          "exit": 0,
-         "report": {"0.type": "presentation", "0.method": "regles", "1.engine": "docling"}}
+         "report": {"results.0.type": "presentation", "results.0.method": "regles", "results.1.engine": "docling"}}
       ]
     },
     {
@@ -109,7 +109,7 @@
         {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
          "args": ["{out}/tmp/architecture.md", "--vault", "{out}/vault", "--folder", "Architecture",
                   "--tags", "architecture,paiement", "--source", "architecture.docx", "--move"],
-         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1, "0.validation.ok": true}},
+         "exit": 0, "report": {"results.0.embeds": 1, "results.0.attachments_copied": 1, "results.0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
          "exit": 0}
@@ -133,7 +133,7 @@
       "steps": [
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
          "args": ["{fixtures}/diagrams/paiement-valide.drawio"],
-         "exit": 0, "report": {"0.shapes": 3, "0.errors": [], "0.warnings": []}}
+         "exit": 0, "report": {"results.0.shapes": 3, "results.0.errors": [], "results.0.warnings": []}}
       ]
     },
     {
@@ -142,7 +142,7 @@
       "steps": [
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
          "args": ["{fixtures}/diagrams/paiement-casse.drawio"],
-         "exit": 1, "report_contains": {"0.errors": "identifiant en double"}}
+         "exit": 1, "report_contains": {"results.0.errors": "identifiant en double"}}
       ]
     },
     {
@@ -153,7 +153,7 @@
          "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.drawio"],
          "exit": 0, "report": {"errors": [], "warnings": [], "pages": 1}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["paiement.drawio"],
       "contains": {"paiement.drawio": ["fillColor=#dbeafe", "Comment un paiement est traité", "Légende"]}
@@ -167,7 +167,7 @@
          "exit": 0, "report": {"errors": [], "warnings": [], "pages": 6, "zones": 5, "quartiers": 10,
                                "ilots": 8, "applications": 21, "detail": "ilot"}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/pos.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/pos.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["pos.drawio"],
       "contains": {"pos.drawio": ["Plan d'occupation des sols du SI : assurance", "container=1",
@@ -209,7 +209,7 @@
          "exit": 0, "report": {"errors": [], "boundaries": 4, "crossing": 8},
          "report_contains": {"warnings": "F4"}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/aws.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/aws.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["aws.drawio", "reseau.drawio", "reseau.flows.md", "menaces.md"],
       "contains": {"aws.drawio": ["resIcon=mxgraph.aws4.ecs", "grIcon=mxgraph.aws4.group_vpc2", "API commandes", "HTTPS 443"],
@@ -359,6 +359,204 @@
       ],
       "files": ["w/workflow.json", "w/journal.md"],
       "contains": {"w/journal.md": ["| D-001 |", "Arrêt de l'ancienne application écarté", "Catalogue validé", "Invalidation", "à reprendre après le retour D-005 sur exigences"]}
+    },
+    {
+      "id": "revue-differentielle",
+      "skill": "decision-log",
+      "_note": "Retour, nouvelle version des exigences : submit liste les changements ; un livrable validé modifié bloque l'étape suivante ; passages de main et rapports validés.",
+      "steps": [
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/cahier-des-charges.md",
+            "{out}/w/sources/cahier-des-charges.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/compte-rendu-atelier.md",
+            "{out}/w/sources/compte-rendu-atelier.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/exigences-securite.md",
+            "{out}/w/sources/exigences-securite.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/cahier-des-charges.md",
+            "{out}/vault/Notes/cahier-des-charges.md"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{out}/w",
+            "--title",
+            "Portail : sinistres",
+            "--stages",
+            "exigences,architectures",
+            "--vault",
+            "{out}/vault"
+          ],
+          "exit": 0,
+          "report": {
+            "memory.folder": "Workflows/Portail - sinistres"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "exigences"
+          ],
+          "exit": 0
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{out}/w",
+            "exigences",
+            "--files",
+            "exigences.json"
+          ],
+          "exit": 0,
+          "report": {
+            "changes": null
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--from-vault"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "pas encore de revue"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--decision",
+            "retour",
+            "--text",
+            "Retirer EF-002"
+          ],
+          "exit": 0
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "exigences"
+          ],
+          "exit": 0
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences-v2.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{out}/w",
+            "exigences",
+            "--files",
+            "exigences.json"
+          ],
+          "exit": 0,
+          "report": {
+            "changes.removed": [
+              "EF-002"
+            ],
+            "changes.modified": [
+              "EF-001"
+            ],
+            "changes.added": []
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ],
+          "exit": 0
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "architectures"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "modifié"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "report",
+            "{out}/w",
+            "--file",
+            "{fixtures}/workflow/rapport-agent.json"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "exigences.md introuvable"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "handoff",
+            "{out}/w",
+            "--file",
+            "{fixtures}/workflow/passage-invalide.json"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "schema-designer"
+          }
+        }
+      ],
+      "files": [
+        "vault/Workflows/Portail - sinistres/Portail - sinistres.md"
+      ]
     },
     {
       "id": "vault",
