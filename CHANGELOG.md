@@ -46,4 +46,4 @@ tests sur trois systèmes et nouvelles fonctionnalités.
 
 ## 0.1.0 (2026-10-22)
 
-Première version : 3 agents, 11 skills.
+Première version.
