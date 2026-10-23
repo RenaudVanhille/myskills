@@ -12,7 +12,7 @@
     {
       "name": "pos_build.py",
       "role": "Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-      "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf]",
+      "usage": "uv run scripts/pos_build.py SUJET.json|SUJET.csv [--out SUJET.drawio] [--title TITRE] [--audience technique|\"non technique\"] [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf] | --schema",
       "options": {
         "SUJET.json|SUJET.csv": "description du plan ou inventaire des applications",
         "--out": "fichier .drawio (défaut : même nom)",
@@ -20,7 +20,157 @@
         "--audience": "technique (défaut) ou non technique",
         "--detail": "niveau le plus fin affiché (défaut : application en technique, quartier en non technique)",
         "--zoom": "ajoute une page par zone, au niveau des applications",
-        "--vocabulary": "pos (défaut) ou togaf : légende en capacités de niveau 1 à 3, zones empilées dans l'ordre donné"
+        "--vocabulary": "pos (défaut) ou togaf : légende en capacités de niveau 1 à 3, zones empilées dans l'ordre donné",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires. Un inventaire CSV n'est pas concerné.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "zones"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "detail": {
+              "enum": [
+                "zone",
+                "quartier",
+                "ilot",
+                "application"
+              ]
+            },
+            "vocabulary": {
+              "enum": [
+                "pos",
+                "togaf"
+              ]
+            },
+            "zoom": {
+              "type": "boolean"
+            },
+            "legend": {
+              "enum": [
+                "auto",
+                true,
+                false
+              ]
+            },
+            "zones": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "type": "string"
+                  },
+                  "quartiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "name"
+                      ],
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "ilots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "name"
+                            ],
+                            "additionalProperties": false,
+                            "patternProperties": {
+                              "^_": {}
+                            },
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "apps": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/$defs/app"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "apps": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/app"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "$defs": {
+            "app": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
       },
       "report": {
         "format": "json",

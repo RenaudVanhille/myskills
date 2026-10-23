@@ -9,6 +9,7 @@ le résultat : les outils installent le plugin depuis le dépôt.
     agents/*.md                           agents Claude Code
     com.github.copilot/agents/*.agent.md  agents GitHub Copilot
     skills/*/references/style.md          charte : règles communes + section du format (shared/targets.txt)
+    skills/*/scripts/lib/spec_schema.py   validateur des descriptions JSON (shared/scripts/), si un script a un `input`
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
 
@@ -64,6 +65,11 @@ def main() -> None:
         if line.strip() and not line.startswith("#"):
             skill, _, section = line.strip().partition(" ")
             write_text(REPO / "skills" / skill / "references" / "style.md", style_for(style, section))
+
+    validator = (REPO / "shared" / "scripts" / "spec_schema.py").read_text(encoding="utf-8")
+    for name, contract in skill_contracts().items():
+        if any(script.get("input") for script in contract["scripts"]):
+            write_text(REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py", validator)
 
     agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))

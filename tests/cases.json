@@ -210,6 +210,32 @@
                    "gitops.drawio": ["Argo CD", "image=data:image/svg+xml"]}
     },
     {
+      "id": "entrees-invalides",
+      "skill": "drawio-diagram",
+      "_note": "Chaque script refuse une description non conforme au schéma d'entrée de son contrat, avec le chemin de l'erreur.",
+      "steps": [
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py",
+         "args": ["{fixtures}/diagrams/drawio-invalide.json", "--out", "{out}/d.drawio"],
+         "exit": 1, "report_contains": {"errors": "elements/0 : clé inconnue « lable » ; vouliez-vous « label » ?"}},
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py",
+         "args": ["{fixtures}/diagrams/drawio-invalide.json", "--out", "{out}/d.drawio"],
+         "exit": 1, "report_contains": {"errors": "elements/2 : champ « to » manquant"}},
+        {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py",
+         "args": ["{fixtures}/diagrams/drawio-invalide.json", "--out", "{out}/d.excalidraw"],
+         "exit": 1, "report_contains": {"errors": "elements/1/row : nombre attendu"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-invalide.json", "--out", "{out}/p.drawio"],
+         "exit": 1, "report_contains": {"errors": "zones/0 : clé inconnue « quartier » ; vouliez-vous « quartiers » ?"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-invalide.json", "--out", "{out}/c.drawio"],
+         "exit": 1, "report_contains": {"errors": "racine : clé inconnue « flow » ; vouliez-vous « flows » ?"}},
+        {"script": "{skills}/cloud-architecture/scripts/stride.py",
+         "args": ["{fixtures}/diagrams/cloud-invalide.json", "--out", "{out}/c.threats.md"],
+         "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}}
+      ],
+      "absent": ["d.drawio", "d.excalidraw", "p.drawio", "c.drawio", "c.threats.md"]
+    },
+    {
       "id": "excalidraw",
       "skill": "excalidraw-diagram",
       "steps": [

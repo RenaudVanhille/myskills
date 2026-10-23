@@ -1,0 +1,9 @@
+{
+  "title": "Description invalide",
+  "audience": "tech",
+  "elements": [
+    {"id": "api", "role": "sytem", "lable": "API"},
+    {"id": "db", "role": "db", "label": "Base", "row": "1"},
+    {"from": "api"}
+  ]
+}
