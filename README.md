@@ -31,13 +31,14 @@ forme de skills. Hermes ne lit que `~/.hermes/skills` : en projet, `install.py`
 affiche la commande `hermes config set skills.external_dirs "<dossier>"` à
 lancer une fois (elle remplace les `external_dirs` déjà configurés).
 
-Les scripts sont en Python sans dépendance et fonctionnent sous Windows,
-macOS et Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/)
-(`uv run scripts/...`) ou directement avec `python`.
+Les scripts sont en Python 3.10+ et fonctionnent sous Windows, macOS et
+Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/) (`uv run scripts/...`) :
+uv installe les dépendances déclarées en tête de chaque script (MarkItDown,
+Playwright, Pandoc...). Ceux qui n'en ont pas tournent aussi avec `python`.
 
 Avant une première utilisation, le skill `check-prerequisites` liste les
-outils locaux manquants (MarkItDown, Docling, draw.io Desktop, Node.js, un
-navigateur, LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
+outils locaux manquants (uv, draw.io Desktop, un navigateur ; Node.js et
+LibreOffice en option). Pandoc, les bibliothèques Mermaid et Excalidraw et LikeC4 sont téléchargés à
 la demande ; les rendus passent par Playwright.
 
 ## Contenu
@@ -49,7 +50,7 @@ la demande ; les rendus passent par Playwright.
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
-| `architecture-workflow` | Workflow en 4 étapes fixes : documents, exigences, 2 ou 3 architectures, schémas ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
+| `architecture-workflow` | Workflow décrit en JSON, par défaut en 4 étapes : documents, exigences (avec glossaire), 2 ou 3 architectures, schémas et matrice de traçabilité ; aussi `cloud-existant` (code d'infrastructure vers schéma cloud et STRIDE) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
 foi :
@@ -70,7 +71,7 @@ lire par un autre agent ou outil qui appelle myskills.
 
 | Skill | Rôle |
 | --- | --- |
-| `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants |
+| `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants ; prépare le mode hors ligne (`--prefetch`, empreintes vérifiées) |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
 | `markdown-to-obsidian` | Markdown vers format Obsidian |
 | `diagram-brief` | Grille de choix du format de schéma |
@@ -79,10 +80,10 @@ lire par un autre agent ou outil qui appelle myskills.
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
-| `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, export Markdown et CSV |
-| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, un schéma draw.io par option |
-| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, et mémoire partagée dans un vault Obsidian (une note par exigence, option et décision) |
-| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE |
+| `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
+| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud) |
+| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, passages de main validés, et mémoire partagée dans un vault Obsidian (une note par exigence, terme, option et décision, revue dans Obsidian) |
+| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
 

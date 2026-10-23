@@ -20,6 +20,7 @@ Usage :
 import argparse
 import difflib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -30,7 +31,7 @@ from pathlib import Path
 TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
 TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" / "samples"),
-          "{fixtures}": str(TESTS / "fixtures")}
+          "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
 MIN_RATIO = 0.9
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -82,18 +83,25 @@ def lookup(data, dotted: str):
 
 
 def run_step(step: dict, out: Path, failures: list[str]) -> None:
+    if "copy" in step:  # prépare un fichier de travail : {"copy": [source, destination]}
+        source, target = (Path(expand(p, out)) for p in step["copy"])
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        return
     script = expand(step["script"], out)
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
-    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    # "env" : variables propres à l'étape (cache isolé, mode hors ligne...).
+    env = {**os.environ, **{k: expand(v, out) for k, v in step.get("env", {}).items()}}
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=env)
     name = Path(script).name
-    if result.returncode != step.get("exit", 0):
+    if step.get("exit", 0) != "any" and result.returncode != step.get("exit", 0):
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or [""]
         failures.append(f"{name} : code {result.returncode} au lieu de {step.get('exit', 0)} "
                         f"({tail[0][:200]})")
     # La description passée au script (premier argument .json) doit respecter son schéma d'entrée.
     spec_schema = INPUTS.get(name)
     first = expand(step.get("args", [""])[0], out) if step.get("args") else ""
-    if spec_schema and first.endswith(".json") and step.get("exit", 0) == 0:
+    if spec_schema and first.endswith(".json") and step.get("exit", 0) == 0 and Path(first).is_file():
         spec = json.loads(Path(first).read_text(encoding="utf-8"))
         failures += [f"{name} : description {Path(first).name} non conforme au schéma d'entrée, {e}"
                      for e in schema_errors(spec, spec_schema)]
@@ -186,6 +194,20 @@ def check_contracts() -> dict:
             if handoff["to"] not in known:
                 failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
 
+    # Workflows livrés : conformes au schéma de définition, skills et agents existants.
+    journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
+    definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
+    for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
+        definition = json.loads(path.read_text(encoding="utf-8"))
+        failures += [f"workflows/{path.name} : {e}" for e in schema_errors(definition, definition_schema)]
+        if definition.get("name") != path.stem:
+            failures.append(f"workflows/{path.name} : name = {definition.get('name')!r}, attendu {path.stem!r}")
+        for stage in definition.get("stages", []):
+            failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill inconnu « {s} »"
+                         for s in stage.get("skills", []) if s not in skills]
+            if stage.get("agent") and stage["agent"] not in agents:
+                failures.append(f"workflows/{path.name} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
+
     for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
         if path.stem not in agents:
             failures.append(f"agent {path.stem} : pas de {path.stem}.contract.json")
@@ -204,12 +226,9 @@ def check_contracts() -> dict:
     for name, contract in agents.items():
         if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
             stale.append(f"src/agents/{name}.md")
-    validator = (ROOT / "shared" / "scripts" / "spec_schema.py").read_text(encoding="utf-8")
-    for name, contract in skills.items():
-        copy = ROOT / "skills" / name / "scripts" / "lib" / "spec_schema.py"
-        if any(s.get("input") for s in contract["scripts"]) and \
-                (not copy.exists() or copy.read_text(encoding="utf-8") != validator):
-            stale.append(f"skills/{name}/scripts/lib/spec_schema.py")
+    for copy, text in {**contracts_lib.generated_libs(), **contracts_lib.plugin_manifests()}.items():
+        if not copy.exists() or copy.read_text(encoding="utf-8") != text:
+            stale.append(copy.relative_to(ROOT).as_posix())
     from agents_lib import parse_agent, source_agents
 
     meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
@@ -257,6 +276,11 @@ def check_rules() -> dict:
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):
                 failures.append(f"{name}/{script['name']} : rapport JSON sans schéma dans le contrat")
+            report_schema = script["report"].get("schema") or {}
+            variants = report_schema.get("anyOf", [report_schema]) if report_schema else []
+            if any(v.get("type") != "object" or not {"errors", "warnings"} <= set(v.get("required", []))
+                   for v in variants):
+                failures.append(f"{name}/{script['name']} : rapport sans objet à errors et warnings obligatoires")
             # Premier argument du usage en .json : description à valider contre un schéma d'entrée.
             words = script["usage"].split()
             at = next((i for i, w in enumerate(words) if w.endswith(script["name"])), len(words))

@@ -14,8 +14,8 @@ calcule scores et rang, met en forme et prépare les schémas.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
-- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné.
-- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
+- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles).
+- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
@@ -66,7 +66,13 @@ Fichier `options.json`, à côté de `exigences.json` :
   qui ne couvre pas une exigence indispensable est éliminée.
 - **Composants et flux** : ceux qui comptent pour comparer (10 au plus),
   `role` parmi person, system (défaut), external, db, queue. Ils donnent le
-  schéma de l'option.
+  schéma de l'option. `refs` d'un composant liste les exigences qu'il
+  porte : la matrice de traçabilité les reprend, et le script avertit d'une
+  exigence couverte qu'aucun composant de l'option retenue ne porte.
+- **Option cloud** : avec `provider` (aws, azure, gcp, k8s) et un `type`
+  `cloud_build.py` par composant (`ecs`, `aurora`, `sqs`... ; sinon déduit
+  du rôle), le script écrit aussi `schemas/option-<id>.cloud.json`, schéma
+  aux icônes officielles.
 - **Recommandation** : l'option et pourquoi, avec les exigences
   déterminantes. Si elle ne suit pas le classement, le script l'avertit :
   la justification doit l'expliquer.
@@ -83,8 +89,11 @@ Fichier `options.json`, à côté de `exigences.json` :
 uv run scripts/options_build.py options.json
 ```
 
-Produit `options.md` (comparaison pour la revue) et
-`schemas/architectures.json` (une page draw.io par option) ;
+Produit `options.md` (comparaison pour la revue),
+`schemas/architectures.json` (une page draw.io par option), la matrice de
+traçabilité `tracabilite.md` et `.csv` (exigence, couverture par option,
+composants de l'option retenue ou recommandée) et, pour une option cloud,
+`schemas/option-<id>.cloud.json` ;
 `--decision decision.json` produit `adr-architecture.md`. Corrigez jusqu'à zéro erreur.
 
 ## 4. Schémas
@@ -95,6 +104,13 @@ uv run ../diagram-export/scripts/export.py schemas/architectures.drawio --format
 ```
 
 Une image par option (`architectures.drawio.png`, `architectures-2.drawio.png`...),
-à relire une fois chacune. Pour l'option retenue, un schéma C4, cloud aux
-icônes officielles ou un modèle de menaces se demande à l'agent
-`schema-designer`, avec `options.md` et les mêmes noms de composants.
+à relire une fois chacune. Une option cloud a aussi son schéma aux icônes
+officielles :
+
+```bash
+uv run ../cloud-architecture/scripts/cloud_build.py schemas/option-a.cloud.json
+```
+
+Pour l'option retenue, un schéma C4, réseau ou un modèle de menaces STRIDE
+se demande à l'agent `schema-designer`, avec `options.md` et les mêmes noms
+de composants.

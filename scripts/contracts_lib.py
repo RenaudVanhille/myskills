@@ -18,6 +18,52 @@ SCHEMAS = REPO / "shared" / "schemas"
 SECTION = re.compile(r"^## Contrat\n.*?(?=^## |\Z)", re.S | re.M)
 FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
+# Modules partagés (shared/scripts/) copiés dans scripts/lib/ des skills qui s'en servent.
+LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish"],
+             "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
+                                  "drawio-diagram"]}
+
+
+def generated_libs() -> dict[Path, str]:
+    """Copie attendue de chaque module partagé et de la charte des couleurs, par chemin."""
+    shared = REPO / "shared" / "scripts"
+    files: dict[Path, str] = {}
+    validator = (shared / "spec_schema.py").read_text(encoding="utf-8")
+    for name, contract in skill_contracts().items():
+        if any(script.get("input") for script in contract["scripts"]):
+            files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
+    for module, skills in LIB_USERS.items():
+        text = (shared / module).read_text(encoding="utf-8")
+        for name in skills:
+            files[REPO / "skills" / name / "scripts" / "lib" / module] = text
+    # Schémas des messages entre agents, pour journal.py handoff et report.
+    for name in ("handoff", "agent-report"):
+        files[REPO / "skills" / "decision-log" / "scripts" / "lib" / f"{name}.schema.json"] = \
+            (SCHEMAS / f"{name}.schema.json").read_text(encoding="utf-8")
+    # Couleurs de la charte, pour check_drawio.py : une seule source, shared/references/style.md.
+    style = (REPO / "shared" / "references" / "style.md").read_text(encoding="utf-8")
+    colors = sorted({c.lower() for c in re.findall(r"#[0-9a-fA-F]{6}\b", style)})
+    files[REPO / "skills" / "drawio-diagram" / "scripts" / "lib" / "charter.json"] = \
+        json.dumps({"_source": "shared/references/style.md, généré par scripts/build.py", "colors": colors},
+                   ensure_ascii=False, indent=2) + "\n"
+    return files
+
+
+def plugin_manifests() -> dict[Path, str]:
+    """Manifestes Claude Code générés depuis plugin.json (Agent Plugins), qui fait foi :
+    même nom, version, description et mots-clés partout."""
+    source = json.loads((REPO / "plugin.json").read_text(encoding="utf-8"))
+    claude = {"name": source["name"], "version": source["version"], "description": source["description"],
+              "license": source["license"], "author": {"name": "RenaudVanhille"},
+              "repository": "https://github.com/RenaudVanhille/myskills", "keywords": source["keywords"]}
+    market = {"name": source["name"], "description": source["description"], "owner": {"name": "RenaudVanhille"},
+              "plugins": [{"name": source["name"], "source": "./", "version": source["version"],
+                           "description": source["description"]}]}
+    dump = lambda value: json.dumps(value, ensure_ascii=False, indent=2) + "\n"  # noqa: E731
+    return {REPO / ".claude-plugin" / "plugin.json": dump(claude),
+            REPO / ".claude-plugin" / "marketplace.json": dump(market)}
+
+
 # Exemples remplis, montrés aux agents et vérifiés contre les schémas par tests/run.py.
 HANDOFF_EXAMPLE = {
     "agent": "schema-designer",
@@ -124,7 +170,12 @@ def render_agent(contract: dict) -> str:
               "Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : "
               + fields_line(report) + " ; `next` est un message de passage, ou null s'il n'y a",
               "rien à passer. Exemple, avec un message de passage dans `next` :", "",
-              "```json", json.dumps(REPORT_EXAMPLE, ensure_ascii=False), "```"]
+              "```json", json.dumps(REPORT_EXAMPLE, ensure_ascii=False), "```", "",
+              "Avant de l'envoyer, valide chaque message de passage et le rapport final",
+              "avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill",
+              "`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro",
+              "erreur : schéma respecté, fichiers cités existants. Dans un dossier de",
+              "workflow, la commande les trace aussi au journal."]
     return "\n".join(lines) + "\n"
 
 

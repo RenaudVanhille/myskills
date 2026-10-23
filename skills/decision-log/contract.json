@@ -6,22 +6,25 @@
     "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
   ],
   "outputs": [
-    "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+    "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
-    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
+    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
   ],
   "scripts": [
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
       "options": {
-        "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
-        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+        "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+        "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
         "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
-        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
-        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
-        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+        "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
+        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
+        "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
+        "--schema": "affiche le schéma de workflow.json sur une ligne",
+        "handoff DOSSIER": "valide un message de passage (--file ou --json) contre shared/schemas/handoff.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json",
+        "report DOSSIER": "valide un rapport final d'agent contre shared/schemas/agent-report.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json"
       },
       "report": {
         "format": "json",
@@ -39,7 +42,9 @@
             "questions",
             "memory",
             "errors",
-            "warnings"
+            "warnings",
+            "changes",
+            "stage"
           ],
           "additionalProperties": false,
           "properties": {
@@ -53,7 +58,9 @@
                 "log",
                 "submit",
                 "review",
-                "status"
+                "status",
+                "handoff",
+                "report"
               ]
             },
             "stages": {
@@ -136,13 +143,329 @@
               "items": {
                 "type": "string"
               }
+            },
+            "changes": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "files"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "added": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "removed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "modified": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ],
+              "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
+            },
+            "stage": {
+              "description": "Avec une définition : l'étape courante à produire (skills, livrables, contrôles, consignes), sinon null.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object"
+                }
+              ]
             }
           }
         }
       },
       "exit_codes": {
         "0": "commande appliquée",
-        "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+        "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, message ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
+      },
+      "input": {
+        "format": "json",
+        "description": "workflow.json, écrit par le script : relu et validé à chaque commande ; une version modifiée à la main et non conforme est refusée avec le chemin de chaque erreur.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "title",
+            "created",
+            "stages",
+            "entries"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "created": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "object",
+              "required": [
+                "vault",
+                "folder"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "vault": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "folder": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "stages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                  },
+                  "status": {
+                    "enum": [
+                      "a-faire",
+                      "en-cours",
+                      "en-revue",
+                      "validee",
+                      "a-reprendre"
+                    ]
+                  },
+                  "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "description": "Fichier soumis -> empreinte SHA-256."
+                  },
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
+                  }
+                }
+              }
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "date",
+                  "stage",
+                  "kind",
+                  "by",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^D-[0-9]{3,}$"
+                  },
+                  "date": {
+                    "type": "string"
+                  },
+                  "stage": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "choix",
+                      "hypothese",
+                      "question",
+                      "soumission",
+                      "retour",
+                      "validation",
+                      "invalidation",
+                      "passage",
+                      "rapport"
+                    ]
+                  },
+                  "by": {
+                    "enum": [
+                      "agent",
+                      "utilisateur"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "why": {
+                    "type": "string"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "via": {
+                    "enum": [
+                      "obsidian"
+                    ],
+                    "description": "Décision lue dans la note de revue du vault."
+                  }
+                }
+              }
+            },
+            "definition": {
+              "$ref": "#/$defs/definition"
+            }
+          },
+          "$defs": {
+            "definition": {
+              "type": "object",
+              "required": [
+                "name",
+                "stages"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "description": "Définition d'un workflow (workflows/<nom>.json ou fichier passé à init --definition).",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "stages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "deliverables"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "skills": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "skills à appliquer pour produire les livrables"
+                      },
+                      "agent": {
+                        "type": "string",
+                        "description": "agent à qui passer la main pour cette étape, s'il y a lieu"
+                      },
+                      "inputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "fichiers lus (motifs relatifs au dossier)"
+                      },
+                      "deliverables": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "minItems": 1,
+                        "description": "motifs des livrables soumis à la revue ; chacun doit correspondre à au moins un fichier"
+                      },
+                      "optional": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "motifs de livrables soumis s'ils existent"
+                      },
+                      "checks": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "scripts à lancer jusqu'à zéro erreur avant la soumission"
+                      },
+                      "instructions": {
+                        "type": "string",
+                        "description": "consignes propres à l'étape, en une ou deux phrases"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     {
@@ -202,7 +525,7 @@
       },
       "exit_codes": {
         "0": "notes écrites, tous les liens résolus",
-        "1": "workflow.json ou vault introuvable, ou lien cassé"
+        "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
       }
     }
   ],

@@ -1,107 +1,98 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Vérifie les outils dont les skills de myskills ont besoin (Windows, macOS,
-Linux).
+"""Vérifie les outils locaux dont les skills de myskills ont besoin (Windows,
+macOS, Linux) et affiche un rapport JSON.
 
-Usage : python scripts/doctor.py [extraction|schemas|publication|tout]
-Code de sortie : 0 si tout est présent, 1 sinon.
+MarkItDown, Pandoc et Playwright sont fournis par uv aux scripts qui les
+utilisent (dépendances PEP 723), Docling par `uvx` : seul uv est alors
+obligatoire, leur installation à part est facultative.
+
+Usage : uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]
+Code de sortie : 0 si tous les outils obligatoires sont présents, 1 sinon
+(ou groupe inconnu, ou préchargement en échec).
+
+--prefetch télécharge dans le cache les bibliothèques JavaScript des rendus
+(Mermaid, Excalidraw), à version fixée, et vérifie leur empreinte : la
+machine peut ensuite travailler hors ligne (MYSKILLS_OFFLINE=1).
 """
 
-import importlib.util
-import os
+import json
 import shutil
 import sys
 from pathlib import Path
 
-DRAWIO_PATHS = [
-    Path("/Applications/draw.io.app/Contents/MacOS/draw.io"),
-    Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "draw.io" / "draw.io.exe",
-    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "draw.io" / "draw.io.exe",
-    Path("/opt/drawio/drawio"),
-]
-PROGRAM_FILES = [Path(os.environ.get(v, "")) for v in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA")]
-BROWSER_PATHS = [
-    *(base / "Microsoft" / "Edge" / "Application" / "msedge.exe" for base in PROGRAM_FILES),
-    *(base / "Google" / "Chrome" / "Application" / "chrome.exe" for base in PROGRAM_FILES),
-    Path("/Applications/Google Chrome.app"), Path("/Applications/Microsoft Edge.app"),
-]
-LIBREOFFICE_PATHS = [
-    *(base / "LibreOffice" / "program" / "soffice.exe" for base in PROGRAM_FILES),
-    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
-]
-PLAYWRIGHT_CACHE = [
-    Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")),
-    Path(os.environ.get("LOCALAPPDATA", "")) / "ms-playwright",
-    Path.home() / "Library" / "Caches" / "ms-playwright",
-    Path.home() / ".cache" / "ms-playwright",
-]
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import local_tools  # noqa: E402
 
+UV = ("uv", "obligatoire", lambda: shutil.which("uv") is not None, "https://docs.astral.sh/uv/")
+# (outil, obligatoire ou facultatif, test, commande ou page d'installation)
 GROUPS = {
     "extraction": [
-        ("MarkItDown", "cmd", "markitdown", 'uv tool install "markitdown[all]"'),
-        ("Docling", "cmd", "docling", "uv tool install docling"),
+        UV,
+        ("MarkItDown installé à part (sinon fourni par uv)", "facultatif",
+         lambda: shutil.which("markitdown") is not None, 'uv tool install "markitdown[all]"'),
+        ("Docling installé à part (sinon lancé par uvx, ~2 Go au premier lancement)", "facultatif",
+         lambda: shutil.which("docling") is not None, "uv tool install docling"),
     ],
     "schemas": [
-        ("draw.io Desktop", "drawio", None, "https://github.com/jgraph/drawio-desktop/releases"),
-        ("Node.js (lance LikeC4 via npx)", "cmd", "node", "https://nodejs.org/"),
-        ("uv (lance les rendus Mermaid et Excalidraw avec Playwright)", "cmd", "uv",
-         "https://docs.astral.sh/uv/"),
-        ("Navigateur pour Playwright (Edge, Chrome ou Chromium)", "browser", None,
+        UV,
+        ("draw.io Desktop", "obligatoire", lambda: local_tools.drawio_binary() is not None,
+         "https://github.com/jgraph/drawio-desktop/releases"),
+        ("Navigateur pour Playwright (Edge, Chrome ou Chromium)", "obligatoire", local_tools.browser_available,
          "uvx playwright install chromium"),
-        ("LikeC4 installé (plus rapide que npx)", "optional_cmd", "likec4",
-         "npm install -g likec4"),
+        ("Node.js (LikeC4 via npx)", "facultatif", lambda: shutil.which("node") is not None, "https://nodejs.org/"),
+        ("LikeC4 installé (plus rapide que npx, nécessaire hors ligne)", "facultatif",
+         lambda: shutil.which("likec4") is not None, "npm install -g likec4"),
+        *((f"{name} {version} dans le cache (rendus hors ligne)", "facultatif",
+           lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py --prefetch")
+          for name, (version, _, _) in local_tools.PACKAGES.items()),
     ],
     "publication": [
-        ("uv (fournit Pandoc au script de publication)", "cmd", "uv", "https://docs.astral.sh/uv/"),
-        ("LibreOffice (PDF et relecture visuelle des .docx)", "optional_libreoffice", None,
-         "https://www.libreoffice.org/download/"),
+        UV,
+        ("LibreOffice (PDF et relecture visuelle des .docx)", "facultatif",
+         lambda: local_tools.soffice_binary() is not None, "https://www.libreoffice.org/download/"),
     ],
 }
 
-TITLES = {"extraction": "Extraction documentaire", "schemas": "Schémas",
-          "publication": "Publication"}
-
-
-def present(kind: str, target: str | None) -> bool:
-    if kind == "cmd":
-        return shutil.which(target) is not None
-    if kind == "module":
-        return importlib.util.find_spec(target) is not None
-    if kind == "cmd_or_module":
-        return present("cmd", target) or present("module", target)
-    if kind == "optional_cmd":
-        return present("cmd", target)
-    if kind == "optional_libreoffice":
-        return present("cmd", "soffice") or any(p.is_file() for p in LIBREOFFICE_PATHS)
-    if kind == "browser":
-        return (any(shutil.which(n) for n in ("msedge", "google-chrome", "chromium", "chrome"))
-                or any(p.exists() for p in BROWSER_PATHS)
-                or any(str(p) not in ("", ".") and p.is_dir() and any(p.glob("chromium*"))
-                       for p in PLAYWRIGHT_CACHE))
-    if kind == "drawio":
-        return shutil.which("drawio") is not None or any(p.is_file() for p in DRAWIO_PATHS)
-    raise ValueError(kind)
-
 
 def main() -> int:
-    group = sys.argv[1] if len(sys.argv) > 1 else "tout"
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    args = sys.argv[1:]
+    prefetch = "--prefetch" in args
+    args = [a for a in args if a != "--prefetch"]
+    group = args[0] if args else "tout"
     if group != "tout" and group not in GROUPS:
-        print(f"Groupe inconnu : {group} (extraction, schemas, publication, tout)")
-        return 2
-    missing = False
+        print(json.dumps({"group": group, "tools": [], "missing": [],
+                          "errors": [f"groupe inconnu « {group} » (extraction, schemas, publication, tout)"],
+                          "warnings": []}, ensure_ascii=False))
+        return 1
+    errors = []
+    if prefetch:
+        for name in local_tools.PACKAGES:
+            try:
+                local_tools.npm_package(name)
+            except local_tools.PackageError as error:
+                errors.append(str(error))
+    tools, seen = [], set()
     for name in GROUPS if group == "tout" else [group]:
-        print(TITLES[name])
-        for label, kind, target, hint in GROUPS[name]:
-            if present(kind, target):
-                print(f"  [ok]       {label}")
-            elif kind.startswith("optional"):
-                print(f"  [facultatif] {label} -> {hint}")
-            else:
-                print(f"  [manquant] {label} -> {hint}")
-                missing = True
-    print("Des outils manquent (voir ci-dessus)." if missing else "Tout est prêt.")
-    return 1 if missing else 0
+        for label, need, test, install in GROUPS[name]:
+            if label in seen:
+                continue
+            seen.add(label)
+            status = "ok" if test() else ("manquant" if need == "obligatoire" else "absent")
+            tools.append({"name": label, "group": name, "status": status,
+                          **({"install": install} if status != "ok" else {})})
+    missing = [t["name"] for t in tools if t["status"] == "manquant"]
+    report = {"group": group, "tools": tools, "missing": missing,
+              "errors": errors + [f"{t['name']} manquant : {t['install']}" for t in tools if t["status"] == "manquant"],
+              "warnings": [f"{t['name']} absent (facultatif) : {t['install']}" for t in tools
+                           if t["status"] == "absent"]}
+    if local_tools.offline():
+        report["warnings"].append("mode hors ligne (MYSKILLS_OFFLINE) : rien ne sera téléchargé")
+    print(json.dumps(report, ensure_ascii=False))
+    return 1 if missing or errors else 0
 
 
 if __name__ == "__main__":

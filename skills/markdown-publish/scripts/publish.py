@@ -39,6 +39,10 @@ import zipfile
 from pathlib import Path
 from urllib.parse import unquote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import local_tools  # noqa: E402
+from script_report import print_report  # noqa: E402
+
 EXPORT_SCRIPT = Path(__file__).resolve().parents[2] / "diagram-export" / "scripts" / "export.py"
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[([^\]]*)\]\(<?([^)>\s]+)>?(\s+\"[^\"]*\")?\)")
@@ -55,12 +59,6 @@ REFERENCE_DOC = Path(__file__).resolve().parents[1] / "references" / "modele.doc
 MAX_WIDTH_CM, MAX_HEIGHT_CM = 16.6, 20.0  # zone de texte A4 du modèle
 SHEET_PAGES = 4  # pages par planche d'aperçu (2 x 2)
 FPDF_PAGEOBJ_PATH, FPDF_PAGEOBJ_IMAGE = 2, 3
-SOFFICE_PATHS = [
-    Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.exe",
-    Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / "LibreOffice" / "program" / "soffice.exe",
-    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
-    Path("/usr/bin/soffice"), Path("/usr/lib/libreoffice/program/soffice"),
-]
 
 
 def size_attr(path: Path, hidpi: bool) -> str:
@@ -203,10 +201,7 @@ def finish_docx(path: Path, toc: bool) -> None:
 
 
 def soffice_binary() -> str | None:
-    for name in ("soffice", "libreoffice"):
-        if shutil.which(name):
-            return shutil.which(name)
-    return next((str(p) for p in SOFFICE_PATHS if p.is_file()), None)
+    return local_tools.soffice_binary()
 
 
 def pages_to_review(document, headings: set[str]) -> list[int]:
@@ -416,8 +411,7 @@ def main() -> int:
             reports.append({"input": str(doc), "error": "Fichier introuvable"})
             continue
         reports.append(publish(doc.resolve(), args, exporter))
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if any(r.get("error") for r in reports) else 0
 
 

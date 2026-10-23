@@ -1,0 +1,22 @@
+name: boutique
+services:
+  web:
+    image: nginx:1.27
+    ports: ["8080:80"]
+    depends_on: [api]
+  api:
+    build: ./api
+    deploy:
+      replicas: 2
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_started
+  worker:
+    build: ./worker
+    depends_on: [broker, db, cache]
+  db:
+    image: postgres:16
+  broker:
+    image: rabbitmq:3-management

@@ -596,12 +596,12 @@ def main() -> int:
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
         return 1
     # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
     invalid = validate(spec, __file__)
     if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
     mxfile, pages, errors, warnings = build(spec, args.view)
     name = args.spec.name.removesuffix(".json")
@@ -623,6 +623,8 @@ def main() -> int:
             checked = check(out)
             report["errors"] += checked["errors"]
             report["warnings"] += checked["warnings"]
+        else:
+            report["warnings"].append("fichier non vérifié : check_drawio.py introuvable (installez aussi le skill drawio-diagram)")
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

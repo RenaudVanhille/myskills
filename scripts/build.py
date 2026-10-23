@@ -10,8 +10,11 @@ le résultat : les outils installent le plugin depuis le dépôt.
     com.github.copilot/agents/*.agent.md  agents GitHub Copilot
     skills/*/references/style.md          charte : règles communes + section du format (shared/targets.txt)
     skills/*/scripts/lib/spec_schema.py   validateur des descriptions JSON (shared/scripts/), si un script a un `input`
+    skills/*/scripts/lib/local_tools.py   emplacements des outils locaux (shared/scripts/), skills de LIB_USERS
+    skills/drawio-diagram/scripts/lib/charter.json  couleurs de la charte (shared/references/style.md)
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
+    .claude-plugin/*.json                 manifestes Claude Code, depuis plugin.json (version comprise)
 
 Usage : uv run scripts/build.py   (ou : python scripts/build.py)
 """
@@ -20,7 +23,7 @@ import re
 import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
-from contracts_lib import (agent_contracts, build_catalog_json, build_catalog_md, render_agent as
+from contracts_lib import (agent_contracts, build_catalog_json, build_catalog_md, generated_libs, plugin_manifests, render_agent as
                            render_agent_contract, render_skill, replace_section, skill_contracts)
 
 
@@ -66,16 +69,14 @@ def main() -> None:
             skill, _, section = line.strip().partition(" ")
             write_text(REPO / "skills" / skill / "references" / "style.md", style_for(style, section))
 
-    validator = (REPO / "shared" / "scripts" / "spec_schema.py").read_text(encoding="utf-8")
-    for name, contract in skill_contracts().items():
-        if any(script.get("input") for script in contract["scripts"]):
-            write_text(REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py", validator)
+    for path, text in {**generated_libs(), **plugin_manifests()}.items():
+        write_text(path, text)
 
     agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))
     write_text(REPO / "catalog.json", build_catalog_json(agents_meta))
 
-    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, CATALOG.md et catalog.json.")
+    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, .claude-plugin/, CATALOG.md et catalog.json.")
 
 
 if __name__ == "__main__":

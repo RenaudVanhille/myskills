@@ -29,7 +29,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import struct
 import tempfile
 from contextlib import contextmanager
@@ -37,9 +36,11 @@ import zlib
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-MERMAID_VERSION = "11.12.0"
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import local_tools  # noqa: E402
+from script_report import print_report  # noqa: E402
+
 LIKEC4 = "likec4@1"
-EXCALIDRAW_UTILS = "0.1.7"
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.M | re.S)
 # Pendant un rendu, rien ne doit sortir de la machine : les navigateurs passent
 # par un proxy qui n'existe pas (les fichiers locaux n'en ont pas besoin), ce qui
@@ -81,6 +82,9 @@ def node_tool(binary: str, package: str) -> list[str]:
     found = shutil.which(binary)
     if found:
         return [found]
+    if local_tools.offline():
+        raise ExportError(f"{binary} introuvable (mode hors ligne, npx ne peut rien télécharger) : "
+                          f"installez-le avant, `npm install -g {package.split('@')[0] or package}`")
     npx = shutil.which("npx")
     if not npx:
         raise ExportError(f"{binary} introuvable et Node.js absent : installez Node.js "
@@ -89,26 +93,15 @@ def node_tool(binary: str, package: str) -> list[str]:
 
 
 def drawio_binary() -> str:
-    for name in ("drawio", "draw.io"):
-        if shutil.which(name):
-            return shutil.which(name)
-    candidates = [
-        Path("/Applications/draw.io.app/Contents/MacOS/draw.io"),
-        Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "draw.io" / "draw.io.exe",
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "draw.io" / "draw.io.exe",
-        Path("/opt/drawio/drawio"),
-    ]
-    for path in candidates:
-        if path.is_file():
-            return str(path)
-    raise ExportError("draw.io Desktop introuvable : "
-                      "https://github.com/jgraph/drawio-desktop/releases")
+    found = local_tools.drawio_binary()
+    if not found:
+        raise ExportError("draw.io Desktop introuvable : "
+                          "https://github.com/jgraph/drawio-desktop/releases")
+    return found
 
 
 def cache_dir() -> Path:
-    base = os.environ.get("LOCALAPPDATA") if os.name == "nt" else None
-    root = Path(base) if base else Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    return root / "myskills"
+    return local_tools.cache_dir()
 
 
 # --- draw.io -----------------------------------------------------------------
@@ -200,7 +193,7 @@ def export_mermaid(src: Path, out: Path, fmt: str, scale: float, transparent: bo
         names = [f"{src.stem}-{i}" for i in range(1, len(blocks) + 1)]
     else:
         blocks, names = [text], [src.stem]
-    package = npm_package("mermaid", MERMAID_VERSION, "dist/mermaid.min.js")
+    package = npm_package("mermaid")
     outputs, errors = [], []
     try:
         with local_page(package, scale) as page:
@@ -249,30 +242,12 @@ def export_likec4(src: Path, out: Path, fmt: str, scale: float, transparent: boo
 
 # --- Excalidraw --------------------------------------------------------------
 
-def npm_package(name: str, version: str, entry: str) -> Path:
-    """Télécharge une fois un paquet npm (npm pack, sinon le registre) dans le cache."""
-    root = cache_dir() / f"{name.strip('@').replace('/', '-')}-{version}"
-    if (root / "package" / entry).is_file():
-        return root / "package"
-    root.mkdir(parents=True, exist_ok=True)
-    tgz = root / "package.tgz"
-    npm = shutil.which("npm")
-    if npm:
-        try:
-            run([npm, "pack", f"{name}@{version}", "--pack-destination", str(root), "--silent"], cwd=root)
-        except ExportError:
-            pass
-        packed = next((p for p in root.glob("*.tgz") if p != tgz), None)
-        if packed:
-            packed.replace(tgz)
-    if not tgz.is_file():
-        import urllib.request
-        url = f"https://registry.npmjs.org/{name}/-/{name.split('/')[-1]}-{version}.tgz"
-        urllib.request.urlretrieve(url, tgz)
-    with tarfile.open(tgz) as archive:
-        archive.extractall(root, filter="data") if hasattr(tarfile, "data_filter") else archive.extractall(root)
-    tgz.unlink()
-    return root / "package"
+def npm_package(name: str) -> Path:
+    """Paquet npm à version fixée, vérifié par son empreinte (local_tools)."""
+    try:
+        return local_tools.npm_package(name)
+    except local_tools.PackageError as error:
+        raise ExportError(str(error)) from error
 
 
 def launch_browser(pw):
@@ -330,7 +305,7 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
     if scene.get("type") != "excalidraw":
         raise ExportError("Ce fichier n'est pas une scène Excalidraw "
                           "(lancez d'abord excalidraw_build.py)")
-    package = npm_package("@excalidraw/utils", EXCALIDRAW_UTILS, "dist/prod/index.js")
+    package = npm_package("@excalidraw/utils")
     target = out / f"{src.stem}.excalidraw.{fmt}"
     try:
         with local_page(package) as page:
@@ -361,6 +336,38 @@ def export_excalidraw(src: Path, out: Path, fmt: str, scale: float, transparent:
 
 
 # --- Commun ------------------------------------------------------------------
+
+def image_warnings(path: Path) -> list[str]:
+    """Contrôle du rendu sans le regarder : image trop petite, presque uniforme (vide),
+    SVG sans texte ni tracé. Le modèle n'ouvre l'image que s'il y a un doute ou pour la relecture."""
+    name = path.name
+    if path.suffix.lower() == ".svg":
+        text = path.read_text(encoding="utf-8", errors="replace")
+        return [] if re.search(r"<(text|path|foreignObject|rect|line|polygon)\b", text) else \
+            [f"{name} : SVG sans texte ni tracé (rendu vide ?)"]
+    if path.suffix.lower() != ".png":
+        return []
+    data = path.read_bytes()
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 33:
+        return [f"{name} : PNG illisible"]
+    width, height, depth, color = struct.unpack(">IIBB", data[16:26])
+    warnings = []
+    if min(width, height) < 64:
+        warnings.append(f"{name} : image de {width} x {height} px, trop petite pour être lue")
+    # Taille compressée des pixels rapportée à leur taille brute : une image presque
+    # uniforme se compresse à presque rien.
+    idat, pos = 0, 8
+    while pos + 8 <= len(data):
+        length, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        if kind == b"IDAT":
+            idat += length
+        pos += 12 + length
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color, 4)
+    raw = height * (width * channels * max(depth, 8) // 8 + 1)
+    if raw and idat / raw < 0.004:
+        warnings.append(f"{name} : image presque uniforme (rendu vide ?)")
+    return warnings
+
 
 EXPORTERS = {
     ".drawio": export_drawio, ".mmd": export_mermaid, ".mermaid": export_mermaid,
@@ -408,14 +415,14 @@ def main() -> int:
                     files = EXPORTERS[kind](src, out, fmt, args.scale, args.transparent)
                     report["outputs"] = [] if args.check else [str(f) for f in files]
                     report["rendered"] = len(files)
+                    report["warnings"] = [w for f in files for w in image_warnings(Path(f))]
                 except ExportError as error:
                     report["error"] = str(error)
                 except OSError as error:
                     report["error"] = f"{type(error).__name__} : {error}"
         failed = failed or bool(report["error"])
         reports.append(report)
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if failed else 0
 
 

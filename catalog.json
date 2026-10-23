@@ -56,7 +56,7 @@
           ]
         }
       ],
-      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
+      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
       "skills": [
         "check-prerequisites",
         "decision-log",
@@ -65,6 +65,7 @@
         "requirements-catalog",
         "architecture-options",
         "drawio-diagram",
+        "cloud-architecture",
         "diagram-export"
       ]
     },
@@ -106,7 +107,8 @@
       "skills": [
         "check-prerequisites",
         "doc-to-markdown",
-        "markdown-to-obsidian"
+        "markdown-to-obsidian",
+        "decision-log"
       ]
     },
     {
@@ -146,7 +148,8 @@
       "skills": [
         "check-prerequisites",
         "markdown-publish",
-        "diagram-export"
+        "diagram-export",
+        "decision-log"
       ]
     },
     {
@@ -192,7 +195,8 @@
         "c4-architecture",
         "urbanization-map",
         "cloud-architecture",
-        "diagram-export"
+        "diagram-export",
+        "decision-log"
       ]
     }
   ],
@@ -207,12 +211,14 @@
       "outputs": [
         "<nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision)",
         "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
-        "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné"
+        "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
+        "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
+        "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)"
       ],
       "scripts": [
         {
           "name": "options_build.py",
-          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR.",
+          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles.",
           "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
           "options": {
             "options.json": "description des options ; requirements est relatif à ce fichier",
@@ -349,6 +355,19 @@
                             },
                             "tech": {
                               "type": "string"
+                            },
+                            "refs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                              },
+                              "description": "Exigences que ce composant porte : matrice de traçabilité."
+                            },
+                            "type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Type cloud_build.py du composant (ecs, aurora, sqs... ; cloud_build.py --types) si l'option a un provider ; sinon déduit du rôle."
                             }
                           }
                         }
@@ -442,6 +461,15 @@
                         "items": {
                           "type": "string"
                         }
+                      },
+                      "provider": {
+                        "enum": [
+                          "aws",
+                          "azure",
+                          "gcp",
+                          "k8s"
+                        ],
+                        "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
                       }
                     }
                   }
@@ -523,7 +551,8 @@
                     "recommended",
                     "decided",
                     "errors",
-                    "warnings"
+                    "warnings",
+                    "trace"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -591,6 +620,30 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "trace": {
+                      "type": "object",
+                      "required": [
+                        "uncovered",
+                        "unassigned"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "uncovered": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                        },
+                        "unassigned": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                        }
+                      }
                     }
                   }
                 },
@@ -598,7 +651,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -606,6 +660,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -676,23 +736,96 @@
     {
       "skill": "check-prerequisites",
       "inputs": [
-        "Un groupe : extraction, schemas, publication ou tout (défaut)"
+        "Un groupe : extraction, schemas, publication ou tout (défaut)",
+        "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"
       ],
       "outputs": [
-        "Aucun fichier"
+        "Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills"
       ],
       "scripts": [
         {
           "name": "doctor.py",
-          "role": "Vérifie les outils locaux et affiche la commande d'installation des manquants.",
-          "usage": "python scripts/doctor.py [extraction|schemas|publication|tout]",
+          "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne.",
+          "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]",
           "report": {
-            "format": "text",
-            "description": "Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation."
+            "format": "json",
+            "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
+            "schema": {
+              "type": "object",
+              "required": [
+                "group",
+                "tools",
+                "missing",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "group": {
+                  "type": "string"
+                },
+                "tools": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "group",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "group": {
+                        "enum": [
+                          "extraction",
+                          "schemas",
+                          "publication"
+                        ]
+                      },
+                      "status": {
+                        "enum": [
+                          "ok",
+                          "manquant",
+                          "absent"
+                        ]
+                      },
+                      "install": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "missing": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           },
           "exit_codes": {
-            "0": "tous les outils obligatoires sont présents",
-            "1": "au moins un outil manque"
+            "0": "tous les outils obligatoires sont présents (et le préchargement a réussi)",
+            "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
+          },
+          "options": {
+            "GROUPE": "extraction, schemas, publication ou tout (défaut)",
+            "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement"
           }
         }
       ],
@@ -703,14 +836,14 @@
           "when": "un outil manque : il l'installe lui-même, rien n'est installé sans son accord"
         }
       ],
-      "description": "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (MarkItDown, Docling, draw.io Desktop, Node.js, navigateur) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable.",
+      "description": "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (uv, draw.io Desktop, navigateur, LibreOffice en option) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable.",
       "path": "skills/check-prerequisites"
     },
     {
       "skill": "cloud-architecture",
       "inputs": [
         "Décision de diagram-brief : public et destination",
-        "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, manifestes Kubernetes) à traduire en description"
+        "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
       ],
       "outputs": [
         "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
@@ -1114,7 +1247,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -1122,6 +1256,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -1514,7 +1654,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -1522,6 +1663,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -1535,6 +1682,110 @@
           "exit_codes": {
             "0": "modèle produit sans erreur",
             "1": "description illisible ou erreur"
+          }
+        },
+        {
+          "name": "iac_import.py",
+          "role": "Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite.",
+          "usage": "uv run scripts/iac_import.py SOURCE [...] [--out SUJET.json] [--title T]",
+          "options": {
+            "SOURCE": "fichier .tf, docker-compose (.yml) ou manifeste Kubernetes (.yaml), ou dossier qui en contient",
+            "--out": "description écrite (défaut : <première source>.cloud.json)",
+            "--title": "titre du schéma (défaut : nom de la première source)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet : sources lues par format, fournisseur retenu, compteurs ; ignored compte les ressources sans équivalent, nommées dans warnings.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "sources",
+                "provider",
+                "groups",
+                "services",
+                "flows",
+                "ignored",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sources": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "terraform": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "compose": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "kubernetes": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  }
+                },
+                "provider": {
+                  "enum": [
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "k8s",
+                    null
+                  ]
+                },
+                "groups": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "services": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "flows": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "ignored": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "description écrite, conforme et construite sans erreur",
+            "1": "source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit"
           }
         }
       ],
@@ -1566,22 +1817,25 @@
         "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
-        "workflow.json : étapes dans l'ordre, statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
-        "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
+        "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
       ],
       "scripts": [
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour]",
+          "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
           "options": {
-            "init DOSSIER": "crée workflow.json ; --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
-            "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées",
+            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+            "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
-            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier",
-            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour, --text (ses mots), --refs",
-            "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés"
+            "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
+            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
+            "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
+            "--schema": "affiche le schéma de workflow.json sur une ligne",
+            "handoff DOSSIER": "valide un message de passage (--file ou --json) contre shared/schemas/handoff.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json",
+            "report DOSSIER": "valide un rapport final d'agent contre shared/schemas/agent-report.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json"
           },
           "report": {
             "format": "json",
@@ -1599,7 +1853,9 @@
                 "questions",
                 "memory",
                 "errors",
-                "warnings"
+                "warnings",
+                "changes",
+                "stage"
               ],
               "additionalProperties": false,
               "properties": {
@@ -1613,7 +1869,9 @@
                     "log",
                     "submit",
                     "review",
-                    "status"
+                    "status",
+                    "handoff",
+                    "report"
                   ]
                 },
                 "stages": {
@@ -1696,13 +1954,329 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "changes": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "added",
+                        "removed",
+                        "modified",
+                        "files"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "added": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "modified": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
+                },
+                "stage": {
+                  "description": "Avec une définition : l'étape courante à produire (skills, livrables, contrôles, consignes), sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             }
           },
           "exit_codes": {
             "0": "commande appliquée",
-            "1": "commande refusée (étape inconnue, ordre ou porte de revue non respectés, fichier introuvable) ; workflow.json inchangé"
+            "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, message ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
+          },
+          "input": {
+            "format": "json",
+            "description": "workflow.json, écrit par le script : relu et validé à chaque commande ; une version modifiée à la main et non conforme est refusée avec le chemin de chaque erreur.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "title",
+                "created",
+                "stages",
+                "entries"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "created": {
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "object",
+                  "required": [
+                    "vault",
+                    "folder"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "vault": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "folder": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "stages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                      },
+                      "status": {
+                        "enum": [
+                          "a-faire",
+                          "en-cours",
+                          "en-revue",
+                          "validee",
+                          "a-reprendre"
+                        ]
+                      },
+                      "files": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "description": "Fichier soumis -> empreinte SHA-256."
+                      },
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
+                      }
+                    }
+                  }
+                },
+                "entries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "date",
+                      "stage",
+                      "kind",
+                      "by",
+                      "text"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^D-[0-9]{3,}$"
+                      },
+                      "date": {
+                        "type": "string"
+                      },
+                      "stage": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "choix",
+                          "hypothese",
+                          "question",
+                          "soumission",
+                          "retour",
+                          "validation",
+                          "invalidation",
+                          "passage",
+                          "rapport"
+                        ]
+                      },
+                      "by": {
+                        "enum": [
+                          "agent",
+                          "utilisateur"
+                        ]
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "why": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "via": {
+                        "enum": [
+                          "obsidian"
+                        ],
+                        "description": "Décision lue dans la note de revue du vault."
+                      }
+                    }
+                  }
+                },
+                "definition": {
+                  "$ref": "#/$defs/definition"
+                }
+              },
+              "$defs": {
+                "definition": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "stages"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "description": "Définition d'un workflow (workflows/<nom>.json ou fichier passé à init --definition).",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "stages": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "deliverables"
+                        ],
+                        "additionalProperties": false,
+                        "patternProperties": {
+                          "^_": {}
+                        },
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "skills": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "skills à appliquer pour produire les livrables"
+                          },
+                          "agent": {
+                            "type": "string",
+                            "description": "agent à qui passer la main pour cette étape, s'il y a lieu"
+                          },
+                          "inputs": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "fichiers lus (motifs relatifs au dossier)"
+                          },
+                          "deliverables": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "minItems": 1,
+                            "description": "motifs des livrables soumis à la revue ; chacun doit correspondre à au moins un fichier"
+                          },
+                          "optional": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "motifs de livrables soumis s'ils existent"
+                          },
+                          "checks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "scripts à lancer jusqu'à zéro erreur avant la soumission"
+                          },
+                          "instructions": {
+                            "type": "string",
+                            "description": "consignes propres à l'étape, en une ou deux phrases"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         {
@@ -1762,7 +2336,7 @@
           },
           "exit_codes": {
             "0": "notes écrites, tous les liens résolus",
-            "1": "workflow.json ou vault introuvable, ou lien cassé"
+            "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
           }
         }
       ],
@@ -1838,7 +2412,7 @@
       "scripts": [
         {
           "name": "export.py",
-          "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+          "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé.",
           "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
           "options": {
             "SCHEMA": "sources à exporter",
@@ -1850,46 +2424,78 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par source ; error vaut null si tout va bien.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien. Chaque image produite est contrôlée sans être regardée (taille, image presque uniforme, SVG vide) : warnings du résultat.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "source",
-                  "format",
-                  "outputs",
-                  "error"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "source": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "source",
+                      "format",
+                      "outputs",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "source": {
+                        "type": "string"
+                      },
+                      "format": {
+                        "enum": [
+                          "png",
+                          "svg",
+                          "pdf"
+                        ]
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "rendered": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Contrôle automatique des images : trop petite, presque uniforme, SVG vide."
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
                     "type": "string"
                   },
-                  "format": {
-                    "enum": [
-                      "png",
-                      "svg",
-                      "pdf"
-                    ]
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
                   },
-                  "outputs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "error": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "rendered": {
-                    "type": "integer",
-                    "minimum": 0
-                  }
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -1915,7 +2521,7 @@
       "inputs": [
         "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
         "Images PNG, JPG, GIF, BMP, TIFF, WEBP",
-        "Dossiers (classify.py seulement)"
+        "Dossiers"
       ],
       "outputs": [
         "DOSSIER/<nom>.md",
@@ -1926,9 +2532,9 @@
         {
           "name": "convert.py",
           "role": "Convertit les documents en Markdown, en local.",
-          "usage": "uv run scripts/convert.py FICHIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
+          "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
           "options": {
-            "FICHIER": "documents à convertir",
+            "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md",
             "--out": "dossier de sortie (défaut : dossier courant)",
             "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
             "--classify": "classe d'abord avec classify.py (Laya)",
@@ -1938,197 +2544,222 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "type",
-                      "engine",
-                      "pages",
-                      "images",
-                      "needs_vision",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "type": {
-                        "enum": [
-                          "image",
-                          "pdf",
-                          "office",
-                          "autre"
-                        ]
-                      },
-                      "engine": {
-                        "enum": [
-                          "copie",
-                          "markitdown",
-                          "docling"
-                        ]
-                      },
-                      "pages": {
-                        "type": [
-                          "integer",
-                          "null"
-                        ],
-                        "minimum": 0
-                      },
-                      "images": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "needs_vision": {
-                        "type": "boolean"
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "hints": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "vision_pages": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "classification": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
                         "type": "object",
                         "required": [
+                          "input",
+                          "output",
                           "type",
-                          "domaine",
-                          "tables",
                           "engine",
-                          "method",
+                          "pages",
+                          "images",
+                          "needs_vision",
                           "warnings"
                         ],
                         "additionalProperties": false,
                         "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "output": {
+                            "type": "string"
+                          },
                           "type": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "domaine": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "tables": {
-                            "type": [
-                              "number",
-                              "null"
+                            "enum": [
+                              "image",
+                              "pdf",
+                              "office",
+                              "autre"
                             ]
                           },
                           "engine": {
                             "enum": [
+                              "copie",
                               "markitdown",
                               "docling"
                             ]
                           },
-                          "method": {
-                            "type": "string"
+                          "pages": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "minimum": 0
+                          },
+                          "images": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "needs_vision": {
+                            "type": "boolean"
                           },
                           "warnings": {
                             "type": "array",
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "hints": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "vision_pages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "classification": {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "domaine",
+                              "tables",
+                              "engine",
+                              "method",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "domaine": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "tables": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "engine": {
+                                "enum": [
+                                  "markitdown",
+                                  "docling"
+                                ]
+                              },
+                              "method": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "validation": {
+                            "type": "object",
+                            "required": [
+                              "ok",
+                              "errors",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
                           }
                         }
                       },
-                      "validation": {
+                      {
                         "type": "object",
                         "required": [
-                          "ok",
-                          "errors",
-                          "warnings"
+                          "input",
+                          "output",
+                          "skipped"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "ok": {
-                            "type": "boolean"
+                          "input": {
+                            "type": "string"
                           },
-                          "errors": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "output": {
+                            "type": "string"
                           },
-                          "warnings": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "skipped": {
+                            "const": true
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
                           }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "skipped"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "skipped": {
-                        "const": true
-                      }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
           "exit_codes": {
             "0": "tous les fichiers sont convertis",
-            "1": "au moins un fichier a échoué (objet avec error)"
+            "1": "au moins un fichier a échoué (error dans son résultat, repris dans errors)"
           }
         },
         {
@@ -2143,38 +2774,63 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier (avec --quiet, seulement ceux qui ont une erreur ou un avertissement) ; un fichier introuvable donne ok false.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "file",
-                  "ok",
-                  "errors",
-                  "warnings"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "file": {
-                    "type": "string"
-                  },
-                  "ok": {
-                    "type": "boolean"
-                  },
-                  "errors": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "file",
+                      "ok",
+                      "errors",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -2196,104 +2852,129 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "type",
-                      "type_confidence",
-                      "domaine",
-                      "domaine_confidence",
-                      "tables",
-                      "engine",
-                      "method",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "type": {
-                        "enum": [
-                          "specification",
-                          "architecture",
-                          "procedure",
-                          "compte-rendu",
-                          "presentation",
-                          "contrat",
-                          "rapport",
-                          "autre",
-                          null
-                        ]
-                      },
-                      "type_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "domaine": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
-                      "domaine_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
-                      "tables": {
-                        "type": [
-                          "number",
-                          "null"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "type",
+                          "type_confidence",
+                          "domaine",
+                          "domaine_confidence",
+                          "tables",
+                          "engine",
+                          "method",
+                          "warnings"
                         ],
-                        "minimum": 0,
-                        "maximum": 1
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "enum": [
+                              "specification",
+                              "architecture",
+                              "procedure",
+                              "compte-rendu",
+                              "presentation",
+                              "contrat",
+                              "rapport",
+                              "autre",
+                              null
+                            ]
+                          },
+                          "type_confidence": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "domaine": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "domaine_confidence": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "tables": {
+                            "type": [
+                              "number",
+                              "null"
+                            ],
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "engine": {
+                            "enum": [
+                              "markitdown",
+                              "docling"
+                            ]
+                          },
+                          "method": {
+                            "type": "string",
+                            "pattern": "^(regles|laya \\(.*\\))$"
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
                       },
-                      "engine": {
-                        "enum": [
-                          "markitdown",
-                          "docling"
-                        ]
-                      },
-                      "method": {
-                        "type": "string",
-                        "pattern": "^(regles|laya \\(.*\\))$"
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -2550,7 +3231,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -2558,6 +3240,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -2579,44 +3267,69 @@
           "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
           "report": {
             "format": "json",
-            "description": "Un objet par fichier.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "file",
-                  "pages",
-                  "shapes",
-                  "errors",
-                  "warnings"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "file": {
-                    "type": "string"
-                  },
-                  "pages": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "shapes": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "errors": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "file",
+                      "pages",
+                      "shapes",
+                      "errors",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "file": {
+                        "type": "string"
+                      },
+                      "pages": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "shapes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
                 }
               }
             }
@@ -2840,7 +3553,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -2848,6 +3562,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -2903,106 +3623,131 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par document.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par document.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "outputs",
-                      "diagrams_exported",
-                      "warnings"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "outputs": {
-                        "type": "array",
-                        "items": {
-                          "type": "object",
-                          "required": [
-                            "format",
-                            "file",
-                            "images",
-                            "tables"
-                          ],
-                          "additionalProperties": false,
-                          "properties": {
-                            "format": {
-                              "enum": [
-                                "docx",
-                                "html",
-                                "xwiki"
-                              ]
-                            },
-                            "file": {
-                              "type": "string"
-                            },
-                            "images": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "tables": {
-                              "type": "integer",
-                              "minimum": 0
-                            },
-                            "pdf": {
-                              "type": "string"
-                            },
-                            "preview": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "preview_pages": {
-                              "type": "array",
-                              "items": {
-                                "type": "integer",
-                                "minimum": 1
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "outputs",
+                          "diagrams_exported",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "outputs": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "format",
+                                "file",
+                                "images",
+                                "tables"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "format": {
+                                  "enum": [
+                                    "docx",
+                                    "html",
+                                    "xwiki"
+                                  ]
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "images": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "tables": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                "pdf": {
+                                  "type": "string"
+                                },
+                                "preview": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "preview_pages": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  }
+                                }
                               }
                             }
+                          },
+                          "diagrams_exported": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "error": {
+                            "type": "string"
                           }
                         }
                       },
-                      "diagrams_exported": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "warnings": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
+                      {
+                        "type": "object",
+                        "required": [
+                          "input",
+                          "error"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "input": {
+                            "type": "string"
+                          },
+                          "error": {
+                            "type": "string"
+                          }
                         }
-                      },
-                      "error": {
-                        "type": "string"
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -3068,134 +3813,159 @@
           },
           "report": {
             "format": "json",
-            "description": "Un objet par note.",
+            "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par note.",
             "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "array",
-              "items": {
-                "anyOf": [
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "output",
-                      "embeds",
-                      "wikilinks",
-                      "callouts",
-                      "attachments_copied",
-                      "missing"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "output": {
-                        "type": "string"
-                      },
-                      "embeds": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "wikilinks": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "callouts": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "attachments_copied": {
-                        "type": "integer",
-                        "minimum": 0
-                      },
-                      "missing": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "classification": {
+              "type": "object",
+              "required": [
+                "results",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "results": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
                         "type": "object",
                         "required": [
-                          "type",
-                          "domaine",
-                          "method",
-                          "warnings"
+                          "input",
+                          "output",
+                          "embeds",
+                          "wikilinks",
+                          "callouts",
+                          "attachments_copied",
+                          "missing"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "type": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "domaine": {
-                            "type": [
-                              "string",
-                              "null"
-                            ]
-                          },
-                          "method": {
+                          "input": {
                             "type": "string"
                           },
-                          "warnings": {
+                          "output": {
+                            "type": "string"
+                          },
+                          "embeds": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "wikilinks": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "callouts": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "attachments_copied": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "missing": {
                             "type": "array",
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "classification": {
+                            "type": "object",
+                            "required": [
+                              "type",
+                              "domaine",
+                              "method",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "type": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "domaine": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "method": {
+                                "type": "string"
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          },
+                          "classification_warning": {
+                            "type": "string"
+                          },
+                          "validation": {
+                            "type": "object",
+                            "required": [
+                              "ok",
+                              "errors",
+                              "warnings"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "errors": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "warnings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
                           }
                         }
                       },
-                      "classification_warning": {
-                        "type": "string"
-                      },
-                      "validation": {
+                      {
                         "type": "object",
                         "required": [
-                          "ok",
-                          "errors",
-                          "warnings"
+                          "input",
+                          "error"
                         ],
                         "additionalProperties": false,
                         "properties": {
-                          "ok": {
-                            "type": "boolean"
+                          "input": {
+                            "type": "string"
                           },
-                          "errors": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "warnings": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
+                          "error": {
+                            "type": "string"
                           }
                         }
                       }
-                    }
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "input",
-                      "error"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "input": {
-                        "type": "string"
-                      },
-                      "error": {
-                        "type": "string"
-                      }
-                    }
+                    ]
                   }
-                ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+                }
               }
             }
           },
@@ -3225,7 +3995,9 @@
                     "notes",
                     "tags",
                     "folders",
-                    "attachments"
+                    "attachments",
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3271,18 +4043,44 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 },
                 {
                   "type": "object",
                   "required": [
-                    "error"
+                    "vault",
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
-                    "error": {
+                    "vault": {
                       "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     }
                   }
                 }
@@ -3291,7 +4089,7 @@
           },
           "exit_codes": {
             "0": "profil produit",
-            "2": "vault introuvable"
+            "1": "vault introuvable"
           }
         }
       ],
@@ -3334,10 +4132,10 @@
       "skill": "requirements-catalog",
       "inputs": [
         "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored"
+        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
       ],
       "outputs": [
-        "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées)",
+        "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme)",
         "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)"
       ],
       "scripts": [
@@ -3515,6 +4313,66 @@
                       }
                     }
                   }
+                },
+                "glossary": {
+                  "type": "array",
+                  "description": "Glossaire du projet : termes métier et sigles employés par les exigences.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "term",
+                      "definition"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "term": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "definition": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Synonymes, sigle ou forme développée."
+                      },
+                      "sources": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "doc"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "doc": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Chemin du Markdown, relatif au dossier sources."
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "Citation exacte, retrouvée par le script."
+                            },
+                            "page": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -3538,7 +4396,8 @@
                     "documents",
                     "uncovered",
                     "errors",
-                    "warnings"
+                    "warnings",
+                    "glossary"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3590,6 +4449,10 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "glossary": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   }
                 },
@@ -3597,7 +4460,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3605,6 +4469,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -3899,7 +4769,8 @@
                   "type": "object",
                   "required": [
                     "input",
-                    "errors"
+                    "errors",
+                    "warnings"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -3907,6 +4778,12 @@
                       "type": "string"
                     },
                     "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
                       "type": "array",
                       "items": {
                         "type": "string"

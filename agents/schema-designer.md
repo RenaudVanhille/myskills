@@ -24,7 +24,7 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 | `document-publisher` | le schéma doit être intégré dans un Word, une page HTML ou XWiki | le Markdown qui référence le schéma ; la source et l'export ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
@@ -34,6 +34,12 @@ rien à passer. Exemple, avec un message de passage dans `next` :
 ```json
 {"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
+
+Avant de l'envoyer, valide chaque message de passage et le rapport final
+avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill
+`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro
+erreur : schéma respecté, fichiers cités existants. Dans un dossier de
+workflow, la commande les trace aussi au journal.
 
 ## Déroulé
 
@@ -64,6 +70,8 @@ rien à passer. Exemple, avec un message de passage dans `next` :
 6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
    public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.
+   Si son rapport signale une image vide ou trop petite, corrige avant de
+   l'ouvrir.
    Garde `--check` pour un bloc Mermaid qui reste dans un Markdown, sans
    export.
 7. Si la relecture ou une validation échoue, corrige en montant d'un niveau,

@@ -27,106 +27,131 @@
       },
       "report": {
         "format": "json",
-        "description": "Un objet par document.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par document.",
         "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "object",
-                "required": [
-                  "input",
-                  "outputs",
-                  "diagrams_exported",
-                  "warnings"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "input": {
-                    "type": "string"
-                  },
-                  "outputs": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "format",
-                        "file",
-                        "images",
-                        "tables"
-                      ],
-                      "additionalProperties": false,
-                      "properties": {
-                        "format": {
-                          "enum": [
-                            "docx",
-                            "html",
-                            "xwiki"
-                          ]
-                        },
-                        "file": {
-                          "type": "string"
-                        },
-                        "images": {
-                          "type": "integer",
-                          "minimum": 0
-                        },
-                        "tables": {
-                          "type": "integer",
-                          "minimum": 0
-                        },
-                        "pdf": {
-                          "type": "string"
-                        },
-                        "preview": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "preview_pages": {
-                          "type": "array",
-                          "items": {
-                            "type": "integer",
-                            "minimum": 1
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "outputs",
+                      "diagrams_exported",
+                      "warnings"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "outputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "format",
+                            "file",
+                            "images",
+                            "tables"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "format": {
+                              "enum": [
+                                "docx",
+                                "html",
+                                "xwiki"
+                              ]
+                            },
+                            "file": {
+                              "type": "string"
+                            },
+                            "images": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "tables": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "pdf": {
+                              "type": "string"
+                            },
+                            "preview": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "preview_pages": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 1
+                              }
+                            }
                           }
                         }
+                      },
+                      "diagrams_exported": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "error": {
+                        "type": "string"
                       }
                     }
                   },
-                  "diagrams_exported": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "warnings": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
                     }
-                  },
-                  "error": {
-                    "type": "string"
                   }
-                }
-              },
-              {
-                "type": "object",
-                "required": [
-                  "input",
-                  "error"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "input": {
-                    "type": "string"
-                  },
-                  "error": {
-                    "type": "string"
-                  }
-                }
+                ]
               }
-            ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
+            }
           }
         }
       },

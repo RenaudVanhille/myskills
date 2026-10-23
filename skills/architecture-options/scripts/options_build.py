@@ -26,6 +26,7 @@ fonctionnelles retenues, pondérées par leur plus haute priorité
 """
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -55,10 +56,20 @@ def load_catalog(base: Path, spec: dict, errors: list[str]) -> dict[str, dict]:
     path = base / spec.get("requirements", "exigences.json")
     try:
         catalog = json.loads(path.read_text(encoding="utf-8"))
-        return {r["id"]: r for r in catalog["requirements"]}
-    except (OSError, ValueError, KeyError, TypeError) as error:
+    except (OSError, ValueError) as error:
         errors.append(f"requirements : catalogue illisible {path} ({error})")
         return {}
+    # Le catalogue est validé contre le schéma de req_build.py (skill requirements-catalog), s'il est installé.
+    req_build = Path(__file__).resolve().parents[2] / "requirements-catalog" / "scripts" / "req_build.py"
+    schema = input_schema(req_build) if (req_build.parent.parent / "contract.json").exists() else None
+    invalid = check(catalog, schema) if schema else []
+    if invalid:
+        errors += [f"requirements : {path.name} : {e}" for e in invalid[:10]]
+        return {}
+    if not isinstance(catalog, dict) or not isinstance(catalog.get("requirements"), list):
+        errors.append(f"requirements : {path.name} sans liste requirements")
+        return {}
+    return {r["id"]: r for r in catalog["requirements"] if isinstance(r, dict) and "id" in r}
 
 
 def default_criteria(catalog: dict[str, dict]) -> list[dict]:
@@ -106,6 +117,53 @@ def layout(option: dict) -> list[dict]:
             edge["style"] = flow["style"]
         elements.append(edge)
     return elements
+
+
+# Rôle d'un composant -> type générique de cloud_build.py, quand le composant n'a pas de type.
+CLOUD_TYPES = {"person": "user", "system": "service", "external": "external", "db": "db", "queue": "queue"}
+
+
+def cloud_spec(option: dict) -> dict:
+    """Description cloud_build.py d'une option hébergée chez un fournisseur."""
+    items = [{"id": c["id"], "type": c.get("type") or CLOUD_TYPES[c.get("role", "system")], "label": c["label"]}
+             for c in option["components"]]
+    flows = [{k: f[k] for k in ("from", "to", "label", "style") if f.get(k)} for f in option.get("flows", [])]
+    return {"_source": "généré par options_build.py", "title": f"Option {option['id']} : {option['name']}",
+            "provider": option["provider"], "items": items, "flows": flows}
+
+
+def traceability(spec: dict, catalog: dict) -> tuple[list[list[str]], dict]:
+    """Matrice exigence x option (couverture) et composants de l'option retenue, ou recommandée."""
+    target = (spec.get("decision") or spec["recommendation"])["option"]
+    chosen = next(o for o in spec["options"] if o["id"] == target)
+    uses_refs = any(c.get("refs") for c in chosen["components"])
+    header = ["Exigence", "Titre", "Priorité"] + [f"Option {o['id']}" for o in spec["options"]] + \
+        [f"Composants de {target}"]
+    rows, uncovered, unassigned = [header], [], []
+    for rid, req in catalog.items():
+        if req.get("status", "retenue") != "retenue":
+            continue
+        cover = []
+        for option in spec["options"]:
+            gap = option.get("gaps", {}).get(rid)
+            cover.append(LEVELS[gap["level"]] if gap else "couverte")
+        comps = [c["label"] for c in chosen["components"] if rid in c.get("refs", [])]
+        level = chosen.get("gaps", {}).get(rid, {}).get("level")
+        if level == "non" and req["priority"] == "indispensable":
+            uncovered.append(rid)
+        if uses_refs and level != "non" and not comps and req["priority"] != "hors-perimetre":
+            unassigned.append(rid)
+        rows.append([rid, req.get("title", ""), req["priority"], *cover, ", ".join(comps)])
+    return rows, {"uncovered": uncovered, "unassigned": unassigned}
+
+
+def render_trace(rows: list[list[str]], target: str) -> str:
+    lines = ["# Matrice de traçabilité", "",
+             f"Fichier généré par `options_build.py`. Couverture de chaque exigence retenue par chaque option, "
+             f"et composants de l'option {target} qui la portent (champ refs des composants).", "",
+             "| " + " | ".join(rows[0]) + " |", "| " + " | ".join("---" for _ in rows[0]) + " |"]
+    lines += ["| " + " | ".join(cell(v) for v in row) + " |" for row in rows[1:]]
+    return "\n".join(lines) + "\n"
 
 
 def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: dict) -> str:
@@ -206,22 +264,22 @@ def main() -> int:
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)]}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
         return 1
     invalid = validate(spec, __file__)
     if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid}, ensure_ascii=False))
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
 
     if args.decision:
         try:
             spec["decision"] = json.loads(args.decision.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
-            print(json.dumps({"input": str(args.decision), "errors": [str(error)]}, ensure_ascii=False))
+            print(json.dumps({"input": str(args.decision), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
             return 1
         invalid = [f"décision : {e}" for e in check(spec["decision"], input_schema(__file__)["properties"]["decision"])]
         if invalid:
-            print(json.dumps({"input": str(args.decision), "errors": invalid}, ensure_ascii=False))
+            print(json.dumps({"input": str(args.decision), "errors": invalid, "warnings": []}, ensure_ascii=False))
             return 1
 
     errors: list[str] = []
@@ -250,6 +308,8 @@ def main() -> int:
                 if flow[end] not in comp_ids:
                     errors.append(f"{where}/flows/{fi}/{end} : composant inconnu « {flow[end]} »")
         check_refs(f"{where}/gaps", option.get("gaps", {}), catalog, errors)
+        for ci, comp in enumerate(option["components"]):
+            check_refs(f"{where}/components/{ci}/refs", comp.get("refs", []), catalog, errors)
         missing = [c for c in crit_ids if c not in option["scores"]]
         if missing:
             errors.append(f"{where}/scores : note manquante pour {', '.join(missing)}")
@@ -294,13 +354,26 @@ def main() -> int:
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
+    rows, report["trace"] = traceability(spec, catalog)
+    target = (decision or rec)["option"]
+    if report["trace"]["uncovered"]:
+        warnings.append(f"option {target} : exigence(s) indispensable(s) non couverte(s) : "
+                        f"{', '.join(report['trace']['uncovered'])}")
+    if report["trace"]["unassigned"]:
+        warnings.append(f"option {target} : exigence(s) couverte(s) sans composant (refs) : "
+                        f"{', '.join(report['trace']['unassigned'])}")
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
+    trace_md, trace_csv = out_dir / "tracabilite.md", out_dir / "tracabilite.csv"
+    with open(trace_md, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(render_trace(rows, target))
+    with open(trace_csv, "w", encoding="utf-8-sig", newline="") as handle:
+        csv.writer(handle, delimiter=";").writerows(rows)
     if args.decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(render_adr(spec, ranking, catalog))
-        report["outputs"] = [str(adr)]
+        report["outputs"] = [str(adr), str(trace_md), str(trace_csv)]
         print(json.dumps(report, ensure_ascii=False))
         return 0
     (out_dir / "schemas").mkdir(parents=True, exist_ok=True)
@@ -314,7 +387,14 @@ def main() -> int:
         json.dump({"_source": f"généré par options_build.py depuis {args.spec.name}",
                    "audience": spec.get("audience", "technique"), "pages": pages}, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
-    report["outputs"] = [str(md), str(diagrams)]
+    report["outputs"] = [str(md), str(diagrams), str(trace_md), str(trace_csv)]
+    for option in spec["options"]:
+        if option.get("provider"):
+            target_cloud = out_dir / "schemas" / f"option-{option['id'].lower()}.cloud.json"
+            with open(target_cloud, "w", encoding="utf-8", newline="\n") as handle:
+                json.dump(cloud_spec(option), handle, ensure_ascii=False, indent=2)
+                handle.write("\n")
+            report["outputs"].append(str(target_cloud))
     if decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:

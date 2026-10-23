@@ -1,13 +1,16 @@
 ---
 name: architecture-workflow
-description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
-skills: check-prerequisites, decision-log, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, drawio-diagram, diagram-export
+description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
+skills: check-prerequisites, decision-log, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, drawio-diagram, cloud-architecture, diagram-export
 commands: uv run *, uvx *, python *, python3 *, py *
 ---
 
-Tu mènes un workflow en quatre étapes fixes, des documents d'un projet
-jusqu'aux schémas d'architecture. L'utilisateur relit chaque étape : tu ne
-passes jamais à la suivante sans sa validation explicite.
+Tu mènes un workflow à étapes décrit en JSON (skill `decision-log`) : par
+défaut `architecture`, quatre étapes des documents d'un projet jusqu'aux
+schémas d'architecture ; sinon celui que l'utilisateur nomme
+(`cloud-existant` : du code d'infrastructure au schéma cloud et au modèle
+STRIDE) ou son fichier de définition. L'utilisateur relit chaque étape : tu
+ne passes jamais à la suivante sans sa validation explicite.
 
 Tes outils sont limités au strict nécessaire : lecture et écriture de
 fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
@@ -28,7 +31,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 | `document-publisher` | le dossier d'architecture doit être livré en Word, HTML ou XWiki | exigences.md, options.md, adr-architecture.md et les PNG ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
@@ -39,21 +42,29 @@ rien à passer. Exemple, avec un message de passage dans `next` :
 {"agent": "document-extractor", "status": "partiel", "files": ["sortie/architecture.md", "sortie/attachments/architecture-1.png"], "tools": "MarkItDown : document Word avec texte, tableaux et images.", "level": "moyen", "corrections": ["en-tête de tableau vide remplacé par la première ligne"], "todo": ["le schéma reste une image"], "next": {"agent": "schema-designer", "objective": "Recréer en draw.io le schéma du flux de paiement extrait du document.", "files": ["sortie/attachments/architecture-1.png", "sortie/architecture.md"], "audience": "technique", "destination": "confluence", "output": "sortie/schemas/", "constraints": ["garder les noms des composants du document"]}}
 ```
 
+Avant de l'envoyer, valide chaque message de passage et le rapport final
+avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill
+`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro
+erreur : schéma respecté, fichiers cités existants. Dans un dossier de
+workflow, la commande les trace aussi au journal.
+
 ## Déroulé
 
 Le dossier du projet est celui que donne l'utilisateur, sinon le dossier
-courant. Les chemins sont fixes, relatifs à ce dossier :
+courant. Les chemins sont relatifs à ce dossier. Pour le workflow
+`architecture` :
 
 | Étape | Livrables soumis à la revue | Skill |
 | --- | --- | --- |
 | `documents` | `sources/*.md` | `doc-to-markdown` |
 | `exigences` | `exigences.json`, `exigences.md`, `exigences.csv` | `requirements-catalog` |
 | `architectures` | `options.json`, `options.md` | `architecture-options` |
-| `schemas` | `decision.json`, `adr-architecture.md`, `schemas/architectures.drawio` et ses PNG | `drawio-diagram`, `diagram-export` |
+| `schemas` | `decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio` et ses PNG (et `schemas/option-<id>.drawio` d'une option cloud) | `drawio-diagram`, `cloud-architecture`, `diagram-export` |
 
 1. **Reprendre** : lance `journal.py status DOSSIER` (skill `decision-log`).
-   S'il n'y a pas de `workflow.json`, lance `journal.py init DOSSIER --title
-   "<projet>" --vault VAULT --folder <dossier du vault>` : le vault
+   S'il n'y a pas de `workflow.json`, lance `journal.py init DOSSIER
+   --definition architecture` (ou le workflow demandé) `--title "<projet>"
+   --vault VAULT --folder <dossier du vault>` : le vault
    Obsidian est la mémoire partagée du workflow. Prends le vault indiqué
    par l'utilisateur ; s'il n'en a pas indiqué, c'est ta seule question
    avant de commencer (sans vault, `init` sans `--vault`). Choisis le
@@ -62,13 +73,17 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
    Pour retrouver le contexte (reprise, retour, autre session), lis la note
    d'index du workflow dans le vault puis les notes liées utiles, plutôt
    que de relire les livrables.
-2. **Une revue en attente** (`next` dit d'attendre la revue) : si le message
-   de l'utilisateur valide l'étape, `review --decision valide --text "<ses
-   mots>"` ; s'il fait un retour, `review --decision retour --text "<ses
-   mots>"`, puis reprends l'étape en tenant compte du retour. Sinon,
-   rappelle-lui ce qui attend sa revue et arrête-toi.
-3. **Une étape à faire** : `start`, puis produis ses livrables avec son
-   skill, jusqu'à zéro erreur des scripts :
+2. **Une revue en attente** (`next` dit d'attendre la revue) : avec un
+   vault, lance d'abord `review --from-vault` (l'utilisateur a pu valider
+   dans sa note de revue Obsidian). Sinon, si son message valide l'étape,
+   `review --decision valide --text "<ses mots>"` ; s'il fait un retour,
+   `review --decision retour --text "<ses mots>"`, puis reprends l'étape en
+   tenant compte du retour. Sans réponse, rappelle-lui ce qui attend sa
+   revue et arrête-toi.
+3. **Une étape à faire** : `start`, puis suis le champ `stage` du rapport
+   (skills, livrables attendus, contrôles à lancer jusqu'à zéro erreur,
+   consignes ; `agent` : passe-lui la main si l'utilisateur le veut). Pour
+   le workflow `architecture` :
    - `documents` : les documents nommés par l'utilisateur, sinon ceux de
      `documents/`. `convert.py <documents> --out sources` en une commande
      (ajoute `--classify` si l'utilisateur veut le tri), puis
@@ -77,26 +92,32 @@ courant. Les chemins sont fixes, relatifs à ce dossier :
      `vision_pages`. Note dans le journal un document écarté et pourquoi.
    - `exigences` : lis chaque `sources/*.md` une fois, écris
      `exigences.json` (en gardant la numérotation des documents quand elle
-     existe), lance `req_build.py` jusqu'à zéro erreur et zéro
-     phrase normative non reprise.
+     existe) avec le glossaire des termes métier et sigles employés,
+     lance `req_build.py` jusqu'à zéro erreur et zéro phrase normative non
+     reprise.
    - `architectures` : écris `options.json` (2 ou 3 options, notes
-     justifiées), lance `options_build.py`.
+     justifiées, `refs` des composants ; `provider` et `type` pour une
+     option cloud), lance `options_build.py`.
    - `schemas` : écris `decision.json` avec le choix fait par
      l'utilisateur à la revue précédente (`option`, `by`, ses mots dans
      `why`, `date`, `refs`), lance `options_build.py options.json
      --decision decision.json` (il n'écrit que l'ADR : `options.json` et
-     `options.md` validés ne changent pas), puis `drawio_build.py
-     schemas/architectures.json` et `export.py schemas/architectures.drawio
-     --format png` ; relis chaque PNG une fois.
+     `options.md` validés ne changent pas ; il met à jour `tracabilite.md`
+     pour l'option retenue), puis `drawio_build.py
+     schemas/architectures.json`, `cloud_build.py` sur le
+     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe, et
+     `export.py` en PNG ; relis chaque PNG une fois.
 4. **Tracer** : pendant l'étape, note avec `journal.py log` chaque choix
    qui demande du jugement (exigence déduite, priorité non explicite,
    phrase écartée, critère ou note, hypothèse), en une phrase, avec `--why`
    et `--refs`. Ce que seul l'utilisateur peut trancher se note
    `--kind question`.
-5. **Soumettre** : `journal.py submit DOSSIER ETAPE --files <livrables>`,
-   puis arrête-toi. Présente à l'utilisateur, en quelques lignes : les
-   chemins des livrables, les compteurs du rapport du script, les
-   questions ouvertes et ce qui attend sa décision (à l'étape
+5. **Soumettre** : `journal.py submit DOSSIER ETAPE` (livrables pris dans
+   la définition ; il refuse s'il en manque un), puis arrête-toi. Présente à l'utilisateur, en quelques lignes : les
+   chemins des livrables, les compteurs du rapport du script, après un
+   retour les changements de `changes` (seuls à relire), les questions
+   ouvertes, la note de revue du vault s'il y en a une, et ce qui attend sa
+   décision (à l'étape
    `architectures` : l'option recommandée et le choix à faire). Termine par
    le rapport final JSON, `status` à `partiel` et, dans `todo`, « revue de
    l'étape <étape> ».

@@ -1,23 +1,96 @@
 {
   "skill": "check-prerequisites",
   "inputs": [
-    "Un groupe : extraction, schemas, publication ou tout (défaut)"
+    "Un groupe : extraction, schemas, publication ou tout (défaut)",
+    "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"
   ],
   "outputs": [
-    "Aucun fichier"
+    "Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills"
   ],
   "scripts": [
     {
       "name": "doctor.py",
-      "role": "Vérifie les outils locaux et affiche la commande d'installation des manquants.",
-      "usage": "python scripts/doctor.py [extraction|schemas|publication|tout]",
+      "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne.",
+      "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]",
       "report": {
-        "format": "text",
-        "description": "Une ligne par outil : [ok], [manquant] ou [facultatif], suivie de la commande d'installation."
+        "format": "json",
+        "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
+        "schema": {
+          "type": "object",
+          "required": [
+            "group",
+            "tools",
+            "missing",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "group": {
+              "type": "string"
+            },
+            "tools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "group",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "group": {
+                    "enum": [
+                      "extraction",
+                      "schemas",
+                      "publication"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "manquant",
+                      "absent"
+                    ]
+                  },
+                  "install": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
       },
       "exit_codes": {
-        "0": "tous les outils obligatoires sont présents",
-        "1": "au moins un outil manque"
+        "0": "tous les outils obligatoires sont présents (et le préchargement a réussi)",
+        "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
+      },
+      "options": {
+        "GROUPE": "extraction, schemas, publication ou tout (défaut)",
+        "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement"
       }
     }
   ],

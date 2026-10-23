@@ -1,14 +1,17 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.15"
 # dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5", "pypdfium2>=4"]
 # ///
 """Convertit un document (PDF, DOCX, PPTX, XLSX, image) en Markdown, en local.
 
 Les images sont extraites dans <sortie>/attachments/ et liées en relatif.
+Un dossier donne tous ses documents convertibles. Deux documents de même nom
+(rapport.pdf, rapport.docx) donnent rapport-pdf.md et rapport-docx.md : rien
+n'est écrasé.
 Affiche un rapport JSON sur la sortie standard.
 
 Usage :
-    uv run scripts/convert.py FICHIER [--out DOSSIER] [--engine auto|markitdown|docling]
+    uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling]
         [--classify [--domains a,b]] [--no-clean] [--skip-existing]
 
 Moteurs :
@@ -49,8 +52,13 @@ from pathlib import Path
 
 from validate import check
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
+
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+# Documents pris dans un dossier passé en argument.
+CONVERTIBLE = OFFICE | IMAGES | {".pdf", ".html", ".htm", ".csv", ".epub"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
 MIN_CHARS_PER_PAGE = 30
 # Côté le plus long d'une page rendue pour la vision : au-delà, le modèle la
@@ -232,17 +240,51 @@ def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | 
     command += [str(f) for f in files] + (["--domains", domains] if domains else [])
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
     try:
-        reports = json.loads(result.stdout)
-    except json.JSONDecodeError:
+        reports = json.loads(result.stdout)["results"]
+    except (json.JSONDecodeError, KeyError, TypeError):
         lines = (result.stderr or "sortie vide").strip().splitlines()
         return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
     return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
 
 
+def unique_stems(files: list[Path]) -> dict[Path, str]:
+    """Nom de sortie de chaque document : son nom sans extension, suivi de
+    l'extension (rapport-pdf) quand deux documents du lot portent le même nom,
+    pour qu'aucun Markdown ni aucune image n'en écrase un autre. Comparaison sans
+    casse, comme sous Windows et macOS."""
+    stems: dict[Path, str] = {}
+    taken: set[str] = set()
+    counts: dict[str, int] = {}
+    for path in files:
+        counts[path.stem.lower()] = counts.get(path.stem.lower(), 0) + 1
+    for path in files:
+        stem = path.stem if counts[path.stem.lower()] == 1 else f"{path.stem}-{path.suffix[1:].lower()}"
+        base, number = stem, 2
+        while stem.lower() in taken:
+            stem, number = f"{base}-{number}", number + 1
+        taken.add(stem.lower())
+        stems[path] = stem
+    return stems
+
+
+def expand(paths: list[Path], out: Path) -> list[Path]:
+    """Un dossier donne ses documents convertibles (sous-dossiers compris, hors
+    Markdown, dossiers cachés et dossier de sortie)."""
+    files = []
+    for path in paths:
+        if path.is_dir():
+            files += sorted(p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in CONVERTIBLE
+                            and not any(part.startswith(".") for part in p.relative_to(path).parts)
+                            and out not in p.resolve().parents)
+        else:
+            files.append(path)
+    return list(dict.fromkeys(files))
+
+
 def convert(path: Path, out: Path, engine: str, classification: dict | None = None,
-            clean: bool = True) -> dict:
+            clean: bool = True, stem: str | None = None) -> dict:
     suffix = path.suffix.lower()
-    stem = path.stem
+    stem = stem or path.stem
     attachments = out / "attachments"
     report = {"input": str(path), "output": str(out / f"{stem}.md"),
               "type": None, "engine": None, "pages": None, "images": 0,
@@ -254,11 +296,12 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
     if suffix in IMAGES:
         report["type"], report["engine"] = "image", "copie"
         attachments.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, attachments / path.name)
-        markdown = (f"# {stem}\n\n![{stem}](attachments/{path.name})\n\n"
+        image = f"{stem}{suffix}"
+        shutil.copy2(path, attachments / image)
+        markdown = (f"# {path.stem}\n\n![{path.stem}](attachments/{image})\n\n"
                     "<!-- vision : transcrire ici le contenu de l'image -->\n")
         report["images"], report["needs_vision"] = 1, True
-        report["vision_pages"] = [str(attachments / path.name)]
+        report["vision_pages"] = [str(attachments / image)]
     else:
         profile = {"pages": None, "scanned_pages": []}
         if suffix == ".pdf":
@@ -316,7 +359,7 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("files", nargs="+", type=Path)
+    parser.add_argument("files", nargs="+", type=Path, help="documents ou dossiers")
     parser.add_argument("--out", type=Path, default=Path("."))
     parser.add_argument("--engine", choices=["auto", "markitdown", "docling"], default="auto")
     parser.add_argument("--classify", action="store_true",
@@ -329,31 +372,32 @@ def main() -> int:
     args = parser.parse_args()
 
     reports, failed = [], False
+    files = expand(args.files, args.out.resolve())
+    stems = unique_stems(files)
     classifications, classify_warning = {}, None
     if args.classify:
-        existing = [path.resolve() for path in args.files
+        existing = [path.resolve() for path in files
                     if path.is_file() and path.suffix.lower() not in IMAGES]
         if existing:
             classifications, classify_warning = run_classifier(existing, args.domains)
-    for path in args.files:
+    for path in files:
         if not path.is_file():
             reports.append({"input": str(path), "error": "Fichier introuvable"})
             failed = True
             continue
-        target = args.out.resolve() / f"{path.stem}.md"
+        target = args.out.resolve() / f"{stems[path]}.md"
         if args.skip_existing and target.is_file() and target.stat().st_mtime >= path.stat().st_mtime:
             reports.append({"input": str(path), "output": str(target), "skipped": True})
             continue
         try:
             reports.append(convert(path.resolve(), args.out.resolve(), args.engine,
-                                   classifications.get(path.resolve()), not args.no_clean))
-            if classify_warning:
-                reports[-1]["warnings"].append(classify_warning)
+                                   classifications.get(path.resolve()), not args.no_clean, stems[path]))
+            if stems[path] != path.stem:
+                reports[-1]["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports, warnings=[classify_warning] if classify_warning else [])
     return 1 if failed else 0
 
 

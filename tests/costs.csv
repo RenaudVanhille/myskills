@@ -11,3 +11,17 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-22T21:57:03,lot-3,d1a7da7,extraire-docx,document-extractor,sonnet,True,5,0.0821,6,17813,46910,602,0,13
 2026-10-22T21:57:03,lot-3,d1a7da7,extraire-pdf-texte,document-extractor,sonnet,True,7,0.0818,10,14893,97547,1235,0,19
 2026-10-22T21:57:03,lot-3,d1a7da7,schema-drawio,schema-designer,sonnet,True,5,0.0924,6,17787,46087,1648,0,20
+2026-10-23T18:52:52,revue-complete,51800ef,extraire-docx,document-extractor,sonnet,False,6,0.1164,8,25093,69752,895,0,13
+2026-10-23T18:52:52,revue-complete,51800ef,extraire-pdf-texte,document-extractor,sonnet,True,9,0.0963,12,16369,131116,1755,0,23
+2026-10-23T18:52:52,revue-complete,51800ef,schema-drawio,schema-designer,sonnet,False,7,0.1231,9,22358,103992,2308,0,24
+2026-10-23T18:52:52,revue-complete,51800ef,workflow-premiere-revue,architecture-workflow,sonnet,False,3,0.0916,5,19597,51607,778,0,12
+2026-10-23T18:52:52,revue-complete,51800ef,workflow-retour,architecture-workflow,sonnet,True,12,0.1548,21,22342,298472,3529,0,39
+2026-10-23T18:52:52,revue-complete,51800ef,workflow-reprise,architecture-workflow,sonnet,True,5,0.0837,9,14789,107727,1367,0,17
+2026-10-23T18:55:50,main-meme-cli,787b399,extraire-docx,document-extractor,sonnet,True,6,0.0942,8,19690,74706,783,0,15
+2026-10-23T18:55:50,main-meme-cli,787b399,extraire-pdf-texte,document-extractor,sonnet,True,7,0.0876,10,15989,104726,1306,0,24
+2026-10-23T18:55:50,main-meme-cli,787b399,schema-drawio,schema-designer,sonnet,True,9,0.124,11,22559,130212,2055,0,26
+2026-10-23T18:56:58,revue-complete-2,50d551a,extraire-docx,document-extractor,sonnet,True,7,0.0815,10,14709,105658,1195,0,18
+2026-10-23T18:56:58,revue-complete-2,50d551a,schema-drawio,schema-designer,sonnet,True,7,0.0976,9,16412,109491,2088,0,24
+2026-10-23T18:56:58,revue-complete-2,50d551a,workflow-premiere-revue,architecture-workflow,sonnet,True,8,0.127,15,22050,179946,2049,0,37
+2026-10-23T19:05:44,workflows-json,7738c3a,workflow-premiere-revue,architecture-workflow,sonnet,True,7,0.1229,13,22488,157460,1689,0,32
+2026-10-23T19:05:44,workflows-json,7738c3a,workflow-cloud-existant,architecture-workflow,sonnet,True,12,0.1537,15,25525,226725,2875,0,31

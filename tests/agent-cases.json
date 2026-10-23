@@ -5,7 +5,9 @@
       "id": "extraire-docx",
       "agent": "document-extractor",
       "prompt": "Convertis architecture.docx en Markdown dans le dossier sortie/.",
-      "inputs": ["fixtures/samples/architecture.docx"],
+      "inputs": [
+        "fixtures/samples/architecture.docx"
+      ],
       "output": "sortie/architecture.md",
       "expected": "architecture.md",
       "rubric": [
@@ -18,7 +20,9 @@
       "id": "extraire-pdf-texte",
       "agent": "document-extractor",
       "prompt": "Extrais rapport-texte.pdf en Markdown propre dans sortie/.",
-      "inputs": ["fixtures/samples/rapport-texte.pdf"],
+      "inputs": [
+        "fixtures/samples/rapport-texte.pdf"
+      ],
       "output": "sortie/rapport-texte.md",
       "expected": "rapport-texte.md",
       "rubric": [
@@ -31,7 +35,9 @@
       "id": "extraire-pdf-scanne",
       "agent": "document-extractor",
       "prompt": "Ce PDF est un scan : convertis rapport-scanne.pdf en Markdown dans sortie/.",
-      "inputs": ["fixtures/samples/rapport-scanne.pdf"],
+      "inputs": [
+        "fixtures/samples/rapport-scanne.pdf"
+      ],
       "output": "sortie/rapport-scanne.md",
       "expected": "rapport-scanne.md",
       "rubric": [
@@ -43,7 +49,9 @@
       "id": "extraire-image",
       "agent": "document-extractor",
       "prompt": "Transforme schema-flux.png en note Markdown dans sortie/ et décris le schéma.",
-      "inputs": ["fixtures/samples/schema-flux.png"],
+      "inputs": [
+        "fixtures/samples/schema-flux.png"
+      ],
       "output": "sortie/schema-flux.md",
       "expected": "schema-flux.md",
       "rubric": [
@@ -55,7 +63,9 @@
       "id": "importer-obsidian",
       "agent": "document-extractor",
       "prompt": "Importe presentation.pptx dans mon vault Obsidian vault/, avec ses images.",
-      "inputs": ["fixtures/samples/presentation.pptx"],
+      "inputs": [
+        "fixtures/samples/presentation.pptx"
+      ],
       "output": "vault/presentation.md",
       "expected": "presentation.md",
       "rubric": [
@@ -68,7 +78,9 @@
       "id": "schema-drawio",
       "agent": "schema-designer",
       "prompt": "À partir de contexte-paiement.md, fais un schéma draw.io pour une page Confluence, dans schemas/paiement.drawio.",
-      "inputs": ["fixtures/diagrams/contexte-paiement.md"],
+      "inputs": [
+        "fixtures/diagrams/contexte-paiement.md"
+      ],
       "output": "schemas/paiement.drawio",
       "rubric": [
         "Le schéma contient des formes nommées Client, API, file de messages, Worker, Banque et base PostgreSQL ou équivalentes.",
@@ -80,7 +92,9 @@
       "id": "schema-pos",
       "agent": "schema-designer",
       "prompt": "À partir de l'inventaire pos-inventaire.csv, fais le plan d'occupation des sols du SI pour une page Confluence lue par la direction, dans schemas/.",
-      "inputs": ["fixtures/diagrams/pos-inventaire.csv"],
+      "inputs": [
+        "fixtures/diagrams/pos-inventaire.csv"
+      ],
       "output": "schemas/pos-inventaire.drawio",
       "rubric": [
         "Le schéma a des zones Pilotage, Opérations, Support, Référentiels et Échanges.",
@@ -92,7 +106,9 @@
       "id": "schema-excalidraw",
       "agent": "schema-designer",
       "prompt": "Explique le traitement d'un paiement à des commerciaux avec un schéma Excalidraw, d'après contexte-paiement.md, dans schemas/.",
-      "inputs": ["fixtures/diagrams/contexte-paiement.md"],
+      "inputs": [
+        "fixtures/diagrams/contexte-paiement.md"
+      ],
       "output": "schemas/paiement.excalidraw",
       "rubric": [
         "Le schéma a au plus sept éléments principaux.",
@@ -103,7 +119,9 @@
       "id": "publier-html",
       "agent": "document-publisher",
       "prompt": "Publie expected/architecture.md en page HTML autonome dans publication/.",
-      "inputs": ["expected/architecture.md"],
+      "inputs": [
+        "expected/architecture.md"
+      ],
       "output": "publication/architecture.html",
       "rubric": [
         "La page contient le titre Architecture du service de paiement.",
@@ -113,13 +131,173 @@
     {
       "id": "workflow-premiere-revue",
       "agent": "architecture-workflow",
-      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md et compte-rendu-atelier.md.",
-      "inputs": ["fixtures/workflow/sources/cahier-des-charges.md", "fixtures/workflow/sources/compte-rendu-atelier.md"],
+      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md et compte-rendu-atelier.md, sans vault Obsidian.",
+      "inputs": [
+        "fixtures/workflow/sources/cahier-des-charges.md",
+        "fixtures/workflow/sources/compte-rendu-atelier.md"
+      ],
       "output": "journal.md",
       "rubric": [
         "Le journal montre l'étape documents en revue et les étapes exigences, architectures et schemas à faire.",
         "Le journal contient une entrée de soumission de l'étape documents.",
         "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "workflow-cloud-existant",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow cloud-existant sur le Terraform de infra/, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/iac/terraform/main.tf",
+          "to": "infra/main.tf"
+        }
+      ],
+      "output": "journal.md",
+      "rubric": [
+        "Le journal montre l'étape description en revue et les étapes schemas et menaces à faire.",
+        "schemas/architecture.json a été produit depuis le Terraform (iac_import.py) et soumis à la revue.",
+        "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "workflow-retour",
+      "agent": "architecture-workflow",
+      "prompt": "Mon retour sur les exigences : ajoute une exigence d'accessibilité (RGAA niveau AA) pour les assurés, puis soumets de nouveau l'étape.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--title",
+            "Portail sinistres",
+            "--stages",
+            "exigences,architectures,schemas"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences",
+            "--files",
+            "exigences.json",
+            "exigences.md",
+            "exigences.csv"
+          ]
+        }
+      ],
+      "output": "journal.md",
+      "rubric": [
+        "Le journal contient un retour de l'utilisateur sur l'étape exigences qui demande une exigence d'accessibilité.",
+        "Le journal montre une nouvelle soumission de l'étape exigences qui liste une exigence ajoutée.",
+        "L'étape exigences est en revue : l'agent n'a pas validé l'étape à la place de l'utilisateur.",
+        "Les étapes architectures et schemas sont toujours à faire."
+      ]
+    },
+    {
+      "id": "workflow-reprise",
+      "agent": "architecture-workflow",
+      "prompt": "Où en est le workflow ? Reprends là où on s'est arrêté.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--title",
+            "Portail sinistres",
+            "--stages",
+            "exigences,architectures,schemas"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences",
+            "--files",
+            "exigences.json",
+            "exigences.md",
+            "exigences.csv"
+          ]
+        }
+      ],
+      "output": "journal.md",
+      "rubric": [
+        "L'étape exigences est toujours en revue : l'agent ne l'a pas validée sans réponse de l'utilisateur.",
+        "Aucune étape architectures n'a démarré."
       ]
     }
   ]

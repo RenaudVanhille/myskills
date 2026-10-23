@@ -10,7 +10,7 @@
   "scripts": [
     {
       "name": "export.py",
-      "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu.",
+      "role": "Exporte les schémas en PNG, SVG ou PDF, ou vérifie leur rendu. Mermaid et Excalidraw sont rendus dans un navigateur local avec des bibliothèques à version fixée, vérifiées par leur empreinte ; avec MYSKILLS_OFFLINE=1, rien n'est téléchargé.",
       "usage": "uv run scripts/export.py SCHEMA [...] [--format png|svg|pdf] [--scale 2] [--out DOSSIER] [--transparent] [--check]",
       "options": {
         "SCHEMA": "sources à exporter",
@@ -22,46 +22,78 @@
       },
       "report": {
         "format": "json",
-        "description": "Un objet par source ; error vaut null si tout va bien.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par source ; error vaut null si tout va bien. Chaque image produite est contrôlée sans être regardée (taille, image presque uniforme, SVG vide) : warnings du résultat.",
         "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "source",
-              "format",
-              "outputs",
-              "error"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "source": {
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "source",
+                  "format",
+                  "outputs",
+                  "error"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "enum": [
+                      "png",
+                      "svg",
+                      "pdf"
+                    ]
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rendered": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Contrôle automatique des images : trop petite, presque uniforme, SVG vide."
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
                 "type": "string"
               },
-              "format": {
-                "enum": [
-                  "png",
-                  "svg",
-                  "pdf"
-                ]
+              "description": "Une ligne par fichier en échec, plus les erreurs du lot."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
               },
-              "outputs": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              },
-              "error": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "rendered": {
-                "type": "integer",
-                "minimum": 0
-              }
+              "description": "Avertissements du lot (ceux d'un fichier sont dans son résultat)."
             }
           }
         }

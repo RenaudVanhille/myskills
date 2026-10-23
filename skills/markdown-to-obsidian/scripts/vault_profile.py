@@ -73,8 +73,9 @@ def main() -> int:
     args = parser.parse_args()
     vault = args.vault.resolve()
     if not vault.is_dir():
-        print(json.dumps({"error": f"Vault introuvable : {vault}"}, ensure_ascii=False))
-        return 2
+        print(json.dumps({"vault": str(vault), "errors": [f"Vault introuvable : {vault}"], "warnings": []},
+                         ensure_ascii=False))
+        return 1
 
     tags, folders = Counter(), {}
     notes = 0
@@ -99,6 +100,8 @@ def main() -> int:
             for name, e in sorted(folders.items())
         },
         "attachments": attachments_folder(vault),
+        "errors": [],
+        "warnings": [] if notes else ["vault sans note"],
     }
     print(json.dumps(report, ensure_ascii=False))
     return 0

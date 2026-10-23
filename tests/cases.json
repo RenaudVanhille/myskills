@@ -2,17 +2,30 @@
   "_doc": "Cas de test des scripts, lancés par tests/run.py. Jetons : {skills}, {samples}, {fixtures}, {out} (dossier temporaire du cas). Chaque étape lance un script ; 'report' vérifie des valeurs du rapport JSON (chemin pointé, 0 = premier élément) ; 'report_contains' cherche un texte dans une valeur ; 'files' et 'contains' portent sur {out}.",
   "cases": [
     {
+      "id": "installation",
+      "skill": "tous",
+      "_note": "install.py pour OpenCode, Kiro et Hermes dans un projet : agents au format de chaque outil, skills copiés, chemins skill:// de Kiro valides.",
+      "steps": [
+        {"script": "{root}/scripts/install.py", "args": ["--project", "{out}"], "exit": 0}
+      ],
+      "files": [".opencode/agents/schema-designer.md", ".opencode/skills/decision-log/scripts/journal.py",
+                ".kiro/agents/architecture-workflow.md", ".kiro/skills/decision-log/SKILL.md",
+                ".hermes/skills/document-publisher/SKILL.md", ".hermes/skills/drawio-diagram/scripts/lib/charter.json"],
+      "contains": {".kiro/agents/schema-designer.md": ["skill://.kiro/skills/decision-log/SKILL.md", "capability: shell"],
+                   ".opencode/agents/document-extractor.md": ["webfetch: deny", "\"uv run *\": allow"]}
+    },
+    {
       "id": "docx",
       "skill": "doc-to-markdown",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1, "0.validation.ok": true}},
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.images": 1, "results.0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/architecture.md"], "exit": 0},
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/architecture.docx", "--out", "{out}", "--skip-existing"],
-         "exit": 0, "report": {"0.skipped": true}}
+         "exit": 0, "report": {"results.0.skipped": true}}
       ],
       "files": ["architecture.md", "attachments/architecture-1.png"],
       "contains": {"architecture.md": ["# Architecture du service de paiement",
@@ -26,7 +39,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/presentation.pptx", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.images": 1}}
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.images": 1}}
       ],
       "files": ["presentation.md", "attachments/presentation-1.png"],
       "contains": {"presentation.md": ["Flux d'un paiement"]}
@@ -37,8 +50,8 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-texte.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "markitdown", "0.pages": 2, "0.needs_vision": false},
-         "report_contains": {"0.hints": "titre probable"}},
+         "exit": 0, "report": {"results.0.engine": "markitdown", "results.0.pages": 2, "results.0.needs_vision": false},
+         "report_contains": {"results.0.hints": "titre probable"}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/rapport-texte.md"], "exit": 0}
       ],
@@ -47,13 +60,36 @@
     {
       "id": "pdf-scanne",
       "skill": "doc-to-markdown",
-      "_note": "Docling peut manquer : le cas vérifie seulement la détection du scan.",
+      "_note": "Sans Docling (MarkItDown imposé) : vérifie la détection du scan et les pages à transcrire par la vision.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}", "--engine", "markitdown"],
+         "exit": 0, "report": {"results.0.type": "pdf", "results.0.needs_vision": true},
+         "report_contains": {"results.0.warnings": "Pages sans texte"}}
+      ]
+    },
+    {
+      "id": "pdf-scanne-docling",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Docling (environ 2 Go au premier lancement) : OCR du scan, repli sur MarkItDown s'il échoue.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}"],
-         "exit": 0, "report": {"0.type": "pdf"},
-         "report_contains": {"0.warnings": "Pages sans texte"}}
+         "exit": 0, "report": {"results.0.type": "pdf"},
+         "report_contains": {"results.0.warnings": "Pages sans texte"}}
       ]
+    },
+    {
+      "id": "homonymes",
+      "skill": "doc-to-markdown",
+      "_note": "Un dossier dont deux documents portent le même nom : aucun Markdown ni aucune image écrasés.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{fixtures}/homonymes", "--out", "{out}"],
+         "exit": 0, "report_contains": {"results.1.warnings": "rapport-png.md"}}
+      ],
+      "files": ["rapport-pdf.md", "rapport-png.md", "attachments/rapport-png.png"]
     },
     {
       "id": "image",
@@ -61,7 +97,7 @@
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/schema-flux.png", "--out", "{out}"],
-         "exit": 0, "report": {"0.engine": "copie", "0.needs_vision": true}}
+         "exit": 0, "report": {"results.0.engine": "copie", "results.0.needs_vision": true}}
       ],
       "files": ["schema-flux.md", "attachments/schema-flux.png"]
     },
@@ -74,7 +110,7 @@
         {"script": "{skills}/doc-to-markdown/scripts/classify.py",
          "args": ["{samples}/presentation.pptx", "{samples}/rapport-scanne.pdf", "--rules-only"],
          "exit": 0,
-         "report": {"0.type": "presentation", "0.method": "regles", "1.engine": "docling"}}
+         "report": {"results.0.type": "presentation", "results.0.method": "regles", "results.1.engine": "docling"}}
       ]
     },
     {
@@ -86,7 +122,7 @@
         {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
          "args": ["{out}/tmp/architecture.md", "--vault", "{out}/vault", "--folder", "Architecture",
                   "--tags", "architecture,paiement", "--source", "architecture.docx", "--move"],
-         "exit": 0, "report": {"0.embeds": 1, "0.attachments_copied": 1, "0.validation.ok": true}},
+         "exit": 0, "report": {"results.0.embeds": 1, "results.0.attachments_copied": 1, "results.0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
          "exit": 0}
@@ -97,12 +133,20 @@
                                                           "  - paiement", "![[architecture-1.png]]"]}
     },
     {
+      "id": "prerequis",
+      "skill": "check-prerequisites",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["inconnu"], "exit": 1,
+         "report_contains": {"errors": "groupe inconnu"}}
+      ]
+    },
+    {
       "id": "drawio-valide",
       "skill": "drawio-diagram",
       "steps": [
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
          "args": ["{fixtures}/diagrams/paiement-valide.drawio"],
-         "exit": 0, "report": {"0.shapes": 3, "0.errors": [], "0.warnings": []}}
+         "exit": 0, "report": {"results.0.shapes": 3, "results.0.errors": [], "results.0.warnings": []}}
       ]
     },
     {
@@ -111,7 +155,7 @@
       "steps": [
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
          "args": ["{fixtures}/diagrams/paiement-casse.drawio"],
-         "exit": 1, "report_contains": {"0.errors": "identifiant en double"}}
+         "exit": 1, "report_contains": {"results.0.errors": "identifiant en double"}}
       ]
     },
     {
@@ -122,7 +166,7 @@
          "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.drawio"],
          "exit": 0, "report": {"errors": [], "warnings": [], "pages": 1}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/paiement.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["paiement.drawio"],
       "contains": {"paiement.drawio": ["fillColor=#dbeafe", "Comment un paiement est traité", "Légende"]}
@@ -136,7 +180,7 @@
          "exit": 0, "report": {"errors": [], "warnings": [], "pages": 6, "zones": 5, "quartiers": 10,
                                "ilots": 8, "applications": 21, "detail": "ilot"}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/pos.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/pos.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["pos.drawio"],
       "contains": {"pos.drawio": ["Plan d'occupation des sols du SI : assurance", "container=1",
@@ -178,7 +222,7 @@
          "exit": 0, "report": {"errors": [], "boundaries": 4, "crossing": 8},
          "report_contains": {"warnings": "F4"}},
         {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
-         "args": ["{out}/aws.drawio"], "exit": 0, "report": {"0.errors": [], "0.warnings": []}}
+         "args": ["{out}/aws.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
       ],
       "files": ["aws.drawio", "reseau.drawio", "reseau.flows.md", "menaces.md"],
       "contains": {"aws.drawio": ["resIcon=mxgraph.aws4.ecs", "grIcon=mxgraph.aws4.group_vpc2", "API commandes", "HTTPS 443"],
@@ -210,6 +254,35 @@
                    "gitops.drawio": ["Argo CD", "image=data:image/svg+xml"]}
     },
     {
+      "id": "cloud-iac",
+      "skill": "cloud-architecture",
+      "_note": "Terraform, docker-compose et Kubernetes vers la description de cloud_build.py ; un gabarit Helm et un fichier sans ressource.",
+      "steps": [
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/terraform", "--out", "{out}/tf.json", "--title", "Boutique"],
+         "exit": 0, "report": {"errors": [], "provider": "aws", "groups": 5, "services": 6, "flows": 5, "ignored": 3,
+                               "sources.terraform": 1},
+         "report_contains": {"warnings": "aws_iam_role (1)"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{out}/tf.json", "--out", "{out}/tf.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "services": 6}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/docker-compose.yml", "{fixtures}/iac/k8s", "--out", "{out}/mixte.json"],
+         "exit": 0, "report": {"errors": [], "provider": "k8s", "services": 13, "flows": 11,
+                               "sources.compose": 1, "sources.kubernetes": 1},
+         "report_contains": {"warnings": "YAML illisible, ligne 6"}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/vide.tf", "{fixtures}/iac/absent.tf", "--out", "{out}/vide.json"],
+         "exit": 1, "report": {"output": null}, "report_contains": {"errors": "absent.tf : fichier introuvable"}}
+      ],
+      "files": ["tf.json", "tf.drawio", "mixte.json"],
+      "absent": ["vide.json"],
+      "contains": {"tf.json": ["\"type\": \"aws:public-subnet\"", "\"label\": \"facturation\"",
+                               "\"from\": \"sqs-queue-orders\"", "\"from\": \"web\",\n      \"to\": \"ecs-service-api\""],
+                   "tf.drawio": ["grIcon=mxgraph.aws4.group_vpc2", "api-commandes"],
+                   "mixte.json": ["\"type\": \"k8s:hpa\"", "\"type\": \"queue\""]}
+    },
+    {
       "id": "entrees-invalides",
       "skill": "drawio-diagram",
       "_note": "Chaque script refuse une description non conforme au schéma d'entrée de son contrat, avec le chemin de l'erreur.",
@@ -234,6 +307,57 @@
          "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}}
       ],
       "absent": ["d.drawio", "d.excalidraw", "p.drawio", "c.drawio", "c.threats.md"]
+    },
+    {
+      "id": "export-erreurs",
+      "skill": "diagram-export",
+      "steps": [
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/absent.drawio", "{fixtures}/diagrams/pos-inventaire.csv", "--out", "{out}"],
+         "exit": 1, "report": {"results.0.error": "Fichier introuvable"}, "report_contains": {"errors": "Format non reconnu"}}
+      ]
+    },
+    {
+      "id": "hors-ligne",
+      "skill": "diagram-export",
+      "_note": "MYSKILLS_OFFLINE=1 et cache vide : aucun téléchargement, erreur qui dit comment préparer la machine.",
+      "steps": [
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "--out", "{out}"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 1, "report_contains": {"errors": "absent du cache"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 0, "report_contains": {"warnings": "mode hors ligne"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["schemas"],
+         "env": {"XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": "any", "report_contains": {"warnings": "mermaid 11.12.0 dans le cache (rendus hors ligne) absent (facultatif)"}}
+      ],
+      "absent": ["flux.png", "cache/myskills"]
+    },
+    {
+      "id": "prefetch",
+      "skill": "check-prerequisites",
+      "slow": true,
+      "_note": "Réseau : télécharge Mermaid et Excalidraw, vérifie leur empreinte, puis rend hors ligne.",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction", "--prefetch"],
+         "env": {"XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"}, "exit": 0, "report": {"errors": []}},
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "--out", "{out}"],
+         "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},
+         "exit": 0, "report": {"errors": []}}
+      ],
+      "files": ["flux.png", "cache/myskills/mermaid-11.12.0/VERIFIED", "cache/myskills/excalidraw-utils-0.1.7/VERIFIED"]
+    },
+    {
+      "id": "export-rendus",
+      "skill": "diagram-export",
+      "slow": true,
+      "_note": "Navigateur local (MYSKILLS_BROWSER ou Playwright) et téléchargement de Mermaid et Excalidraw au premier lancement.",
+      "steps": [
+        {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py", "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.excalidraw"], "exit": 0},
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "{out}/paiement.excalidraw", "--out", "{out}"],
+         "exit": 0, "report": {"errors": [], "results.0.warnings": [], "results.1.warnings": []}}
+      ],
+      "files": ["flux.png", "paiement.excalidraw.png"]
     },
     {
       "id": "excalidraw",
@@ -280,7 +404,8 @@
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "ligne proche : « L'assuré doit pouvoir déclarer", "warnings": "cahier-des-charges.md:11 « Il doit pouvoir suivre l'avancement de son dossier. »"}},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « cahier-des-charges.md » ?"}},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "(REQ-100) : nature manquante", "warnings": "porte déjà l'identifiant SEC-01, conservez-le comme id"}},
-        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}}
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"warnings": "identifiant REQ-099 absent des sources"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "glossary/1 (Client) : « assuré » déjà défini par « Assuré »", "warnings": "glossary/2 (Expert) : terme employé par aucune exigence retenue"}}
       ],
       "absent": ["exigences-invalide.md", "exigences-citation.md"]
     },
@@ -290,12 +415,15 @@
       "steps": [
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}"], "exit": 0, "report": {"options": 2, "criteria": 5, "ranking.0.option": "A", "ranking.0.score": 82, "ranking.1.blocking": ["ENF-004"], "decided": null, "errors": [], "warnings": []}},
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
-        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py", "args": ["{out}/schemas/architectures.json"], "exit": 0, "report": {"pages": 2, "errors": [], "warnings": []}}
+        {"script": "{skills}/drawio-diagram/scripts/drawio_build.py", "args": ["{out}/schemas/architectures.json"], "exit": 0, "report": {"pages": 2, "errors": [], "warnings": []}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/schemas/option-a.cloud.json", "--out", "{out}/schemas/option-a.drawio"], "exit": 0, "report": {"errors": []}}
       ],
-      "files": ["options.md", "adr-architecture.md", "schemas/architectures.drawio"],
+      "files": ["options.md", "adr-architecture.md", "schemas/architectures.drawio", "tracabilite.csv",
+                "schemas/option-a.cloud.json", "schemas/option-a.drawio"],
       "contains": {"options.md": ["| 1 | **A**", "éliminée : ENF-004", "5 : mise à l'échelle automatique"],
                    "adr-architecture.md": ["acceptée, le 2026-10-23", "Reno (utilisateur)", "éliminée (ENF-004)"],
-                   "schemas/architectures.drawio": ["Option A", "Outil de gestion des sinistres"]}
+                   "schemas/architectures.drawio": ["Option A", "Outil de gestion des sinistres"],
+                   "tracabilite.md": ["| EF-003 | Transmettre au gestionnaire | indispensable | couverte |", "File de déclarations, Outil de gestion des sinistres"]}
     },
     {
       "id": "options-erreurs",
@@ -330,6 +458,234 @@
       "contains": {"w/journal.md": ["| D-001 |", "Arrêt de l'ancienne application écarté", "Catalogue validé", "Invalidation", "à reprendre après le retour D-005 sur exigences"]}
     },
     {
+      "id": "workflow-definition",
+      "skill": "decision-log",
+      "_note": "Workflow décrit en JSON (cloud-existant, livré) : le rapport donne l'étape à produire, submit prend les livrables dans la définition et refuse s'il en manque.",
+      "steps": [
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "architectur"], "exit": 1,
+         "report_contains": {"errors": "vouliez-vous « architecture » ?"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "{fixtures}/workflow/definition-invalide.json"], "exit": 1,
+         "report_contains": {"errors": "stages/0 : clé inconnue « deliverable » ; vouliez-vous « deliverables » ?"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/x", "--definition", "{fixtures}/workflow/definition-invalide.json"], "exit": 1,
+         "report_contains": {"errors": "étape « analyse » en double"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "cloud-existant"], "exit": 0,
+         "report": {"current": "description", "stage.skills": ["cloud-architecture"], "stages.2.id": "menaces"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "description"], "exit": 0, "report": {"stage.deliverables": ["schemas/architecture.json"]}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu introuvable : schemas/architecture.json"}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py", "args": ["{fixtures}/iac/terraform", "--out", "{out}/w/schemas/architecture.json"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description"], "exit": 0, "report": {"stages.0.status": "en-revue", "stage": null}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "description", "--decision", "valide", "--text", "Description relue"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "schemas"], "exit": 0, "report": {"stage.agent": "schema-designer"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/w/schemas/architecture.json"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas", "--files", "schemas/architecture.drawio"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu non soumis : schemas/*.png"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas"], "exit": 1,
+         "report_contains": {"errors": "livrable attendu introuvable : schemas/*.png"}}
+      ],
+      "files": ["w/workflow.json", "w/schemas/architecture.drawio"],
+      "absent": ["x"],
+      "contains": {"w/workflow.json": ["\"name\": \"cloud-existant\"", "\"schemas/architecture.json\": \""]}
+    },
+    {
+      "id": "revue-differentielle",
+      "skill": "decision-log",
+      "_note": "Retour, nouvelle version des exigences : submit liste les changements ; un livrable validé modifié bloque l'étape suivante ; passages de main et rapports validés.",
+      "steps": [
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/cahier-des-charges.md",
+            "{out}/w/sources/cahier-des-charges.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/compte-rendu-atelier.md",
+            "{out}/w/sources/compte-rendu-atelier.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/exigences-securite.md",
+            "{out}/w/sources/exigences-securite.md"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/sources/cahier-des-charges.md",
+            "{out}/vault/Notes/cahier-des-charges.md"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{out}/w",
+            "--title",
+            "Portail : sinistres",
+            "--stages",
+            "exigences,architectures",
+            "--vault",
+            "{out}/vault"
+          ],
+          "exit": 0,
+          "report": {
+            "memory.folder": "Workflows/Portail - sinistres"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "exigences"
+          ],
+          "exit": 0
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{out}/w",
+            "exigences",
+            "--files",
+            "exigences.json"
+          ],
+          "exit": 0,
+          "report": {
+            "changes": null
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--from-vault"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "pas encore de revue"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--decision",
+            "retour",
+            "--text",
+            "Retirer EF-002"
+          ],
+          "exit": 0
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "exigences"
+          ],
+          "exit": 0
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences-v2.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{out}/w",
+            "exigences",
+            "--files",
+            "exigences.json"
+          ],
+          "exit": 0,
+          "report": {
+            "changes.removed": [
+              "EF-002"
+            ],
+            "changes.modified": [
+              "EF-001"
+            ],
+            "changes.added": []
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{out}/w",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ],
+          "exit": 0
+        },
+        {
+          "copy": [
+            "{fixtures}/workflow/exigences.json",
+            "{out}/w/exigences.json"
+          ]
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{out}/w",
+            "architectures"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "modifié"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "report",
+            "{out}/w",
+            "--file",
+            "{fixtures}/workflow/rapport-agent.json"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "exigences.md introuvable"
+          }
+        },
+        {
+          "script": "{skills}/decision-log/scripts/journal.py",
+          "args": [
+            "handoff",
+            "{out}/w",
+            "--file",
+            "{fixtures}/workflow/passage-invalide.json"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "schema-designer"
+          }
+        }
+      ],
+      "files": [
+        "vault/Workflows/Portail - sinistres/Portail - sinistres.md"
+      ]
+    },
+    {
       "id": "vault",
       "skill": "decision-log",
       "_note": "Mémoire partagée : une note par exigence, option et décision dans le vault, liens vérifiés, autres fichiers du vault intacts.",
@@ -339,12 +695,16 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "documents", "--kind", "choix", "--text", "Compte rendu retenu comme source", "--refs", "ENF-004,A"], "exit": 0, "report": {"memory.folder": "Projets/Sinistres", "memory.notes": 2, "warnings": []}},
-        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 14, "removed": 0, "errors": []}}
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 18, "removed": 0, "errors": []}}
       ],
       "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
       "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],
                    "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001]]"],
-                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte"]}
+                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte",
+                                                                      "**Termes** : [[Projets/Sinistres/Glossaire/Assuré|Assuré]]"],
+                   "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases: [\"déclaration de sinistre\"]",
+                                                                         "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
+                   "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
     }
   ]
 }

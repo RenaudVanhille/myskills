@@ -1,12 +1,14 @@
 # Jeu de tests
 
-- `fixtures/` : documents réels et anonymisés (PDF, DOCX, PPTX, XLSX, images)
-  et contextes de schémas (descriptions, ADR, extraits de code).
+- `fixtures/` : documents synthétiques (PDF texte et scanné, DOCX, PPTX,
+  image), descriptions de schémas, exigences et options d'un projet fictif
+  (portail de sinistres).
 - `expected/` : pour chaque fixture, le résultat attendu, avec le même nom de
   base (`rapport.pdf` -> `rapport.md`, `contexte-paiement.md` -> `contexte-paiement.drawio`).
 
-Chaque skill est testé dans les 5 outils sur ces fichiers avant d'être
-considéré comme terminé. Ne mettez ici aucun document confidentiel.
+Les scripts sont testés par `run.py` sous Linux, macOS et Windows (CI
+GitHub Actions) ; les agents se testent dans chaque outil avec
+`agent-cases.json`. Ne mettez ici aucun document confidentiel.
 
 ## Exemples synthétiques
 
@@ -20,7 +22,7 @@ PPTX, un PDF texte, un PDF scanné et une image de schéma, utilisés pour teste
 
 ```bash
 uv run tests/run.py            # cas de tests/cases.json
-uv run tests/run.py --slow     # ajoute les cas lents (Laya, Pandoc)
+uv run tests/run.py --slow     # ajoute les cas lents (navigateur, Pandoc, réseau)
 uv run tests/run.py --only docx,obsidian --keep
 ```
 
@@ -39,6 +41,10 @@ sortie, la conformité du rapport au JSON Schema du contrat, des
 valeurs du rapport, les fichiers produits et, s'il existe, la
 ressemblance avec le résultat attendu de `expected/` (90 % minimum). Code de
 sortie 1 si un cas échoue.
+
+Une étape peut aussi être `{"copy": [source, destination]}` (fichier de
+travail), porter `"env"` (variables de l'étape, `{out}` permis : cache isolé,
+`MYSKILLS_OFFLINE`) ou `"exit": "any"` quand le code dépend de la machine.
 
 ### 2. Agents (dans chaque outil)
 

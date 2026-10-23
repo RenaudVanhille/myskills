@@ -1,5 +1,5 @@
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.15"
 # dependencies = ["laya>=0.4", "markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5"]
 #
 # [[tool.uv.index]]
@@ -30,6 +30,9 @@ import json
 import os
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from script_report import print_report  # noqa: E402
 
 PDF = {".pdf"}
 TEXT = {".md", ".markdown", ".txt"}
@@ -210,8 +213,7 @@ def main() -> int:
         if load_warning:
             report["warnings"].insert(0, load_warning[:300])
         reports.append(report)
-    # Un objet par ligne : lisible, et sans l'indentation qui coûte des tokens.
-    print("[\n" + ",\n".join(json.dumps(r, ensure_ascii=False) for r in reports) + "\n]")
+    print_report(reports)
     return 1 if failed else 0
 
 

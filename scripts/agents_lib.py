@@ -27,9 +27,11 @@ def source_agents() -> list[Path]:
     return sorted(AGENTS_SRC.glob("*.md"))
 
 
-def render_agent(path: Path, flavor: str) -> str:
+def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> str:
     """Rend l'agent source au format claude, copilot, opencode, kiro ou
-    hermes (Hermes n'a pas d'agents : l'agent devient un skill)."""
+    hermes (Hermes n'a pas d'agents : l'agent devient un skill). Pour Kiro,
+    skills_dir est le dossier des skills installés (.kiro/skills en projet,
+    ~/.kiro/skills en global)."""
     meta, body = parse_agent(path)
     name, desc = meta["name"], meta["description"]
     lines = ["---"]
@@ -46,12 +48,13 @@ def render_agent(path: Path, flavor: str) -> str:
                   "  bash:", '    "*": deny']
         lines += [f'    "{command}": allow' for command in split_list(meta.get("commands", ""))]
     elif flavor == "kiro":
-        # skill://<nom> pointe vers .kiro/skills/<nom>/SKILL.md ; pas d'accès web,
-        # les commandes listées passent sans confirmation.
+        # Référence des agents Kiro (https://kiro.dev/docs/custom-agents/configuration-reference/) :
+        # skill:// prend le chemin du SKILL.md ; pas d'accès web ; les commandes listées
+        # passent sans confirmation (permissions.rules).
         lines += [f"name: {name}", f"description: {desc}",
                   'tools: ["read", "write", "shell", "subagent"]',
                   'excludedTools: ["web"]', "resources:"]
-        lines += [f"  - skill://{skill}" for skill in split_list(meta.get("skills", ""))]
+        lines += [f"  - skill://{skills_dir}/{skill}/SKILL.md" for skill in split_list(meta.get("skills", ""))]
         lines += ["permissions:", "  rules:", "    - capability: shell", "      match:"]
         lines += [f'        - "{command}"' for command in split_list(meta.get("commands", ""))]
         lines += ["      effect: allow"]
