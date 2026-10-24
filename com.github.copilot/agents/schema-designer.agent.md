@@ -56,7 +56,8 @@ workflow, la commande les trace aussi au journal.
    une information qui change le format, pose une seule question ; sinon
    choisis et dis pourquoi.
 4. Travaille dans le dossier indiqué par l'utilisateur, sinon dans le
-   dossier courant. Note le message principal et les éléments indispensables, puis produis le
+   dossier courant ; nomme le schéma comme demandé, sinon comme sa source
+   (`inventaire.csv` donne `inventaire.drawio`). Note le message principal et les éléments indispensables, puis produis le
    schéma avec le skill du format choisi (`mermaid-diagram`,
    `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`,
    `urbanization-map` pour un plan d'occupation des sols du SI,
