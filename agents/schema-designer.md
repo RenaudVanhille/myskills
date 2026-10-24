@@ -14,7 +14,7 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
 - **Reçoit** : Un contexte : description, code, ADR, Markdown ou image d'un schéma existant ; Si possible le public, la destination et le dossier de sortie.
-- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
+- **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux, le modèle de menaces ou la revue Well-Architected en Markdown si demandés ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
 - **Ne fait jamais** : Modifier un fichier qu'il n'a pas créé, sauf le schéma à corriger ; Envoyer un schéma à un service en ligne.
 - **Passe la main** :
 
@@ -66,7 +66,10 @@ workflow, la commande les trace aussi au journal.
    et construis le fichier avec le script du skill (`drawio_build.py`,
    `excalidraw_build.py`, `pos_build.py`, `cloud_build.py`), jusqu'à zéro
    erreur ; n'écris le XML draw.io à la
-   main que pour modifier un fichier existant (`check_drawio.py`).
+   main que pour modifier un fichier existant (`check_drawio.py`). Pour un
+   schéma cloud AWS, Azure ou GCP, lance aussi `wa_check.py` sur la
+   description : corrige les constats de gravité haute ou moyenne, ou
+   ajoute-les à `accept` avec la raison donnée par l'utilisateur.
 6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
    public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.

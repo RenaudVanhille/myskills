@@ -1,0 +1,41 @@
+{
+  "title": "Boutique en ligne : déploiement AWS multi-AZ",
+  "provider": "aws",
+  "items": [
+    {"id": "clients", "type": "users", "label": "Clients"},
+    {"id": "cdn", "type": "cloudfront"},
+    {"id": "waf", "type": "waf"},
+    {"type": "region", "label": "eu-west-3 (Paris)", "items": [
+      {"type": "vpc", "label": "VPC production", "items": [
+        {"id": "alb", "type": "alb"},
+        {"type": "az", "label": "eu-west-3a", "items": [
+          {"type": "public-subnet", "label": "Public A", "items": [{"id": "nat-a", "type": "nat-gateway"}]},
+          {"type": "private-subnet", "label": "Privé A", "items": [
+            {"type": "asg", "label": "Auto Scaling", "items": [{"id": "app-a", "type": "ec2", "label": "API commandes"}]},
+            {"id": "db", "type": "aurora", "label": "Aurora (écriture)"}]}]},
+        {"type": "az", "label": "eu-west-3b", "items": [
+          {"type": "public-subnet", "label": "Public B", "items": [{"id": "nat-b", "type": "nat-gateway"}]},
+          {"type": "private-subnet", "label": "Privé B", "items": [
+            {"type": "asg", "label": "Auto Scaling", "items": [{"id": "app-b", "type": "ec2", "label": "API commandes"}]},
+            {"id": "db-r", "type": "aurora", "label": "Aurora (réplique)"}]}]}
+      ]},
+      {"type": "zone", "label": "Services régionaux", "items": [
+        {"id": "secrets", "type": "secrets-manager"},
+        {"id": "logs", "type": "cloudwatch"},
+        {"id": "trail", "type": "cloudtrail"},
+        {"id": "backup", "type": "backup"}
+      ]}
+    ]}
+  ],
+  "flows": [
+    {"from": "clients", "to": "cdn", "protocol": "HTTPS", "port": 443},
+    {"from": "cdn", "to": "waf"},
+    {"from": "waf", "to": "alb", "protocol": "HTTPS", "port": 443},
+    {"from": "alb", "to": "app-a", "protocol": "HTTPS", "port": 8443},
+    {"from": "alb", "to": "app-b", "protocol": "HTTPS", "port": 8443},
+    {"from": "app-a", "to": "db", "protocol": "TLS", "port": 5432},
+    {"from": "app-b", "to": "db", "protocol": "TLS", "port": 5432},
+    {"from": "db", "to": "db-r", "style": "replication"},
+    {"from": "app-a", "to": "secrets", "label": "lit"}
+  ]
+}

@@ -101,7 +101,9 @@ def check(value, schema: dict, root: dict | None = None, path: str = "") -> list
                 errors += check(item, schema["patternProperties"][patterns[0]], root, sub)
             elif schema.get("additionalProperties") is False:
                 close = difflib.get_close_matches(name, list(properties), n=1, cutoff=0.6)
-                hint = f" ; vouliez-vous « {close[0]} » ?" if close else f" (permis : {', '.join(properties)})"
+                hint = f" ; vouliez-vous « {close[0]} » ?" if close else \
+                    f" (permis : {', '.join(properties)})" if properties else \
+                    f" (forme attendue : {', '.join(schema.get('patternProperties', {}))})"
                 errors.append(f"{where} : clé inconnue « {name} »{hint}")
             elif isinstance(schema.get("additionalProperties"), dict):
                 errors += check(item, schema["additionalProperties"], root, sub)

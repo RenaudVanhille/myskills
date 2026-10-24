@@ -161,7 +161,7 @@
         "Si possible le public, la destination et le dossier de sortie"
       ],
       "produces": [
-        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés",
+        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux, le modèle de menaces ou la revue Well-Architected en Markdown si demandés",
         "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
       ],
       "never": [
@@ -973,6 +973,7 @@
         "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
         "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
         "Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter",
+        "Avec wa_check.py : <sujet>.wa.md, la revue Well-Architected du schéma (constats par pilier, conventions du fournisseur, points hors du schéma)",
         "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
       ],
       "scripts": [
@@ -1142,6 +1143,17 @@
                       "name": {
                         "type": "string"
                       }
+                    }
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }
@@ -1567,6 +1579,17 @@
                       }
                     }
                   }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               },
               "$defs": {
@@ -1809,6 +1832,506 @@
           }
         },
         {
+          "name": "wa_check.py",
+          "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
+          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "options": {
+            "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
+            "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
+            "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
+            "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires. Même schéma que cloud_build.py ; accept y liste les constats acceptés avec leur raison.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "provider": {
+                  "enum": [
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "k8s"
+                  ]
+                },
+                "view": {
+                  "enum": [
+                    "deployment",
+                    "network",
+                    "kubernetes",
+                    "dr",
+                    "pipeline",
+                    "threats"
+                  ]
+                },
+                "audience": {
+                  "enum": [
+                    "technique",
+                    "non technique"
+                  ]
+                },
+                "legend": {
+                  "enum": [
+                    "auto",
+                    true,
+                    false
+                  ]
+                },
+                "layout": {
+                  "enum": [
+                    "row",
+                    "column"
+                  ]
+                },
+                "wrap": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "chain": {
+                  "type": "boolean"
+                },
+                "objectives": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/item"
+                  }
+                },
+                "flows": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/flow"
+                  }
+                },
+                "pages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "enum": [
+                          "aws",
+                          "azure",
+                          "gcp",
+                          "k8s"
+                        ]
+                      },
+                      "view": {
+                        "enum": [
+                          "deployment",
+                          "network",
+                          "kubernetes",
+                          "dr",
+                          "pipeline",
+                          "threats"
+                        ]
+                      },
+                      "audience": {
+                        "enum": [
+                          "technique",
+                          "non technique"
+                        ]
+                      },
+                      "legend": {
+                        "enum": [
+                          "auto",
+                          true,
+                          false
+                        ]
+                      },
+                      "layout": {
+                        "enum": [
+                          "row",
+                          "column"
+                        ]
+                      },
+                      "wrap": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "chain": {
+                        "type": "boolean"
+                      },
+                      "objectives": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/item"
+                        }
+                      },
+                      "flows": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/flow"
+                        }
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "$defs": {
+                "item": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/item"
+                          }
+                        },
+                        "layout": {
+                          "enum": [
+                            "row",
+                            "column"
+                          ]
+                        },
+                        "wrap": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "chain": {
+                          "type": "boolean"
+                        },
+                        "state": {
+                          "enum": [
+                            "active",
+                            "passive"
+                          ]
+                        },
+                        "boundary": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": [
+                            "integer",
+                            "string"
+                          ]
+                        },
+                        "kind": {
+                          "enum": [
+                            "external",
+                            "process",
+                            "store",
+                            "network"
+                          ]
+                        },
+                        "w": {
+                          "type": "number",
+                          "minimum": 1
+                        },
+                        "h": {
+                          "type": "number",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "flow": {
+                  "type": "object",
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "style": {
+                      "enum": [
+                        "sync",
+                        "async",
+                        "replication"
+                      ]
+                    },
+                    "both": {
+                      "type": "boolean"
+                    },
+                    "encrypted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input, errors et warnings. findings va du plus grave au moins grave ; un constat accepté garde sa raison dans accepted et ne compte pas dans counts.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "providers",
+                    "rules",
+                    "counts",
+                    "findings",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "aws",
+                          "azure",
+                          "gcp",
+                          "k8s"
+                        ]
+                      }
+                    },
+                    "rules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "counts": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "haute",
+                        "moyenne",
+                        "basse",
+                        "acceptés"
+                      ],
+                      "properties": {
+                        "haute": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "moyenne": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "basse": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "acceptés": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "rule",
+                          "pillar",
+                          "severity",
+                          "element",
+                          "message",
+                          "fix",
+                          "ref",
+                          "accepted"
+                        ],
+                        "properties": {
+                          "rule": {
+                            "type": "string",
+                            "pattern": "^[A-Z]+-[0-9]{2}$"
+                          },
+                          "pillar": {
+                            "enum": [
+                              "reliability",
+                              "security",
+                              "operations",
+                              "performance",
+                              "cost",
+                              "sustainability",
+                              "conventions"
+                            ]
+                          },
+                          "severity": {
+                            "enum": [
+                              "haute",
+                              "moyenne",
+                              "basse"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "fix": {
+                            "type": "string"
+                          },
+                          "ref": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "revue écrite, aucun constat non accepté au seuil --fail-on",
+            "1": "description illisible, erreur, ou constat non accepté au seuil --fail-on ; le rapport et <sujet>.wa.md sont tout de même produits sauf erreur"
+          }
+        },
+        {
           "name": "iac_import.py",
           "role": "Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite.",
           "usage": "uv run scripts/iac_import.py SOURCE [...] [--out SUJET.json] [--title T]",
@@ -1930,7 +2453,7 @@
           "when": "diagramme de séquence des appels entre services pour un parcours"
         }
       ],
-      "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
+      "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE et contrôle le respect des cadres Well-Architected d'AWS, Azure et Google Cloud et des conventions de schéma des fournisseurs. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
       "path": "skills/cloud-architecture"
     },
     {

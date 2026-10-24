@@ -1,6 +1,6 @@
 ---
 name: cloud-architecture
-description: "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure."
+description: "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE et contrôle le respect des cadres Well-Architected d'AWS, Azure et Google Cloud et des conventions de schéma des fournisseurs. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure."
 ---
 
 # cloud-architecture
@@ -15,10 +15,12 @@ téléchargé). N'écrivez pas le XML draw.io à la main.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
-- **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
+- **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter ; Avec wa_check.py : <sujet>.wa.md, la revue Well-Architected du schéma (constats par pilier, conventions du fournisseur, points hors du schéma) ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
 - **`cloud_build.py`** : Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`wa_check.py`** : Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md. Rapport JSON, codes de sortie : 0 revue écrite, aucun constat non accepté au seuil --fail-on ; 1 description illisible, erreur, ou constat non accepté au seuil --fail-on ; le rapport et <sujet>.wa.md sont tout de même produits sauf erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
@@ -139,7 +141,47 @@ non), puis une menace type par catégorie STRIDE applicable à chaque
 pertinentes, précisez-les pour le contexte, complétez les mesures. Les
 numéros F1, F2... sont les mêmes que sur le schéma `threats`.
 
-## 5. Exporter et relire
+## 5. Revue Well-Architected
+
+```bash
+uv run scripts/wa_check.py SUJET.json [--fail-on moyenne]
+```
+
+Le script contrôle la description contre l'AWS Well-Architected Framework,
+l'Azure Well-Architected Framework et le Google Cloud Well-Architected
+Framework, selon les services présents, puis contre les conventions de
+schéma des fournisseurs. `--rules` liste les 20 règles :
+
+| Pilier | Contrôles |
+| --- | --- |
+| Fiabilité | calcul ou base sur une seule zone de disponibilité, instance unique, base sans réplique ni sauvegarde, une NAT pour plusieurs zones |
+| Sécurité | stockage en sous-réseau public ou atteint de l'extérieur, calcul exposé sans équilibreur, flux non chiffré à travers une frontière, entrée publique sans WAF, pas de coffre à secrets, pas d'audit |
+| Excellence opérationnelle | pas de supervision (CloudWatch, Azure Monitor, Cloud Monitoring) |
+| Performances | utilisateurs servis sans CDN |
+| Coûts et durabilité | capacité fixe sans autoscaling |
+| Conventions de schéma | ordre des groupes (Cloud > région > VPC > zone > sous-réseau chez AWS ; région > VNet > sous-réseau chez Azure ; projet > VPC > région > sous-réseau chez Google), groupe hors de son conteneur, instance posée dans le VPC hors sous-réseau, service régional dessiné dans un sous-réseau, fournisseurs mélangés, icône générique au lieu de l'icône officielle |
+
+Chaque constat donne la règle, le pilier, la gravité (haute, moyenne,
+basse), l'élément (identifiant ou flux F1, F2...), la correction et la
+référence du cadre (question AWS `REL10`, recommandation Azure `RE:05`...).
+`SUJET.wa.md` reprend la synthèse par pilier, les constats, puis ce qui ne
+se vérifie pas sur un schéma (IAM, chiffrement au repos, tests de reprise,
+étiquetage des coûts...).
+
+Corrigez la description et relancez. Un écart voulu s'accepte dans la
+description, avec sa raison ; il reste dans la revue mais ne compte plus :
+
+```json
+"accept": {"SEC-07": "CloudTrail géré par le compte de sécurité", "REL-02@bastion": "bastion jetable"}
+```
+
+Code de sortie 1 dès un constat non accepté de gravité `--fail-on` ou plus
+(défaut `haute`, `aucune` pour ne jamais échouer) : c'est la porte de
+revue d'un workflow. Ce contrôle ne remplace pas une revue avec l'outil
+Well-Architected du fournisseur ; il garantit que le schéma ne montre pas
+d'écart évident.
+
+## 6. Exporter et relire
 
 ```bash
 uv run ../diagram-export/scripts/export.py SUJET.drawio --format png

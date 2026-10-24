@@ -18,6 +18,7 @@
     {"prompt": "Fais le schéma du cluster Kubernetes avec l'ingress, les services et les pods.", "skill": "cloud-architecture"},
     {"prompt": "Montre la reprise d'activité entre deux régions Azure avec le RPO et le RTO.", "skill": "cloud-architecture"},
     {"prompt": "Prépare le modèle de menaces STRIDE de cette architecture.", "skill": "cloud-architecture"},
+    {"prompt": "Vérifie que ce schéma AWS respecte le Well-Architected Framework.", "skill": "cloud-architecture"},
     {"prompt": "Schématise notre chaîne CI/CD GitOps avec Argo CD jusqu'à la production.", "skill": "cloud-architecture"},
     {"prompt": "Ajoute un diagramme de séquence du login dans le README.", "skill": "mermaid-diagram"},
     {"prompt": "Écris le diagramme d'états de la commande dans la doc du dépôt.", "skill": "mermaid-diagram"},
