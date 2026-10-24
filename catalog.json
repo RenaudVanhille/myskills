@@ -115,11 +115,11 @@
       "agent": "document-publisher",
       "receives": [
         "Des fichiers Markdown ou des notes Obsidian (et le vault)",
-        "L'outil cible : Word, SharePoint, Confluence ou XWiki",
-        "Un modèle Word, s'il existe"
+        "L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki",
+        "Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe"
       ],
       "produces": [
-        "Des fichiers .docx, .html, .xwiki et ses images",
+        "Des fichiers .docx, .pptx, .html, .xwiki et ses images",
         "En option un PDF"
       ],
       "never": [
@@ -144,10 +144,11 @@
           ]
         }
       ],
-      "description": "Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.",
+      "description": "Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, présentation PowerPoint, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.",
       "skills": [
         "check-prerequisites",
         "markdown-publish",
+        "markdown-to-pptx",
         "diagram-export",
         "decision-log"
       ]
@@ -4107,6 +4108,142 @@
       ],
       "description": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian.",
       "path": "skills/markdown-to-obsidian"
+    },
+    {
+      "skill": "markdown-to-pptx",
+      "inputs": [
+        "Un document Markdown (titre #, sections ##, listes, tableaux, images relatives au .md), éventuellement annoté de consignes <!-- slide: cycle -->",
+        "Un gabarit .potx de la marque (facultatif) : --template, MD2PPTX_TEMPLATE ou un dossier .md2pptx/ du projet ; sinon le gabarit neutre fourni"
+      ],
+      "outputs": [
+        "<nom>.pptx modifiable : diagrammes en formes PowerPoint natives (processus, cycle, frise, cartes, chiffres clés, comparaison, entonnoir, Gantt...), tableaux et graphiques natifs, notes de l'orateur, textes alternatifs",
+        "Avec --plan : le plan des diapositives en JSON (type de chaque diapositive, objet du document, langue)"
+      ],
+      "scripts": [
+        {
+          "name": "pptx_build.py",
+          "role": "Construit la présentation avec le moteur md2pptx (visuel choisi pour chaque section, gabarit appliqué), puis rouvre le .pptx pour vérifier le nombre de diapositives, les diapositives vides et les textes alternatifs.",
+          "usage": "uv run scripts/pptx_build.py DOC.md [--out DOC.pptx] [--template MARQUE.potx] [--plan PLAN.json] [--lang fr|en] | --md2pptx ARGS...",
+          "options": {
+            "DOC.md": "document Markdown",
+            "--out": "fichier .pptx (défaut : même nom que le Markdown)",
+            "--template": "gabarit .potx ou .pptx de la marque, prioritaire sur MD2PPTX_TEMPLATE et le dossier .md2pptx/",
+            "--plan": "écrit aussi le plan des diapositives (JSON)",
+            "--lang": "langue des libellés générés (défaut : détectée)",
+            "--md2pptx": "passe le reste de la ligne à la commande md2pptx d'origine (--check, --list-layouts, --plan-only, --from-plan, --guide...), décrite dans references/ ; sortie en texte, sans rapport JSON"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet : gabarit retenu et d'où il vient, objet et langue détectés, nombre de diapositives par type, parties, objets sans texte alternatif.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "template",
+                "template_source",
+                "purpose",
+                "lang",
+                "slides",
+                "kinds",
+                "parts",
+                "missing_alt",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "template": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "template_source": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "purpose": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lang": {
+                  "enum": [
+                    "fr",
+                    "en",
+                    null
+                  ]
+                },
+                "slides": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "kinds": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "parts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "missing_alt": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "présentation écrite et vérifiée",
+            "1": "Markdown ou gabarit introuvable, document illisible, rendu impossible ou fichier produit incohérent ; aucun .pptx laissé"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter en PNG un schéma draw.io, Mermaid ou Excalidraw avant de le citer comme image dans le Markdown"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "relire la présentation et la diffuser"
+        }
+      ],
+      "description": "Transforme un document Markdown (notes, proposition, rapport, dossier d'architecture, compte rendu) en présentation PowerPoint .pptx modifiable, sur le gabarit .potx de la marque. Choisit seul le visuel de chaque section (processus, cycle, frise, organigramme, cartes, chiffres clés, comparaison, entonnoir, Gantt, matrice de maturité, carte d'Europe), des tableaux et graphiques natifs, écrit les notes de l'orateur et les textes alternatifs. À utiliser pour livrer une présentation à partir de Markdown.",
+      "path": "skills/markdown-to-pptx"
     },
     {
       "skill": "mermaid-diagram",

@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 0.3.0 (2026-10-24)
+
+- Nouveau skill `markdown-to-pptx` : Markdown vers PowerPoint modifiable sur
+  le gabarit .potx de la marque, visuels choisis seuls, tableaux et
+  graphiques natifs, notes de l'orateur et textes alternatifs. Moteur repris
+  du skill markdown-to-pptx (md2pptx 0.5.1) de Reno, sans sa bibliothèque de
+  marque privée ; `pptx_build.py` vérifie le fichier produit.
+- `document-publisher` livre aussi une présentation PowerPoint.
+
 ## 0.2.0 (2026-10-23)
 
 Revue complète après la 0.1 : fiabilité, contrôle des workflows multi-agents,

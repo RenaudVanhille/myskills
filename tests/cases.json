@@ -385,6 +385,26 @@
       "contains": {"pub/architecture.html": ["Architecture du service de paiement", "PostgreSQL"]}
     },
     {
+      "id": "export-pptx",
+      "skill": "markdown-to-pptx",
+      "_note": "Markdown vers PowerPoint sur le gabarit neutre ; fichier non Markdown et gabarit absent refusés sans .pptx.",
+      "steps": [
+        {"script": "{skills}/markdown-to-pptx/scripts/pptx_build.py",
+         "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/dossier.pptx", "--plan", "{out}/plan.json"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "lang": "fr", "slides": 8, "missing_alt": 0,
+                               "template_source": "bundled default", "kinds.process": 1, "kinds.timeline": 1,
+                               "kinds.image": 1, "kinds.comparison": 1}},
+        {"script": "{skills}/markdown-to-pptx/scripts/pptx_build.py", "args": ["{fixtures}/pptx/notes.txt", "--out", "{out}/notes.pptx"],
+         "exit": 1, "report": {"output": null}, "report_contains": {"errors": "Markdown attendu"}},
+        {"script": "{skills}/markdown-to-pptx/scripts/pptx_build.py",
+         "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/marque.pptx", "--template", "{fixtures}/pptx/absent.potx"],
+         "exit": 1, "report_contains": {"errors": "gabarit introuvable"}}
+      ],
+      "files": ["dossier.pptx", "plan.json"],
+      "absent": ["notes.pptx", "marque.pptx"],
+      "contains": {"plan.json": ["\"kind\": \"timeline\"", "Flux d'une déclaration"]}
+    },
+    {
       "id": "exigences",
       "skill": "requirements-catalog",
       "steps": [

@@ -49,7 +49,7 @@ la demande ; les rendus passent par Playwright.
 | --- | --- |
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
-| `document-publisher` | Export : transforme un Markdown en Word, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
+| `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 | `architecture-workflow` | Workflow décrit en JSON, par défaut en 4 étapes : documents, exigences (avec glossaire), 2 ou 3 architectures, schémas et matrice de traçabilité ; aussi `cloud-existant` (code d'infrastructure vers schéma cloud et STRIDE) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
@@ -86,6 +86,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
+| `markdown-to-pptx` | Markdown vers PowerPoint modifiable sur le gabarit de la marque : visuels choisis seuls (processus, frise, cartes, chiffres clés...), tableaux et graphiques natifs, notes et textes alternatifs |
 
 ## Outils autorisés
 

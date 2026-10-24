@@ -2,11 +2,11 @@
   "agent": "document-publisher",
   "receives": [
     "Des fichiers Markdown ou des notes Obsidian (et le vault)",
-    "L'outil cible : Word, SharePoint, Confluence ou XWiki",
-    "Un modèle Word, s'il existe"
+    "L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki",
+    "Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe"
   ],
   "produces": [
-    "Des fichiers .docx, .html, .xwiki et ses images",
+    "Des fichiers .docx, .pptx, .html, .xwiki et ses images",
     "En option un PDF"
   ],
   "never": [

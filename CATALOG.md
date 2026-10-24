@@ -53,14 +53,14 @@ Généré depuis `src/agents/document-extractor.contract.json`, qui fait foi.
 
 ### `document-publisher`
 
-Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.
+Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, présentation PowerPoint, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.
 
-**Skills** : `check-prerequisites`, `markdown-publish`, `diagram-export`, `decision-log`
+**Skills** : `check-prerequisites`, `markdown-publish`, `markdown-to-pptx`, `diagram-export`, `decision-log`
 
 Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 
-- **Reçoit** : Des fichiers Markdown ou des notes Obsidian (et le vault) ; L'outil cible : Word, SharePoint, Confluence ou XWiki ; Un modèle Word, s'il existe.
-- **Produit** : Des fichiers .docx, .html, .xwiki et ses images ; En option un PDF.
+- **Reçoit** : Des fichiers Markdown ou des notes Obsidian (et le vault) ; L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki ; Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe.
+- **Produit** : Des fichiers .docx, .pptx, .html, .xwiki et ses images ; En option un PDF.
 - **Ne fait jamais** : Publier en ligne : l'utilisateur importe lui-même les fichiers.
 - **Passe la main** :
 
@@ -249,6 +249,18 @@ Résumé de [`contract.json`](skills/markdown-to-obsidian/contract.json), qui fa
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON, codes de sortie : 0 profil produit ; 1 vault introuvable.
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
+
+### `markdown-to-pptx`
+
+Transforme un document Markdown (notes, proposition, rapport, dossier d'architecture, compte rendu) en présentation PowerPoint .pptx modifiable, sur le gabarit .potx de la marque. Choisit seul le visuel de chaque section (processus, cycle, frise, organigramme, cartes, chiffres clés, comparaison, entonnoir, Gantt, matrice de maturité, carte d'Europe), des tableaux et graphiques natifs, écrit les notes de l'orateur et les textes alternatifs. À utiliser pour livrer une présentation à partir de Markdown.
+
+Résumé de [`contract.json`](skills/markdown-to-pptx/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Entrées** : Un document Markdown (titre #, sections ##, listes, tableaux, images relatives au .md), éventuellement annoté de consignes <!-- slide: cycle --> ; Un gabarit .potx de la marque (facultatif) : --template, MD2PPTX_TEMPLATE ou un dossier .md2pptx/ du projet ; sinon le gabarit neutre fourni.
+- **Sorties** : <nom>.pptx modifiable : diagrammes en formes PowerPoint natives (processus, cycle, frise, cartes, chiffres clés, comparaison, entonnoir, Gantt...), tableaux et graphiques natifs, notes de l'orateur, textes alternatifs ; Avec --plan : le plan des diapositives en JSON (type de chaque diapositive, objet du document, langue).
+- **`pptx_build.py`** : Construit la présentation avec le moteur md2pptx (visuel choisi pour chaque section, gabarit appliqué), puis rouvre le .pptx pour vérifier le nombre de diapositives, les diapositives vides et les textes alternatifs. Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown ou gabarit introuvable, document illisible, rendu impossible ou fichier produit incohérent ; aucun .pptx laissé.
+- **Passe la main** au skill `diagram-export` : exporter en PNG un schéma draw.io, Mermaid ou Excalidraw avant de le citer comme image dans le Markdown.
+- **Passe la main** à l'utilisateur : relire la présentation et la diffuser.
 
 ### `mermaid-diagram`
 
