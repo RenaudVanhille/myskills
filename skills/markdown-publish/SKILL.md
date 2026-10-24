@@ -14,11 +14,13 @@ Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
+- **Niveau** : simple (modèle léger).
 - **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word ou gabarit PowerPoint .potx (facultatif) ; Vault Obsidian (facultatif).
 - **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, par le skill externe markdown-to-pptx s'il est installé ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier. Rapport JSON, codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
 - **`pptx_publish.py`** : Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs). Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé.
 - **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte. Pas de rapport, codes de sortie : 0 modèle écrit.
+- **Dépend de** `diagram-export` (`export.py`, obligatoire) : exporter en image les schémas cités par le Markdown (sources .drawio, .excalidraw, .mmd, .c4).
 - **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
 - **Passe la main** au skill externe `markdown-to-pptx` (installé à part, contrat `shared/external/markdown-to-pptx.contract.json`) : produire le .pptx (pptx_publish.py le lance).
 - **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx.
@@ -81,7 +83,7 @@ section `##` par diapositive avec une consigne `<!-- slide: KIND -->` sous
 son titre, une image PNG par section au plus, avec son texte alternatif.
 Un schéma source ou un bloc Mermaid s'exporte d'abord en PNG
 (`diagram-export`). Pour un dossier d'architecture, `deck_build.py` du
-skill `architecture-options` écrit ce Markdown à partir du workflow.
+skill `architecture-deck` écrit ce Markdown à partir du workflow.
 
 ## 4. Un Word prêt à l'emploi
 

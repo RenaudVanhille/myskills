@@ -31,3 +31,14 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-24T14:13:10,export-pptx-2,a38f346,publier-html,document-publisher,sonnet,True,7,0.0897,9,15757,107657,1572,0,18
 2026-10-24T14:29:32,pptx-externe,1f87acb,publier-html,document-publisher,sonnet,True,7,0.1123,9,21925,104581,1401,0,17
 2026-10-24T14:29:32,pptx-externe,1f87acb,publier-pptx,document-publisher,sonnet,True,7,0.0887,14,14103,145112,1760,0,20
+2026-10-24T19:41:19,apres-coherence-bis,af0db4a,schema-pos,schema-designer,sonnet,False,7,0.0958,9,17225,117823,1481,0,16
+2026-10-24T19:39:59,apres-coherence,d931b85,schema-drawio,schema-designer,sonnet,True,10,0.1673,13,31455,167667,2457,0,23
+2026-10-24T19:39:59,apres-coherence,d931b85,schema-pos,schema-designer,sonnet,False,5,0.0862,5,17125,61136,1113,0,14
+2026-10-24T19:39:59,apres-coherence,d931b85,workflow-premiere-revue,architecture-workflow,sonnet,True,10,0.1488,19,24819,248168,2435,0,27
+2026-10-24T19:39:59,apres-coherence,af0db4a,workflow-cloud-existant,architecture-workflow,sonnet,True,14,0.1726,27,23211,402669,3913,0,37
+2026-10-24T19:39:59,avant-coherence,d931b85,schema-drawio,schema-designer,sonnet,True,6,0.1436,7,28100,75932,2342,0,22
+2026-10-24T19:39:59,avant-coherence,d931b85,schema-pos,schema-designer,sonnet,True,9,0.1042,11,17992,140594,1780,0,20
+2026-10-24T19:39:59,avant-coherence,d931b85,workflow-premiere-revue,architecture-workflow,sonnet,True,11,0.1644,21,25895,283387,3215,0,32
+2026-10-24T19:39:59,avant-coherence,d931b85,workflow-cloud-existant,architecture-workflow,sonnet,True,12,0.1567,19,23863,303106,3079,0,28
+2026-10-24T19:42:18,apres-coherence-nommage,af0db4a,schema-drawio,schema-designer,sonnet,True,10,0.1528,13,27048,178316,2658,0,24
+2026-10-24T19:42:18,apres-coherence-nommage,af0db4a,schema-pos,schema-designer,sonnet,True,10,0.119,13,20101,179045,2032,0,21

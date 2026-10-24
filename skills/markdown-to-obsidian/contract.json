@@ -1,5 +1,6 @@
 {
   "skill": "markdown-to-obsidian",
+  "level": "simple",
   "inputs": [
     "Notes Markdown (sortie de doc-to-markdown ou existantes)",
     "Dossier du vault Obsidian (facultatif)"
@@ -317,6 +318,20 @@
       "to": "markdown-publish",
       "kind": "skill",
       "when": "exporter la note en Word, HTML ou XWiki"
+    }
+  ],
+  "requires": [
+    {
+      "skill": "doc-to-markdown",
+      "script": "classify.py",
+      "why": "classer les documents avant la conversion (--classify)",
+      "optional": true
+    },
+    {
+      "skill": "doc-to-markdown",
+      "script": "validate.py",
+      "why": "valider les notes produites",
+      "optional": true
     }
   ]
 }

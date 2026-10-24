@@ -1,13 +1,210 @@
 {
   "skill": "diagram-brief",
+  "level": "simple",
   "inputs": [
     "Contexte du schéma : description, code, ADR, Markdown ou image",
-    "Ce que l'on sait du public et de la destination"
+    "La décision courte en JSON : public, destination, type, message principal, 3 à 7 éléments"
   ],
   "outputs": [
-    "Aucun fichier : une décision (public, destination, type, format, skill) et la phrase message principal / 3 à 7 éléments / ce qu'on laisse de côté"
+    "La décision complète (format, skill, vue cloud, livraison, raison) dans le rapport, et en JSON avec --out pour le skill de dessin ou un autre agent"
   ],
-  "scripts": [],
+  "scripts": [
+    {
+      "name": "brief.py",
+      "role": "Valide la décision courte et applique la grille de choix (public avant destination, format modifiable là où le schéma vivra) : format, skill, vue cloud, livraison selon la destination et raison du choix.",
+      "usage": "uv run scripts/brief.py BRIEF.json [--out DECISION.json] | --json '{...}' | --schema",
+      "options": {
+        "BRIEF.json": "décision courte (public, destination, type, message, éléments)",
+        "--json": "la décision courte en JSON sur une ligne, au lieu d'un fichier",
+        "--out": "écrit la décision complète dans ce fichier JSON",
+        "--schema": "affiche le schéma JSON de la décision courte sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Décision courte écrite par le modèle avant de dessiner.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "audience",
+            "destination",
+            "kind",
+            "message",
+            "elements"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Sujet du schéma, pour le titre."
+            },
+            "audience": {
+              "enum": [
+                "technique",
+                "non technique"
+              ]
+            },
+            "destination": {
+              "enum": [
+                "markdown",
+                "obsidian",
+                "word",
+                "powerpoint",
+                "pdf",
+                "confluence",
+                "sharepoint",
+                "xwiki",
+                "html"
+              ]
+            },
+            "kind": {
+              "enum": [
+                "architecture",
+                "vue-c4",
+                "urbanisation",
+                "capacites",
+                "cloud",
+                "cloud-reseau",
+                "kubernetes",
+                "pra",
+                "pipeline",
+                "menaces",
+                "flux",
+                "processus",
+                "sequence",
+                "etats",
+                "classes",
+                "donnees",
+                "gantt",
+                "deploiement",
+                "reseau",
+                "vue-ensemble"
+              ],
+              "description": "Ce que montre le schéma : architecture (plusieurs vues C4), vue-c4 (une seule vue), urbanisation ou capacites (POS du SI), cloud, cloud-reseau, kubernetes, pra, pipeline, menaces (schémas cloud), sequence, etats, classes, donnees, gantt (Mermaid), flux, processus, deploiement, reseau, vue-ensemble."
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Le message principal, en une phrase."
+            },
+            "elements": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Les éléments indispensables : 3 à 7 conseillés."
+            },
+            "left_out": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Ce qu'on laisse de côté."
+            },
+            "editable": {
+              "type": "boolean",
+              "description": "L'utilisateur veut retoucher le schéma lui-même (draw.io plutôt que Mermaid dans un dépôt)."
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Décision complète, fichier écrit.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "input",
+            "decision",
+            "output",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "decision": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "required": [
+                "format",
+                "skill",
+                "delivery",
+                "reason"
+              ],
+              "properties": {
+                "format": {
+                  "enum": [
+                    "LikeC4 (C4)",
+                    "Mermaid",
+                    "draw.io",
+                    "Excalidraw"
+                  ]
+                },
+                "skill": {
+                  "enum": [
+                    "c4-architecture",
+                    "mermaid-diagram",
+                    "drawio-diagram",
+                    "excalidraw-diagram",
+                    "urbanization-map",
+                    "cloud-architecture"
+                  ]
+                },
+                "view": {
+                  "type": "string"
+                },
+                "vocabulary": {
+                  "type": "string"
+                },
+                "delivery": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "décision rendue (avertissement si le nombre d'éléments sort de 3 à 7)",
+        "1": "décision courte invalide ou illisible ; aucun fichier écrit"
+      }
+    }
+  ],
   "handoffs": [
     {
       "to": "mermaid-diagram",
@@ -37,7 +234,12 @@
     {
       "to": "cloud-architecture",
       "kind": "skill",
-      "when": "architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA, pipeline ou modèle de menaces STRIDE"
+      "when": "architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA ou pipeline"
+    },
+    {
+      "to": "threat-model",
+      "kind": "skill",
+      "when": "modèle de menaces STRIDE d'un schéma cloud (type menaces)"
     }
   ]
 }

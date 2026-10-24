@@ -25,6 +25,13 @@ moins de tokens possible.
   type `externe` le cite **(vérifiée)**. Le script appelant le trouve, valide
   sa sortie contre le contrat et donne la consigne d'installation s'il
   manque.
+- Un skill n'appelle un script d'un autre skill de myskills que par
+  `scripts/lib/skill_paths.py` (`find_script`, `load_module`, `schema_of`),
+  et le déclare dans le champ `requires` de son contrat (skill, script,
+  raison, facultatif ou non) **(vérifiée : pas de chemin vers un autre
+  skill, chaque appel déclaré, cible existante)**. Sans le skill requis, le
+  script le signale dans son rapport. Un schéma d'entrée partagé ne se
+  recopie pas : `input.same_as` le reprend du script source.
 - Un agent s'écrit une seule fois dans `src/agents/<nom>.md` (format neutre) ;
   `scripts/build.py` génère les versions Claude Code et Copilot,
   `scripts/install.py` celles d'OpenCode, Kiro et Hermes. On ne modifie
@@ -61,8 +68,17 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   met un objet par fichier dans `results` (`shared/scripts/script_report.py`).
 - **Entre agents** : une demande suit `shared/schemas/handoff.schema.json`,
   un agent termine par le rapport final de
-  `shared/schemas/agent-report.schema.json`, en JSON sur une ligne. Un passage
-  de main vise un skill ou un agent qui existe **(vérifiée)**.
+  `shared/schemas/agent-report.schema.json`, en JSON sur une ligne, validés
+  par `check_message.py` (skill `agent-handoff`) avant l'envoi. Un passage
+  de main vise un skill ou un agent qui existe **(vérifiée)**. La liste des
+  agents de ces schémas est tenue par `build.py` : un nouvel agent n'y
+  touche pas.
+- **Workflows** : un workflow est une définition JSON
+  (`skills/decision-log/workflows/`), seule source des étapes, des skills,
+  des livrables, des contrôles, des consignes et de la mémoire du vault.
+  L'agent `architecture-workflow` est un moteur générique qui la suit : un
+  nouveau workflow ne demande qu'une définition. Chaque étape livrée a un
+  `level`, et ses skills figurent dans ceux de l'agent **(vérifiée)**.
 
 ## 3. Sobriété en tokens
 
@@ -86,11 +102,20 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   existant (`CATALOG.md`).
 - Outils au strict nécessaire, aucun accès web **(vérifiée)**. Les commandes
   shell autorisées sont listées dans le champ `commands` de l'agent source.
-- Pas de modèle imposé : le harnais choisit. Chaque agent classe ses actions
-  en niveaux `simple`, `moyen`, `complexe` avec une grille, et adapte son
-  effort ; pas de sous-agent exécutant dédié.
+- **Niveaux et modèles** : chaque skill, agent et étape de workflow déclare
+  son niveau (`level` : `simple`, `moyen`, `complexe`) **(vérifiée)**.
+  `shared/models.json` fait correspondre un modèle à chaque niveau, par
+  outil (léger, standard, puissant ; `null` : modèle de la session) ;
+  `build.py` en tire le `model` des agents générés et leur section sur les
+  niveaux (marqueur `{{niveaux}}` dans chaque agent source, **vérifiée**).
+  Le travail mécanique va au niveau simple, le jugement au niveau complexe.
+  Chaque agent classe aussi ses actions avec une grille et adapte son
+  effort ; un sous-agent seulement pour un lot ou une étape d'un autre
+  niveau, avec le modèle de ce niveau.
 - Import et export dans des agents séparés : `document-extractor` importe,
-  `document-publisher` exporte **(vérifiée)**.
+  `document-publisher` exporte **(vérifiée)**. Un moteur de workflow peut
+  lancer une conversion mécanique (script) ; tout travail de vision ou de
+  relecture d'un import passe à `document-extractor`.
 
 ## 5. Local et sûr
 
@@ -124,7 +149,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 
 ## 8. Avant de livrer un skill ou un agent
 
-1. Contrat écrit ou mis à jour, puis `uv run scripts/build.py`.
+1. Contrat écrit ou mis à jour : `level` (le modèle écrit-il ou décide-t-il
+   quelque chose ? non : simple ; une description ou une correction :
+   moyen ; concevoir, noter, analyser : complexe), `requires` pour chaque
+   script d'un autre skill appelé ; pour un agent, le marqueur
+   `{{niveaux}}`, pour un workflow, une définition JSON avec un `level` par
+   étape. Puis `uv run scripts/build.py`.
 2. Au moins un cas dans `tests/cases.json` (dont un cas d'entrée invalide
    pour un script qui lit une description), fixtures dans `tests/fixtures/`.
 3. `uv run tests/run.py` sans échec, `regles` et `contrats` compris.

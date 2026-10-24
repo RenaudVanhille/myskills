@@ -50,7 +50,8 @@ la demande ; les rendus passent par Playwright.
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
-| `architecture-workflow` | Workflow décrit en JSON, par défaut en 4 étapes : documents, exigences (avec glossaire), 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité ; aussi `cloud-existant` (code d'infrastructure vers schéma cloud et STRIDE) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
+| `architecture-workflow` | Moteur de workflow générique : suit une définition JSON (par défaut `architecture` en 4 étapes : documents, exigences avec glossaire, 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité ; aussi `cloud-existant` : code d'infrastructure vers schéma cloud, menaces et revue Well-Architected) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
+| `architecture-reviewer` | Revue d'une architecture cloud : modèle de menaces STRIDE relu et revue Well-Architected des piliers, constats ouverts ou acceptés avec leur raison |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
 foi :
@@ -74,16 +75,20 @@ lire par un autre agent ou outil qui appelle myskills.
 | `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants ; prépare le mode hors ligne (`--prefetch`, empreintes vérifiées) |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
 | `markdown-to-obsidian` | Markdown vers format Obsidian |
-| `diagram-brief` | Grille de choix du format de schéma |
+| `diagram-brief` | Choix du format de schéma : décision courte en JSON validée, format, skill et livraison selon le public et la destination (`brief.py`) |
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
 | `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
-| `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
+| `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte, un inventaire CSV ou une note Markdown ; options d'architecture situées dans le POS (impacts, redondances, POS cible, `pos_impact.py`) |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
-| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (impacts, redondances, POS cible), revue Well-Architected des piliers de chaque option cloud, présentation du dossier assemblée depuis les étapes validées |
-| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, passages de main validés, et mémoire partagée dans un vault Obsidian (une note par exigence, terme, option et décision, revue dans Obsidian) |
-| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE, revue Well-Architected (AWS, Azure, Google Cloud) et conventions de schéma des fournisseurs ; description tirée de Terraform, docker-compose ou Kubernetes |
+| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (avec `urbanization-map`), revue Well-Architected des piliers de chaque option cloud (avec `well-architected-review`) |
+| `architecture-deck` | Présentation du dossier d'architecture assemblée depuis les fichiers validés du workflow, à rendre en PowerPoint par `markdown-publish` |
+| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, et mémoire partagée dans un vault Obsidian pilotée par la définition (une note par exigence, terme, option, décision et étape, schémas intégrés) |
+| `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow |
+| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, vue des menaces ; description tirée de Terraform, docker-compose ou Kubernetes |
+| `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie |
+| `well-architected-review` | Revue Well-Architected (AWS, Azure, Google Cloud) des six piliers et des conventions de schéma des fournisseurs, constats acceptés avec leur raison |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
 
@@ -117,12 +122,39 @@ chaque agent source (`src/agents/`).
 
 ## Niveaux et coûts
 
-Aucun modèle n'est imposé : chaque outil garde le modèle de la session (ou
-son mode automatique, comme Auto dans Kiro). Pour limiter les coûts, chaque
-agent classe ses actions en trois niveaux (simple, moyen, complexe) avec une
-grille, et adapte son effort en conséquence. Quand l'outil permet de lancer un
-sous-agent sur un autre modèle (par exemple `haiku` ou `opus` dans Claude
-Code), l'agent l'utilise pour les actions simples ou complexes.
+Chaque skill, agent et étape de workflow déclare un niveau : **simple**
+(commandes, conversions et constructions par script), **moyen** (rédiger une
+description JSON, corriger une erreur, intégrer un retour) ou **complexe**
+(concevoir et noter des architectures, analyser des menaces, relire un
+rendu). [`shared/models.json`](shared/models.json) donne le modèle de
+chaque niveau par outil :
+
+| Niveau | Classe | Claude Code | Copilot, OpenCode, Kiro, Hermes |
+| --- | --- | --- | --- |
+| simple | léger | `haiku` | modèle de la session |
+| moyen | standard | `sonnet` | modèle de la session |
+| complexe | puissant | `opus` | modèle de la session |
+
+`scripts/build.py` en tire le `model` des agents Claude Code et leur
+consigne : chaque agent travaille à son niveau, monte d'un niveau si une
+action échoue, et ne confie à un sous-agent qu'un lot ou une étape d'un
+autre niveau, avec le modèle de ce niveau. Changer de modèle : modifier
+`shared/models.json`, puis `uv run scripts/build.py`. `tests/cost.py`
+mesure le coût réel de chaque cas d'agent.
+
+## Ajouter un skill, un agent ou un workflow
+
+- **Skill** : un dossier `skills/<nom>/` avec `SKILL.md` et `contract.json`
+  (niveau, scripts et leurs schémas, `requires` pour appeler un autre
+  skill), puis `uv run scripts/build.py`.
+- **Agent** : `src/agents/<nom>.md` (avec le marqueur `{{niveaux}}`) et
+  `<nom>.contract.json` ; les schémas des messages entre agents se mettent
+  à jour seuls.
+- **Workflow** : une définition JSON dans `skills/decision-log/workflows/`
+  (étapes avec niveau, skills, livrables, contrôles, consignes, mémoire du
+  vault) ; l'agent `architecture-workflow` la suit sans modification.
+
+Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 
 ## Organisation du dépôt
 

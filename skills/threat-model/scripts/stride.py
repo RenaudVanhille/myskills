@@ -21,10 +21,13 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cloud_build import build  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+
+# Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
+CLOUD = load_module("cloud-architecture", "cloud_build.py")
+MISSING = None if CLOUD else absent("cloud-architecture", "cloud_build.py")
 
 CATEGORIES = {"S": "Usurpation d'identité", "T": "Altération", "R": "Répudiation",
               "I": "Divulgation d'information", "D": "Déni de service", "E": "Élévation de privilèges"}
@@ -65,7 +68,7 @@ def cell(text: str) -> str:
 
 
 def model(spec: dict, all_flows: bool) -> tuple[str, dict]:
-    _, pages, errors, warnings = build(spec, "threats")
+    _, pages, errors, warnings = CLOUD.build(spec, "threats")
     lines = [f"# Modèle de menaces STRIDE : {spec.get('title', 'architecture')}", "",
              "Prérempli par `stride.py` à partir de la description de l'architecture : une menace type par "
              "catégorie STRIDE applicable. Gardez les menaces pertinentes, précisez-les, puis complétez la "
@@ -141,6 +144,9 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if MISSING:
+        print(json.dumps({"input": str(args.spec), "errors": [MISSING], "warnings": []}, ensure_ascii=False))
+        return 1
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

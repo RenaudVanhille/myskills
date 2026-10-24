@@ -22,7 +22,8 @@ FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish"],
              "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
                                   "drawio-diagram"],
-             "external_skill.py": ["check-prerequisites", "markdown-publish"]}
+             "external_skill.py": ["check-prerequisites", "markdown-publish"],
+             "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 
 
 def generated_libs() -> dict[Path, str]:
@@ -31,27 +32,79 @@ def generated_libs() -> dict[Path, str]:
     files: dict[Path, str] = {}
     validator = (shared / "spec_schema.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
-        # markdown-publish valide aussi le plan rendu par un skill externe.
-        if any(script.get("input") for script in contract["scripts"]) or name == "markdown-publish":
+        # Aussi pour un skill qui valide l'entrée d'un skill requis (requires), ou le plan rendu par un
+        # skill externe (markdown-publish).
+        if any(script.get("input") for script in contract["scripts"]) or contract.get("requires") \
+                or name == "markdown-publish":
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     for module, skills in LIB_USERS.items():
         text = (shared / module).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / module] = text
+    # Accès déclaré aux scripts des autres skills (champ requires du contrat).
+    paths = (shared / "skill_paths.py").read_text(encoding="utf-8")
+    for name, contract in skill_contracts().items():
+        if contract.get("requires"):
+            files[REPO / "skills" / name / "scripts" / "lib" / "skill_paths.py"] = paths
     # Contrats des skills externes (shared/external/), lus par external_skill.py.
     for path in sorted((REPO / "shared" / "external").glob("*.contract.json")):
         for name in LIB_USERS["external_skill.py"]:
             files[REPO / "skills" / name / "scripts" / "lib" / path.name] = path.read_text(encoding="utf-8")
-    # Schémas des messages entre agents, pour journal.py handoff et report.
+    # Schémas des messages entre agents, pour check_message.py (agent-handoff), liste des agents à jour.
+    enums = agent_enums()
     for name in ("handoff", "agent-report"):
-        files[REPO / "skills" / "decision-log" / "scripts" / "lib" / f"{name}.schema.json"] = \
-            (SCHEMAS / f"{name}.schema.json").read_text(encoding="utf-8")
+        files[REPO / "skills" / "agent-handoff" / "scripts" / "lib" / f"{name}.schema.json"] = \
+            enums[SCHEMAS / f"{name}.schema.json"]
     # Couleurs de la charte, pour check_drawio.py : une seule source, shared/references/style.md.
     style = (REPO / "shared" / "references" / "style.md").read_text(encoding="utf-8")
     colors = sorted({c.lower() for c in re.findall(r"#[0-9a-fA-F]{6}\b", style)})
     files[REPO / "skills" / "drawio-diagram" / "scripts" / "lib" / "charter.json"] = \
         json.dumps({"_source": "shared/references/style.md, généré par scripts/build.py", "colors": colors},
                    ensure_ascii=False, indent=2) + "\n"
+    return files
+
+
+def shared_inputs() -> dict[Path, str]:
+    """Contrats dont un script lit la même entrée qu'un script d'un autre skill (`input.same_as`) :
+    le schéma est recopié de la source, une seule définition à faire évoluer."""
+    contracts = skill_contracts()
+    files: dict[Path, str] = {}
+    for name, contract in contracts.items():
+        changed = False
+        for script in contract["scripts"]:
+            source = (script.get("input") or {}).get("same_as")
+            if not source:
+                continue
+            skill, _, file = source.partition("/")
+            origin = next((s for s in contracts.get(skill, {}).get("scripts", []) if s["name"] == file), None)
+            schema_ = ((origin or {}).get("input") or {}).get("schema")
+            if schema_ is not None and script["input"].get("schema") != schema_:
+                script["input"]["schema"], changed = schema_, True
+        if changed:
+            files[REPO / "skills" / name / "contract.json"] = json.dumps(contract, ensure_ascii=False, indent=2) + "\n"
+    return files
+
+
+AGENT_ENUM = re.compile(r'"enum": \[((?:"[a-z0-9-]+", )*"[a-z0-9-]+")\]')
+
+
+def agent_enums() -> dict[Path, str]:
+    """Schémas des messages et des contrats d'agent, avec la liste des agents à jour :
+    ajouter un agent (src/agents/<nom>.contract.json) suffit, build.py met les listes à jour."""
+    agents = sorted(agent_contracts())
+    files: dict[Path, str] = {}
+    for name in ("agent-contract", "handoff", "agent-report"):
+        path = SCHEMAS / f"{name}.schema.json"
+        text = path.read_text(encoding="utf-8")
+
+        def fix(match: re.Match) -> str:
+            old = json.loads(f"[{match.group(1)}]")
+            if sum(value in agents for value in old) * 2 < len(old):
+                return match.group(0)  # liste d'autre chose que des agents
+            new = [a for a in old if a in agents] + [a for a in agents if a not in old]
+            return '"enum": ' + json.dumps(new, ensure_ascii=False)
+
+        files[path] = AGENT_ENUM.sub(fix, text)
     return files
 
 
@@ -144,6 +197,7 @@ def render_skill(contract: dict) -> str:
     modèle les lit de toute façon dans la sortie des scripts)."""
     lines = ["## Contrat", "",
              "Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).", "",
+             f"- **Niveau** : {contract['level']} ({LEVEL_HINTS[contract['level']]}).",
              "- **Entrées** : " + " ; ".join(contract["inputs"]) + ".",
              "- **Sorties** : " + " ; ".join(contract["outputs"]) + "."]
     for script in contract["scripts"]:
@@ -158,6 +212,9 @@ def render_skill(contract: dict) -> str:
                          "liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
+    for need in contract.get("requires", []):
+        mode = "facultatif : sans lui, avertissement" if need.get("optional") else "obligatoire"
+        lines.append(f"- **Dépend de** `{need['skill']}` (`{need['script']}`, {mode}) : {need['why']}.")
     for handoff in contract["handoffs"]:
         target = {"skill": f"au skill `{handoff['to']}`", "agent": f"à l'agent `{handoff['to']}`",
                   "utilisateur": "à l'utilisateur",
@@ -167,9 +224,13 @@ def render_skill(contract: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+LEVEL_HINTS = {"simple": "modèle léger", "moyen": "modèle standard", "complexe": "modèle puissant"}
+
+
 def render_agent(contract: dict) -> str:
     lines = ["## Contrat", "",
              "Généré depuis `src/agents/" + contract["agent"] + ".contract.json`, qui fait foi.", "",
+             f"- **Niveau** : {contract['level']} ({LEVEL_HINTS[contract['level']]}, `shared/models.json`).",
              "- **Reçoit** : " + " ; ".join(contract["receives"]) + ".",
              "- **Produit** : " + " ; ".join(contract["produces"]) + "."]
     if contract.get("never"):
@@ -186,8 +247,8 @@ def render_agent(contract: dict) -> str:
               "rien à passer. Exemple, avec un message de passage dans `next` :", "",
               "```json", json.dumps(REPORT_EXAMPLE, ensure_ascii=False), "```", "",
               "Avant de l'envoyer, valide chaque message de passage et le rapport final",
-              "avec `journal.py handoff|report DOSSIER --json '<une ligne>'` (skill",
-              "`decision-log`, DOSSIER = dossier de travail) et corrige jusqu'à zéro",
+              "avec `check_message.py handoff|report DOSSIER --json '<une ligne>'`",
+              "(skill `agent-handoff`, DOSSIER = dossier de travail) et corrige jusqu'à zéro",
               "erreur : schéma respecté, fichiers cités existants. Dans un dossier de",
               "workflow, la commande les trace aussi au journal."]
     return "\n".join(lines) + "\n"

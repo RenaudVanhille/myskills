@@ -11,6 +11,10 @@ le résultat : les outils installent le plugin depuis le dépôt.
     skills/*/references/style.md          charte : règles communes + section du format (shared/targets.txt)
     skills/*/scripts/lib/spec_schema.py   validateur des descriptions JSON (shared/scripts/), si un script a un `input`
     skills/*/scripts/lib/local_tools.py   emplacements des outils locaux (shared/scripts/), skills de LIB_USERS
+    skills/*/scripts/lib/skill_paths.py   accès aux scripts des autres skills, si le contrat a un `requires`
+    skills/*/contract.json : input.schema  copie du schéma du script nommé dans input.same_as
+    shared/schemas/*.schema.json          liste des agents permis (enum), depuis src/agents/*.contract.json
+    agents : champ model                  depuis le niveau du contrat et shared/models.json
     skills/drawio-diagram/scripts/lib/charter.json  couleurs de la charte (shared/references/style.md)
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
@@ -23,8 +27,9 @@ import re
 import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
-from contracts_lib import (agent_contracts, build_catalog_json, build_catalog_md, generated_libs, plugin_manifests, render_agent as
-                           render_agent_contract, render_skill, replace_section, skill_contracts)
+from contracts_lib import (agent_contracts, agent_enums, build_catalog_json, build_catalog_md, generated_libs,
+                           plugin_manifests, render_agent as render_agent_contract, render_skill, replace_section,
+                           shared_inputs, skill_contracts)
 
 
 def write_contract_sections() -> None:
@@ -51,6 +56,9 @@ def style_for(style: str, section: str) -> str:
 
 
 def main() -> None:
+    # D'abord la liste des agents dans les schémas des messages : le reste en dépend.
+    for path, text in {**agent_enums(), **shared_inputs()}.items():
+        write_text(path, text)
     write_contract_sections()
     claude_dir = REPO / "agents"
     copilot_dir = REPO / "com.github.copilot" / "agents"

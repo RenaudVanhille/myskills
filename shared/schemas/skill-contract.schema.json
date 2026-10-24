@@ -4,10 +4,12 @@
   "title": "Contrat d'interface d'un skill",
   "description": "Fichier contract.json à la racine de chaque skill : entrées, sorties, scripts, rapports et passages de main.",
   "type": "object",
-  "required": ["skill", "inputs", "outputs", "scripts", "handoffs"],
+  "required": ["skill", "level", "inputs", "outputs", "scripts", "handoffs"],
   "additionalProperties": false,
   "properties": {
     "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+    "level": {"enum": ["simple", "moyen", "complexe"],
+              "description": "Niveau du travail que le skill demande au modèle (shared/models.json associe une classe de modèle à chaque niveau)."},
     "inputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "scripts": {
@@ -31,6 +33,8 @@
             "properties": {
               "format": {"enum": ["json"]},
               "description": {"type": "string"},
+              "same_as": {"type": "string", "pattern": "^[a-z0-9-]+/[\\w-]+\\.py$",
+                          "description": "Même entrée qu'un script d'un autre skill (<skill>/<script>) : scripts/build.py recopie son schéma ici."},
               "schema": {"type": "object", "description": "JSON Schema de la description en entrée."}
             }
           },
@@ -46,6 +50,22 @@
           },
           "exit_codes": {"type": "object", "patternProperties": {"^[0-9]+$": {"type": "string"}},
                          "additionalProperties": false, "minProperties": 1}
+        }
+      }
+    },
+    "requires": {
+      "type": "array",
+      "description": "Scripts d'autres skills que les scripts de ce skill appellent (scripts/lib/skill_paths.py).",
+      "items": {
+        "type": "object",
+        "required": ["skill", "script", "why"],
+        "additionalProperties": false,
+        "properties": {
+          "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "script": {"type": "string", "pattern": "^[\\w-]+\\.py$"},
+          "why": {"type": "string"},
+          "optional": {"type": "boolean",
+                       "description": "Sans ce skill, le script continue et le dit dans les avertissements de son rapport ; sinon, il s'arrête en erreur."}
         }
       }
     },

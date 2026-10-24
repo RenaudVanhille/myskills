@@ -4,11 +4,14 @@
 """Écrit la mémoire partagée d'un workflow dans un vault Obsidian.
 
 Lit les fichiers qui font foi dans le dossier du workflow (`workflow.json`
-et, s'ils existent, `exigences.json`, `options.json`, `decision.json`,
-`adr-architecture.md`) et en tire une note par exigence, terme du glossaire,
-option et entrée du journal, plus une note d'index, reliées par des wikilinks : un autre
-agent, une autre session ou l'utilisateur retrouvent dans le vault l'état
-du workflow, chaque décision et ce qu'elle concerne.
+et les livrables que la définition du workflow nomme dans `memory` :
+catalogue d'exigences, options, décision, ADR) et en tire une note par
+exigence, terme du glossaire, option et entrée du journal, une note par
+étape soumise avec ses livrables (images et Markdown copiés dans
+`Fichiers/` et intégrés), plus une note d'index, reliées par des wikilinks :
+un autre agent, une autre session ou l'utilisateur retrouvent dans le vault
+l'état du workflow, chaque décision et ce qu'elle concerne. Sans définition,
+`memory` vaut celle du workflow `architecture`.
 
 Les notes sont générées (`genere: decision-log` dans le frontmatter) et
 réécrites à chaque synchronisation ; celles qui ne correspondent plus à
@@ -28,13 +31,18 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
+from skill_paths import schema_of  # noqa: E402
 
-# Schéma de chaque fichier lu, pris dans le contrat du skill qui l'écrit (installé à côté).
-SKILLS = HERE.parent.parent
-SCHEMAS = {"workflow.json": HERE / "journal.py",
-           "exigences.json": SKILLS / "requirements-catalog" / "scripts" / "req_build.py",
-           "options.json": SKILLS / "architecture-options" / "scripts" / "options_build.py"}
+# Livrables lus pour les notes métier, par rôle, quand la définition du workflow ne dit rien.
+DEFAULT_MEMORY = {"requirements": "exigences.json", "options": "options.json", "decision": "decision.json",
+                  "adr": "adr-architecture.md"}
+# Schéma de chaque rôle, pris dans le contrat du skill qui écrit le fichier (installé à côté).
+WRITERS = {"requirements": ("requirements-catalog", "req_build.py"),
+           "options": ("architecture-options", "options_build.py")}
+# Livrables d'étape copiés dans le vault et intégrés à la note de l'étape.
+EMBEDDED = {".png", ".svg", ".jpg", ".jpeg", ".md"}
 
 MARK = "genere: decision-log"
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
@@ -112,9 +120,10 @@ def note(meta: dict, body: list[str]) -> str:
     return "\n".join(head + body).rstrip() + "\n"
 
 
-def schema_for(name: str) -> dict | None:
-    script = SCHEMAS[name]
-    return input_schema(script) if (script.parent.parent / "contract.json").exists() else None
+def schema_for(role: str) -> dict | None:
+    if role == "workflow":
+        return input_schema(HERE / "journal.py")
+    return schema_of(*WRITERS[role])
 
 
 def checked(path: Path, schema: dict | None, errors: list[str], warnings: list[str]):
@@ -136,7 +145,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     """Écrit les notes ; renvoie le rapport (notes écrites, supprimées, liens cassés)."""
     errors: list[str] = []
     warnings: list[str] = []
-    state = checked(folder / "workflow.json", schema_for("workflow.json"), errors, warnings)
+    state = checked(folder / "workflow.json", schema_for("workflow"), errors, warnings)
     if not state:
         return {"vault": str(vault), "folder": target, "notes": 0, "removed": 0,
                 "errors": errors or [f"{folder / 'workflow.json'} illisible : lancez journal.py init"],
@@ -145,11 +154,16 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         return {"vault": str(vault), "folder": target, "notes": 0, "removed": 0,
                 "errors": [f"vault introuvable : {vault}"], "warnings": warnings}
     data = data or folder
-    catalog = checked(data / "exigences.json", schema_for("exigences.json"), errors, warnings) or {}
-    options_schema = schema_for("options.json")
-    options = checked(data / "options.json", options_schema, errors, warnings) or {}
+    definition = state.get("definition")
+    memory = definition.get("memory", {}) if definition else DEFAULT_MEMORY
+    catalog = checked(data / memory["requirements"], schema_for("requirements"), errors, warnings) or {} \
+        if memory.get("requirements") else {}
+    options_schema = schema_for("options") if memory.get("options") else None
+    options = checked(data / memory["options"], options_schema, errors, warnings) or {} \
+        if memory.get("options") else {}
     decision_schema = options_schema["properties"]["decision"] if options_schema else None
-    decision = checked(data / "decision.json", decision_schema, errors, warnings) or options.get("decision")
+    decision = (checked(data / memory["decision"], decision_schema, errors, warnings)
+                if memory.get("decision") else None) or options.get("decision")
     base = safe_folder(target)
     names: dict[str, str] = {}  # identifiant -> chemin de la note (sans .md), pour les wikilinks
 
@@ -172,8 +186,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     for entry in state["entries"]:
         names[entry["id"]] = f"{base}/Décisions/{entry['id']}"
     index = f"{base}/{safe_name(state['title'])}"
-    adr = data / "adr-architecture.md"
-    if adr.exists():
+    adr = data / memory["adr"] if memory.get("adr") else None
+    if adr and adr.exists():
         names["ADR"] = f"{base}/ADR architecture"
 
     by_ref: dict[str, list[dict]] = {}
@@ -270,6 +284,38 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         notes[names["ADR"]] = note({"type": "adr", "statut": "acceptée", "tags": ["adr", "architecture"]},
                                    [text, "", up])
 
+    # Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés.
+    files_dir = f"{base}/Fichiers"
+    copies: dict[str, Path] = {}  # chemin dans le vault -> fichier du workflow
+    labels = {s["id"]: s.get("label") or s["id"] for s in (definition or {}).get("stages", [])}
+    stage_notes = []
+    for stage in state["stages"]:
+        if not stage.get("files"):
+            continue
+        rel = f"{base}/Étapes/{safe_name(labels.get(stage['id'], stage['id']))}"
+        body = [f"# {labels.get(stage['id'], stage['id'])}", "", up, "",
+                f"Statut : {STATUS_LABELS[stage['status']]}.", "", "## Livrables", ""]
+        for file in stage["files"]:
+            source = folder / file
+            if source.suffix.lower() in EMBEDDED and source.is_file():
+                copy = f"{files_dir}/{file}"
+                copies[copy] = source
+                body += [f"### {file}", "", f"![[{copy}]]", ""]
+            else:
+                body.append(f"- `{file}`")
+        notes[rel] = note({"type": "etape", "etape": stage["id"], "statut": stage["status"], "tags": ["etape"]},
+                          body)
+        stage_notes.append(rel)
+    # Schéma de chaque option, s'il a été exporté (comme deck_build.py) : intégré à la note de l'option.
+    for index_, opt in enumerate(options.get("options", [])):
+        pictures = [f"schemas/option-{opt['id'].lower()}.drawio.png",
+                    "schemas/architectures.drawio.png" if index_ == 0 else
+                    f"schemas/architectures-{index_ + 1}.drawio.png"]
+        found = next((p for p in pictures if (folder / p).is_file()), None)
+        if found and names.get(opt["id"]) in notes:
+            copies[f"{files_dir}/{found}"] = folder / found
+            notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + f"\n\n## Schéma\n\n![[{files_dir}/{found}]]\n"
+
     reviews = []
     for stage in state["stages"]:
         if stage["status"] != "en-revue":
@@ -299,6 +345,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     if glossary:
         body += ["", "## Glossaire", ""] + [f"- [[{names['terme:' + g['term']]}|{alias(g['term'])}]]"
                                            for g in sorted(glossary, key=lambda g: normalize(g["term"]))]
+    if stage_notes:
+        body += ["", "## Livrables par étape", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in stage_notes]
     if reviews:
         body += ["", "## Revues en attente", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in reviews]
     if "ADR" in names:
@@ -317,15 +365,33 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
+    # Copies des livrables : Fichiers/ est entièrement généré (un Markdown copié porte la marque).
+    for rel, source in copies.items():
+        path = vault / rel
+        data_ = source.read_bytes()
+        if source.suffix.lower() == ".md":
+            data_ = (f"---\n{MARK}\nsource: {json.dumps(source.name)}\n---\n\n").encode("utf-8") + data_
+        if path.is_file() and path.read_bytes() == data_:
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data_)
     removed = 0
     for path in (vault / base).rglob("*.md"):
         rel = path.relative_to(vault).with_suffix("").as_posix()
-        if rel not in notes and path.read_text(encoding="utf-8", errors="replace").startswith(f"---\n{MARK}\n"):
+        if rel not in notes and path.relative_to(vault).as_posix() not in copies \
+                and path.read_text(encoding="utf-8", errors="replace").startswith(f"---\n{MARK}\n"):
             path.unlink()
             removed += 1
+    if (vault / files_dir).is_dir():
+        for path in sorted((vault / files_dir).rglob("*"), reverse=True):
+            if path.is_file() and path.relative_to(vault).as_posix() not in copies:
+                path.unlink()
+                removed += 1
+            elif path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
     # Vérification : chaque wikilink écrit pointe vers une note qui existe.
     broken = sorted({target for text in notes.values() for target in re.findall(r"\[\[([^|\]]+)", text)
-                     if not (vault / f"{target}.md").exists()})
+                     if not (vault / f"{target}.md").exists() and not (vault / target).is_file()})
     errors += [f"lien cassé : [[{target}]]" for target in broken]
     return {"vault": str(vault), "folder": base, "notes": len(notes), "removed": removed,
             "errors": errors, "warnings": warnings}

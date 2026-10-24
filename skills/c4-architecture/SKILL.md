@@ -13,6 +13,7 @@ une fois, chaque vue en montre une partie.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
+- **Niveau** : moyen (modèle standard).
 - **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture.
 - **Sorties** : Dossier LikeC4 : specification.c4 et model.c4 ; Un PNG par vue (après export).
 - **Scripts** : aucun ; la validation passe par le skill suivant.

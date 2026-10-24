@@ -1,26 +1,36 @@
-"""Position des options dans le plan d'occupation des sols (POS) du SI.
+# /// script
+# requires-python = ">=3.10"
+# ///
+"""Situe des options d'architecture dans le plan d'occupation des sols (POS) du SI.
 
-Lit le POS existant (description JSON ou inventaire CSV du skill
-urbanization-map), vérifie le placement de chaque option (applications
-créées, modifiées, remplacées, réutilisées), en tire les impacts
-(redondances, flux entre zones) et la description du POS cible de l'option,
-à construire avec pos_build.py. Utilisé par options_build.py.
+Lit le POS existant (description JSON ou inventaire CSV de pos_build.py, ou
+note Markdown avec son tableau), vérifie le placement de chaque option
+(applications créées, modifiées, remplacées, réutilisées), en tire les
+impacts (créations, évolutions, remplacements, redondances, flux entre
+zones) et écrit la description du POS cible de chaque option
+(`pos-option-<id>.json`, à construire avec pos_build.py).
+
+L'entrée est toute description qui a `pos` et des `options` avec leur
+`placement` : `options.json` d'architecture-options convient tel quel. Le
+module sert aussi à options_build.py (skill architecture-options), qui
+l'appelle par son contrat (`requires`).
+
+    uv run scripts/pos_impact.py OPTIONS.json [--out-dir DOSSIER] | --schema
 """
 
+import argparse
 import copy
-import csv
 import difflib
 import json
-import unicodedata
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from inventory import plain, read_inventory  # noqa: E402
+from spec_schema import print_schema, validate  # noqa: E402
 
 CHANGES = {"nouvelle": "à créer", "a-faire-evoluer": "à faire évoluer", "a-remplacer": "à remplacer ou retirer",
            "en-place": "réutilisée telle quelle", "externe": "externe, SaaS"}
-
-
-def plain(text: str) -> str:
-    text = unicodedata.normalize("NFKD", text)
-    return " ".join("".join(c for c in text if not unicodedata.combining(c)).lower().split())
 
 
 def app_name(app) -> str:
@@ -41,72 +51,12 @@ def resolve(base: Path, value: str, errors: list[str]) -> Path | None:
         return None
 
 
-def markdown_rows(text: str) -> list[dict]:
-    """Lignes du premier tableau Markdown qui a une colonne zone (note Obsidian d'inventaire)."""
-    table: list[list[str]] = []
-    for line in text.splitlines() + [""]:
-        stripped = line.strip()
-        if stripped.startswith("|"):
-            table.append([c.strip() for c in stripped.strip("|").split("|")])
-            continue
-        if table and "zone" in [plain(c) for c in table[0]]:
-            body = [r for r in table[1:] if not set("".join(r)) <= set("-: ")]
-            return [dict(zip(table[0], r)) for r in body]
-        table = []
-    return []
-
-
 def read_pos(path: Path, errors: list[str]) -> dict:
-    """POS en JSON (format de pos_build.py), en CSV ou en note Markdown avec un tableau
-    (colonnes zone, quartier, ilot, application, statut)."""
-    suffix = path.suffix.lower()
-    if suffix not in (".json", ".csv", ".md"):
-        errors.append(f"pos : {path.name} n'est pas lisible ({suffix}) ; donnez la description .json, "
-                      "l'inventaire .csv ou une note .md avec le tableau zone, quartier, ilot, application, statut")
-        return {"zones": []}
-    try:
-        if suffix == ".json":
-            return json.loads(path.read_text(encoding="utf-8"))
-        try:
-            text = path.read_text(encoding="utf-8-sig")
-        except UnicodeDecodeError:
-            text = path.read_text(encoding="cp1252")
-    except (OSError, ValueError) as error:
-        errors.append(f"pos : POS illisible {path} ({error})")
-        return {"zones": []}
-    if suffix == ".md":
-        rows = markdown_rows(text)
-    else:
-        try:
-            dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
-        except csv.Error:
-            dialect = csv.excel
-        rows = list(csv.DictReader(text.splitlines(), dialect=dialect))
-    columns = {plain(c): c for c in (rows[0].keys() if rows else [])}
-    if "zone" not in columns:
-        errors.append(f"pos : colonnes attendues zone, quartier, ilot, application, statut dans {path}")
-        return {"zones": []}
-
-    def col(row: dict, *names: str) -> str:
-        for name in names:
-            if name in columns:
-                return (row.get(columns[name], "") or "").strip()
-        return ""
-
-    zones: dict = {}
-    for row in rows:
-        zone = col(row, "zone")
-        if not zone:
-            continue
-        z = zones.setdefault(zone, {"name": zone, "quartiers": {}})
-        q = z["quartiers"].setdefault(col(row, "quartier") or "—", {"name": col(row, "quartier") or "—",
-                                                                    "ilots": {}, "apps": []})
-        ilot, app = col(row, "ilot"), col(row, "application", "app")
-        target = q["ilots"].setdefault(ilot, {"name": ilot, "apps": []})["apps"] if ilot else q["apps"]
-        if app:
-            target.append({"name": app, "status": col(row, "statut", "status") or "en-place"})
-    return {"zones": [{**z, "quartiers": [{**q, "ilots": list(q["ilots"].values())}
-                                          for q in z["quartiers"].values()]} for z in zones.values()]}
+    """POS existant ; les erreurs de lecture sont préfixées par « pos : »."""
+    found: list[str] = []
+    pos = read_inventory(path, found)
+    errors += [f"pos : {e}" for e in found]
+    return pos
 
 
 def index(pos: dict) -> dict:
@@ -202,7 +152,7 @@ def target_pos(pos: dict, option: dict, title: str) -> dict:
                 holder = {"name": place["ilot"], "apps": []}
                 quartier["ilots"].append(holder)
         holder.setdefault("apps", []).append({"name": place["app"], "status": "nouvelle"})
-    return {"_source": "généré par options_build.py : POS existant et placement de l'option",
+    return {"_source": "généré par pos_impact.py : POS existant et placement de l'option",
             "title": title, "detail": "application", **target}
 
 
@@ -216,3 +166,76 @@ def placement_lines(option: dict, idx: dict) -> list[str]:
         note = f" (coexiste : {place['coexists']})" if place.get("coexists") else ""
         lines.append(f"| {place['app']} | {CHANGES[place['change']]} | {' / '.join(s for s in spot if s)}{note} |")
     return lines
+
+
+def analyse(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> tuple[dict | None, dict | None, list]:
+    """POS lu, index et impacts de chaque option ; (None, None, []) sans POS."""
+    if not spec.get("pos"):
+        for i, option in enumerate(spec.get("options", [])):
+            if option.get("placement"):
+                errors.append(f"options/{i} ({option['id']})/placement : POS absent, ajoutez pos à la description")
+        return None, None, []
+    path = resolve(base, spec["pos"], errors)
+    pos = read_pos(path, errors) if path else {"zones": []}
+    idx = index(pos)
+    if not idx["apps"] and not errors:
+        errors.append(f"pos : aucune application dans {spec['pos']}")
+    if errors:  # POS illisible : pas d'erreurs en cascade sur chaque placement
+        return pos, {"apps": {}, "places": set(), "unreadable": True}, []
+    impacts = []
+    for i, option in enumerate(spec.get("options", [])):
+        if not option.get("placement"):
+            warnings.append(f"options/{i} ({option['id']}) : pas de placement dans le POS")
+        impacts.append(check_option(option, idx, errors, warnings))
+    return pos, idx, impacts
+
+
+def write_targets(pos: dict, spec: dict, out_dir: Path) -> list[str]:
+    """Description pos_build.py du POS cible de chaque option."""
+    written = []
+    for option in spec["options"]:
+        target = out_dir / f"pos-option-{option['id'].lower()}.json"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with open(target, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(target_pos(pos, option, f"POS cible, option {option['id']} : {option['name']}"),
+                      handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        written.append(str(target))
+    return written
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("spec", type=Path, nargs="?", help="description avec pos et options (options.json)")
+    parser.add_argument("--out-dir", type=Path, help="dossier des POS cibles (défaut : schemas/ à côté du .json)")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
+    report = {"input": str(args.spec), "pos": None, "apps": 0, "impacts": [], "outputs": [], "errors": [],
+              "warnings": []}
+    try:
+        spec = json.loads(args.spec.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        report["errors"].append(str(error))
+        print(json.dumps(report, ensure_ascii=False))
+        return 1
+    report["errors"] += validate(spec, __file__)
+    if not report["errors"]:
+        report["pos"] = spec["pos"]
+        pos, idx, report["impacts"] = analyse(spec, args.spec.parent, report["errors"], report["warnings"])
+        report["apps"] = len(idx["apps"]) if idx else 0
+        if not report["errors"]:
+            report["outputs"] = write_targets(pos, spec, args.out_dir or args.spec.parent / "schemas")
+    print(json.dumps(report, ensure_ascii=False))
+    return 1 if report["errors"] else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

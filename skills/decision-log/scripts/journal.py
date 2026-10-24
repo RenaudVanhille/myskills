@@ -33,9 +33,9 @@ workflows/ ou fournie) : étapes, skills, livrables attendus et contrôles. Le
 rapport donne alors l'étape à produire (`stage`), et `submit` prend les
 livrables dans la définition et refuse s'il en manque un.
 
-`handoff` et `report` valident un message de passage et un rapport final
-d'agent contre leurs schémas (shared/schemas/) et vérifient que leurs
-fichiers existent ; dans un dossier de workflow, ils les notent au journal.
+Les messages de passage et rapports finaux d'agent sont validés par le
+skill `agent-handoff` (check_message.py), qui les note au journal par
+`trace()` quand le dossier est celui d'un workflow.
 
     uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c | --definition NOM|DEF.json] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE
@@ -43,7 +43,6 @@ fichiers existent ; dans un dossier de workflow, ils les notent au journal.
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
-    uv run scripts/journal.py handoff|report DOSSIER --file MESSAGE.json | --json '{...}'
     uv run scripts/journal.py status DOSSIER
     uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
@@ -61,7 +60,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import review_note, safe_folder, safe_name, sync  # noqa: E402
 
-LIB = Path(__file__).resolve().parent / "lib"
 WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
@@ -148,33 +146,6 @@ def describe(changes: dict) -> str:
              (("added", "ajoutés"), ("removed", "retirés"), ("modified", "modifiés")) if changes[key]]
     return "; ".join(parts) or ("fichiers modifiés : " + ", ".join(changes["files"]) if changes["files"]
                                 else "aucun changement")
-
-
-def load_message(args, errors: list[str]):
-    """Message de passage ou rapport final passé par --file ou --json."""
-    try:
-        text = args.file.read_text(encoding="utf-8") if args.file else args.json
-        return json.loads(text)
-    except (OSError, ValueError, TypeError) as error:
-        errors.append(f"message illisible ({error})")
-        return None
-
-
-def message_errors(kind: str, message, folder: Path) -> list[str]:
-    """Erreurs d'un message de passage (handoff) ou d'un rapport final (report) : schéma, puis fichiers."""
-    handoff = json.loads((LIB / "handoff.schema.json").read_text(encoding="utf-8"))
-    if kind == "handoff":
-        schema = handoff
-    else:
-        schema = json.loads((LIB / "agent-report.schema.json").read_text(encoding="utf-8"))
-        schema["$defs"] = {"handoff.schema.json": handoff}
-    errors = check(message, schema)
-    if errors or not isinstance(message, dict):
-        return errors
-    files = list(message["files"]) + (list(message["next"]["files"]) if kind == "report" and message.get("next")
-                                      else [])
-    missing = [f for f in dict.fromkeys(files) if not (Path(f).exists() or (folder / f).exists())]
-    return [f"files : {f} introuvable" for f in missing]
 
 
 def load_definition(value: str, errors: list[str]) -> dict | None:
@@ -289,18 +260,54 @@ def read_review(note: Path) -> tuple[str | None, str]:
     return value or None, " ".join(feedback.split())
 
 
+def load_state(folder: Path, errors: list[str]) -> dict | None:
+    """workflow.json du dossier, validé contre son schéma ; None et les erreurs sinon."""
+    try:
+        state = json.loads((folder / STATE).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
+        return None
+    invalid = validate(state, __file__)
+    if invalid:
+        errors += [e.replace("description :", f"{STATE} :", 1) for e in invalid]
+        return None
+    return state
+
+
+def synchronize(folder: Path, state: dict, warnings: list[str]) -> dict | None:
+    """Mémoire partagée dans le vault, s'il y en a un ; avertissements en cas d'échec."""
+    if not state.get("memory"):
+        return None
+    synced = sync(folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
+    warnings += [f"vault : {e}" for e in synced["errors"]]
+    warnings += [f"vault : {w}" for w in synced["warnings"]]
+    return {"folder": synced["folder"], "notes": synced["notes"]}
+
+
+def trace(folder: Path, kind: str, message: dict) -> dict:
+    """Note au journal un message de passage (handoff) ou un rapport final d'agent (report) déjà
+    validé par le skill agent-handoff, à l'étape courante. Renvoie l'entrée, les erreurs et
+    les avertissements."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    state = load_state(folder, errors)
+    if state is None:
+        return {"entry": None, "errors": errors, "warnings": warnings}
+    current = next_action(state)[0] or state["stages"][-1]["id"]
+    if kind == "handoff":
+        text = f"vers {message['agent']} : {message['objective']}"
+    else:
+        text = f"{message['agent']} : {message['status']}, {len(message['files'])} fichier(s)" + (
+            f", à faire : {'; '.join(message['todo'])}" if message["todo"] else "")
+    entry = add_entry(state, current, "passage" if kind == "handoff" else "rapport", "agent", text,
+                      files=message["files"])
+    save(folder, state)
+    synchronize(folder, state, warnings)
+    return {"entry": entry, "errors": errors, "warnings": warnings}
+
+
 def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
     folder: Path = args.folder
-    if args.command in ("handoff", "report"):
-        message = load_message(args, errors)
-        if message is None:
-            return None, None
-        errors += message_errors(args.command, message, folder)
-        if errors:
-            return None, None
-        if not (folder / STATE).exists():
-            warnings.append(f"message valide, non tracé : pas de {STATE} dans {folder}")
-            return None, None
     if args.command == "init":
         if (folder / STATE).exists():
             errors.append(f"{folder / STATE} existe déjà : utilisez status pour reprendre le workflow")
@@ -329,14 +336,8 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                                "folder": safe_folder(args.folder_in_vault or f"Workflows/{safe_name(state['title'])}")}
         return state, None
 
-    try:
-        state = json.loads((folder / STATE).read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
-        return None, None
-    invalid = validate(state, __file__)
-    if invalid:
-        errors += [e.replace("description :", f"{STATE} :", 1) for e in invalid]
+    state = load_state(folder, errors)
+    if state is None:
         return None, None
     for stage in state["stages"]:
         if stage["status"] == "validee":
@@ -346,15 +347,6 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                                 "faites-les revoir (review --decision retour)")
     if args.command == "status":
         return state, None
-    if args.command in ("handoff", "report"):
-        current = next_action(state)[0] or state["stages"][-1]["id"]
-        if args.command == "handoff":
-            text = f"vers {message['agent']} : {message['objective']}"
-        else:
-            text = f"{message['agent']} : {message['status']}, {len(message['files'])} fichier(s)" + (
-                f", à faire : {'; '.join(message['todo'])}" if message["todo"] else "")
-        return state, add_entry(state, current, "passage" if args.command == "handoff" else "rapport", "agent",
-                                text, files=message["files"])
 
     stage = stage_of(state, args.stage, errors)
     if not stage:
@@ -507,12 +499,6 @@ def main() -> int:
             command.add_argument("--refs", help="exigences, options ou fichiers concernés")
             command.add_argument("--from-vault", action="store_true",
                                  help="lire la décision dans la note de revue du vault (propriété revue)")
-    for name, what in (("handoff", "message de passage"), ("report", "rapport final d'agent")):
-        command = sub.add_parser(name, help=f"valide un {what} et le note au journal")
-        command.add_argument("folder", type=Path, help="dossier du workflow, ou dossier de travail")
-        source = command.add_mutually_exclusive_group(required=True)
-        source.add_argument("--file", type=Path, help=f"{what} en JSON")
-        source.add_argument("--json", help=f"{what} en JSON sur une ligne")
     args = parser.parse_args()
 
     errors: list[str] = []
@@ -520,12 +506,7 @@ def main() -> int:
     state, entry = run(args, errors, warnings)
     if state and not errors and args.command != "status":
         save(args.folder, state)
-    memory = None
-    if state and not errors and state.get("memory"):
-        synced = sync(args.folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
-        warnings += [f"vault : {e}" for e in synced["errors"]]
-        warnings += [f"vault : {w}" for w in synced["warnings"]]
-        memory = {"folder": synced["folder"], "notes": synced["notes"]}
+    memory = synchronize(args.folder, state, warnings) if state and not errors else None
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     # L'étape à produire, seulement quand l'agent en a besoin : au démarrage ou à la reprise.
     todo = state and current and args.command in ("init", "start", "status") and \
@@ -534,6 +515,7 @@ def main() -> int:
               "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
               "current": current, "next": action, "entry": entry, "changes": getattr(args, "changes", None),
               "stage": stage_definition(state, current) if todo else None,
+              "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
               "memory": memory,
               "errors": errors, "warnings": warnings}

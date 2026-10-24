@@ -1,0 +1,47 @@
+{
+  "agent": "architecture-reviewer",
+  "level": "complexe",
+  "receives": [
+    "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
+    "Ce que l'utilisateur veut : modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
+    "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
+  ],
+  "produces": [
+    "<sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés",
+    "<sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison",
+    "Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG"
+  ],
+  "never": [
+    "Accepter un écart (accept) sans la raison donnée par l'utilisateur",
+    "Modifier le schéma ou la description d'un autre agent sans le dire",
+    "Envoyer une description ou un schéma à un service en ligne"
+  ],
+  "handoffs": [
+    {
+      "to": "schema-designer",
+      "when": "le schéma doit être corrigé ou complété après la revue (composant manquant, flux à chiffrer)",
+      "send": [
+        "la description JSON corrigée",
+        "les constats qui la justifient",
+        "la destination du schéma"
+      ]
+    },
+    {
+      "to": "architecture-workflow",
+      "when": "la revue est faite pour une étape de workflow : rendre la main pour la soumission",
+      "send": [
+        "les fichiers .threats.md et .wa.md",
+        "les constats de gravité haute restants",
+        "le dossier du workflow"
+      ]
+    },
+    {
+      "to": "document-publisher",
+      "when": "la revue doit être livrée en Word, HTML ou XWiki",
+      "send": [
+        "les fichiers .threats.md et .wa.md",
+        "l'outil cible"
+      ]
+    }
+  ]
+}

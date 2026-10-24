@@ -1,5 +1,6 @@
 {
   "skill": "requirements-catalog",
+  "level": "moyen",
   "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
     "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"

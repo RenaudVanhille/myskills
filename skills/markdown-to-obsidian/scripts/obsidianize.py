@@ -23,7 +23,6 @@ Affiche un rapport JSON. Usage :
 
 import argparse
 import datetime
-import importlib.util
 import json
 import re
 import shutil
@@ -34,9 +33,9 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from script_report import print_report  # noqa: E402
+from skill_paths import absent, find_script, load_module  # noqa: E402
 
-CLASSIFY = Path(__file__).resolve().parents[2] / "doc-to-markdown" / "scripts" / "classify.py"
-VALIDATE = CLASSIFY.with_name("validate.py")
+CLASSIFY = find_script("doc-to-markdown", "classify.py")
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")
 MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+\.md)(#[^)]*)?\)")
 H1 = re.compile(r"^#\s+(.+)$", re.M)
@@ -56,8 +55,8 @@ def yaml_string(value: str) -> str:
 
 def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
     """Lance classify.py dans son propre environnement (dépendances lourdes)."""
-    if not CLASSIFY.is_file():
-        return {}, f"Classification impossible : {CLASSIFY} introuvable"
+    if CLASSIFY is None:
+        return {}, "Classification impossible : " + absent("doc-to-markdown", "classify.py")
     command = (["uv", "run", "--quiet", str(CLASSIFY)] if shutil.which("uv")
                else [sys.executable, str(CLASSIFY)])
     command += [str(f) for f in files] + (["--domains", domains] if domains else [])
@@ -72,12 +71,8 @@ def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | 
 
 def load_check():
     """Fonction check() de validate.py (skill doc-to-markdown), ou None s'il manque."""
-    if not VALIDATE.is_file():
-        return None
-    spec = importlib.util.spec_from_file_location("validate", VALIDATE)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.check
+    module = load_module("doc-to-markdown", "validate.py")
+    return module.check if module else None
 
 
 def frontmatter(text: str, path: Path, source: str | None, tags: list[str],
@@ -181,6 +176,9 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
     if check:
         result = check(target, obsidian=True, vault=args.vault)
         report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
+    else:
+        report["validation"] = {"ok": False, "errors": [],
+                                "warnings": ["note non vérifiée : " + absent("doc-to-markdown", "validate.py")]}
     return report
 
 

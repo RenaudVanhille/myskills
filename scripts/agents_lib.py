@@ -1,10 +1,53 @@
 """Fonctions communes à build.py et install.py : lecture des agents sources
-(src/agents/) et rendu au format de chaque outil."""
+(src/agents/) et rendu au format de chaque outil.
 
+Le modèle de chaque agent et la consigne « niveaux et modèles » (ligne
+`{{niveaux}}` de l'agent source) viennent du niveau de son contrat et de
+shared/models.json : changer un modèle se fait là, pour tous les agents."""
+
+import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 AGENTS_SRC = REPO / "src" / "agents"
+MODELS = REPO / "shared" / "models.json"
+LEVELS = ("simple", "moyen", "complexe")
+MARKER = "{{niveaux}}"
+
+
+def models() -> dict:
+    return json.loads(MODELS.read_text(encoding="utf-8"))["levels"]
+
+
+def agent_level(name: str) -> str:
+    """Niveau par défaut de l'agent, dans son contrat."""
+    contract = json.loads((AGENTS_SRC / f"{name}.contract.json").read_text(encoding="utf-8"))
+    return contract["level"]
+
+
+def model_for(level: str, flavor: str) -> str | None:
+    return models()[level]["models"].get(flavor)
+
+
+def levels_text(level: str, flavor: str) -> str:
+    """Consigne commune des niveaux, avec les modèles de l'outil (shared/models.json)."""
+    names = {lvl: model_for(lvl, flavor) for lvl in LEVELS}
+    if all(names.values()):
+        choice = ("avec le modèle du niveau du lot : "
+                  + ", ".join(f"{lvl} `{names[lvl]}`" for lvl in LEVELS) + ".")
+    else:
+        choice = "l'outil lui donne le modèle de la session (ou son mode automatique)."
+    return "\n".join([
+        "Pour chaque action, commence au niveau le plus bas qui convient et monte",
+        "d'un niveau si elle échoue :", "",
+        "- **simple** : exécute directement, sans réflexion approfondie.",
+        "- **moyen** : traite l'action toi-même, normalement.",
+        "- **complexe** : prends le temps de raisonner et de vérifier.", "",
+        f"Ton niveau est **{level}**. Un sous-agent repart de zéro (instructions,",
+        "outils, relecture des fichiers) : il coûte plus qu'une commande lancée",
+        "toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la",
+        "même façon, plusieurs pages à transcrire par la vision) ou une étape",
+        f"entière d'un autre niveau que le tien ; {choice}"])
 
 
 def parse_agent(path: Path) -> tuple[dict[str, str], str]:
@@ -34,6 +77,9 @@ def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> s
     ~/.kiro/skills en global)."""
     meta, body = parse_agent(path)
     name, desc = meta["name"], meta["description"]
+    level = agent_level(name)
+    body = body.replace(MARKER, levels_text(level, flavor))
+    model = model_for(level, flavor)
     lines = ["---"]
     if flavor == "claude":
         lines += [f"name: {name}", f"description: {desc}",
@@ -62,6 +108,8 @@ def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> s
         lines += [f"name: {name}", f"description: {desc}"]
     else:
         raise ValueError(f"Format inconnu : {flavor}")
+    if model and flavor != "hermes":
+        lines.append(f"model: {model}")
     lines.append("---")
     return "\n".join(lines) + "\n" + body
 

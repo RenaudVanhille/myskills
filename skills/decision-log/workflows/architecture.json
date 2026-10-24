@@ -1,31 +1,126 @@
 {
   "name": "architecture",
   "title": "Des documents du projet aux schémas d'architecture",
-  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées, choix de l'utilisateur et schémas.",
+  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
+  ],
+  "memory": {
+    "requirements": "exigences.json",
+    "options": "options.json",
+    "decision": "decision.json",
+    "adr": "adr-architecture.md"
+  },
   "stages": [
-    {"id": "documents", "label": "Documents en Markdown", "skills": ["doc-to-markdown"],
-     "inputs": ["documents/*"], "deliverables": ["sources/*.md"],
-     "checks": ["doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources"],
-     "instructions": "Un document déjà en Markdown est copié tel quel ; les pages de vision_pages sont transcrites par la vision."},
-    {"id": "exigences", "label": "Catalogue des exigences", "skills": ["requirements-catalog"],
-     "inputs": ["sources/*.md"], "deliverables": ["exigences.json", "exigences.md", "exigences.csv"],
-     "checks": ["requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"]},
-    {"id": "architectures", "label": "Options d'architecture", "skills": ["architecture-options", "cloud-architecture"],
-     "inputs": ["exigences.json", "documents/pos*"], "deliverables": ["options.json", "options.md"],
-     "optional": ["schemas/option-*.cloud.json", "schemas/option-*.wa.md", "schemas/pos-option-*.json"],
-     "checks": ["architecture-options : options_build.py options.json (revue Well-Architected des piliers incluse pour chaque option cloud)"],
-     "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos), le placement de chaque option et la note du critère urbanisation. Les constats Well-Architected d'une option cloud nourrissent ses notes et la recommandation : composant manquant ajouté, ou écart accepté avec sa raison dans wa_accept."},
-    {"id": "schemas", "label": "Décision et schémas", "skills": ["architecture-options", "drawio-diagram", "cloud-architecture", "urbanization-map", "diagram-export", "markdown-publish"],
-     "agent": "schema-designer",
-     "inputs": ["options.json", "exigences.json"],
-     "deliverables": ["decision.json", "adr-architecture.md", "tracabilite.md", "schemas/architectures.drawio", "schemas/*.png"],
-     "optional": ["tracabilite.csv", "schemas/option-*.drawio", "schemas/pos-option-*.drawio", "presentation.md", "presentation.pptx"],
-     "checks": ["architecture-options : options_build.py options.json --decision decision.json",
-                "drawio-diagram : drawio_build.py schemas/architectures.json",
-                "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json (option cloud retenue), puis wa_check.py --scope conventions",
-                "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
-                "diagram-export : export.py en PNG, puis relire chaque image",
-                "si l'utilisateur veut une présentation : architecture-options deck_build.py ., puis markdown-publish pptx_publish.py presentation.md (skill externe markdown-to-pptx)"],
-     "instructions": "decision.json reprend le choix de l'utilisateur à la revue précédente (ses mots dans why). La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés."}
+    {
+      "id": "documents",
+      "label": "Documents en Markdown",
+      "level": "simple",
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "agent": "document-extractor",
+      "inputs": [
+        "documents/*"
+      ],
+      "deliverables": [
+        "sources/*.md"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources"
+      ],
+      "instructions": "Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Les pages de vision_pages sont transcrites par la vision ; à partir de 5 documents à transcrire, passer la main à document-extractor. Un document écarté se note au journal avec sa raison."
+    },
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+      ],
+      "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal."
+    },
+    {
+      "id": "architectures",
+      "label": "Options d'architecture",
+      "level": "complexe",
+      "skills": [
+        "architecture-options",
+        "urbanization-map",
+        "well-architected-review"
+      ],
+      "inputs": [
+        "exigences.json",
+        "documents/pos*"
+      ],
+      "deliverables": [
+        "options.json",
+        "options.md"
+      ],
+      "optional": [
+        "tracabilite.md",
+        "tracabilite.csv",
+        "schemas/option-*.cloud.json",
+        "schemas/option-*.wa.md",
+        "schemas/pos-option-*.json"
+      ],
+      "checks": [
+        "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+      ],
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
+    },
+    {
+      "id": "schemas",
+      "label": "Décision et schémas",
+      "level": "moyen",
+      "skills": [
+        "architecture-options",
+        "drawio-diagram",
+        "cloud-architecture",
+        "well-architected-review",
+        "urbanization-map",
+        "diagram-export",
+        "architecture-deck"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "options.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "decision.json",
+        "adr-architecture.md",
+        "tracabilite.md",
+        "schemas/architectures.drawio",
+        "schemas/*.png"
+      ],
+      "optional": [
+        "tracabilite.csv",
+        "schemas/option-*.drawio",
+        "schemas/pos-option-*.drawio",
+        "presentation.md"
+      ],
+      "checks": [
+        "architecture-options : options_build.py options.json --decision decision.json",
+        "drawio-diagram : drawio_build.py schemas/architectures.json",
+        "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json (option cloud retenue), puis well-architected-review : wa_check.py --scope conventions sur ce fichier",
+        "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
+        "diagram-export : export.py en PNG, puis relire chaque image une fois",
+        "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
+      ],
+      "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas."
+    }
   ]
 }

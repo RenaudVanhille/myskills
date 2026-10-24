@@ -1,5 +1,6 @@
 {
   "agent": "document-extractor",
+  "level": "moyen",
   "receives": [
     "Fichiers PDF, DOCX, PPTX, XLSX, images, ou un dossier",
     "La cible : Markdown ou vault Obsidian",

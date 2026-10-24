@@ -1,5 +1,6 @@
 {
   "skill": "drawio-diagram",
+  "level": "moyen",
   "inputs": [
     "Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages)",
     "Ou un .drawio existant à modifier"

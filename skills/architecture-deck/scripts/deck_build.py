@@ -14,7 +14,9 @@ n'y figure qu'une fois (chiffres clés, exigences indispensables, notes par
 critère en graphique, scores, écarts, comparaison, un schéma par option,
 décision, couverture par l'option retenue, conséquences et questions
 ouvertes). Le détail va dans les notes de l'orateur. La présentation se
-produit ensuite avec pptx_publish.py (skill markdown-publish).
+produit ensuite avec pptx_publish.py (skill markdown-publish). Les scores et contrôles
+sont ceux d'options_build.py (skill architecture-options), appelé par son
+contrat (`requires`).
 
     uv run scripts/deck_build.py DOSSIER [--out presentation.md]
 """
@@ -27,9 +29,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
-sys.path.insert(0, str(HERE))
-from options_build import LEVELS, analyse, cell, nature  # noqa: E402
+from skill_paths import absent, find_script, load_module  # noqa: E402
 from spec_schema import check, input_schema, validate  # noqa: E402
+
+# Mêmes scores, contrôles et libellés que la comparaison validée (skill architecture-options).
+OPTIONS = load_module("architecture-options", "options_build.py")
 
 PER_LIST = 6  # éléments visibles par liste ; la suite va dans les notes
 
@@ -51,7 +55,7 @@ def section(title: str, kind: str | None, body: list[str], speaker: list[str] = 
 
 def table(header: list[str], rows: list[list[str]]) -> list[str]:
     return ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)] + \
-           ["| " + " | ".join(cell(v) for v in row) + " |" for row in rows]
+           ["| " + " | ".join(OPTIONS.cell(v) for v in row) + " |" for row in rows]
 
 
 def schema_image(folder: Path, option: dict, index: int) -> Path | None:
@@ -87,7 +91,7 @@ def build(folder: Path, spec: dict, criteria: list[dict], ranking: list[dict], c
         sections += 1
 
     # 1. Le besoin
-    functional = sum(1 for r in kept if nature(r) == "fonctionnelle")
+    functional = sum(1 for r in kept if OPTIONS.nature(r) == "fonctionnelle")
     figures = [f"- **{len(kept)}** exigences retenues, dont {functional} fonctionnelles",
                f"- **{len(key)}** indispensables, à couvrir par toute option recevable"]
     if questions:
@@ -124,7 +128,7 @@ def build(folder: Path, spec: dict, criteria: list[dict], ranking: list[dict], c
          for r in ranking],
         ["Somme des notes pondérées, en pourcentage du maximum ; une option qui laisse une exigence "
          "indispensable non couverte est éliminée."])
-    gaps = [[gid, f"Option {o['id']}", LEVELS[g["level"]], short(g["note"], 40)]
+    gaps = [[gid, f"Option {o['id']}", OPTIONS.LEVELS[g["level"]], short(g["note"], 40)]
             for o in spec["options"] for gid, g in o.get("gaps", {}).items()]
     if gaps:
         add("Écarts aux exigences", "table", ["Les exigences absentes sont couvertes par toutes les options.", ""]
@@ -165,7 +169,7 @@ def build(folder: Path, spec: dict, criteria: list[dict], ranking: list[dict], c
         # Un écart de l'option retenue est déjà détaillé plus haut : ici, son seul niveau.
         text = short(", ".join(comps), 40) if comps else ("" if gap else "–")
         if gap:
-            text = f"{text} ({LEVELS[gap['level']]})" if text else LEVELS[gap["level"]]
+            text = f"{text} ({OPTIONS.LEVELS[gap['level']]})" if text else OPTIONS.LEVELS[gap["level"]]
         cover.append([r["id"], r["priority"], text])
     add(f"Couverture par l'option {target['id']}", "table",
         ["Composants de l'option qui portent chaque exigence retenue.", ""]
@@ -205,7 +209,10 @@ def main() -> int:
     except (OSError, ValueError) as error:
         report["errors"].append(f"options.json illisible : {error}")
         return done(1)
-    options_script = HERE / "options_build.py"
+    options_script = find_script("architecture-options", "options_build.py")
+    if OPTIONS is None or options_script is None:
+        report["errors"].append(absent("architecture-options", "options_build.py"))
+        return done(1)
     report["errors"] += [f"options.json : {e}" for e in validate(spec, options_script)]
     decision_file = args.folder / "decision.json"
     if decision_file.is_file() and not report["errors"]:
@@ -218,7 +225,7 @@ def main() -> int:
                              check(spec["decision"], input_schema(options_script)["properties"]["decision"])]
     if report["errors"]:
         return done(1)
-    found = analyse(spec, args.folder)
+    found = OPTIONS.analyse(spec, args.folder)
     criteria, ranking, catalog, errors, warnings = (found[k] for k in
                                                     ("criteria", "ranking", "catalog", "errors", "warnings"))
     report["errors"] += errors

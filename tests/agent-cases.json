@@ -321,6 +321,81 @@
         "L'étape exigences est toujours en revue : l'agent ne l'a pas validée sans réponse de l'utilisateur.",
         "Aucune étape architectures n'a démarré."
       ]
+    },
+    {
+      "id": "schema-c4",
+      "agent": "schema-designer",
+      "prompt": "À partir de contexte-paiement.md, modélise l'architecture en C4 (contexte et conteneurs) avec LikeC4 dans c4/.",
+      "inputs": [
+        "fixtures/diagrams/contexte-paiement.md"
+      ],
+      "output": "c4/model.c4",
+      "rubric": [
+        "Le modèle LikeC4 décrit un système de paiement avec ses conteneurs API, Worker, file de messages et base.",
+        "La Banque est un système externe au système de paiement.",
+        "Le modèle définit au moins une vue de contexte et une vue de conteneurs."
+      ]
+    },
+    {
+      "id": "schema-mermaid",
+      "agent": "schema-designer",
+      "prompt": "Ajoute à la fin de contexte-paiement.md un diagramme de séquence Mermaid du paiement d'une commande.",
+      "inputs": [
+        "fixtures/diagrams/contexte-paiement.md"
+      ],
+      "output": "contexte-paiement.md",
+      "rubric": [
+        "Le fichier contient un bloc ```mermaid de type sequenceDiagram.",
+        "La séquence fait intervenir le Client, l'API, le Worker et la Banque.",
+        "Le texte d'origine du fichier est conservé."
+      ]
+    },
+    {
+      "id": "schema-cloud",
+      "agent": "schema-designer",
+      "prompt": "Fais le schéma AWS de déploiement de cloud-aws-web.json pour Confluence, dans schemas/.",
+      "inputs": [
+        {
+          "from": "fixtures/diagrams/cloud-aws-web.json",
+          "to": "cloud-aws-web.json"
+        }
+      ],
+      "output": "schemas/cloud-aws-web.drawio",
+      "rubric": [
+        "Le schéma utilise les icônes AWS officielles (styles mxgraph.aws4).",
+        "Le schéma montre un VPC avec ses sous-réseaux et le service API commandes.",
+        "Un export .drawio.png est livré à côté du .drawio."
+      ]
+    },
+    {
+      "id": "publier-word",
+      "agent": "document-publisher",
+      "prompt": "Publie expected/architecture.md en document Word dans publication/.",
+      "inputs": [
+        "expected/architecture.md"
+      ],
+      "output": "publication/architecture.docx",
+      "rubric": [
+        "Le document Word contient le titre Architecture du service de paiement.",
+        "Le document contient le tableau des composants API, Worker et Base."
+      ]
+    },
+    {
+      "id": "revue-menaces",
+      "agent": "architecture-reviewer",
+      "prompt": "Fais le modèle de menaces STRIDE et la revue Well-Architected de cloud-aws-web.json, dans revue/.",
+      "inputs": [
+        {
+          "from": "fixtures/diagrams/cloud-aws-web.json",
+          "to": "cloud-aws-web.json"
+        }
+      ],
+      "output": "revue/cloud-aws-web.threats.md",
+      "rubric": [
+        "Le modèle de menaces liste les flux qui traversent une frontière de confiance.",
+        "Chaque flux exposé a au moins une menace STRIDE et une parade proposée, ou est marqué à analyser.",
+        "Une revue Well-Architected (.wa.md) est livrée avec les constats par pilier."
+      ]
     }
   ]
 }

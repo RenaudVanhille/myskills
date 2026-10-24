@@ -4,15 +4,15 @@
 """Construit le plan d'occupation des sols (POS) d'un SI en draw.io.
 
 Entrée : une description JSON courte (zones, quartiers, îlots, applications)
-ou un inventaire CSV (une ligne par application : zone, quartier, ilot,
-application, statut). Le script fait toute la mise en page : zones de
+ou un inventaire CSV, ou une note Markdown avec son tableau (une ligne par
+application : zone, quartier, ilot, application, statut). Le script fait toute la mise en page : zones de
 pilotage en haut, opérations au milieu, support en bas, échanges à gauche et
 référentiels à droite, blocs imbriqués et alignés, titre et légende aux
 couleurs de la charte. Sortie : un `.drawio` en XML clair, dont les blocs
 sont des conteneurs (déplacer un quartier déplace ses îlots et ses
 applications), vérifié ensuite comme par check_drawio.py s'il est présent.
 
-    uv run scripts/pos_build.py POS.json|POS.csv [--out POS.drawio]
+    uv run scripts/pos_build.py POS.json|POS.csv|POS.md [--out POS.drawio]
         [--title "..."] [--audience technique|"non technique"]
         [--detail zone|quartier|ilot|application] [--zoom] [--vocabulary pos|togaf]
 
@@ -22,7 +22,6 @@ applicatifs ; les zones s'empilent dans l'ordre donné.
 """
 
 import argparse
-import csv
 import json
 import math
 import sys
@@ -31,6 +30,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from drawio_xml import br, new_file, new_page, vertex, write  # noqa: E402
+from inventory import read_inventory  # noqa: E402
+from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 LEVELS = ["zone", "quartier", "ilot", "application"]
@@ -154,47 +156,6 @@ def parse_spec(spec: dict, errors: list) -> list[Node]:
             quartiers.append(Node("quartier", qname, ilots))
         zones.append(Node("zone", zname, quartiers, kind=zone_kind(z, errors)))
     return zones
-
-
-def read_csv(path: Path, errors: list) -> dict:
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except UnicodeDecodeError:
-        # Excel sous Windows enregistre ses CSV en cp1252 par défaut.
-        text = path.read_text(encoding="cp1252")
-    try:
-        dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
-    except csv.Error:
-        dialect = csv.excel
-    rows = list(csv.DictReader(text.splitlines(), dialect=dialect))
-    columns = {plain(c): c for c in (rows[0].keys() if rows else [])}
-
-    def col(row: dict, *names: str) -> str:
-        for n in names:
-            if n in columns:
-                return (row.get(columns[n]) or "").strip()
-        return ""
-
-    if not rows or "zone" not in columns:
-        errors.append("CSV : colonnes attendues zone, quartier, ilot, application, statut (en-tête)")
-        return {"zones": []}
-    zones: dict = {}
-    for number, row in enumerate(rows, 2):
-        zone, quartier = col(row, "zone"), col(row, "quartier") or "—"
-        ilot, app = col(row, "ilot", "ilot fonctionnel"), col(row, "application", "app")
-        if not zone:
-            errors.append(f"CSV ligne {number} : zone vide")
-            continue
-        z = zones.setdefault(zone, {"name": zone, "quartiers": {}})
-        if col(row, "type", "kind"):
-            z["kind"] = col(row, "type", "kind")
-        q = z["quartiers"].setdefault(quartier, {"name": quartier, "ilots": {}, "apps": []})
-        target = q["ilots"].setdefault(ilot, {"name": ilot, "apps": []})["apps"] if ilot else q["apps"]
-        if app:
-            target.append({"name": app, "status": col(row, "statut", "status")})
-    return {"zones": [{**z, "quartiers": [{**q, "ilots": list(q["ilots"].values())}
-                                          for q in z["quartiers"].values()]}
-                      for z in zones.values()]}
 
 
 # --- Mise en page --------------------------------------------------------------------------
@@ -331,10 +292,6 @@ def layout(zones: list[Node], depth: int) -> tuple[float, float]:
 
 # --- Écriture ------------------------------------------------------------------------------
 
-def label(text: str) -> str:
-    return text.replace("\n", "<br>")
-
-
 def emit(root: ET.Element, node: Node, parent: str, ids: dict, origin: tuple = (0, 0)) -> None:
     if node.level == "ilot" and not node.name:
         # Îlot sans nom : ses applications vont directement dans le quartier.
@@ -358,20 +315,10 @@ def emit(root: ET.Element, node: Node, parent: str, ids: dict, origin: tuple = (
         elif node.level == "quartier":
             style = style.replace("fillColor=#ffffff;strokeColor=#6b7280;",
                                   f"fillColor={light};strokeColor={stroke};")
-    cell = ET.SubElement(root, "mxCell", id=cid, value=label(node.name), style=style, vertex="1",
-                         parent=parent)
-    ET.SubElement(cell, "mxGeometry", x=f"{node.x + origin[0]:g}", y=f"{node.y + origin[1]:g}",
-                  width=f"{node.w:g}", height=f"{node.h:g}", attrib={"as": "geometry"})
+    vertex(root, cid, br(node.name), style, node.x + origin[0], node.y + origin[1], node.w, node.h, parent)
     for row in node.rows:
         for child in row:
             emit(root, child, cid, ids)
-
-
-def text_cell(root: ET.Element, cid: str, value: str, style: str, x: float, y: float, w: float,
-              h: float) -> None:
-    cell = ET.SubElement(root, "mxCell", id=cid, value=value, style=style, vertex="1", parent="1")
-    ET.SubElement(cell, "mxGeometry", x=f"{x:g}", y=f"{y:g}", width=f"{w:g}", height=f"{h:g}",
-                  attrib={"as": "geometry"})
 
 
 def statuses_used(zones: list[Node]) -> list[str]:
@@ -390,14 +337,10 @@ def statuses_used(zones: list[Node]) -> list[str]:
 
 def build_page(name: str, title: str, zones: list[Node], depth: int, legend,
                vocabulary: str = "pos") -> ET.Element:
-    diagram = ET.Element("diagram", id=f"p-{plain(name).replace(' ', '-')}", name=name)
-    model = ET.SubElement(diagram, "mxGraphModel", grid="1", gridSize="10", page="0")
-    root = ET.SubElement(model, "root")
-    ET.SubElement(root, "mxCell", id="0")
-    ET.SubElement(root, "mxCell", id="1", parent="0")
+    diagram, root = new_page(f"p-{plain(name).replace(' ', '-')}", name)
     width, _ = layout(zones, depth)
     if title:
-        text_cell(root, "title", title, TITLE, 0, -60, max(400, len(title) * 12), 30)
+        vertex(root, "title", title, TITLE, 0, -60, max(400, len(title) * 12), 30)
     ids: dict = {}
     for zone in zones:
         emit(root, zone, "1", ids)
@@ -405,7 +348,7 @@ def build_page(name: str, title: str, zones: list[Node], depth: int, legend,
     levels = LEVELS[:min(depth, 3) + 1] if depth < 3 else LEVELS[:3]
     if legend is True or (legend and (len(levels) > 1 or len(used) > 1)):
         lx = width + 60
-        text_cell(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;"
+        vertex(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;"
                   "fontSize=14;", lx, 0, 120, 20)
         side = "labelPosition=right;verticalLabelPosition=middle;align=left;spacingLeft=8;fontSize=12;"
         row = 1
@@ -413,11 +356,11 @@ def build_page(name: str, title: str, zones: list[Node], depth: int, legend,
         for level in levels:
             style = STYLES[level].replace("whiteSpace=wrap;", "").replace("fontStyle=1;", "").replace("fontSize=16;", "").replace("fontSize=14;", "").replace(
                 "fontSize=13;", "").replace("fontColor=#6b7280;", "fontColor=#1f2937;")
-            text_cell(root, f"legend-{level}", names[level], side + style, lx, row * 32, 30, 20)
+            vertex(root, f"legend-{level}", names[level], side + style, lx, row * 32, 30, 20)
             row += 1
         for status in used:
             text = STATUSES[status][1] if used != ["en-place"] else names["app"]
-            text_cell(root, f"legend-{status}", text,
+            vertex(root, f"legend-{status}", text,
                       side + STATUSES[status][0] + "html=1;fontColor=#1f2937;", lx, row * 32, 30, 20)
             row += 1
     return diagram
@@ -479,19 +422,16 @@ def paint(zones: list[Node], vocabulary: str) -> list[Node]:
 
 def find_checker():
     """check_drawio.py du skill drawio-diagram, s'il est installé à côté."""
-    folder = Path(__file__).resolve().parents[2] / "drawio-diagram" / "scripts"
-    if not (folder / "check_drawio.py").exists():
-        return None
-    sys.path.insert(0, str(folder))
-    from check_drawio import check
-    return check
+    module = load_module("drawio-diagram", "check_drawio.py")
+    return module.check if module else None
 
 
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("spec", type=Path, help="description .json ou inventaire .csv", nargs="?")
+    parser.add_argument("spec", type=Path, help="description .json, inventaire .csv ou note .md avec son tableau",
+                        nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
     parser.add_argument("--title", help="titre (remplace celui de la description)")
     parser.add_argument("--audience", help="technique ou non technique")
@@ -509,15 +449,15 @@ def main() -> int:
         parser.error("description JSON attendue")
     errors, warnings = [], []
     try:
-        if args.spec.suffix.lower() == ".csv":
-            spec = read_csv(args.spec, errors)
+        if args.spec.suffix.lower() in (".csv", ".md"):
+            spec = read_inventory(args.spec, errors)
         else:
             spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
         return 1
     # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
-    invalid = args.spec.suffix.lower() != ".csv" and validate(spec, __file__)
+    invalid = args.spec.suffix.lower() not in (".csv", ".md") and validate(spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
@@ -554,15 +494,14 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1
 
-    mxfile = ET.Element("mxfile", host="myskills")
+    mxfile = new_file()
     mxfile.append(build_page("Vue d'ensemble", title, zones, depth, legend, vocabulary))
     if zoom and depth < 3:
         prefix = "capacité" if vocabulary == "togaf" else "zone"
         for zone in paint(parse_spec(spec, []), vocabulary):
             mxfile.append(build_page(zone.name, f"{title}, {prefix} {zone.name}" if title else zone.name,
                                      [zone], 3, legend, vocabulary))
-    ET.indent(mxfile)
-    ET.ElementTree(mxfile).write(out, encoding="utf-8", xml_declaration=False)
+    write(mxfile, out)
     report.update(output=str(out), pages=len(mxfile))
     checker = find_checker()
     if checker:
@@ -570,7 +509,7 @@ def main() -> int:
         report["errors"] += checked["errors"]
         report["warnings"] += checked["warnings"]
     else:
-        report["warnings"].append("fichier non vérifié : check_drawio.py introuvable (installez aussi le skill drawio-diagram)")
+        report["warnings"].append("fichier non vérifié : " + absent("drawio-diagram", "check_drawio.py"))
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

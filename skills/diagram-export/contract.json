@@ -1,5 +1,6 @@
 {
   "skill": "diagram-export",
+  "level": "simple",
   "inputs": [
     "Fichiers .drawio, .mmd, .mermaid, .md (blocs mermaid), .excalidraw, .c4 ou dossier LikeC4"
   ],

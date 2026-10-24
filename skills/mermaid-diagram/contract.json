@@ -1,5 +1,6 @@
 {
   "skill": "mermaid-diagram",
+  "level": "moyen",
   "inputs": [
     "Décision de diagram-brief",
     "Contenu à représenter"
