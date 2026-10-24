@@ -1,5 +1,79 @@
 # Journal des versions
 
+## 0.4.0 (2026-10-24)
+
+Revue de cohérence des skills et des agents : dépendances déclarées,
+skills découpés par responsabilité, workflows décrits en un seul endroit et
+modèle choisi par niveau de travail.
+
+### Contrôle
+
+- Champ `requires` des contrats : un skill n'appelle un autre skill que par
+  `skill_paths.py` et le déclare ; `regles` refuse tout chemin caché vers un
+  autre skill et tout appel non déclaré, `contrats` vérifie les cibles.
+  Rubrique « Dépend de » dans les SKILL.md et `CATALOG.md`.
+- `input.same_as` : le schéma d'entrée des descriptions cloud n'existe plus
+  qu'une fois, repris par `build.py` dans les skills qui le lisent.
+- `architecture-options` : le catalogue des exigences est toujours validé ;
+  sans `requirements-catalog`, un avertissement le dit (plus de saut
+  silencieux).
+- `diagram-brief` : `brief.py` valide la décision courte (public,
+  destination, type, message, éléments) et applique la grille ; la décision
+  complète (format, skill, vue cloud, livraison, raison) peut passer à un
+  autre agent. La grille est dans `references/grille.md`.
+- Workflows : la définition JSON est la seule source des étapes (consignes,
+  `ask`, `memory`, `level` par étape) ; `architecture-workflow` devient un
+  moteur générique (132 lignes au lieu de 186).
+
+### Niveaux et modèles
+
+- `level` (simple, moyen, complexe) obligatoire dans chaque contrat de
+  skill et d'agent, et dans chaque étape des workflows livrés.
+- `shared/models.json` : modèle par niveau et par outil (Claude Code :
+  `haiku`, `sonnet`, `opus` ; ailleurs le modèle de la session). `build.py`
+  en tire le `model` des agents générés et leur consigne sur les niveaux
+  (marqueur `{{niveaux}}`).
+- Les listes d'agents des schémas de messages sont régénérées par
+  `build.py` : un nouvel agent n'a aucun schéma à modifier.
+
+### Nouveaux skills et agent
+
+- `well-architected-review` (`wa_check.py`) et `threat-model`
+  (`stride.py`), sortis de `cloud-architecture`, qui garde le dessin.
+- `architecture-deck` (`deck_build.py`), sorti de `architecture-options`.
+- `agent-handoff` (`check_message.py`) : validation des messages de passage
+  et des rapports finaux, notés au journal d'un workflow ; remplace
+  `journal.py handoff|report`.
+- `urbanization-map` : `pos_impact.py` situe des options dans le POS
+  (repris de `architecture-options`, qui l'appelle) ; inventaire lu aussi
+  depuis une note Markdown.
+- Agent `architecture-reviewer` (niveau complexe) : modèle de menaces et
+  revue Well-Architected, appelé par `schema-designer` et par l'étape
+  `menaces` du workflow `cloud-existant`.
+
+### Mémoire et mutualisation
+
+- `vault_sync.py` suit le champ `memory` de la définition : une note par
+  étape soumise, schémas PNG et Markdown intégrés, schéma de chaque option
+  dans sa note ; le vault du workflow `cloud-existant` est complet.
+- `shared/scripts/drawio_xml.py` : structure du fichier, pages, formes,
+  flèches, mesure du texte et écriture communes à `drawio_build.py`,
+  `cloud_build.py` et `pos_build.py` (fichiers produits identiques).
+- Tests : cas `brief`, `pos-impact`, `passage-agents`,
+  `vault-cloud-existant` ; cas d'agents C4, Mermaid, cloud, Word et
+  `architecture-reviewer`.
+
+### Migration
+
+- `journal.py handoff|report` : utiliser
+  `check_message.py handoff|report` du skill `agent-handoff`.
+- `cloud-architecture/scripts/wa_check.py` et `stride.py` :
+  `well-architected-review/scripts/wa_check.py` et
+  `threat-model/scripts/stride.py`, mêmes options.
+- `architecture-options/scripts/deck_build.py` :
+  `architecture-deck/scripts/deck_build.py`.
+- Installer les skills requis à côté (tous le sont avec le plugin).
+
 ## 0.3.0 (2026-10-24)
 
 ### Nouveautés
