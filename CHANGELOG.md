@@ -47,6 +47,9 @@
   les modèles du harness (offre entreprise) ne sont pas concernés. Le contrat des skills
   externes accepte un outil en ligne de commande (`locate.command`) et le
   schéma de sa sortie (`output_schema`).
+- `--vault` : la revue, ses constats et ses risques deviennent des notes
+  typées du vault (`revue-architecture`, `constat`, `risque` de
+  l'ontologie), reliées aux notes d'exigence, d'option et d'ADR.
 - Agent `architecture-reviewer` : revue d'architecture en plus des menaces
   et du Well-Architected ; `check-prerequisites` : groupe `revue`.
 

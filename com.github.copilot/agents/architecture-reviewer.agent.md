@@ -61,7 +61,8 @@ workflow, la commande les trace aussi au journal.
    `code` et un motif par composant : le script lance graphify
    (`--code-only` par défaut ; `semantic` pour lire aussi les documents,
    au niveau simple). Avec une description cloud, donne `cloud`.
-   Lance `arch_review.py revue.json` et lis le rapport. Si seule la revue
+   Lance `arch_review.py revue.json` et lis le rapport ; dans un
+   workflow à vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
    est demandée, passe à l'étape 6.
 3. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
    forme). Pour une option d'architecture, c'est

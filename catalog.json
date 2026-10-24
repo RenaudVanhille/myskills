@@ -1220,19 +1220,22 @@
         "Facultatif : accept, les écarts acceptés avec leur raison"
       ],
       "outputs": [
-        "<sujet>.revue.md : avis, synthèse par axe, arbre d'utilité (scénarios de qualité et leur évaluation), constats, risques, points de sensibilité et compromis, décisions, traçabilité des exigences, conformité du code, points à vérifier hors de la description"
+        "<sujet>.revue.md : avis, synthèse par axe, arbre d'utilité (scénarios de qualité et leur évaluation), constats, risques, points de sensibilité et compromis, décisions, traçabilité des exigences, conformité du code, points à vérifier hors de la description",
+        "Avec --vault : dans le vault, Revues d'architecture/<titre>.md (revue-architecture, avis, evalue), Constats/<titre>/*.md et Risques/<titre>/*.md (porte-sur, issu-de)"
       ],
       "scripts": [
         {
           "name": "arch_review.py",
-          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md.",
-          "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture.",
+          "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | --rules | --schema",
           "options": {
             "REVUE.json": "description de la revue",
             "--out": "fichier Markdown (défaut : <sujet>.revue.md)",
             "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
             "--rules": "liste les règles (identifiant, axe, gravité), puis s'arrête",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi la revue, selon son ontologie : une note revue-architecture, une note par constat et par risque, reliées aux notes d'exigence, d'option et d'ADR du workflow",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
           },
           "input": {
             "format": "json",
@@ -1754,6 +1757,7 @@
                     "trace",
                     "code",
                     "cloud",
+                    "vault",
                     "errors",
                     "warnings"
                   ],
@@ -1974,6 +1978,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -2008,7 +2045,7 @@
           },
           "exit_codes": {
             "0": "revue écrite, aucun constat non accepté au seuil --fail-on",
-            "1": "description illisible, référence inconnue, graphify manquant ou en échec, ou constat non accepté au seuil --fail-on ; sauf erreur, le rapport et <sujet>.revue.md sont tout de même produits"
+            "1": "description illisible, référence inconnue, graphify manquant ou en échec, note du vault hors ontologie, ou constat non accepté au seuil --fail-on ; sauf erreur, le rapport et <sujet>.revue.md sont tout de même produits"
           }
         }
       ],
@@ -2064,6 +2101,14 @@
           "when": "un écart est voulu : sa raison va dans accept ; un risque attend un responsable"
         }
       ],
+      "vault": {
+        "writes": [
+          "revue-architecture",
+          "constat",
+          "risque"
+        ],
+        "reads": true
+      },
       "description": "Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture.",
       "path": "skills/architecture-review"
     },

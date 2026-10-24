@@ -25,7 +25,13 @@ modèle :
 Un écart voulu s'accepte dans `accept`, avec sa raison : il reste dans la
 revue mais ne compte plus.
 
+Avec `--vault`, la revue va aussi dans le vault Obsidian du workflow, selon
+son ontologie : une note revue-architecture (avis, relation evalue vers la
+note de l'option et l'ADR), une note par constat et par risque (porte-sur
+l'exigence ou l'option, issu-de la revue), vérifiées avant l'écriture.
+
     uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune]
+                                  [--vault VAULT --folder DOSSIER_DU_VAULT]
     uv run scripts/arch_review.py --rules
 """
 
@@ -38,6 +44,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
+import vault_ontology  # noqa: E402
 from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -570,6 +577,107 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
             "errors": errors, "warnings": warnings}
 
 
+# Caractères interdits dans un nom de fichier sous Windows, ou qui cassent un wikilink Obsidian.
+FORBIDDEN = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]')
+GENERATED = "---\ngenere: architecture-review\n"
+VERDICTS = {"favorable": "favorable", "favorable avec réserves": "reserves", "défavorable": "defavorable"}
+
+
+def safe_name(text: str) -> str:
+    """Nom de note valable sous Windows, macOS et Linux et dans un wikilink (comme vault_sync.py)."""
+    return re.sub(r"\s+", " ", FORBIDDEN.sub("-", str(text))).strip().rstrip(". ") or "revue"
+
+
+def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str, out: Path,
+                errors: list[str]) -> dict | None:
+    """Notes typées de la revue dans le vault : revue-architecture, constats et risques, liés aux
+    notes d'exigence, d'option et d'ADR déjà écrites par decision-log (vault_sync.py)."""
+    onto = vault_ontology.load()
+    base = "/".join(safe_name(p) for p in re.split(r"[\\/]+", folder) if p.strip())
+    title = safe_name(spec["title"])
+    review_rel = f"{base}/Revues d'architecture/{title}"
+    exists = lambda rel: (vault / f"{rel}.md").is_file()  # noqa: E731
+    option = spec.get("source", {}).get("option")
+    option_rel = f"{base}/Options/Option {option}" if option else None
+    adr_rel = f"{base}/ADR architecture"
+    catalog = found["catalog"]
+
+    def about(ids) -> list[tuple[str, str]]:
+        rels = [(f"{base}/Exigences/{i}", i) for i in ids if i in catalog and exists(f"{base}/Exigences/{i}")]
+        return rels or ([(option_rel, f"Option {option}")] if option_rel and exists(option_rel) else [])
+
+    metas: dict[str, dict] = {}
+    notes: dict[str, str] = {}
+
+    def typed(rel, kind, props, relations, body):
+        metas[rel] = vault_ontology.meta(onto, kind, props, relations, ["architecture"], genere="architecture-review")
+        notes[rel] = vault_ontology.render(metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+
+    up = f"Revue : [[{review_rel}|{title}]]"
+    constats = []
+    for f in found["findings"]:
+        rel = f"{base}/Constats/{title}/{safe_name(f['rule'] + ' ' + f['element'])}"
+        constats.append((rel, f))
+        body = [f"# {f['rule']} {f['element']}", "", f["message"], "", up, "", f"**Correction** : {f['fix']}", "",
+                f"**Référence** : {f['ref']}"] + ([ "", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
+        typed(rel, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"], "regle": f["rule"],
+                               "statut": "accepte" if f["accepted"] else "ouvert"},
+              {"porte-sur": about([f["element"]]), "issu-de": (review_rel, title)}, body)
+    risques = []
+    for r in spec.get("risks", []):
+        rel = f"{base}/Risques/{title}/{safe_name(r['id'])}"
+        risques.append((rel, r))
+        body = [f"# {r['id']} {r['text']}", "", up, "", f"**Atténuation** : {r.get('mitigation', 'à définir')}",
+                "", f"**Responsable** : {r.get('owner', 'à désigner')}"]
+        if r.get("scenarios"):
+            body += ["", "**Scénarios** : " + ", ".join(r["scenarios"])]
+        typed(rel, "risque", {"id": r["id"], "gravite": r["severity"],
+                              "statut": "attenue" if r.get("mitigation") else "ouvert"},
+              {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body)
+    body = [f"# Revue d'architecture : {spec['title']}", "", f"**Avis : {verdict}**", "",
+            f"Revue complète : `{out.name}`."]
+    for label, items in (("Constats ouverts", [(r, f) for r, f in constats if not f["accepted"]]),
+                         ("Constats acceptés", [(r, f) for r, f in constats if f["accepted"]])):
+        if items:
+            body += ["", f"## {label}", ""] + [f"- [[{rel}|{f['rule']} {f['element']}]] ({f['severity']})"
+                                              for rel, f in items]
+    if risques:
+        body += ["", "## Risques", ""] + [f"- [[{rel}|{r['id']}]] ({r['severity']}) : {r['text']}" for rel, r in risques]
+    evalue = [(p, a) for p, a in ((option_rel, f"Option {option}"), (adr_rel, "ADR")) if p and exists(p)]
+    typed(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body)
+
+    # Chaque note suit l'ontologie (types, propriétés, relations, tags) : sinon rien n'est écrit.
+    def resolve(path):
+        if path in metas:
+            return metas[path]["type"]
+        if not exists(path):
+            raise KeyError(path)
+        return (vault_ontology.parse((vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0]
+                or {}).get("type")
+    invalid = [f"{rel} : {e}" for rel, m in metas.items()
+               for e in vault_ontology.check_meta(onto, m, generated=True)[0]
+               + vault_ontology.check_targets(onto, m, resolve)[0]]
+    if invalid:
+        errors += ["vault : note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]]
+        return None
+    for rel, text in notes.items():
+        path = vault / f"{rel}.md"
+        if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    # Constats et risques d'une revue précédente qui ne sont plus relevés : notes générées retirées.
+    removed = 0
+    for sub_ in (f"{base}/Constats/{title}", f"{base}/Risques/{title}"):
+        for path in sorted((vault / sub_).glob("*.md")) if (vault / sub_).is_dir() else []:
+            rel = path.relative_to(vault).with_suffix("").as_posix()
+            if rel not in notes and path.read_text(encoding="utf-8", errors="replace").startswith(GENERATED):
+                path.unlink()
+                removed += 1
+    return {"vault": str(vault), "folder": base, "notes": len(notes), "removed": removed}
+
+
 def accept(findings: list[dict], accepted: dict, warnings: list[str]) -> None:
     used = set()
     for finding in findings:
@@ -702,6 +810,8 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="fichier Markdown (défaut : <sujet>.revue.md)")
     parser.add_argument("--fail-on", choices=SEVERITIES + ("aucune",), default="haute",
                         help="code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute)")
+    parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire la revue (notes typées)")
+    parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
     parser.add_argument("--rules", action="store_true", help="liste les règles, puis s'arrête")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
@@ -714,6 +824,12 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if bool(args.vault) != bool(args.folder):
+        parser.error("--vault et --folder vont ensemble")
+    if args.vault and not args.vault.is_dir():
+        print(json.dumps({"input": str(args.spec), "errors": [f"--vault : dossier introuvable {args.vault}"],
+                          "warnings": []}, ensure_ascii=False))
+        return 1
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -742,12 +858,14 @@ def main() -> int:
     result = {"input": str(args.spec), "output": None, "verdict": verdict, "components": len(found["comps"]),
               "flows": len(found["flows"]), "scenarios": len(found["scenarios"]), "risks": len(spec.get("risks", [])),
               "rules": found["rules"], "counts": counts, "findings": findings, "trace": trace, "code": found["code"],
-              "cloud": found["cloud"], "errors": errors, "warnings": warnings}
+              "cloud": found["cloud"], "vault": None, "errors": errors, "warnings": warnings}
     if not errors:
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(markdown(spec, found, verdict))
         result["output"] = str(out)
+        if args.vault:
+            result["vault"] = write_vault(args.vault, args.folder, spec, found, verdict, out, errors)
     print(json.dumps(result, ensure_ascii=False))
     limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1
     failing = any(SEVERITIES.index(f["severity"]) <= limit for f in open_)
