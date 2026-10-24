@@ -13,7 +13,11 @@
   20 règles, constats avec pilier, gravité, correction et référence du
   cadre, rapport JSON et `<sujet>.wa.md`. Clé `accept` de la description
   pour accepter un écart avec sa raison ; `--fail-on` pour la porte de
-  revue.
+  revue ; `--scope piliers` dès la définition de l'architecture (options
+  cloud de `architecture-options`), `--scope conventions` au dessin.
+- Workflow `architecture` : l'étape `architectures` contrôle chaque option
+  cloud contre les piliers Well-Architected ; l'étape `schemas` contrôle les
+  conventions du schéma de l'option retenue.
 - Workflow `cloud-existant` : l'étape `menaces` livre aussi la revue
   Well-Architected ; `schema-designer` la lance pour un schéma cloud.
 - Message d'erreur des descriptions JSON : forme attendue d'une clé libre

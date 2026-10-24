@@ -15,7 +15,12 @@ avec sa raison) reste dans le rapport mais ne compte plus. Le script écrit
 <sujet>.wa.md : synthèse par pilier, constats, puis ce qui ne se vérifie pas
 sur un schéma.
 
-    uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--fail-on haute|moyenne|basse|aucune]
+`--scope piliers` ne garde que les piliers : à la définition de
+l'architecture (description d'une option, sans groupes réseau), avant tout
+schéma ; `--scope conventions` ne garde que les conventions de schéma.
+
+    uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions]
+                               [--fail-on haute|moyenne|basse|aucune]
     uv run scripts/wa_check.py --rules
 """
 
@@ -366,10 +371,10 @@ def cell(text) -> str:
     return str(text).replace("|", "/").replace("\n", " ")
 
 
-def markdown(title: str, findings: list[dict], clouds: set[str]) -> str:
+def markdown(title: str, findings: list[dict], clouds: set[str], rules: int) -> str:
     frameworks = ", ".join(FRAMEWORKS[c] for c in ("aws", "azure", "gcp", "k8s") if c in clouds) or "aucun fournisseur"
     lines = [f"# Revue Well-Architected : {title}", "",
-             f"Contrôle automatique du schéma par `wa_check.py` ({len(RULES)} règles ; cadres : {frameworks}). "
+             f"Contrôle automatique du schéma par `wa_check.py` ({rules} règles ; cadres : {frameworks}). "
              "Ce n'est pas une revue complète : les points hors du schéma sont listés à la fin.", "",
              "## Synthèse", "", "| Pilier | Haute | Moyenne | Basse | Acceptés |", "| --- | --- | --- | --- | --- |"]
     for key, name in PILLARS.items():
@@ -408,6 +413,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="fichier Markdown (défaut : <sujet>.wa.md)")
     parser.add_argument("--fail-on", choices=SEVERITIES + ("aucune",), default="haute",
                         help="code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute)")
+    parser.add_argument("--scope", choices=("tout", "piliers", "conventions"), default="tout",
+                        help="règles appliquées : piliers à la définition de l'architecture, conventions au dessin "
+                             "(défaut : tout)")
     parser.add_argument("--rules", action="store_true", help="liste les règles, puis s'arrête")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
@@ -432,16 +440,21 @@ def main() -> int:
         return 1
     warnings: list[str] = []
     findings, errors, clouds = check(spec)
+    if args.scope != "tout":
+        findings = [f for f in findings if (f["pillar"] == "conventions") == (args.scope == "conventions")]
+    rules = {r for r, v in RULES.items() if args.scope == "tout" or (v[0] == "conventions") == (args.scope == "conventions")}
     accept(findings, spec.get("accept") or {}, warnings)
     findings.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["rule"]))
     open_ = [f for f in findings if not f["accepted"]]
     counts = {s: sum(f["severity"] == s for f in open_) for s in SEVERITIES}
     counts["acceptés"] = len(findings) - len(open_)
-    out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json") + ".wa.md")
-    result = {"input": str(args.spec), "output": None, "providers": sorted(clouds), "rules": len(RULES),
+    # option-a.cloud.json (architecture-options) -> option-a.wa.md
+    out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json").removesuffix(".cloud") + ".wa.md")
+    result = {"input": str(args.spec), "output": None, "providers": sorted(clouds), "scope": args.scope, "rules": len(rules),
               "counts": counts, "findings": findings, "errors": errors, "warnings": warnings}
     if not errors:
-        out.write_text(markdown(str(spec.get("title", "architecture")), findings, clouds), encoding="utf-8")
+        out.write_text(markdown(str(spec.get("title", "architecture")), findings, clouds, len(rules)),
+                       encoding="utf-8")
         result["output"] = str(out)
     print(json.dumps(result, ensure_ascii=False))
     limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1

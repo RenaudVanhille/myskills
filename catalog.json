@@ -1834,10 +1834,11 @@
         {
           "name": "wa_check.py",
           "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
-          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
             "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
+            "--scope": "règles appliquées : piliers à la définition de l'architecture (description d'une option, avant tout schéma), conventions au dessin, tout (défaut) pour un schéma terminé",
             "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
             "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
@@ -2164,6 +2165,7 @@
                     "input",
                     "output",
                     "providers",
+                    "scope",
                     "rules",
                     "counts",
                     "findings",
@@ -2191,6 +2193,13 @@
                           "k8s"
                         ]
                       }
+                    },
+                    "scope": {
+                      "enum": [
+                        "tout",
+                        "piliers",
+                        "conventions"
+                      ]
                     },
                     "rules": {
                       "type": "integer",

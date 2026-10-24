@@ -144,8 +144,14 @@ numéros F1, F2... sont les mêmes que sur le schéma `threats`.
 ## 5. Revue Well-Architected
 
 ```bash
-uv run scripts/wa_check.py SUJET.json [--fail-on moyenne]
+uv run scripts/wa_check.py SUJET.json [--scope piliers|conventions] [--fail-on moyenne]
 ```
+
+Le contrôle des piliers sert dès la définition de l'architecture : lancez
+`--scope piliers` sur la description d'une option (celle qu'écrit
+`architecture-options`, sans groupes réseau) pour comparer les options et
+compléter celle qui sera retenue avant tout schéma. Au dessin,
+`--scope conventions` contrôle le schéma ; sans `--scope`, tout est contrôlé.
 
 Le script contrôle la description contre l'AWS Well-Architected Framework,
 l'Azure Well-Architected Framework et le Google Cloud Well-Architected
