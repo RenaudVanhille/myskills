@@ -423,6 +423,38 @@
       "contains": {"pub/architecture.html": ["Architecture du service de paiement", "PostgreSQL"]}
     },
     {
+      "id": "pptx-externe",
+      "skill": "markdown-publish",
+      "_note": "Skill externe markdown-to-pptx remplacé par une doublure qui respecte son contrat (fixtures/md2pptx-stub) ; skill absent, plan non conforme, schéma source, consigne inconnue, fichier non Markdown et gabarit absent refusés sans .pptx.",
+      "steps": [
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 0, "report": {"errors": [], "warnings": [], "slides": 6, "images": 1, "missing_alt": 0, "version": "0.5.0", "kinds.image": 1}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/absent"], "env": {"MD2PPTX_SKILL": "{fixtures}/absent"}, "exit": 1, "report": {"output": null}, "report_contains": {"errors": "MD2PPTX_SKILL"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/plan"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub", "MD2PPTX_STUB": "plan-invalide"}, "exit": 1, "report_contains": {"errors": "plan rendu non conforme au contrat"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md", "--out", "{out}/source"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "schéma source"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md", "--out", "{out}/source"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "« escalier » inconnue du contrat"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/notes.txt", "--out", "{out}/notes"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "Markdown attendu"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/marque", "--template", "{fixtures}/pptx/absent.potx"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "gabarit introuvable"}}
+      ],
+      "files": ["dossier.pptx"],
+      "absent": ["absent/dossier.pptx", "plan/dossier.pptx", "source", "notes", "marque"]
+    },
+    {
+      "id": "presentation",
+      "skill": "architecture-options",
+      "_note": "Présentation assemblée depuis les fichiers validés du workflow, puis rendue par la doublure du skill externe.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"copy": ["{fixtures}/workflow/decision.json", "{out}/decision.json"]},
+        {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/schemas/architectures.drawio.png"]},
+        {"script": "{skills}/architecture-options/scripts/deck_build.py", "args": ["{out}"], "exit": 0, "report": {"errors": [], "sections": 12, "images": 1, "decided": "A"}, "report_contains": {"warnings": "option B : schéma non exporté"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/presentation.md"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 0, "report": {"errors": [], "slides": 13, "images": 1, "missing_alt": 0}},
+        {"script": "{skills}/architecture-options/scripts/deck_build.py", "args": ["{fixtures}/pptx"], "exit": 1, "report": {"output": null}, "report_contains": {"errors": "options.json illisible"}}
+      ],
+      "files": ["presentation.md", "presentation.pptx"],
+      "contains": {"presentation.md": ["<!-- part: Le besoin -->", "- **82 %** option A, recevable", "| Performance | 5 | 2 |", "![Schéma de l'option A : Application web dans le cloud européen](schemas/architectures.drawio.png)", "> — Reno (utilisateur), 2026-10-23", "| ENF-004 | indispensable | Annuaire des assurés |", "Quel est le pic observé après une tempête ? (ENF-001)"]}
+    },
+    {
       "id": "exigences",
       "skill": "requirements-catalog",
       "steps": [

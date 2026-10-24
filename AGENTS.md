@@ -19,6 +19,12 @@ moins de tokens possible.
 - Il fonctionne dans GitHub Copilot, Claude Code, OpenCode, Kiro et Hermes,
   installé comme plugin (voir le README). Rien de propre à un seul outil dans
   un `SKILL.md`.
+- Un skill tiers installé à part ne se copie pas : il s'appelle par son seul
+  contrat d'interface, `shared/external/<nom>.contract.json`
+  (`shared/schemas/external-skill.schema.json`), et un passage de main de
+  type `externe` le cite **(vérifiée)**. Le script appelant le trouve, valide
+  sa sortie contre le contrat et donne la consigne d'installation s'il
+  manque.
 - Un agent s'écrit une seule fois dans `src/agents/<nom>.md` (format neutre) ;
   `scripts/build.py` génère les versions Claude Code et Copilot,
   `scripts/install.py` celles d'OpenCode, Kiro et Hermes. On ne modifie

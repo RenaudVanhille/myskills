@@ -25,3 +25,9 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-23T18:56:58,revue-complete-2,50d551a,workflow-premiere-revue,architecture-workflow,sonnet,True,8,0.127,15,22050,179946,2049,0,37
 2026-10-23T19:05:44,workflows-json,7738c3a,workflow-premiere-revue,architecture-workflow,sonnet,True,7,0.1229,13,22488,157460,1689,0,32
 2026-10-23T19:05:44,workflows-json,7738c3a,workflow-cloud-existant,architecture-workflow,sonnet,True,12,0.1537,15,25525,226725,2875,0,31
+2026-10-24T14:12:01,main-avant-pptx,8b21a04,publier-html,document-publisher,sonnet,True,7,0.1075,9,20454,100181,1553,0,19
+2026-10-24T14:10:40,export-pptx,8b21a04,publier-html,document-publisher,sonnet,True,9,0.1374,13,26596,148401,1602,0,39
+2026-10-24T14:10:40,export-pptx,8b21a04,publier-pptx,document-publisher,sonnet,True,8,0.0861,10,15174,103837,1491,0,17
+2026-10-24T14:13:10,export-pptx-2,a38f346,publier-html,document-publisher,sonnet,True,7,0.0897,9,15757,107657,1572,0,18
+2026-10-24T14:29:32,pptx-externe,1f87acb,publier-html,document-publisher,sonnet,True,7,0.1123,9,21925,104581,1401,0,17
+2026-10-24T14:29:32,pptx-externe,1f87acb,publier-pptx,document-publisher,sonnet,True,7,0.0887,14,14103,145112,1760,0,20

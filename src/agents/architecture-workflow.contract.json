@@ -23,6 +23,6 @@
   "handoffs": [
     {"to": "document-extractor", "when": "des documents demandent une transcription par vision page à page (scans, schémas en image) en lot", "send": ["les documents", "la cible markdown et le dossier sources/"]},
     {"to": "schema-designer", "when": "l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces", "send": ["options.md et options.json", "l'option retenue et ses noms de composants", "le dossier schemas/", "la note de l'option dans le vault"]},
-    {"to": "document-publisher", "when": "le dossier d'architecture doit être livré en Word, HTML ou XWiki", "send": ["exigences.md, options.md, adr-architecture.md et les PNG", "l'outil cible"]}
+    {"to": "document-publisher", "when": "le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint", "send": ["exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py) pour PowerPoint", "l'outil cible", "le gabarit .potx de la marque, s'il est connu"]}
   ]
 }

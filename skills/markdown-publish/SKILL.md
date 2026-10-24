@@ -1,6 +1,6 @@
 ---
 name: markdown-publish
-description: "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
+description: "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
 ---
 
 # markdown-publish
@@ -14,12 +14,14 @@ Pandoc est fourni par le paquet `pypandoc_binary` (`uv run` l'installe), rien
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
+- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word ou gabarit PowerPoint .potx (facultatif) ; Vault Obsidian (facultatif).
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, par le skill externe markdown-to-pptx s'il est installé ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier. Rapport JSON, codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
+- **`pptx_publish.py`** : Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs). Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé.
 - **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte. Pas de rapport, codes de sortie : 0 modèle écrit.
 - **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
-- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki.
+- **Passe la main** au skill externe `markdown-to-pptx` (installé à part, contrat `shared/external/markdown-to-pptx.contract.json`) : produire le .pptx (pptx_publish.py le lance).
+- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx.
 
 ## 1. Produire les fichiers
 
@@ -51,11 +53,37 @@ Les exports de schémas passent par `diagram-export` (outils locaux, voir
 | XWiki | `xwiki` | créer la page, coller le contenu de `.xwiki` en mode source (syntaxe XWiki 2.1), joindre les images du dossier |
 | XWiki avec Office Importer | `docx` | importer le fichier |
 | Lecture seule, archive | `html` | page autonome, images intégrées |
+| Présentation, comité | `pptx` (section 3) | ouvrir dans PowerPoint, tout est modifiable |
 
 Sans précision de l'utilisateur, produisez `docx` et `html` : à eux deux, ils
 couvrent SharePoint, Confluence et XWiki.
 
-## 3. Un Word prêt à l'emploi
+## 3. Présentation PowerPoint
+
+```bash
+uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]
+```
+
+Le rendu est fait par le skill `markdown-to-pptx`, **installé à part** :
+myskills n'en contient pas le code et ne s'appuie que sur son contrat
+d'interface, `scripts/lib/markdown-to-pptx.contract.json` (copie de
+`shared/external/`). Le script le trouve par la variable `MD2PPTX_SKILL`
+ou dans les dossiers d'installation habituels (Claude Code, Copilot,
+OpenCode, Kiro, Hermes) ; sinon il s'arrête avec la consigne
+d'installation. Il le lance dans le dossier du Markdown, ce qui lui fait
+trouver un dossier `.md2pptx/` de gabarit de marque, valide le plan rendu
+contre le contrat, puis relit le `.pptx` (diapositives, images, textes
+alternatifs).
+
+Le Markdown suit les conventions du contrat (champ `markdown`) : front
+matter (`title`, `subtitle`, `purpose`, `lang`), un seul titre `#`, une
+section `##` par diapositive avec une consigne `<!-- slide: KIND -->` sous
+son titre, une image PNG par section au plus, avec son texte alternatif.
+Un schéma source ou un bloc Mermaid s'exporte d'abord en PNG
+(`diagram-export`). Pour un dossier d'architecture, `deck_build.py` du
+skill `architecture-options` écrit ce Markdown à partir du workflow.
+
+## 4. Un Word prêt à l'emploi
 
 Le .docx doit pouvoir partir sans retouche. Le script s'en charge :
 
@@ -76,7 +104,7 @@ Le .docx doit pouvoir partir sans retouche. Le script s'en charge :
 Le modèle se régénère avec `uv run scripts/make_reference.py` si la charte
 change.
 
-## 4. Relire le rendu
+## 5. Relire le rendu
 
 Avec LibreOffice installé (facultatif, détecté aussi hors du PATH, par
 exemple dans `C:\Program Files\LibreOffice`) :
@@ -93,14 +121,14 @@ exemple dans `C:\Program Files\LibreOffice`) :
 
 Sans LibreOffice, le script le signale et produit le .docx quand même.
 
-## 5. Vérifier les comptes
+## 6. Vérifier les comptes
 
 Le rapport JSON donne, par format, le fichier produit et le nombre d'images
 et de tableaux trouvés dedans, comparés au Markdown. Un avertissement signale
 une image introuvable, un schéma non exporté ou un écart dans les comptes.
 Corrigez la source (chemin d'image, schéma invalide) et relancez.
 
-## 6. Livrer
+## 7. Livrer
 
 Indiquez les fichiers produits et, pour chacun, en une ligne, comment
 l'importer dans l'outil visé (tableau ci-dessus). Pour XWiki, rappelez que

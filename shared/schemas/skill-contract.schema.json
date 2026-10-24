@@ -57,7 +57,8 @@
         "additionalProperties": false,
         "properties": {
           "to": {"type": "string"},
-          "kind": {"enum": ["skill", "agent", "utilisateur"]},
+          "kind": {"enum": ["skill", "agent", "utilisateur", "externe"],
+                   "description": "externe : skill installé à part, décrit par shared/external/<to>.contract.json."},
           "when": {"type": "string"}
         }
       }

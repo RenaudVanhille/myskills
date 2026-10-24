@@ -13,7 +13,8 @@
     "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
     "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)",
     "schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture)",
-    "schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py"
+    "schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py",
+    "presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
   ],
   "scripts": [
     {
@@ -660,6 +661,74 @@
         "0": "comparaison produite sans erreur (avertissements possibles)",
         "1": "description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit"
       }
+    },
+    {
+      "name": "deck_build.py",
+      "role": "Assemble la présentation du dossier à partir des étapes validées, sans rien demander au modèle : options.json (validé contre le schéma d'options_build.py), le catalogue d'exigences et son glossaire, decision.json, les PNG des schémas déjà exportés. Mêmes scores et contrôles qu'options_build.py ; une diapositive par information (chiffres clés, exigences indispensables, glossaire, notes par critère en graphique, scores, écarts, comparaison, un schéma par option, décision, couverture par l'option retenue, questions ouvertes), le détail dans les notes de l'orateur.",
+      "usage": "uv run scripts/deck_build.py DOSSIER [--out presentation.md]",
+      "options": {
+        "DOSSIER": "dossier du workflow : options.json, son catalogue d'exigences, decision.json s'il existe, schemas/*.png",
+        "--out": "Markdown à écrire (défaut : DOSSIER/presentation.md)"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet : Markdown écrit, nombre de sections et de schémas inclus, option décidée ; un schéma non exporté est un avertissement.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "input",
+            "output",
+            "sections",
+            "images",
+            "decided",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sections": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "images": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "decided": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "presentation.md écrit",
+        "1": "options.json, decision.json ou catalogue illisible ou invalide (erreurs avec leur chemin) ; aucun fichier écrit"
+      }
     }
   ],
   "handoffs": [
@@ -682,6 +751,11 @@
       "to": "decision-log",
       "kind": "skill",
       "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+    },
+    {
+      "to": "markdown-publish",
+      "kind": "skill",
+      "when": "produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx)"
     },
     {
       "to": "urbanization-map",

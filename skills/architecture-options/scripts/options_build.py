@@ -345,48 +345,15 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict, idx: dict | None 
     return "\n".join(lines) + "\n"
 
 
-def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("spec", type=Path, nargs="?", help="description options.json")
-    parser.add_argument("--decision", type=Path, help="décision de l'utilisateur (JSON) : n'écrit que l'ADR")
-    parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
-    args = parser.parse_args()
-    if args.schema:
-        print_schema(__file__)
-        return 0
-    if not args.spec:
-        parser.error("description JSON attendue")
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-        return 1
-    invalid = validate(spec, __file__)
-    if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
-        return 1
-
-    if args.decision:
-        try:
-            spec["decision"] = json.loads(args.decision.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as error:
-            print(json.dumps({"input": str(args.decision), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-            return 1
-        invalid = [f"décision : {e}" for e in check(spec["decision"], input_schema(__file__)["properties"]["decision"])]
-        if invalid:
-            print(json.dumps({"input": str(args.decision), "errors": invalid, "warnings": []}, ensure_ascii=False))
-            return 1
-
+def analyse(spec: dict, base: Path) -> dict:
+    """Contrôles croisés, POS, revue Well-Architected, scores et classement (partagés avec deck_build.py)."""
+    pos_data = None
     errors: list[str] = []
     warnings: list[str] = []
-    catalog = load_catalog(args.spec.parent, spec, errors)
+    catalog = load_catalog(base, spec, errors)
     idx = None
     if spec.get("pos"):
-        pos_path = resolve(args.spec.parent, spec["pos"], errors)
+        pos_path = resolve(base, spec["pos"], errors)
         pos_data = read_pos(pos_path, errors) if pos_path else {"zones": []}
         idx = pos_index(pos_data)
         if not idx["apps"] and not errors:
@@ -471,6 +438,51 @@ def main() -> int:
         if not option.get("cons") and not option.get("risks"):
             warnings.append(f"option {option['id']} : ni inconvénient ni risque noté")
 
+    return {"criteria": criteria, "ranking": ranking, "catalog": catalog, "idx": idx, "pos_data": pos_data,
+            "impacts": impacts, "reviews": reviews, "wa": wa, "errors": errors, "warnings": warnings}
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("spec", type=Path, nargs="?", help="description options.json")
+    parser.add_argument("--decision", type=Path, help="décision de l'utilisateur (JSON) : n'écrit que l'ADR")
+    parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
+    try:
+        spec = json.loads(args.spec.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
+        return 1
+    invalid = validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+        return 1
+
+    if args.decision:
+        try:
+            spec["decision"] = json.loads(args.decision.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            print(json.dumps({"input": str(args.decision), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
+            return 1
+        invalid = [f"décision : {e}" for e in check(spec["decision"], input_schema(__file__)["properties"]["decision"])]
+        if invalid:
+            print(json.dumps({"input": str(args.decision), "errors": invalid, "warnings": []}, ensure_ascii=False))
+            return 1
+
+    found = analyse(spec, args.spec.parent)
+    criteria, ranking, catalog, idx, pos_data, impacts, reviews, wa, errors, warnings = (
+        found[k] for k in ("criteria", "ranking", "catalog", "idx", "pos_data", "impacts", "reviews", "wa",
+                           "errors", "warnings"))
+    rec, decision = spec["recommendation"], spec.get("decision")
     report = {"input": str(args.spec), "outputs": [], "options": len(spec["options"]), "criteria": len(criteria),
               "ranking": ranking, "recommended": rec["option"], "decided": decision["option"] if decision else None,
               "pos": impacts if idx is not None else None,

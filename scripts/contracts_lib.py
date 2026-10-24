@@ -21,7 +21,8 @@ FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 # Modules partagés (shared/scripts/) copiés dans scripts/lib/ des skills qui s'en servent.
 LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish"],
              "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
-                                  "drawio-diagram"]}
+                                  "drawio-diagram"],
+             "external_skill.py": ["check-prerequisites", "markdown-publish"]}
 
 
 def generated_libs() -> dict[Path, str]:
@@ -30,12 +31,17 @@ def generated_libs() -> dict[Path, str]:
     files: dict[Path, str] = {}
     validator = (shared / "spec_schema.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
-        if any(script.get("input") for script in contract["scripts"]):
+        # markdown-publish valide aussi le plan rendu par un skill externe.
+        if any(script.get("input") for script in contract["scripts"]) or name == "markdown-publish":
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     for module, skills in LIB_USERS.items():
         text = (shared / module).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / module] = text
+    # Contrats des skills externes (shared/external/), lus par external_skill.py.
+    for path in sorted((REPO / "shared" / "external").glob("*.contract.json")):
+        for name in LIB_USERS["external_skill.py"]:
+            files[REPO / "skills" / name / "scripts" / "lib" / path.name] = path.read_text(encoding="utf-8")
     # Schémas des messages entre agents, pour journal.py handoff et report.
     for name in ("handoff", "agent-report"):
         files[REPO / "skills" / "decision-log" / "scripts" / "lib" / f"{name}.schema.json"] = \
@@ -94,6 +100,12 @@ def skill_contracts() -> dict[str, dict]:
     return {path.parent.name: load(path) for path in sorted((REPO / "skills").glob("*/contract.json"))}
 
 
+def external_contracts() -> dict[str, dict]:
+    """Skills installés à part, connus par leur seul contrat d'interface (shared/external/)."""
+    return {path.name.removesuffix(".contract.json"): load(path)
+            for path in sorted((REPO / "shared" / "external").glob("*.contract.json"))}
+
+
 def agent_contracts() -> dict[str, dict]:
     return {path.name.removesuffix(".contract.json"): load(path)
             for path in sorted((REPO / "src" / "agents").glob("*.contract.json"))}
@@ -148,7 +160,9 @@ def render_skill(contract: dict) -> str:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for handoff in contract["handoffs"]:
         target = {"skill": f"au skill `{handoff['to']}`", "agent": f"à l'agent `{handoff['to']}`",
-                  "utilisateur": "à l'utilisateur"}[handoff["kind"]]
+                  "utilisateur": "à l'utilisateur",
+                  "externe": f"au skill externe `{handoff['to']}` (installé à part, contrat "
+                             f"`shared/external/{handoff['to']}.contract.json`)"}[handoff["kind"]]
         lines.append(f"- **Passe la main** {target} : {handoff['when']}.")
     return "\n".join(lines) + "\n"
 

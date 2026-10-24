@@ -2,11 +2,12 @@
   "skill": "markdown-publish",
   "inputs": [
     "Markdown ou notes Obsidian, avec leurs images et schémas sources",
-    "Modèle Word (facultatif)",
+    "Modèle Word ou gabarit PowerPoint .potx (facultatif)",
     "Vault Obsidian (facultatif)"
   ],
   "outputs": [
     "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
+    "<nom>.pptx, par le skill externe markdown-to-pptx s'il est installé",
     "En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/"
   ],
   "scripts": [
@@ -161,6 +162,96 @@
       }
     },
     {
+      "name": "pptx_publish.py",
+      "role": "Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs).",
+      "usage": "uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]",
+      "options": {
+        "DOC.md": "document Markdown écrit selon les conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->)",
+        "--out": "dossier de sortie (défaut : à côté du Markdown)",
+        "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill (MD2PPTX_TEMPLATE, dossier .md2pptx/ du projet, gabarit du skill)",
+        "--lang": "langue des libellés générés (défaut : détectée)"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet : dossier et version du skill utilisé, diapositives, nombre par type, images, objets sans texte alternatif.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "input",
+            "output",
+            "skill",
+            "version",
+            "slides",
+            "kinds",
+            "images",
+            "missing_alt",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "skill": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "slides": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "kinds": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "images": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing_alt": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "présentation écrite et vérifiée",
+        "1": "Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé"
+      }
+    },
+    {
       "name": "make_reference.py",
       "role": "Régénère references/modele.docx aux couleurs de la charte.",
       "maintenance": true,
@@ -180,9 +271,14 @@
       "when": "exporter les schémas (automatique)"
     },
     {
+      "to": "markdown-to-pptx",
+      "kind": "externe",
+      "when": "produire le .pptx (pptx_publish.py le lance)"
+    },
+    {
       "to": "utilisateur",
       "kind": "utilisateur",
-      "when": "importer les fichiers dans SharePoint, Confluence ou XWiki"
+      "when": "importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx"
     }
   ]
 }
