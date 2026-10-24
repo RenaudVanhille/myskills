@@ -52,6 +52,7 @@ la demande ; les rendus passent par Playwright.
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 | `architecture-workflow` | Moteur de workflow générique : suit une définition JSON (par défaut `architecture` en 4 étapes : documents, exigences avec glossaire, 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité ; aussi `cloud-existant` : code d'infrastructure vers schéma cloud, menaces et revue Well-Architected) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 | `architecture-reviewer` | Revue d'une architecture logicielle ou solution (ATAM : scénarios de qualité, risques, compromis, traçabilité, code comparé à l'architecture, avis calculé) et d'une architecture cloud : modèle de menaces STRIDE relu et revue Well-Architected des piliers, constats ouverts ou acceptés avec leur raison |
+| `solution-estimator` | Chiffrage de la solution retenue à partir des exigences et de l'architecture : lots estimés à trois points, hypothèses d'infrastructure et de run, charge, fourchette, coût total et budget calculés par script |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
 foi :
@@ -83,6 +84,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
 | `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (avec `urbanization-map`), revue Well-Architected des piliers de chaque option cloud (avec `well-architected-review`) |
+| `solution-estimate` | Chiffrage d'une option d'architecture : charge par lot, phase et profil (estimation à trois points, fourchette P10-P90), pilotage et provision, infrastructure par hébergeur (dont OVHcloud, Cloud Temple, Outscale, S3NS) avec contrôle des qualifications exigées (SecNumCloud, HDS), maintenance et exploitation, coût total sur plusieurs années, budget, exigences et composants non chiffrés signalés, CSV pour un tableur (`estimate_build.py`) |
 | `architecture-deck` | Présentation du dossier d'architecture assemblée depuis les fichiers validés du workflow, à rendre en PowerPoint par `markdown-publish` |
 | `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, et mémoire partagée dans un vault Obsidian pilotée par la définition (une note par exigence, terme, option, décision et étape, schémas intégrés) |
 | `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow |

@@ -859,6 +859,50 @@
     {"id": "architecture-review-vault", "skill": "architecture-review", "_note": "Revue versée au vault du workflow : note revue-architecture liée à l'option, un constat et un risque par note liés aux exigences, conformes à l'ontologie (vault_check --strict), constats disparus retirés à la relance.", "steps": [{"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}/vault"], "exit": 0}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0}, {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"errors": []}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue.json", "--out", "{out}/revue.md", "--fail-on", "aucune", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"errors": [], "vault.folder": "Projets/Sinistres", "vault.notes": 23, "vault.removed": 0}}, {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--folder", "Projets/Sinistres", "--graph", "{out}/graphe.json", "--strict"], "exit": 0, "report": {"errors": [], "types.revue-architecture": 1, "types.constat": 21, "types.risque": 1}}, {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"errors": [], "removed": 0}}], "files": ["vault/Projets/Sinistres/Revues d'architecture/Portail de sinistres, option A.md", "vault/Projets/Sinistres/Constats/Portail de sinistres, option A/TRA-02 ENF-005.md", "vault/Projets/Sinistres/Risques/Portail de sinistres, option A/R-01.md"], "contains": {"vault/Projets/Sinistres/Revues d'architecture/Portail de sinistres, option A.md": ["type: \"revue-architecture\"", "avis: \"defavorable\"", "\"[[Projets/Sinistres/Options/Option A]]\"", "  - avis/defavorable"], "vault/Projets/Sinistres/Constats/Portail de sinistres, option A/TRA-02 ENF-005.md": ["statut: \"ouvert\"", "\"[[Projets/Sinistres/Exigences/ENF-005]]\"", "issu-de:"], "graphe.json": ["\"relation\": \"issu-de\"", "\"relation\": \"evalue\"", "\"relation\": \"porte-sur\""]}},
     {"id": "architecture-review-erreurs", "skill": "architecture-review", "_note": "Description refusée avec le chemin de chaque erreur ; références inconnues ; graphify absent signalé avec la commande d'installation ; aucun fichier produit.", "steps": [{"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-invalide.json", "--out", "{out}/invalide.md"], "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-invalide.json", "--out", "{out}/invalide.md"], "exit": 1, "report_contains": {"errors": "racine : clé inconnue « acept » ; vouliez-vous « accept » ?"}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-invalide.json", "--out", "{out}/invalide.md"], "exit": 1, "report_contains": {"errors": "code/semantic : « openai » non permis"}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-refs.json", "--out", "{out}/refs.md"], "exit": 1, "report_contains": {"errors": "exigence inconnue ENF-099"}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-refs.json", "--out", "{out}/refs.md"], "exit": 1, "report_contains": {"errors": "risks/0 (R-01)/scenarios : scénario inconnu « QS-09 »"}}, {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{fixtures}/review/revue-code.json", "--out", "{out}/code.md"], "exit": 1, "env": {"GRAPHIFY_BIN": "{out}/graphify-absent"}, "report_contains": {"errors": "uv tool install graphifyy"}}], "absent": ["invalide.md", "refs.md", "code.md"]},
     {
+      "id": "chiffrage",
+      "skill": "solution-estimate",
+      "_note": "Chiffrage de l'option recommandée : charge espérée et fourchette P10-P90, pilotage, provision, infrastructure, run, coût total sur 3 ans, budget tenu, couverture par les composants, lot incertain signalé, CSV relu.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/chiffrage.json", "{out}/chiffrage.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json"], "exit": 0, "report": {"option": "A", "lots": 10, "build.days": 169.1, "build.days_low": 156.0, "build.cost": 128776, "build.contingency": 11707, "infra.one_time": 6000, "infra.annual": 10200, "run.annual": 33160, "operate.monthly": 3613, "tco.total": 264857, "budget.over": [], "unestimated": [], "uncovered": [], "uncertain": ["L4"], "errors": []}, "report_contains": {"warnings": "option A chiffrée sur la recommandation"}}
+      ],
+      "files": ["chiffrage.md", "chiffrage.csv"],
+      "contains": {"chiffrage.md": ["| Réalisation, coût | 128 776 € (de 119 164 € à 138 387 €), dont provision 11 707 € |", "| Fonctionnement par mois | 8 000 € | 3 613 € | tenu |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet | 12 % |", "| **Total** | | | | **264 857 €** |", "devis infogérant du 2026-10-01"], "chiffrage.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;architecte;8;10;14;10,33;950;0;0;9816,67;;;"]}
+    },
+    {
+      "id": "chiffrage-secnumcloud",
+      "skill": "solution-estimate",
+      "_note": "Hébergeur souverain et qualification SecNumCloud exigée : ligne chez un hébergeur sans la qualification signalée (qualification en cours), offre à vérifier, option décrite chez un autre fournisseur ; hébergeur inconnu refusé avec la valeur proche.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/chiffrage-secnumcloud.json", "{out}/chiffrage-secnumcloud.json"]},
+        {"copy": ["{fixtures}/workflow/chiffrage-hebergeur-invalide.json", "{out}/chiffrage-hebergeur-invalide.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-secnumcloud.json"], "exit": 0, "report": {"hosting.provider": "cloud-temple", "hosting.required": ["secnumcloud"], "hosting.noncompliant": ["I3"], "hosting.providers.cloud-temple.annual": 9960, "hosting.providers.sur-site.one_time": 6000, "tco.total": 264857, "errors": []}, "report_contains": {"warnings": "S3NS (Thales, technologie Google Cloud) sans secnumcloud (qualification en cours : secnumcloud), exigé par ENF-003"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-secnumcloud.json"], "exit": 0, "report_contains": {"warnings": "option A décrite chez aws, chiffrée chez cloud-temple"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-hebergeur-invalide.json"], "exit": 1, "report_contains": {"errors": "hosting/provider : hébergeur inconnu « cloudtemple » ; vouliez-vous « cloud-temple » ?"}}
+      ],
+      "files": ["chiffrage-secnumcloud.md", "chiffrage-secnumcloud.csv"],
+      "absent": ["chiffrage-hebergeur-invalide.md"],
+      "contains": {"chiffrage-secnumcloud.md": ["## Hébergement", "Qualifications exigées : secnumcloud (ENF-003).", "| Cloud Temple | ue | secnumcloud, hds | 9 960 € |", "| S3NS (Thales, technologie Google Cloud) | ue | aucune (en cours : secnumcloud) |", "Lignes non conformes aux qualifications exigées : I3."]}
+    },
+    {
+      "id": "chiffrage-erreurs",
+      "skill": "solution-estimate",
+      "_note": "Description refusée avec le chemin et la valeur proche ; composant, profil et exigence inconnus, estimation hors ordre ; aucun fichier produit.",
+      "steps": [
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "work/0/phase : « realisaton » non permis"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "infra/0 : champ « basis » manquant"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "composant inconnu « portal » dans l'option A ; vouliez-vous « portail » ?"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "profil inconnu « developeur » ; vouliez-vous « developpeur » ?"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "exigence inconnue EF-099"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "attendu dans l'ordre croissant, reçu [30, 20, 40]"}}
+      ],
+      "absent": ["chiffrage-invalide.md", "chiffrage-refs-invalide.md", "chiffrage-refs-invalide.csv"]
+    },
+    {
       "id": "brief",
       "skill": "diagram-brief",
       "_note": "Décision courte validée puis grille appliquée : séquence en Mermaid, public non technique en Excalidraw malgré la destination, vue cloud ; décision invalide refusée sans fichier.",

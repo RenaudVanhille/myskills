@@ -30,11 +30,11 @@ Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 | `document-publisher` | la revue doit être livrée en Word, HTML ou XWiki | les fichiers .revue.md, .threats.md et .wa.md ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
-Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
+Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
 rien à passer. Exemple, avec un message de passage dans `next` :
 
 ```json

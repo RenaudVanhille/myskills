@@ -27,6 +27,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Passe la main** au skill `decision-log` : noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur.
 - **Passe la main** au skill `urbanization-map` : construire le POS cible de chaque option avec pos_build.py.
 - **Passe la main** au skill `architecture-deck` : la décision est prise et les schémas exportés : assembler la présentation du dossier.
+- **Passe la main** à l'agent `solution-estimator` : la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total).
 
 ## 1. Concevoir les options
 

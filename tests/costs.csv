@@ -42,3 +42,4 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-24T19:39:59,avant-coherence,d931b85,workflow-cloud-existant,architecture-workflow,sonnet,True,12,0.1567,19,23863,303106,3079,0,28
 2026-10-24T19:42:18,apres-coherence-nommage,af0db4a,schema-drawio,schema-designer,sonnet,True,10,0.1528,13,27048,178316,2658,0,24
 2026-10-24T19:42:18,apres-coherence-nommage,af0db4a,schema-pos,schema-designer,sonnet,True,10,0.119,13,20101,179045,2032,0,21
+2026-10-24T22:31:00,solution-estimator,c07b1de,chiffrage,solution-estimator,sonnet,True,8,0.2235,11,38030,153132,5573,0,48

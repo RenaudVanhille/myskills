@@ -8,9 +8,9 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 ## Messages entre agents
 
 - Message de passage : [`shared/schemas/handoff.schema.json`](shared/schemas/handoff.schema.json).
-  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
+  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
 - Rapport final : [`shared/schemas/agent-report.schema.json`](shared/schemas/agent-report.schema.json).
-  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet).
+  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet).
 
 ## Agents
 
@@ -113,6 +113,25 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 | `document-publisher` | le schéma doit être intégré dans un Word, une page HTML ou XWiki | le Markdown qui référence le schéma ; la source et l'export ; l'outil cible |
 | `architecture-reviewer` | un modèle de menaces STRIDE ou une revue Well-Architected des piliers est demandé pour le schéma cloud | la description JSON du schéma cloud ; le .drawio et son export ; les contraintes de sécurité connues |
 
+### `solution-estimator`
+
+Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts.
+
+**Skills** : `check-prerequisites`, `solution-estimate`, `requirements-catalog`, `architecture-options`, `decision-log`, `agent-handoff`
+
+Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
+
+- **Niveau** : complexe (modèle puissant, `shared/models.json`).
+- **Reçoit** : Le catalogue d'exigences validé (exigences.json de requirements-catalog) ; Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là ; Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning.
+- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, détail, coût total, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script.
+- **Ne fait jamais** : Écrire un total, une espérance ou une fourchette à la main : le script les calcule ; Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base ; Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient.
+- **Passe la main** :
+
+| Agent | Quand | À transmettre |
+| --- | --- | --- |
+| `architecture-workflow` | le chiffrage est fait pour un workflow : rendre la main pour la soumission | chiffrage.md et chiffrage.csv ; les hypothèses à valider et les avertissements restants ; le dossier du workflow |
+| `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
+
 ## Skills
 
 ### `agent-handoff`
@@ -161,6 +180,7 @@ Résumé de [`contract.json`](skills/architecture-options/contract.json), qui fa
 - **Passe la main** au skill `decision-log` : noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur.
 - **Passe la main** au skill `urbanization-map` : construire le POS cible de chaque option avec pos_build.py.
 - **Passe la main** au skill `architecture-deck` : la décision est prise et les schémas exportés : assembler la présentation du dossier.
+- **Passe la main** à l'agent `solution-estimator` : la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total).
 
 ### `architecture-review`
 
@@ -380,6 +400,23 @@ Résumé de [`contract.json`](skills/requirements-catalog/contract.json), qui fa
 - **Passe la main** au skill `doc-to-markdown` : les documents ne sont pas encore en Markdown.
 - **Passe la main** au skill `architecture-options` : le catalogue est validé : proposer des architectures.
 - **Passe la main** au skill `decision-log` : noter les choix (exigence déduite, phrase écartée, priorité) et soumettre le catalogue à la revue.
+
+### `solution-estimate`
+
+Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure ou un coût total de possession.
+
+Résumé de [`contract.json`](skills/solution-estimate/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : complexe (modèle puissant).
+- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions ; Catalogue des hébergeurs (references/providers.json : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet.
+- **Sorties** : <nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions) ; <nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script.
+- **`estimate_build.py`** : Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux. Rapport JSON, codes de sortie : 0 chiffrage produit et CSV vérifié (avertissements possibles) ; 1 description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json contre son schéma.
+- **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
+- **Passe la main** au skill `decision-log` : noter les hypothèses de chiffrage, soumettre le chiffrage à la revue.
+- **Passe la main** à l'agent `document-publisher` : le chiffrage doit être livré en Word, HTML ou XWiki.
+- **Passe la main** au skill `architecture-options` : le coût chiffré contredit la note du critère coût d'une option : revoir sa note.
 
 ### `threat-model`
 

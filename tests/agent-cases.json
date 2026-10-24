@@ -398,6 +398,28 @@
       ]
     },
     {
+      "id": "chiffrage",
+      "agent": "solution-estimator",
+      "prompt": "Chiffre l'option recommandée du portail de sinistres : réalisation, infrastructure et run sur 3 ans. Taux : chef de projet 850, architecte 950, développeur 650, testeur 550 euros par jour.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "options.json"
+        }
+      ],
+      "output": "chiffrage.md",
+      "rubric": [
+        "Le chiffrage porte sur l'option A et donne la charge de réalisation avec une fourchette.",
+        "Chaque ligne d'infrastructure a une base de prix, présentée comme une hypothèse quand aucun devis n'est fourni.",
+        "Le coût total sur 3 ans et le fonctionnement mensuel sont comparés au budget de 8 000 euros par mois (ENF-005).",
+        "Aucune exigence retenue n'est laissée sans lot, ou elle est listée comme exclue avec sa raison."
+      ]
+    },
+    {
       "id": "revue-architecture",
       "agent": "architecture-reviewer",
       "prompt": "Fais la revue d'architecture de l'option A de options.json, dans revue/.",

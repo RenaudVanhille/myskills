@@ -53,6 +53,30 @@
 - Agent `architecture-reviewer` : revue d'architecture en plus des menaces
   et du Well-Architected ; `check-prerequisites` : groupe `revue`.
 
+### Chiffrage
+
+- Skill `solution-estimate` (niveau complexe) : `estimate_build.py` chiffre
+  l'option retenue d'`architecture-options` à partir d'une description
+  courte (taux par profil, lots par composant estimés en jours ou à trois
+  points, pilotage, provision, lignes d'infrastructure avec leur base de
+  prix, run, budget). Il calcule la charge espérée et la fourchette P10-P90,
+  l'infrastructure, le run, le fonctionnement mensuel et le coût total sur
+  l'horizon, signale les exigences qu'aucun lot ne porte, les composants
+  sans chiffrage, les lots trop incertains et les dépassements de budget,
+  écrit `chiffrage.md` et `chiffrage.csv` et relit le CSV. Aucun tarif
+  consulté en ligne.
+- Hébergeurs alternatifs et souverains : catalogue
+  `solution-estimate/references/providers.json` (AWS, Azure, Google Cloud,
+  OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ;
+  juridiction, qualifications SecNumCloud et HDS, qualifications en cours),
+  complété par un catalogue du projet. `hosting` exige des qualifications :
+  chaque ligne cloud ou service hors qualification est signalée, coût par
+  hébergeur dans le chiffrage.
+- Agent `solution-estimator` (niveau complexe) : découpe, estime et pose
+  les hypothèses, fait calculer le script, note les hypothèses au journal
+  d'un workflow ; `architecture-options` lui passe la main une fois la
+  décision prise.
+
 ## 0.4.0 (2026-10-24)
 
 Revue de cohérence des skills et des agents : dépendances déclarées,

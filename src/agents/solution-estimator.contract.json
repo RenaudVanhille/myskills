@@ -1,0 +1,38 @@
+{
+  "agent": "solution-estimator",
+  "level": "complexe",
+  "receives": [
+    "Le catalogue d'exigences validé (exigences.json de requirements-catalog)",
+    "Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là",
+    "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning"
+  ],
+  "produces": [
+    "chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py",
+    "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, détail, coût total, couverture, hypothèses)",
+    "chiffrage.csv : lignes détaillées pour un tableur, relu par le script"
+  ],
+  "never": [
+    "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
+    "Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base",
+    "Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient"
+  ],
+  "handoffs": [
+    {
+      "to": "architecture-workflow",
+      "when": "le chiffrage est fait pour un workflow : rendre la main pour la soumission",
+      "send": [
+        "chiffrage.md et chiffrage.csv",
+        "les hypothèses à valider et les avertissements restants",
+        "le dossier du workflow"
+      ]
+    },
+    {
+      "to": "document-publisher",
+      "when": "le chiffrage doit être livré en Word, HTML ou XWiki",
+      "send": [
+        "chiffrage.md",
+        "l'outil cible"
+      ]
+    }
+  ]
+}

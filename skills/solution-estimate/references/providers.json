@@ -1,0 +1,28 @@
+{
+  "_doc": "Hébergeurs connus de estimate_build.py et leurs qualifications. Une qualification porte sur une offre, pas sur tout le fournisseur : la note dit laquelle. Données déclaratives, à tenir à jour depuis la liste des prestataires qualifiés de l'ANSSI ; un catalogue propre au projet se donne avec le champ providers de chiffrage.json et complète celui-ci.",
+  "checked": "2026-10-24",
+  "source": "Liste des prestataires qualifiés SecNumCloud de l'ANSSI (cyber.gouv.fr) et pages de certification HDS des hébergeurs",
+  "providers": {
+    "aws": {"name": "Amazon Web Services", "jurisdiction": "hors-ue", "qualifications": ["hds"],
+            "note": "soumis aux lois extraterritoriales américaines"},
+    "azure": {"name": "Microsoft Azure", "jurisdiction": "hors-ue", "qualifications": ["hds"],
+              "note": "soumis aux lois extraterritoriales américaines"},
+    "gcp": {"name": "Google Cloud", "jurisdiction": "hors-ue", "qualifications": ["hds"],
+            "note": "soumis aux lois extraterritoriales américaines"},
+    "ovh": {"name": "OVHcloud", "jurisdiction": "ue", "qualifications": ["secnumcloud", "hds"],
+            "note": "SecNumCloud sur certaines offres seulement (Hosted Private Cloud, Bare Metal Pod) : vérifier l'offre chiffrée"},
+    "cloud-temple": {"name": "Cloud Temple", "jurisdiction": "ue", "qualifications": ["secnumcloud", "hds"],
+                     "note": "offres IaaS et PaaS qualifiées : vérifier l'offre chiffrée"},
+    "outscale": {"name": "3DS Outscale", "jurisdiction": "ue", "qualifications": ["secnumcloud", "hds"],
+                 "note": "régions qualifiées seulement : vérifier la région"},
+    "s3ns": {"name": "S3NS (Thales, technologie Google Cloud)", "jurisdiction": "ue", "qualifications": [],
+             "pending": ["secnumcloud"], "note": "offre de confiance : qualification à vérifier sur la liste de l'ANSSI"},
+    "bleu": {"name": "Bleu (Orange et Capgemini, technologie Microsoft)", "jurisdiction": "ue", "qualifications": [],
+             "pending": ["secnumcloud"], "note": "offre de confiance : qualification à vérifier sur la liste de l'ANSSI"},
+    "numspot": {"name": "NumSpot", "jurisdiction": "ue", "qualifications": [], "pending": ["secnumcloud"],
+                "note": "qualification à vérifier sur la liste de l'ANSSI"},
+    "scaleway": {"name": "Scaleway", "jurisdiction": "ue", "qualifications": ["hds"]},
+    "sur-site": {"name": "Hébergement interne", "jurisdiction": "ue", "qualifications": [],
+                 "note": "centre de données de l'entreprise : qualifications à déclarer dans un catalogue propre au projet"}
+  }
+}
