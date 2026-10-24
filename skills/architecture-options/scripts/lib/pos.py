@@ -27,10 +27,45 @@ def app_name(app) -> str:
     return app if isinstance(app, str) else app["name"]
 
 
-def read_pos(path: Path, errors: list[str]) -> dict:
-    """POS en JSON (format de pos_build.py) ou en CSV (zone, quartier, ilot, application, statut)."""
+def resolve(base: Path, value: str, errors: list[str]) -> Path | None:
+    """Chemin du POS : relatif au .json, ou « vault:<chemin> » dans le vault du workflow
+    (memory.vault de workflow.json, à côté du .json), quand le POS a été versé au vault."""
+    if not value.startswith("vault:"):
+        return base / value
     try:
-        if path.suffix.lower() != ".csv":
+        state = json.loads((base / "workflow.json").read_text(encoding="utf-8"))
+        return Path(state["memory"]["vault"]) / value.removeprefix("vault:").lstrip("/\\")
+    except (OSError, ValueError, KeyError, TypeError):
+        errors.append(f"pos : « {value} » vise le vault, mais {base / 'workflow.json'} n'en déclare pas "
+                      "(journal.py init --vault)")
+        return None
+
+
+def markdown_rows(text: str) -> list[dict]:
+    """Lignes du premier tableau Markdown qui a une colonne zone (note Obsidian d'inventaire)."""
+    table: list[list[str]] = []
+    for line in text.splitlines() + [""]:
+        stripped = line.strip()
+        if stripped.startswith("|"):
+            table.append([c.strip() for c in stripped.strip("|").split("|")])
+            continue
+        if table and "zone" in [plain(c) for c in table[0]]:
+            body = [r for r in table[1:] if not set("".join(r)) <= set("-: ")]
+            return [dict(zip(table[0], r)) for r in body]
+        table = []
+    return []
+
+
+def read_pos(path: Path, errors: list[str]) -> dict:
+    """POS en JSON (format de pos_build.py), en CSV ou en note Markdown avec un tableau
+    (colonnes zone, quartier, ilot, application, statut)."""
+    suffix = path.suffix.lower()
+    if suffix not in (".json", ".csv", ".md"):
+        errors.append(f"pos : {path.name} n'est pas lisible ({suffix}) ; donnez la description .json, "
+                      "l'inventaire .csv ou une note .md avec le tableau zone, quartier, ilot, application, statut")
+        return {"zones": []}
+    try:
+        if suffix == ".json":
             return json.loads(path.read_text(encoding="utf-8"))
         try:
             text = path.read_text(encoding="utf-8-sig")
@@ -39,18 +74,24 @@ def read_pos(path: Path, errors: list[str]) -> dict:
     except (OSError, ValueError) as error:
         errors.append(f"pos : POS illisible {path} ({error})")
         return {"zones": []}
-    try:
-        dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
-    except csv.Error:
-        dialect = csv.excel
-    rows = list(csv.DictReader(text.splitlines(), dialect=dialect))
+    if suffix == ".md":
+        rows = markdown_rows(text)
+    else:
+        try:
+            dialect = csv.Sniffer().sniff(text.split("\n", 1)[0], delimiters=",;\t")
+        except csv.Error:
+            dialect = csv.excel
+        rows = list(csv.DictReader(text.splitlines(), dialect=dialect))
     columns = {plain(c): c for c in (rows[0].keys() if rows else [])}
     if "zone" not in columns:
         errors.append(f"pos : colonnes attendues zone, quartier, ilot, application, statut dans {path}")
         return {"zones": []}
 
-    def col(row: dict, name: str) -> str:
-        return (row.get(columns.get(name, ""), "") or "").strip()
+    def col(row: dict, *names: str) -> str:
+        for name in names:
+            if name in columns:
+                return (row.get(columns[name], "") or "").strip()
+        return ""
 
     zones: dict = {}
     for row in rows:
@@ -60,10 +101,10 @@ def read_pos(path: Path, errors: list[str]) -> dict:
         z = zones.setdefault(zone, {"name": zone, "quartiers": {}})
         q = z["quartiers"].setdefault(col(row, "quartier") or "—", {"name": col(row, "quartier") or "—",
                                                                     "ilots": {}, "apps": []})
-        ilot, app = col(row, "ilot"), col(row, "application")
+        ilot, app = col(row, "ilot"), col(row, "application", "app")
         target = q["ilots"].setdefault(ilot, {"name": ilot, "apps": []})["apps"] if ilot else q["apps"]
         if app:
-            target.append({"name": app, "status": col(row, "statut") or "en-place"})
+            target.append({"name": app, "status": col(row, "statut", "status") or "en-place"})
     return {"zones": [{**z, "quartiers": [{**q, "ilots": list(q["ilots"].values())}
                                           for q in z["quartiers"].values()]} for z in zones.values()]}
 

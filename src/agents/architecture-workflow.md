@@ -68,9 +68,12 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
    Obsidian est la mémoire partagée du workflow. Prends le vault indiqué
    par l'utilisateur ; s'il n'en a pas indiqué, c'est ta seule question
    avant de commencer (sans vault, `init` sans `--vault`). Pose-la en même
-   temps que celle du POS du SI (plan d'occupation des sols, JSON ou CSV
-   de `urbanization-map`) s'il n'est pas dans `documents/` : la solution
-   doit se situer dans l'architecture globale du SI. Sans POS, note
+   temps que celle du POS du SI (plan d'occupation des sols : JSON ou CSV
+   de `urbanization-map`, ou note avec son tableau) s'il n'est ni dans
+   `documents/` ni dans le vault (cherche une note de POS ou d'urbanisation
+   versée à l'étude ; `"pos": "vault:<chemin>"`) : la solution doit se
+   situer dans l'architecture globale du SI. Note au journal le POS
+   retenu et son chemin. Sans POS, note
    l'hypothèse au journal à l'étape `architectures`. Choisis le
    dossier avec `vault_profile.py` (skill `markdown-to-obsidian`). Suis
    toujours le champ `next` du rapport.

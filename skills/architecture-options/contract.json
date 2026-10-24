@@ -2,7 +2,7 @@
   "skill": "architecture-options",
   "inputs": [
     "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
-    "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map)",
+    "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
     "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, scores, score_notes, pros, cons, risks), recommendation, decision",
     "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
   ],
@@ -61,7 +61,7 @@
             "pos": {
               "type": "string",
               "minLength": 1,
-              "description": "POS existant du SI (description JSON ou inventaire CSV de urbanization-map), relatif au .json : active le placement des options."
+              "description": "POS existant du SI : description JSON ou inventaire CSV de urbanization-map, ou note Markdown avec le tableau zone, quartier, ilot, application, statut ; relatif au .json, ou « vault:<chemin> » pour un POS versé au vault du workflow (memory.vault de workflow.json)."
             },
             "criteria": {
               "type": "array",

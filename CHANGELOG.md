@@ -7,6 +7,9 @@
   évolutions, remplacements, redondances, flux entre zones), critère
   « urbanisation », section dans `options.md` et l'ADR, POS cible par option
   (`schemas/pos-option-<id>.json` pour `pos_build.py`).
+- POS d'entrée lu aussi depuis une note Markdown (tableau zone, quartier,
+  ilot, application, statut) et depuis le vault du workflow
+  (`"pos": "vault:<chemin>"`), quand il a été versé à l'étude.
 - `architecture-workflow` : demande le POS du SI avec le vault, construit
   le POS cible de chaque option à l'étape `schemas` ; note d'option du vault
   avec sa position.

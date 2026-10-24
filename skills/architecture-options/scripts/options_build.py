@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from pos import check_option, placement_lines, read_pos, target_pos  # noqa: E402
+from pos import check_option, placement_lines, read_pos, resolve, target_pos  # noqa: E402
 from pos import index as pos_index  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
@@ -315,10 +315,13 @@ def main() -> int:
     catalog = load_catalog(args.spec.parent, spec, errors)
     idx = None
     if spec.get("pos"):
-        pos_data = read_pos(args.spec.parent / spec["pos"], errors)
+        pos_path = resolve(args.spec.parent, spec["pos"], errors)
+        pos_data = read_pos(pos_path, errors) if pos_path else {"zones": []}
         idx = pos_index(pos_data)
         if not idx["apps"] and not errors:
             errors.append(f"pos : aucune application dans {spec['pos']}")
+        if errors:  # POS illisible : pas d'erreurs en cascade sur chaque placement
+            idx = {"apps": {}, "places": set(), "unreadable": True}
     criteria = spec.get("criteria") or default_criteria(catalog)
     if idx and not spec.get("criteria"):
         criteria.append({"id": "urbanisation", "name": "Urbanisation (POS)", "weight": 2, "refs": []})
@@ -335,11 +338,11 @@ def main() -> int:
         errors.append("options : identifiant en double")
     ranking, impacts = [], []
     for index, option in enumerate(spec["options"]):
-        if idx is not None:
+        if idx is not None and not idx.get("unreadable"):
             if not option.get("placement"):
                 warnings.append(f"options/{index} ({option['id']}) : pas de placement dans le POS")
             impacts.append(check_option(option, idx, errors, warnings))
-        elif option.get("placement"):
+        elif option.get("placement") and idx is None:
             errors.append(f"options/{index} ({option['id']})/placement : POS absent, ajoutez pos à la description")
         where = f"options/{index} ({option['id']})"
         comp_ids = [c["id"] for c in option["components"]]
