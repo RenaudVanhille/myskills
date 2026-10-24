@@ -16,8 +16,9 @@ modèle :
   well-architected-review) ;
 - avec `code`, compare le code à l'architecture à partir du graphe de
   graphify (skill externe, `graphify extract --code-only` : analyse locale,
-  sans modèle) : dépendances du code absentes des flux, cycles entre
-  composants, fichiers non rattachés ;
+  sans modèle ; avec `semantic`, les documents sont lus aussi par le modèle
+  du harness ou un modèle local) : dépendances du code absentes des flux,
+  cycles entre composants, fichiers non rattachés ;
 - calcule l'avis (défavorable dès un constat haut ouvert, avec réserves dès
   un constat moyen ouvert) et écrit <sujet>.revue.md.
 
@@ -272,7 +273,7 @@ def glob_regex(pattern: str) -> re.Pattern:
 
 
 def code_graph(base: Path, spec: dict, out_dir: Path, errors: list[str], warnings: list[str]) -> tuple[dict, str] | None:
-    """Graphe du code : graph.json donné, sinon graphify extract --code-only (analyse locale, sans modèle)."""
+    """Graphe du code : graph.json donné, sinon graphify extract (--code-only par défaut)."""
     code = spec["code"]
     root = base / code["root"]
     contract = external_skill.contract("graphify")
@@ -289,8 +290,15 @@ def code_graph(base: Path, spec: dict, out_dir: Path, errors: list[str], warning
         _, warning = external_skill.version(contract, entry)
         if warning:
             warnings.append(warning)
-        # --code-only toujours : sans elle, graphify enverrait les documents à un modèle.
-        result = subprocess.run([str(entry), "extract", str(root), "--code-only", "--out", str(out_dir)],
+        # Documents lus par un modèle seulement sur demande : celui du harness (claude) ou un local (ollama),
+        # jamais un autre fournisseur (AGENTS.md, section 5).
+        semantic = code.get("semantic", "aucune")
+        mode = ["--code-only"] if semantic == "aucune" else ["--backend", semantic] + (
+            ["--max-concurrency", "1"] if semantic == "ollama" else [])
+        if semantic != "aucune":
+            warnings.append(f"code : documents de {code['root']} lus par le modèle {semantic} "
+                            "(liens INFERRED, hors des contrôles du code)")
+        result = subprocess.run([str(entry), "extract", str(root), *mode, "--out", str(out_dir)],
                                 capture_output=True, text=True, encoding="utf-8", errors="replace")
         path = out_dir / "graphify-out" / "graph.json"
         if result.returncode != 0 or not path.is_file():
@@ -672,7 +680,8 @@ def markdown(spec: dict, found: dict, verdict: str) -> str:
     if found["code"]:
         code = found["code"]
         lines += ["", "## Code et architecture", "",
-                  f"Graphe du code par graphify (`--code-only`, analyse locale) : `{code['graph']}`. "
+                  f"Graphe du code par graphify (analyse locale du code ; seuls les liens extraits du code comptent) : "
+                  f"`{code['graph']}`. "
                   f"{code['files']} fichier(s), dont {code['unmapped']} non rattaché(s) ; "
                   f"{code['dependencies']} dépendance(s) entre composants, dont {len(code['undeclared'])} "
                   "absente(s) de l'architecture."]

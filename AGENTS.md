@@ -120,8 +120,13 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 ## 5. Local et sûr
 
 - Tout rendu et toute conversion se font en local. Aucun contenu n'est envoyé
-  à un service en ligne (SaaS, API de rendu) ; seuls des outils ou
-  bibliothèques peuvent être téléchargés.
+  à un service tiers non maîtrisé (SaaS, API de rendu ou de conversion) ;
+  seuls des outils ou bibliothèques peuvent être téléchargés.
+- Les modèles du harness (Claude, Copilot, Kiro... sous offre entreprise,
+  avec sa politique de sécurité et de non-rétention) ne sont pas concernés :
+  un script peut leur confier un travail de modèle, de préférence au niveau
+  simple. Un modèle local (Ollama) reste possible ; tout autre fournisseur
+  de modèle est un service tiers.
 - Rendus de navigateur avec Playwright, jamais Puppeteer **(vérifiée)**, et
   pas de serveur MCP Playwright.
 - Un agent ne publie rien en ligne : il produit des fichiers.

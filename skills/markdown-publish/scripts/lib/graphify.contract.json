@@ -1,23 +1,25 @@
 {
   "skill": "graphify",
   "versions": "0.9",
-  "source": "graphify (Graphify Labs, https://github.com/Graphify-Labs/graphify, licence Apache-2.0), paquet PyPI graphifyy. Installé à part : myskills n'en copie pas le code et ne s'appuie que sur ce contrat. Seule l'extraction du code est utilisée : locale (tree-sitter), sans modèle ni clé d'API.",
+  "source": "graphify (Graphify Labs, https://github.com/Graphify-Labs/graphify, licence Apache-2.0), paquet PyPI graphifyy. Installé à part : myskills n'en copie pas le code et ne s'appuie que sur ce contrat. Le code s'analyse en local (tree-sitter) ; les documents, s'ils sont demandés, passent par le modèle du harness (backend claude) ou un modèle local (backend ollama), jamais par un autre fournisseur.",
   "install": "uv tool install graphifyy (ou pip install graphifyy) ; la commande s'appelle graphify. Ou donnez son chemin dans la variable GRAPHIFY_BIN",
   "locate": {
     "env": "GRAPHIFY_BIN",
     "command": "graphify"
   },
   "command": {
-    "usage": "{entry} extract DOSSIER --code-only --out SORTIE",
+    "usage": "{entry} extract DOSSIER (--code-only | --backend claude|ollama [--max-concurrency 1]) --out SORTIE",
     "version": "--version",
     "options": {
-      "DOSSIER": "code source à analyser ; .gitignore et .graphifyignore sont respectés",
-      "--code-only": "code seul, analyse locale (tree-sitter) sans modèle ni clé d'API ; obligatoire pour myskills : sans elle, les documents partent vers un modèle",
+      "DOSSIER": "code source, ou dossier de documents (vault), à analyser ; .gitignore et .graphifyignore sont respectés",
+      "--code-only": "code seul, analyse locale (tree-sitter) sans modèle ni clé d'API : le défaut de myskills",
+      "--backend": "modèle des documents : claude (modèle du harness, ANTHROPIC_API_KEY, modèle léger par ANTHROPIC_MODEL) ou ollama (local, OLLAMA_MODEL, défaut qwen2.5-coder:7b) ; aucun autre backend",
+      "--max-concurrency": "requêtes parallèles au modèle ; 1 pour un modèle local",
       "--out": "dossier de sortie : écrit SORTIE/graphify-out/graph.json (et un cache pour les relances)"
     }
   },
   "inputs": [
-    "Un dossier de code source (Python, TypeScript, JavaScript, Java, C#, Go, Rust, Kotlin, PHP, Ruby, C, C++...)"
+    "Un dossier de code source (Python, TypeScript, JavaScript, Java, C#, Go, Rust, Kotlin, PHP, Ruby, C, C++...), avec ou sans documents"
   ],
   "outputs": [
     "SORTIE/graphify-out/graph.json : graphe du code au format node-link de NetworkX ; nœuds (id, label, file_type, source_file) et liens (source, target, relation : imports, imports_from, calls, references, contains..., confidence : EXTRACTED, INFERRED, AMBIGUOUS)"
@@ -25,35 +27,65 @@
   "output_schema": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
-    "required": ["nodes"],
+    "required": [
+      "nodes"
+    ],
     "properties": {
       "nodes": {
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["id"],
+          "required": [
+            "id"
+          ],
           "properties": {
-            "id": {"type": "string"},
-            "label": {"type": "string"},
-            "file_type": {"type": "string"},
-            "source_file": {"type": ["string", "null"]}
+            "id": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "file_type": {
+              "type": "string"
+            },
+            "source_file": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         }
       },
-      "links": {"$ref": "#/$defs/links"},
-      "edges": {"$ref": "#/$defs/links"}
+      "links": {
+        "$ref": "#/$defs/links"
+      },
+      "edges": {
+        "$ref": "#/$defs/links"
+      }
     },
     "$defs": {
       "links": {
         "type": "array",
         "items": {
           "type": "object",
-          "required": ["source", "target"],
+          "required": [
+            "source",
+            "target"
+          ],
           "properties": {
-            "source": {"type": "string"},
-            "target": {"type": "string"},
-            "relation": {"type": "string"},
-            "confidence": {"type": "string"}
+            "source": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "relation": {
+              "type": "string"
+            },
+            "confidence": {
+              "type": "string"
+            }
           }
         }
       }

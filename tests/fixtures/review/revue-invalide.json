@@ -3,5 +3,6 @@
   "components": [{"id": "api", "label": "API", "role": "service"}],
   "flows": [{"from": "api", "to": "base", "style": "asyn"}],
   "scenarios": [{"id": "QS-01", "attribute": "perf", "stimulus": "pic", "response": "ok", "status": "ok"}],
+  "code": {"root": "code", "semantic": "openai"},
   "acept": {}
 }

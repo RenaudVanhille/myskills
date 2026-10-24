@@ -14,8 +14,11 @@
   une option d'`architecture-options` (`source`) sans recopie, ajoute les
   piliers Well-Architected d'une description cloud et calcule l'avis.
 - Code comparé à l'architecture avec graphify, skill externe appelé par son
-  contrat (`shared/external/graphify.contract.json`), toujours en
-  `--code-only` : analyse locale, sans modèle. Le contrat des skills
+  contrat (`shared/external/graphify.contract.json`) : `--code-only` par
+  défaut (analyse locale) ; `semantic` fait lire aussi les documents par le
+  modèle du harness ou par Ollama.
+- AGENTS.md, section 5 : la règle vise les services tiers non maîtrisés ;
+  les modèles du harness (offre entreprise) ne sont pas concernés. Le contrat des skills
   externes accepte un outil en ligne de commande (`locate.command`) et le
   schéma de sa sortie (`output_schema`).
 - Agent `architecture-reviewer` : revue d'architecture en plus des menaces

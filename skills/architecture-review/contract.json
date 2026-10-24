@@ -14,7 +14,7 @@
   "scripts": [
     {
       "name": "arch_review.py",
-      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe, analyse locale --code-only). Calcule l'avis et écrit <sujet>.revue.md.",
+      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md.",
       "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
       "options": {
         "REVUE.json": "description de la revue",
@@ -89,7 +89,15 @@
                 },
                 "graph": {
                   "type": "string",
-                  "description": "graph.json de graphify déjà produit ; sinon le script lance graphify extract --code-only."
+                  "description": "graph.json de graphify déjà produit (par exemple par le skill graphify dans le harness) ; sinon le script lance graphify extract."
+                },
+                "semantic": {
+                  "enum": [
+                    "aucune",
+                    "claude",
+                    "ollama"
+                  ],
+                  "description": "Documents du dossier (README, docs/, ADR) lus aussi par un modèle : aucune (défaut, --code-only, analyse locale du code seul), claude (modèle du harness, ANTHROPIC_MODEL pour un modèle léger) ou ollama (modèle local). Les liens tirés des documents (INFERRED) n'entrent pas dans les contrôles du code ; ils enrichissent le graphe."
                 }
               }
             },
@@ -817,7 +825,7 @@
     {
       "to": "graphify",
       "kind": "externe",
-      "when": "comparer le code à l'architecture : le script lance graphify extract --code-only sur code.root (analyse locale) et lit le graphe"
+      "when": "comparer le code à l'architecture : le script lance graphify extract sur code.root (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit le graphe"
     },
     {
       "to": "architecture-options",

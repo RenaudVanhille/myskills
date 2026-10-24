@@ -15,7 +15,7 @@
   ],
   "never": [
     "Accepter un écart (accept) sans la raison donnée par l'utilisateur",
-    "Évaluer un scénario de qualité sans dire pourquoi, ou lancer graphify sans --code-only",
+    "Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local",
     "Modifier le schéma ou la description d'un autre agent sans le dire",
     "Envoyer une description ou un schéma à un service en ligne"
   ],

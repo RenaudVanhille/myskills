@@ -21,7 +21,7 @@ Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
 - **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
 - **Produit** : <sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code ; <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
-- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou lancer graphify sans --code-only ; Modifier le schéma ou la description d'un autre agent sans le dire ; Envoyer une description ou un schéma à un service en ligne.
+- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local ; Modifier le schéma ou la description d'un autre agent sans le dire ; Envoyer une description ou un schéma à un service en ligne.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -60,7 +60,8 @@ workflow, la commande les trace aussi au journal.
    indispensable ou importante, évalue-le et dis pourquoi ; note les
    risques, sensibilités, compromis et décisions. Avec le code, donne
    `code` et un motif par composant : le script lance graphify
-   `--code-only` (local). Avec une description cloud, donne `cloud`.
+   (`--code-only` par défaut ; `semantic` pour lire aussi les documents,
+   au niveau simple). Avec une description cloud, donne `cloud`.
    Lance `arch_review.py revue.json` et lis le rapport. Si seule la revue
    est demandée, passe à l'étape 6.
 3. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
