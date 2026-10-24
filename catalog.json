@@ -5087,7 +5087,8 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
-        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions"
+        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions",
+        "Catalogue des hébergeurs (references/providers.json : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
       ],
       "outputs": [
         "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
@@ -5096,16 +5097,16 @@
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema",
           "options": {
-            "chiffrage.json": "description du chiffrage ; requirements et architecture sont relatifs à ce fichier",
+            "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
           },
           "input": {
             "format": "json",
-            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, phase ou période inconnue, estimation qui n'a pas trois valeurs donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, phase ou période inconnue, estimation qui n'a pas trois valeurs donnent une erreur, de même qu'un hébergeur absent du catalogue (valeur proche proposée) ou un catalogue mal formé avec son chemin ; les clés qui commencent par _ sont des commentaires.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
@@ -5150,6 +5151,39 @@
                   "minimum": 1,
                   "maximum": 10,
                   "description": "Années de fonctionnement du coût total (défaut : 3)."
+                },
+                "hosting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Hébergeur par défaut des lignes d'infrastructure et qualifications exigées (secnumcloud, hds...).",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]+$",
+                      "description": "Identifiant du catalogue des hébergeurs (aws, ovh, cloud-temple, s3ns...)."
+                    },
+                    "qualifications": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      },
+                      "description": "Qualifications que chaque ligne cloud ou service doit avoir."
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      },
+                      "description": "Exigences qui imposent l'hébergeur ou les qualifications."
+                    }
+                  }
+                },
+                "providers": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète references/providers.json du skill."
                 },
                 "rates": {
                   "type": "object",
@@ -5331,6 +5365,11 @@
                         "type": "string",
                         "minLength": 1,
                         "description": "D'où vient le prix : grille tarifaire et date, devis, hypothèse de dimensionnement."
+                      },
+                      "provider": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$",
+                        "description": "Hébergeur de la ligne (défaut : hosting.provider, sinon le provider de l'option)."
                       }
                     }
                   }
@@ -5411,6 +5450,72 @@
                     "minLength": 1
                   }
                 }
+              },
+              "$defs": {
+                "providers": {
+                  "type": "object",
+                  "required": [
+                    "providers"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "description": "Catalogue des hébergeurs (references/providers.json ou fichier du champ providers).",
+                  "properties": {
+                    "checked": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "providers": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^[a-z0-9-]+$": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "jurisdiction",
+                            "qualifications"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "jurisdiction": {
+                              "enum": [
+                                "ue",
+                                "hors-ue"
+                              ]
+                            },
+                            "qualifications": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9-]+$"
+                              }
+                            },
+                            "pending": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9-]+$"
+                              }
+                            },
+                            "note": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           },
@@ -5435,6 +5540,7 @@
                     "operate",
                     "tco",
                     "budget",
+                    "hosting",
                     "unestimated",
                     "uncovered",
                     "uncertain",
@@ -5595,6 +5701,73 @@
                                   "tco"
                                 ]
                               }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "hosting": {
+                      "description": "Hébergement : hébergeur par défaut, qualifications exigées, lignes non conformes, coût par an et ponctuel par hébergeur, date du catalogue ; null sans hosting ni provider.",
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "provider",
+                            "required",
+                            "noncompliant",
+                            "providers",
+                            "checked"
+                          ],
+                          "properties": {
+                            "provider": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "required": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "noncompliant": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Lignes cloud ou service dont l'hébergeur n'a pas une qualification exigée."
+                            },
+                            "providers": {
+                              "type": "object",
+                              "additionalProperties": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "annual",
+                                  "one_time"
+                                ],
+                                "properties": {
+                                  "annual": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "one_time": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  }
+                                }
+                              }
+                            },
+                            "checked": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
                             }
                           }
                         }

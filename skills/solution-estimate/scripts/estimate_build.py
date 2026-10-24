@@ -35,11 +35,12 @@ import difflib
 import json
 import math
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
 Z90 = 1.2816  # quantile 90 % de la loi normale : fourchette P10-P90
 PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réalisation",
@@ -48,6 +49,9 @@ PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réa
           "pilotage": "Pilotage"}
 PERIODS = {"mois": 12, "an": 1, "unique": 0}
 UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper ou hypothèse à lever
+PROVIDERS = Path(__file__).resolve().parents[1] / "references" / "providers.json"
+STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier
+QUALIFIED_KINDS = ("cloud", "service")  # lignes soumises aux qualifications exigées
 
 
 def cell(text) -> str:
@@ -86,6 +90,28 @@ def load_json(base: Path, name: str, field: str, skill: str, script: str,
     return data if isinstance(data, dict) else None
 
 
+def load_providers(base: Path, spec: dict, errors: list[str], warnings: list[str]) -> tuple[dict, str | None]:
+    """Catalogue des hébergeurs du skill, complété par celui du projet (champ providers), validés."""
+    schema = input_schema(__file__)
+    providers, checked = {}, None
+    for path in [PROVIDERS] + ([base / spec["providers"]] if spec.get("providers") else []):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"providers : catalogue illisible {path} ({error})")
+            continue
+        invalid = check(data, schema["$defs"]["providers"], schema)
+        if invalid:
+            errors.extend(f"providers : {path.name} : {e}" for e in invalid[:10])
+            continue
+        providers.update(data["providers"])
+        checked = data.get("checked", checked)
+    if checked and (date.today() - date.fromisoformat(checked)).days > STALE_DAYS:
+        warnings.append(f"catalogue des hébergeurs vérifié le {checked} : revérifier les qualifications "
+                        "sur la liste de l'ANSSI")
+    return providers, checked
+
+
 def pick_option(spec: dict, arch: dict, errors: list[str], warnings: list[str]) -> tuple[dict | None, str]:
     options = {o["id"]: o for o in arch.get("options", [])}
     decision, rec = arch.get("decision"), arch.get("recommendation") or {}
@@ -112,7 +138,8 @@ def three_points(value) -> tuple[float, float, float, float, float]:
     return value, value, value, float(value), 0.0
 
 
-def analyse(spec: dict, catalog: dict, option: dict, errors: list[str], warnings: list[str]) -> dict:
+def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
+            errors: list[str], warnings: list[str]) -> dict:
     """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
     rates = spec["rates"]
     if not rates:
@@ -189,6 +216,8 @@ def analyse(spec: dict, catalog: dict, option: dict, errors: list[str], warnings
         amount = item.get("quantity", 1) * item["unit_cost"]
         infra.append({**item, "annual": amount * PERIODS[item["period"]],
                       "one_time": amount if item["period"] == "unique" else 0.0})
+    hosting = check_hosting(spec, option, infra, providers, checked, errors, warnings)
+    refs(spec.get("hosting", {}).get("refs", []), "hosting/refs")
 
     contingency = spec.get("contingency", 0) / 100
     sd_days, sd_cost = math.sqrt(work_var), math.sqrt(cost_var)
@@ -268,11 +297,83 @@ def analyse(spec: dict, catalog: dict, option: dict, errors: list[str], warnings
                 warnings.append(f"budget dépassé, {label} : {value} pour {budget[key]} "
                                 f"({', '.join(budget.get('refs', [])) or 'sans exigence citée'})")
     totals["budget"] = None if not budget else {"over": over}
+    totals["hosting"] = hosting
     return {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
             "uncovered": uncovered, "uncertain": uncertain}
 
 
-def render_md(spec: dict, option: dict, status: str, found: dict) -> str:
+def check_hosting(spec: dict, option: dict, infra: list[dict], providers: dict, checked: str | None,
+                  errors: list[str], warnings: list[str]) -> dict | None:
+    """Hébergeur de chaque ligne (ligne, hosting, sinon provider de l'option), qualifications exigées."""
+    hosting = spec.get("hosting", {})
+    default = hosting.get("provider")
+    unknown = [(f"hosting/provider", default)] if default and default not in providers else []
+    unknown += [(f"infra/{index} ({item['id']})/provider", item["provider"]) for index, item in enumerate(infra)
+                if item.get("provider") and item["provider"] not in providers]
+    if unknown:
+        errors.extend(f"{where} : hébergeur inconnu « {name} »{hint(name, providers)}" for where, name in unknown)
+        return None
+    if not default and option.get("provider") in providers:
+        default = option["provider"]
+    elif default and option.get("provider") and option["provider"] != default:
+        warnings.append(f"option {option['id']} décrite chez {option['provider']}, chiffrée chez {default} : "
+                        "revoir l'option dans options.json (schéma, revue Well-Architected)")
+    if not default and not hosting and not any(i.get("provider") for i in infra):
+        return None
+    required = hosting.get("qualifications", [])
+    noncompliant, by_provider = [], {}
+    to_check = set()
+    for item in infra:
+        name = item.get("provider") or default
+        item["host"] = name or ""
+        total = by_provider.setdefault(name or "non-precise", {"annual": 0.0, "one_time": 0.0})
+        total["annual"] += item["annual"]
+        total["one_time"] += item["one_time"]
+        if item["kind"] not in QUALIFIED_KINDS or not required:
+            continue
+        held = providers.get(name, {}).get("qualifications", [])
+        missing = [q for q in required if q not in held]
+        if not missing:
+            to_check.add(name)
+        else:
+            noncompliant.append(item["id"])
+            pending = [q for q in missing if q in providers.get(name, {}).get("pending", [])]
+            warnings.append(f"infra {item['id']} : " + (f"{providers[name]['name']} sans {', '.join(missing)}"
+                            if name else "hébergeur non précisé")
+                            + (f" (qualification en cours : {', '.join(pending)})" if pending else "")
+                            + f", exigé par {', '.join(hosting.get('refs', [])) or 'hosting'}")
+    for name in sorted(to_check):
+        if providers[name].get("note"):
+            warnings.append(f"{providers[name]['name']} : {providers[name]['note']}")
+    return {"provider": default, "required": required, "noncompliant": noncompliant,
+            "providers": {k: {"annual": round(v["annual"]), "one_time": round(v["one_time"])}
+                          for k, v in by_provider.items()},
+            "checked": checked}
+
+
+def render_hosting(spec: dict, found: dict, providers: dict) -> list[str]:
+    host, cur = found["totals"]["hosting"], spec.get("currency", "€")
+    if not host:
+        return []
+    out = ["## Hébergement", ""]
+    if host["required"]:
+        out += [f"Qualifications exigées : {', '.join(host['required'])}"
+                + (f" ({', '.join(spec['hosting']['refs'])})" if spec.get("hosting", {}).get("refs") else "") + ".", ""]
+    out += ["| Hébergeur | Juridiction | Qualifications | Par an | Ponctuel | Note |", "| --- | --- | --- | --- | --- | --- |"]
+    for name, total in host["providers"].items():
+        info = providers.get(name, {"name": "non précisé", "jurisdiction": "", "qualifications": []})
+        quals = (", ".join(info["qualifications"]) or "aucune") + (f" (en cours : {', '.join(info['pending'])})"
+                                                                   if info.get("pending") else "")
+        out.append(f"| {info['name']} | {info['jurisdiction']} | {quals} | {money(total['annual'], cur)} | "
+                   f"{money(total['one_time'], cur)} | {cell(info.get('note', ''))} |")
+    out += ["", "Lignes non conformes aux qualifications exigées : "
+            + (", ".join(host["noncompliant"]) if host["noncompliant"] else "aucune") + ".",
+            f"Qualifications selon le catalogue des hébergeurs vérifié le {host['checked'] or 'non daté'} : "
+            "une qualification porte sur une offre, à confirmer sur la liste de l'ANSSI.", ""]
+    return out
+
+
+def render_md(spec: dict, option: dict, status: str, found: dict, providers: dict) -> str:
     cur, t = spec.get("currency", "€"), found["totals"]
     build, horizon = t["build"], t["tco"]["years"]
     out = [f"# {spec.get('title') or 'Chiffrage'}", ""]
@@ -339,14 +440,15 @@ def render_md(spec: dict, option: dict, status: str, found: dict) -> str:
 
     if found["infra"]:
         out += ["## Infrastructure", "",
-                "| Ligne | Composant | Environnement | Nature | Quantité | Prix unitaire | Période | Par an | Ponctuel | Base du prix |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+                "| Ligne | Composant | Hébergeur | Environnement | Nature | Quantité | Prix unitaire | Période | Par an | Ponctuel | Base du prix |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
         for item in found["infra"]:
-            out.append(f"| {item['id']} {cell(item['name'])} | {item.get('component', '')} | "
+            out.append(f"| {item['id']} {cell(item['name'])} | {item.get('component', '')} | {item.get('host', '')} | "
                        f"{item.get('environment', 'production')} | {item['kind']} | {item.get('quantity', 1)} | "
                        f"{money(item['unit_cost'], cur)} | {item['period']} | {money(item['annual'], cur)} | "
                        f"{money(item['one_time'], cur)} | {cell(item['basis'])} |")
         out.append("")
+    out += render_hosting(spec, found, providers)
     if found["run"]:
         out += ["## Maintenance et exploitation", "", "| Poste | Base | Par an |", "| --- | --- | --- |"]
         for item in found["run"]:
@@ -379,7 +481,7 @@ def render_md(spec: dict, option: dict, status: str, found: dict) -> str:
 
 
 CSV_HEAD = ["type", "id", "libellé", "phase", "composant", "profil", "mini", "probable", "maxi", "jours",
-            "taux", "par an", "ponctuel", "coût réalisation", "exigences", "base"]
+            "taux", "par an", "ponctuel", "coût réalisation", "exigences", "base", "hébergeur"]
 
 
 def num(value) -> str:
@@ -392,13 +494,13 @@ def csv_rows(found: dict) -> list[list]:
     for line in found["lines"]:
         rows.append([line["type"], line["id"], line["name"], line["phase"], line["component"], line["profile"],
                      line["low"], line["likely"], line["high"], line["days"], line["rate"], 0, 0,
-                     line["cost"], " ".join(line["refs"]), ""])
+                     line["cost"], " ".join(line["refs"]), "", ""])
     for item in found["infra"]:
         rows.append(["infra", item["id"], item["name"], "", item.get("component", ""), "", "", "", "", "",
-                     item["unit_cost"], item["annual"], item["one_time"], 0, "", item["basis"]])
+                     item["unit_cost"], item["annual"], item["one_time"], 0, "", item["basis"], item.get("host", "")])
     for item in found["run"]:
         rows.append(["run", item["id"], item["name"], "", "", item.get("profile", ""), "", "", "",
-                     item.get("days_per_year", ""), item.get("rate", ""), item["annual"], 0, 0, "", ""])
+                     item.get("days_per_year", ""), item.get("rate", ""), item["annual"], 0, 0, "", "", ""])
     return [[num(v) if isinstance(v, (int, float)) else v for v in row] for row in rows]
 
 
@@ -450,13 +552,14 @@ def main() -> int:
                     "requirements-catalog", "req_build.py", errors, warnings)
     catalog = {r["id"]: r for r in (cat or {}).get("requirements", []) if isinstance(r, dict) and "id" in r}
     option, status = pick_option(spec, arch, errors, warnings) if arch else (None, "")
-    found = analyse(spec, catalog, option, errors, warnings) if option else None
+    providers, checked = load_providers(base, spec, errors, warnings)
+    found = analyse(spec, catalog, option, providers, checked, errors, warnings) if option else None
     report = {"input": str(args.spec), "outputs": [], "option": option["id"] if option else None,
               "currency": spec.get("currency", "€"), "errors": errors, "warnings": warnings}
     if errors or not found:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    report.update({k: found["totals"][k] for k in ("build", "infra", "run", "operate", "tco", "budget")})
+    report.update({k: found["totals"][k] for k in ("build", "infra", "run", "operate", "tco", "budget", "hosting")})
     report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"),
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
                    "uncertain": found["uncertain"]})
@@ -466,7 +569,7 @@ def main() -> int:
     stem = args.spec.name.removesuffix(".json")
     md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, option, status, found))
+        handle.write(render_md(spec, option, status, found, providers))
     with open(table, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(csv_rows(found))
     errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)

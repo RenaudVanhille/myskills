@@ -838,7 +838,24 @@
         {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json"], "exit": 0, "report": {"option": "A", "lots": 10, "build.days": 169.1, "build.days_low": 156.0, "build.cost": 128776, "build.contingency": 11707, "infra.one_time": 6000, "infra.annual": 10200, "run.annual": 33160, "operate.monthly": 3613, "tco.total": 264857, "budget.over": [], "unestimated": [], "uncovered": [], "uncertain": ["L4"], "errors": []}, "report_contains": {"warnings": "option A chiffrée sur la recommandation"}}
       ],
       "files": ["chiffrage.md", "chiffrage.csv"],
-      "contains": {"chiffrage.md": ["| Réalisation, coût | 128 776 € (de 119 164 € à 138 387 €), dont provision 11 707 € |", "| Fonctionnement par mois | 8 000 € | 3 613 € | tenu |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet | 12 % |", "| **Total** | | | | **264 857 €** |", "devis infogérant du 2026-10-01"], "chiffrage.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;architecte;8;10;14;10,33;950;0;0;9816,67;;"]}
+      "contains": {"chiffrage.md": ["| Réalisation, coût | 128 776 € (de 119 164 € à 138 387 €), dont provision 11 707 € |", "| Fonctionnement par mois | 8 000 € | 3 613 € | tenu |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet | 12 % |", "| **Total** | | | | **264 857 €** |", "devis infogérant du 2026-10-01"], "chiffrage.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;architecte;8;10;14;10,33;950;0;0;9816,67;;;"]}
+    },
+    {
+      "id": "chiffrage-secnumcloud",
+      "skill": "solution-estimate",
+      "_note": "Hébergeur souverain et qualification SecNumCloud exigée : ligne chez un hébergeur sans la qualification signalée (qualification en cours), offre à vérifier, option décrite chez un autre fournisseur ; hébergeur inconnu refusé avec la valeur proche.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/chiffrage-secnumcloud.json", "{out}/chiffrage-secnumcloud.json"]},
+        {"copy": ["{fixtures}/workflow/chiffrage-hebergeur-invalide.json", "{out}/chiffrage-hebergeur-invalide.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-secnumcloud.json"], "exit": 0, "report": {"hosting.provider": "cloud-temple", "hosting.required": ["secnumcloud"], "hosting.noncompliant": ["I3"], "hosting.providers.cloud-temple.annual": 9960, "hosting.providers.sur-site.one_time": 6000, "tco.total": 264857, "errors": []}, "report_contains": {"warnings": "S3NS (Thales, technologie Google Cloud) sans secnumcloud (qualification en cours : secnumcloud), exigé par ENF-003"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-secnumcloud.json"], "exit": 0, "report_contains": {"warnings": "option A décrite chez aws, chiffrée chez cloud-temple"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-hebergeur-invalide.json"], "exit": 1, "report_contains": {"errors": "hosting/provider : hébergeur inconnu « cloudtemple » ; vouliez-vous « cloud-temple » ?"}}
+      ],
+      "files": ["chiffrage-secnumcloud.md", "chiffrage-secnumcloud.csv"],
+      "absent": ["chiffrage-hebergeur-invalide.md"],
+      "contains": {"chiffrage-secnumcloud.md": ["## Hébergement", "Qualifications exigées : secnumcloud (ENF-003).", "| Cloud Temple | ue | secnumcloud, hds | 9 960 € |", "| S3NS (Thales, technologie Google Cloud) | ue | aucune (en cours : secnumcloud) |", "Lignes non conformes aux qualifications exigées : I3."]}
     },
     {
       "id": "chiffrage-erreurs",

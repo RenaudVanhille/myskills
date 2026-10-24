@@ -14,6 +14,13 @@
   sans chiffrage, les lots trop incertains et les dépassements de budget,
   écrit `chiffrage.md` et `chiffrage.csv` et relit le CSV. Aucun tarif
   consulté en ligne.
+- Hébergeurs alternatifs et souverains : catalogue
+  `solution-estimate/references/providers.json` (AWS, Azure, Google Cloud,
+  OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ;
+  juridiction, qualifications SecNumCloud et HDS, qualifications en cours),
+  complété par un catalogue du projet. `hosting` exige des qualifications :
+  chaque ligne cloud ou service hors qualification est signalée, coût par
+  hébergeur dans le chiffrage.
 - Agent `solution-estimator` (niveau complexe) : découpe, estime et pose
   les hypothèses, fait calculer le script, note les hypothèses au journal
   d'un workflow ; `architecture-options` lui passe la main une fois la

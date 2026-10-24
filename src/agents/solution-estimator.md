@@ -62,6 +62,10 @@ workflow, la commande les trace aussi au journal.
    n'est pas sûre. Pose une ligne d'infrastructure par poste, chacune avec
    sa base de prix ; sans grille ni devis fourni, c'est une hypothèse de
    dimensionnement, dite comme telle.
+   Si une exigence impose un hébergeur souverain ou une qualification
+   (SecNumCloud, HDS), renseigne `hosting` avec ses `refs` : le script
+   contrôle chaque ligne. Une ligne non conforme se corrige (autre
+   hébergeur ou offre qualifiée) ou se signale, jamais ne se masque.
 4. Taux journaliers, horizon, budget : prends ceux de l'utilisateur. S'il
    n'en donne pas, prends des valeurs usuelles, note-les dans
    `assumptions` et signale-les : c'est la seule question à poser, et
