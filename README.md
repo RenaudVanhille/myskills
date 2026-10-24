@@ -81,12 +81,21 @@ lire par un autre agent ou outil qui appelle myskills.
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
-| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud) |
+| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), présentation du dossier assemblée depuis les étapes validées |
 | `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, passages de main validés, et mémoire partagée dans un vault Obsidian (une note par exigence, terme, option et décision, revue dans Obsidian) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
-| `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki) |
-| `markdown-to-pptx` | Markdown vers PowerPoint modifiable sur le gabarit de la marque : visuels choisis seuls (processus, frise, cartes, chiffres clés...), tableaux et graphiques natifs, notes et textes alternatifs |
+| `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
+
+### Skills externes
+
+Installés à part et appelés par leur seul contrat d'interface
+(`shared/external/<nom>.contract.json` : où le trouver, commande, conventions
+d'entrée, schéma de la sortie) ; myskills n'en copie pas le code.
+
+| Skill | Utilisé par | Installation |
+| --- | --- | --- |
+| `markdown-to-pptx` (md2pptx, Reno) | `markdown-publish` (`pptx_publish.py`) | plugin powerpoint-skill dans votre outil, ou dossier du skill dans `MD2PPTX_SKILL` ; `check-prerequisites` (groupe `publication`) le cherche |
 
 ## Outils autorisés
 

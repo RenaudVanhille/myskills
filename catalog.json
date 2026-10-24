@@ -49,10 +49,11 @@
         },
         {
           "to": "document-publisher",
-          "when": "le dossier d'architecture doit être livré en Word, HTML ou XWiki",
+          "when": "le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint",
           "send": [
-            "exigences.md, options.md, adr-architecture.md et les PNG",
-            "l'outil cible"
+            "exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py) pour PowerPoint",
+            "l'outil cible",
+            "le gabarit .potx de la marque, s'il est connu"
           ]
         }
       ],
@@ -148,7 +149,6 @@
       "skills": [
         "check-prerequisites",
         "markdown-publish",
-        "markdown-to-pptx",
         "diagram-export",
         "decision-log"
       ]
@@ -214,7 +214,8 @@
         "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
         "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
         "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
-        "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)"
+        "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)",
+        "presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
       ],
       "scripts": [
         {
@@ -681,6 +682,74 @@
             "0": "comparaison produite sans erreur (avertissements possibles)",
             "1": "description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit"
           }
+        },
+        {
+          "name": "deck_build.py",
+          "role": "Assemble la présentation du dossier à partir des étapes validées, sans rien demander au modèle : options.json (validé contre le schéma d'options_build.py), le catalogue d'exigences et son glossaire, decision.json, les PNG des schémas déjà exportés. Mêmes scores et contrôles qu'options_build.py ; une diapositive par information (chiffres clés, exigences indispensables, glossaire, notes par critère en graphique, scores, écarts, comparaison, un schéma par option, décision, couverture par l'option retenue, questions ouvertes), le détail dans les notes de l'orateur.",
+          "usage": "uv run scripts/deck_build.py DOSSIER [--out presentation.md]",
+          "options": {
+            "DOSSIER": "dossier du workflow : options.json, son catalogue d'exigences, decision.json s'il existe, schemas/*.png",
+            "--out": "Markdown à écrire (défaut : DOSSIER/presentation.md)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet : Markdown écrit, nombre de sections et de schémas inclus, option décidée ; un schéma non exporté est un avertissement.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "sections",
+                "images",
+                "decided",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sections": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "images": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "decided": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "presentation.md écrit",
+            "1": "options.json, decision.json ou catalogue illisible ou invalide (erreurs avec leur chemin) ; aucun fichier écrit"
+          }
         }
       ],
       "handoffs": [
@@ -703,6 +772,11 @@
           "to": "decision-log",
           "kind": "skill",
           "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+        },
+        {
+          "to": "markdown-publish",
+          "kind": "skill",
+          "when": "produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx)"
         }
       ],
       "description": "Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exigences : écarts de couverture, notes par critère justifiées, score pondéré et rang calculés par script, recommandation, puis ADR de la décision et un schéma draw.io par option. À utiliser pour proposer des architectures, comparer des scénarios ou documenter un choix d'architecture.",
@@ -3599,11 +3673,12 @@
       "skill": "markdown-publish",
       "inputs": [
         "Markdown ou notes Obsidian, avec leurs images et schémas sources",
-        "Modèle Word (facultatif)",
+        "Modèle Word ou gabarit PowerPoint .potx (facultatif)",
         "Vault Obsidian (facultatif)"
       ],
       "outputs": [
         "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
+        "<nom>.pptx, par le skill externe markdown-to-pptx s'il est installé",
         "En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/"
       ],
       "scripts": [
@@ -3758,6 +3833,96 @@
           }
         },
         {
+          "name": "pptx_publish.py",
+          "role": "Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs).",
+          "usage": "uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]",
+          "options": {
+            "DOC.md": "document Markdown écrit selon les conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->)",
+            "--out": "dossier de sortie (défaut : à côté du Markdown)",
+            "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill (MD2PPTX_TEMPLATE, dossier .md2pptx/ du projet, gabarit du skill)",
+            "--lang": "langue des libellés générés (défaut : détectée)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet : dossier et version du skill utilisé, diapositives, nombre par type, images, objets sans texte alternatif.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "skill",
+                "version",
+                "slides",
+                "kinds",
+                "images",
+                "missing_alt",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "skill": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "slides": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "kinds": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "images": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "missing_alt": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "présentation écrite et vérifiée",
+            "1": "Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé"
+          }
+        },
+        {
           "name": "make_reference.py",
           "role": "Régénère references/modele.docx aux couleurs de la charte.",
           "maintenance": true,
@@ -3777,12 +3942,17 @@
           "when": "exporter les schémas (automatique)"
         },
         {
+          "to": "markdown-to-pptx",
+          "kind": "externe",
+          "when": "produire le .pptx (pptx_publish.py le lance)"
+        },
+        {
           "to": "utilisateur",
           "kind": "utilisateur",
-          "when": "importer les fichiers dans SharePoint, Confluence ou XWiki"
+          "when": "importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx"
         }
       ],
-      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
+      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
       "path": "skills/markdown-publish"
     },
     {
@@ -4108,142 +4278,6 @@
       ],
       "description": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian.",
       "path": "skills/markdown-to-obsidian"
-    },
-    {
-      "skill": "markdown-to-pptx",
-      "inputs": [
-        "Un document Markdown (titre #, sections ##, listes, tableaux, images relatives au .md), éventuellement annoté de consignes <!-- slide: cycle -->",
-        "Un gabarit .potx de la marque (facultatif) : --template, MD2PPTX_TEMPLATE ou un dossier .md2pptx/ du projet ; sinon le gabarit neutre fourni"
-      ],
-      "outputs": [
-        "<nom>.pptx modifiable : diagrammes en formes PowerPoint natives (processus, cycle, frise, cartes, chiffres clés, comparaison, entonnoir, Gantt...), tableaux et graphiques natifs, notes de l'orateur, textes alternatifs",
-        "Avec --plan : le plan des diapositives en JSON (type de chaque diapositive, objet du document, langue)"
-      ],
-      "scripts": [
-        {
-          "name": "pptx_build.py",
-          "role": "Construit la présentation avec le moteur md2pptx (visuel choisi pour chaque section, gabarit appliqué), puis rouvre le .pptx pour vérifier le nombre de diapositives, les diapositives vides et les textes alternatifs.",
-          "usage": "uv run scripts/pptx_build.py DOC.md [--out DOC.pptx] [--template MARQUE.potx] [--plan PLAN.json] [--lang fr|en] | --md2pptx ARGS...",
-          "options": {
-            "DOC.md": "document Markdown",
-            "--out": "fichier .pptx (défaut : même nom que le Markdown)",
-            "--template": "gabarit .potx ou .pptx de la marque, prioritaire sur MD2PPTX_TEMPLATE et le dossier .md2pptx/",
-            "--plan": "écrit aussi le plan des diapositives (JSON)",
-            "--lang": "langue des libellés générés (défaut : détectée)",
-            "--md2pptx": "passe le reste de la ligne à la commande md2pptx d'origine (--check, --list-layouts, --plan-only, --from-plan, --guide...), décrite dans references/ ; sortie en texte, sans rapport JSON"
-          },
-          "report": {
-            "format": "json",
-            "description": "Un objet : gabarit retenu et d'où il vient, objet et langue détectés, nombre de diapositives par type, parties, objets sans texte alternatif.",
-            "schema": {
-              "$schema": "https://json-schema.org/draft/2020-12/schema",
-              "type": "object",
-              "required": [
-                "input",
-                "output",
-                "template",
-                "template_source",
-                "purpose",
-                "lang",
-                "slides",
-                "kinds",
-                "parts",
-                "missing_alt",
-                "errors",
-                "warnings"
-              ],
-              "additionalProperties": false,
-              "properties": {
-                "input": {
-                  "type": "string"
-                },
-                "output": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "template": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "template_source": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "purpose": {
-                  "type": [
-                    "string",
-                    "null"
-                  ]
-                },
-                "lang": {
-                  "enum": [
-                    "fr",
-                    "en",
-                    null
-                  ]
-                },
-                "slides": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "kinds": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "integer",
-                    "minimum": 1
-                  }
-                },
-                "parts": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "missing_alt": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "errors": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "warnings": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "exit_codes": {
-            "0": "présentation écrite et vérifiée",
-            "1": "Markdown ou gabarit introuvable, document illisible, rendu impossible ou fichier produit incohérent ; aucun .pptx laissé"
-          }
-        }
-      ],
-      "handoffs": [
-        {
-          "to": "diagram-export",
-          "kind": "skill",
-          "when": "exporter en PNG un schéma draw.io, Mermaid ou Excalidraw avant de le citer comme image dans le Markdown"
-        },
-        {
-          "to": "utilisateur",
-          "kind": "utilisateur",
-          "when": "relire la présentation et la diffuser"
-        }
-      ],
-      "description": "Transforme un document Markdown (notes, proposition, rapport, dossier d'architecture, compte rendu) en présentation PowerPoint .pptx modifiable, sur le gabarit .potx de la marque. Choisit seul le visuel de chaque section (processus, cycle, frise, organigramme, cartes, chiffres clés, comparaison, entonnoir, Gantt, matrice de maturité, carte d'Europe), des tableaux et graphiques natifs, écrit les notes de l'orateur et les textes alternatifs. À utiliser pour livrer une présentation à partir de Markdown.",
-      "path": "skills/markdown-to-pptx"
     },
     {
       "skill": "mermaid-diagram",

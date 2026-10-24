@@ -1,0 +1,93 @@
+{
+  "skill": "markdown-to-pptx",
+  "versions": "0.5",
+  "source": "Skill markdown-to-pptx (md2pptx) de Reno, projet powerpoint-skill. Installé à part : myskills n'en copie ni le code ni les gabarits, il ne s'appuie que sur ce contrat.",
+  "install": "installez le plugin powerpoint-skill (skill markdown-to-pptx) dans votre outil, ou donnez le dossier du skill dans la variable MD2PPTX_SKILL",
+  "locate": {
+    "env": "MD2PPTX_SKILL",
+    "entry": "scripts/md2pptx.py",
+    "folders": [
+      "./.claude/skills/markdown-to-pptx",
+      "./.github/skills/markdown-to-pptx",
+      "./.opencode/skills/markdown-to-pptx",
+      "./.kiro/skills/markdown-to-pptx",
+      "./.hermes/skills/markdown-to-pptx",
+      "./.agents/skills/markdown-to-pptx",
+      "~/.claude/skills/markdown-to-pptx",
+      "~/.claude/plugins/cache/*/*/*/skills/markdown-to-pptx",
+      "~/.claude/plugins/marketplaces/*/skills/markdown-to-pptx",
+      "~/.copilot/skills/markdown-to-pptx",
+      "~/.copilot/installed-plugins/*/*/skills/markdown-to-pptx",
+      "~/.config/opencode/skills/markdown-to-pptx",
+      "~/.kiro/skills/markdown-to-pptx",
+      "~/.hermes/skills/markdown-to-pptx",
+      "~/.agents/skills/markdown-to-pptx",
+      "~/Claude/powerpoint-skill/skills/markdown-to-pptx"
+    ]
+  },
+  "dependencies": ["python-pptx>=1.0", "markdown-it-py>=3.0"],
+  "command": {
+    "usage": "{python} {entry} DOC.md -o DOC.pptx --plan PLAN.json [--template MARQUE.potx] [--lang fr|en]",
+    "version": "--version",
+    "options": {
+      "DOC.md": "document Markdown ; les images sont relatives à ce fichier",
+      "-o": "fichier .pptx à écrire",
+      "--plan": "écrit aussi le plan des diapositives (JSON, voir plan)",
+      "--template": "gabarit .potx de la marque ; sinon MD2PPTX_TEMPLATE, puis un dossier .md2pptx/ du dossier courant ou d'un parent, puis le gabarit du skill",
+      "--lang": "langue des libellés générés (défaut : détectée)"
+    }
+  },
+  "inputs": [
+    "Un document Markdown : front matter, un seul titre #, une section ## par diapositive (### pour un chapitre), une consigne de visuel sous chaque titre",
+    "Un gabarit .potx de la marque (facultatif)"
+  ],
+  "markdown": {
+    "front_matter": {
+      "title": "titre (60 caractères au plus)",
+      "subtitle": "ligne de la couverture (140 caractères au plus)",
+      "author": "auteur ou équipe",
+      "date": "date affichée",
+      "purpose": "objet du document, voir purposes",
+      "lang": "fr ou en"
+    },
+    "hint": "<!-- slide: KIND --> seul sur la ligne sous le titre ; <!-- notes: texte --> pour les notes de l'orateur ; <!-- part: Titre --> sous le premier ## d'une partie",
+    "kinds": ["process", "cycle", "timeline", "hierarchy", "cards", "stats", "pyramid", "comparison", "funnel",
+              "hub", "rings", "gantt", "matrix", "map", "stairs", "flow", "chart", "table", "bullets", "text", "image"],
+    "purposes": ["proposal", "status_report", "training", "strategy", "technical", "postmortem", "research"],
+    "rules": [
+      "un seul bloc visuel par titre ; 6 puces, 7 éléments de diagramme, 8 lignes et 5 colonnes de tableau au plus",
+      "stats : chaque élément commence par le nombre en gras, 2 à 4 éléments",
+      "cards, process : chaque élément **Libellé** : texte",
+      "chart : tableau dont les colonnes après la première ne contiennent que des nombres",
+      "comparison : un ## dont le titre contient « comparaison » ou « options », avec 2 ou 3 ### qui n'ont qu'une liste",
+      "image : ![texte alternatif](chemin relatif), seule sur sa ligne, une par titre",
+      "pas de sommaire ni de diapositive de clôture : le skill les ajoute"
+    ]
+  },
+  "outputs": [
+    "DOC.pptx modifiable : diagrammes en formes natives, tableaux et graphiques natifs, notes de l'orateur, textes alternatifs",
+    "PLAN.json : une entrée par diapositive (kind, title), objet et langue détectés"
+  ],
+  "plan": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["title", "purpose", "slides"],
+    "properties": {
+      "title": {"type": "string"},
+      "purpose": {"type": "object", "required": ["type", "label"],
+                  "properties": {"type": {"type": "string"}, "label": {"type": "string"}}},
+      "lang": {"enum": ["fr", "en"]},
+      "slides": {"type": "array", "minItems": 1,
+                 "items": {"type": "object", "required": ["kind"],
+                           "properties": {"kind": {"type": "string"}, "title": {"type": ["string", "null"]},
+                                          "src": {"type": "string"}, "alt": {"type": ["string", "null"]}}}},
+      "parts": {"type": "array", "items": {"type": "object", "required": ["title"]}},
+      "warnings": {"type": "array", "items": {"type": "string"}}
+    }
+  },
+  "exit_codes": {
+    "0": "présentation et plan écrits",
+    "1": "rendu impossible (trace Python sur la sortie d'erreur)",
+    "2": "argument invalide ou Markdown introuvable"
+  }
+}

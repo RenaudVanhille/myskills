@@ -27,7 +27,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 | --- | --- | --- |
 | `document-extractor` | des documents demandent une transcription par vision page à page (scans, schémas en image) en lot | les documents ; la cible markdown et le dossier sources/ |
 | `schema-designer` | l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces | options.md et options.json ; l'option retenue et ses noms de composants ; le dossier schemas/ ; la note de l'option dans le vault |
-| `document-publisher` | le dossier d'architecture doit être livré en Word, HTML ou XWiki | exigences.md, options.md, adr-architecture.md et les PNG ; l'outil cible |
+| `document-publisher` | le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint | exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py) pour PowerPoint ; l'outil cible ; le gabarit .potx de la marque, s'il est connu |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
 passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
@@ -105,7 +105,10 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      pour l'option retenue), puis `drawio_build.py
      schemas/architectures.json`, `cloud_build.py` sur le
      `schemas/option-<id>.cloud.json` de l'option retenue s'il existe, et
-     `export.py` en PNG ; relis chaque PNG une fois.
+     `export.py` en PNG ; relis chaque PNG une fois. Si l'utilisateur
+     veut une présentation, lance ensuite `deck_build.py DOSSIER` (skill
+     `architecture-options`) : il écrit `presentation.md` depuis les seuls
+     fichiers validés, sans rien rédiger ; tu ne le réécris pas.
 4. **Tracer** : pendant l'étape, note avec `journal.py log` chaque choix
    qui demande du jugement (exigence déduite, priorité non explicite,
    phrase écartée, critère ou note, hypothèse), en une phrase, avec `--why`
@@ -126,8 +129,9 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
    éditions ciblées et garde les identifiants (exigences, options).
 7. **Fin** : quand `status` dit que tout est validé, livre le rapport final
    (`status` à `ok`, tous les livrables et `journal.md` dans `files`).
-   Pour un dossier Word ou Confluence, `next` passe la main à
-   `document-publisher`.
+   Pour un dossier Word ou Confluence, ou une présentation PowerPoint
+   (`presentation.md`, `destination` à `powerpoint`), `next` passe la main
+   à `document-publisher`.
 
 Si une commande est introuvable ou qu'un script signale un outil manquant,
 applique `check-prerequisites`. Ne le lance pas par précaution.

@@ -31,7 +31,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 | --- | --- | --- |
 | `document-extractor` | des documents demandent une transcription par vision page à page (scans, schémas en image) en lot | les documents ; la cible markdown et le dossier sources/ |
 | `schema-designer` | l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces | options.md et options.json ; l'option retenue et ses noms de composants ; le dossier schemas/ ; la note de l'option dans le vault |
-| `document-publisher` | le dossier d'architecture doit être livré en Word, HTML ou XWiki | exigences.md, options.md, adr-architecture.md et les PNG ; l'outil cible |
+| `document-publisher` | le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint | exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py) pour PowerPoint ; l'outil cible ; le gabarit .potx de la marque, s'il est connu |
 
 ### `document-extractor`
 
@@ -55,7 +55,7 @@ Généré depuis `src/agents/document-extractor.contract.json`, qui fait foi.
 
 Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, présentation PowerPoint, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer.
 
-**Skills** : `check-prerequisites`, `markdown-publish`, `markdown-to-pptx`, `diagram-export`, `decision-log`
+**Skills** : `check-prerequisites`, `markdown-publish`, `diagram-export`, `decision-log`
 
 Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 
@@ -96,13 +96,15 @@ Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exig
 Résumé de [`contract.json`](skills/architecture-options/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
-- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles).
+- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles) ; presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois.
 - **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`deck_build.py`** : Assemble la présentation du dossier à partir des étapes validées, sans rien demander au modèle : options.json (validé contre le schéma d'options_build.py), le catalogue d'exigences et son glossaire, decision.json, les PNG des schémas déjà exportés. Mêmes scores et contrôles qu'options_build.py ; une diapositive par information (chiffres clés, exigences indispensables, glossaire, notes par critère en graphique, scores, écarts, comparaison, un schéma par option, décision, couverture par l'option retenue, questions ouvertes), le détail dans les notes de l'orateur. Rapport JSON, codes de sortie : 0 presentation.md écrit ; 1 options.json, decision.json ou catalogue illisible ou invalide (erreurs avec leur chemin) ; aucun fichier écrit.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
 - **Passe la main** à l'agent `schema-designer` : un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue.
 - **Passe la main** au skill `decision-log` : noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur.
+- **Passe la main** au skill `markdown-publish` : produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx).
 
 ### `c4-architecture`
 
@@ -226,16 +228,18 @@ Résumé de [`contract.json`](skills/excalidraw-diagram/contract.json), qui fait
 
 ### `markdown-publish`
 
-Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.
+Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.
 
 Résumé de [`contract.json`](skills/markdown-publish/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
+- **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word ou gabarit PowerPoint .potx (facultatif) ; Vault Obsidian (facultatif).
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, par le skill externe markdown-to-pptx s'il est installé ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier. Rapport JSON, codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
+- **`pptx_publish.py`** : Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs). Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé.
 - **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte. Pas de rapport, codes de sortie : 0 modèle écrit.
 - **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
-- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki.
+- **Passe la main** au skill externe `markdown-to-pptx` (installé à part, contrat `shared/external/markdown-to-pptx.contract.json`) : produire le .pptx (pptx_publish.py le lance).
+- **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx.
 
 ### `markdown-to-obsidian`
 
@@ -249,18 +253,6 @@ Résumé de [`contract.json`](skills/markdown-to-obsidian/contract.json), qui fa
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON, codes de sortie : 0 profil produit ; 1 vault introuvable.
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
-
-### `markdown-to-pptx`
-
-Transforme un document Markdown (notes, proposition, rapport, dossier d'architecture, compte rendu) en présentation PowerPoint .pptx modifiable, sur le gabarit .potx de la marque. Choisit seul le visuel de chaque section (processus, cycle, frise, organigramme, cartes, chiffres clés, comparaison, entonnoir, Gantt, matrice de maturité, carte d'Europe), des tableaux et graphiques natifs, écrit les notes de l'orateur et les textes alternatifs. À utiliser pour livrer une présentation à partir de Markdown.
-
-Résumé de [`contract.json`](skills/markdown-to-pptx/contract.json), qui fait foi (champs des rapports en JSON Schema).
-
-- **Entrées** : Un document Markdown (titre #, sections ##, listes, tableaux, images relatives au .md), éventuellement annoté de consignes <!-- slide: cycle --> ; Un gabarit .potx de la marque (facultatif) : --template, MD2PPTX_TEMPLATE ou un dossier .md2pptx/ du projet ; sinon le gabarit neutre fourni.
-- **Sorties** : <nom>.pptx modifiable : diagrammes en formes PowerPoint natives (processus, cycle, frise, cartes, chiffres clés, comparaison, entonnoir, Gantt...), tableaux et graphiques natifs, notes de l'orateur, textes alternatifs ; Avec --plan : le plan des diapositives en JSON (type de chaque diapositive, objet du document, langue).
-- **`pptx_build.py`** : Construit la présentation avec le moteur md2pptx (visuel choisi pour chaque section, gabarit appliqué), puis rouvre le .pptx pour vérifier le nombre de diapositives, les diapositives vides et les textes alternatifs. Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown ou gabarit introuvable, document illisible, rendu impossible ou fichier produit incohérent ; aucun .pptx laissé.
-- **Passe la main** au skill `diagram-export` : exporter en PNG un schéma draw.io, Mermaid ou Excalidraw avant de le citer comme image dans le Markdown.
-- **Passe la main** à l'utilisateur : relire la présentation et la diffuser.
 
 ### `mermaid-diagram`
 

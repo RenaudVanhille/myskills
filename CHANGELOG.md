@@ -2,12 +2,23 @@
 
 ## 0.3.0 (2026-10-24)
 
-- Nouveau skill `markdown-to-pptx` : Markdown vers PowerPoint modifiable sur
-  le gabarit .potx de la marque, visuels choisis seuls, tableaux et
-  graphiques natifs, notes de l'orateur et textes alternatifs. Moteur repris
-  du skill markdown-to-pptx (md2pptx 0.5.1) de Reno, sans sa bibliothèque de
-  marque privée ; `pptx_build.py` vérifie le fichier produit.
-- `document-publisher` livre aussi une présentation PowerPoint.
+- Export PowerPoint par le skill externe `markdown-to-pptx` (md2pptx, de
+  Reno), installé à part : myskills n'en copie pas le code et ne connaît que
+  son contrat d'interface, `shared/external/markdown-to-pptx.contract.json`
+  (dossiers d'installation, commande, conventions du Markdown, schéma du
+  plan rendu). Nouveau type de passage de main `externe`, vérifié par le cas
+  `contrats`.
+- `markdown-publish` : `pptx_publish.py` trouve le skill installé, vérifie
+  le Markdown, le lance, valide le plan rendu contre le contrat et relit le
+  `.pptx` ; skill absent : consigne d'installation dans le rapport.
+- `architecture-options` : `deck_build.py` assemble `presentation.md` depuis
+  les étapes validées du workflow (exigences et glossaire, notes par
+  critère, scores, écarts, comparaison, schémas PNG, décision, couverture,
+  questions ouvertes), chaque donnée une seule fois ; `options_build.py`
+  partage ses contrôles et scores (`analyse`).
+- Workflow `architecture` : présentation facultative à l'étape `schemas` ;
+  `document-publisher` livre le PowerPoint ; `check-prerequisites` cherche le
+  skill externe.
 
 ## 0.2.0 (2026-10-23)
 

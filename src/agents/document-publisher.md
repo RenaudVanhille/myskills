@@ -1,7 +1,7 @@
 ---
 name: document-publisher
 description: "Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, présentation PowerPoint, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer."
-skills: check-prerequisites, markdown-publish, markdown-to-pptx, diagram-export, decision-log
+skills: check-prerequisites, markdown-publish, diagram-export, decision-log
 commands: python *, python3 *, py *, uv run *
 ---
 
@@ -56,11 +56,15 @@ workflow, la commande les trace aussi au journal.
 3. Avant de convertir, relis la source : chaque image a un texte alternatif
    parlant (il devient la légende), les liens d'images pointent vers des
    fichiers qui existent. Ne modifie pas la source sans le dire.
-   Pour une présentation PowerPoint (`destination` à `powerpoint`), le
-   skill est `markdown-to-pptx` : demande le gabarit .potx de la marque
-   s'il n'est ni donné ni dans un dossier `.md2pptx/` du projet, lance
-   `pptx_build.py` et lis son rapport ; les étapes 4 et 5 ne s'appliquent
-   pas. Un objet sans texte alternatif se corrige dans le Markdown.
+   Pour une présentation PowerPoint (`destination` à `powerpoint`), lance
+   `pptx_publish.py` du skill `markdown-publish` : il appelle le skill
+   externe `markdown-to-pptx`, installé à part, par son seul contrat
+   d'interface, et vérifie le `.pptx`. Le Markdown suit les conventions de
+   ce contrat (section 3 de `markdown-publish`) ; un `presentation.md`
+   produit par `deck_build.py` les suit déjà. Passe `--template` si un
+   gabarit .potx est donné. Un schéma source s'exporte d'abord en PNG.
+   S'il signale le skill introuvable, transmets la consigne d'installation
+   du rapport. Les étapes 4 et 5 ne s'appliquent pas.
 4. Lance `publish.py` du skill `markdown-publish`, avec `--preview` pour un
    .docx si LibreOffice est présent, et lis le rapport JSON.
 5. Ouvre chaque planche de l'aperçu (seules les pages à relire y sont) et

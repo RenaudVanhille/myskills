@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import external_skill  # noqa: E402
 import local_tools  # noqa: E402
 
 UV = ("uv", "obligatoire", lambda: shutil.which("uv") is not None, "https://docs.astral.sh/uv/")
@@ -52,6 +53,9 @@ GROUPS = {
         UV,
         ("LibreOffice (PDF et relecture visuelle des .docx)", "facultatif",
          lambda: local_tools.soffice_binary() is not None, "https://www.libreoffice.org/download/"),
+        ("Skill markdown-to-pptx installé à part (export PowerPoint)", "facultatif",
+         lambda: external_skill.locate("markdown-to-pptx")[1] is not None,
+         external_skill.contract("markdown-to-pptx")["install"]),
     ],
 }
 

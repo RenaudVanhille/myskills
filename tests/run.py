@@ -162,10 +162,21 @@ def check_contracts() -> dict:
     """Contrats valides, cohérents entre eux, et fichiers générés à jour."""
     failures = []
     schemas = {name: contracts_lib.schema(name)
-               for name in ("skill-contract", "agent-contract", "handoff", "agent-report")}
+               for name in ("skill-contract", "agent-contract", "handoff", "agent-report", "external-skill")}
     registry = Registry().with_resources(
         (f"{name}.schema.json", Resource.from_contents(value)) for name, value in schemas.items())
     skills, agents = contracts_lib.skill_contracts(), contracts_lib.agent_contracts()
+    externals = contracts_lib.external_contracts()
+    for name, contract in externals.items():
+        failures += [f"external/{name}.contract.json : {e}" for e in schema_errors(contract, schemas["external-skill"])]
+        if contract.get("skill") != name:
+            failures.append(f"external/{name}.contract.json : skill = {contract.get('skill')!r}")
+        if name in skills:
+            failures.append(f"external/{name} : un skill du dépôt porte déjà ce nom")
+        try:
+            Draft202012Validator.check_schema(contract.get("plan", {}))
+        except Exception as error:  # noqa: BLE001 - message du validateur
+            failures.append(f"external/{name} : schéma du plan invalide ({error})")
 
     for folder in sorted((ROOT / "skills").glob("*/")):
         if folder.name not in skills:
@@ -190,9 +201,18 @@ def check_contracts() -> dict:
                 except Exception as error:  # noqa: BLE001 - message du validateur
                     failures.append(f"{name}/{script['name']} : schéma de rapport invalide ({error})")
         for handoff in contract.get("handoffs", []):
-            known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"}}[handoff["kind"]]
+            known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
+                     "externe": externals}[handoff["kind"]]
             if handoff["to"] not in known:
                 failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
+            elif handoff["kind"] == "externe":
+                # Le skill externe se lance avec l'interpréteur de l'appelant : ses dépendances
+                # doivent figurer dans l'en-tête PEP 723 d'un script du skill.
+                headers = " ".join(p.read_text(encoding="utf-8").split("# ///")[1]
+                                   for p in (ROOT / "skills" / name / "scripts").glob("*.py")
+                                   if p.read_text(encoding="utf-8").startswith("# /// script"))
+                failures += [f"{name} : dépendance {d} du skill externe {handoff['to']} absente des en-têtes PEP 723"
+                             for d in externals[handoff["to"]].get("dependencies", []) if f'"{d}"' not in headers]
 
     # Workflows livrés : conformes au schéma de définition, skills et agents existants.
     journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")

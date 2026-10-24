@@ -12,7 +12,9 @@ modification des agents ou des skills pour en chiffrer l'effet.
 
 Un cas peut préparer son dossier : `inputs` copie des fichiers (chaîne, ou
 {"from", "to"} pour garder un sous-dossier) et `setup` lance des scripts de
-skills avant l'agent (par exemple un workflow déjà soumis à la revue).
+skills avant l'agent (par exemple un workflow déjà soumis à la revue) ; `env`
+fixe des variables pour l'agent ({tests} = ce dossier), par exemple la
+doublure d'un skill externe.
 
 Avec --max-increase P, un cas qui coûte plus de P % de plus que sa dernière
 mesure avec le même modèle (dans costs.csv) fait échouer la mesure : la
@@ -30,6 +32,7 @@ import argparse
 import csv
 import datetime
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -79,8 +82,9 @@ def run_case(case: dict, model: str, keep: bool) -> dict:
                "--plugin-dir", str(ROOT), "--agent", f"myskills:{case['agent']}",
                "--model", model, "--permission-mode", "bypassPermissions"]
     try:
+        env = {**os.environ, **{k: v.replace("{tests}", str(TESTS)) for k, v in case.get("env", {}).items()}}
         result = subprocess.run(command, cwd=work, capture_output=True, text=True,
-                                encoding="utf-8", timeout=1800)
+                                encoding="utf-8", timeout=1800, env=env)
         data = json.loads(result.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError) as error:
         data = {"is_error": True, "result": str(error)}

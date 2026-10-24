@@ -132,6 +132,7 @@
       "id": "publier-pptx",
       "agent": "document-publisher",
       "prompt": "Fais une présentation PowerPoint de dossier.md pour le comité de direction, avec le gabarit par défaut.",
+      "env": {"MD2PPTX_SKILL": "{tests}/fixtures/md2pptx-stub"},
       "inputs": [
         {
           "from": "fixtures/pptx/dossier.md",
@@ -144,7 +145,7 @@
       ],
       "output": "dossier.pptx",
       "rubric": [
-        "dossier.pptx a été produit par pptx_build.py (skill markdown-to-pptx) et son rapport n'a aucune erreur.",
+        "dossier.pptx a été produit par pptx_publish.py (skill markdown-publish, qui appelle le skill externe markdown-to-pptx) et son rapport n'a aucune erreur.",
         "Le rapport final de l'agent est un JSON sur une ligne, avec dossier.pptx dans files.",
         "L'agent n'a pas posé de question sur le gabarit, puisque le prompt demande le gabarit par défaut."
       ]
