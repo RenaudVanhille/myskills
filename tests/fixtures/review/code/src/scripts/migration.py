@@ -1,0 +1,2 @@
+def migrer():
+    return []

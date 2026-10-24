@@ -1,6 +1,57 @@
 # Journal des versions
 
-## Non publié
+## À venir
+
+### Ontologie du vault Obsidian
+
+- `shared/vault-ontology.json` (schéma `shared/schemas/vault-ontology.schema.json`) :
+  14 types de notes (workflow, etape, revue, exigence, terme,
+  option-architecture, decision, adr, document, application,
+  revue-architecture, constat, risque, menace), propriétés et valeurs
+  permises, relations typées écrites en wikilinks dans le frontmatter
+  (`workflow`, `concerne`, `termes`, `ecarts`, `option`, `exigences`,
+  `evalue`, `porte-sur`, `issu-de`, `attenue-par`...), tags normalisés
+  (`type/<type>` et facettes `<propriété>/<valeur>`). Un type s'ajoute sans
+  code.
+- `shared/scripts/vault_ontology.py`, copié par `build.py` dans les skills
+  dont le contrat déclare `vault` (`writes`, `reads`) : construit, écrit et
+  vérifie le frontmatter.
+- `decision-log` : `vault_sync.py` écrit des notes typées (relations et
+  tags normalisés) et n'écrit rien si une note sort de l'ontologie ; listes
+  du frontmatter en blocs, comme Obsidian ; statut de l'ADR `acceptee`.
+- `markdown-to-obsidian` : `obsidianize.py` écrit `type: document` ; la
+  classification Laya va dans `nature` (au lieu de `type`) et `domaine`.
+  Nouveau `vault_check.py` : vérifie un vault ou un dossier contre
+  l'ontologie et exporte le graphe typé (node-link NetworkX, lisible par
+  graphify ou networkx) ; `--ontology [TYPE]` donne l'ontologie résumée.
+- Règles : champ `vault` des contrats, types existants et ontologie
+  cohérente (`contrats`), import de `vault_ontology` par tout skill qui
+  écrit dans le vault (`regles`).
+
+### Revue d'architecture
+
+- Skill `architecture-review` (`arch_review.py`) : revue d'une architecture
+  logicielle ou solution à la manière d'ATAM. Le modèle écrit et évalue les
+  scénarios de qualité (arbre d'utilité), les risques, sensibilités,
+  compromis et décisions ; le script contrôle la structure (cycles
+  synchrones, base partagée, couches, pivot, chaîne synchrone longue,
+  dépendance externe synchrone, point unique de défaillance), la
+  traçabilité des exigences, les scénarios, décisions et risques, reprend
+  une option d'`architecture-options` (`source`) sans recopie, ajoute les
+  piliers Well-Architected d'une description cloud et calcule l'avis.
+- Code comparé à l'architecture avec graphify, skill externe appelé par son
+  contrat (`shared/external/graphify.contract.json`) : `--code-only` par
+  défaut (analyse locale) ; `semantic` fait lire aussi les documents par le
+  modèle du harness ou par Ollama.
+- AGENTS.md, section 5 : la règle vise les services tiers non maîtrisés ;
+  les modèles du harness (offre entreprise) ne sont pas concernés. Le contrat des skills
+  externes accepte un outil en ligne de commande (`locate.command`) et le
+  schéma de sa sortie (`output_schema`).
+- `--vault` : la revue, ses constats et ses risques deviennent des notes
+  typées du vault (`revue-architecture`, `constat`, `risque` de
+  l'ontologie), reliées aux notes d'exigence, d'option et d'ADR.
+- Agent `architecture-reviewer` : revue d'architecture en plus des menaces
+  et du Well-Architected ; `check-prerequisites` : groupe `revue`.
 
 ### Chiffrage
 

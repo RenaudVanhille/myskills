@@ -418,6 +418,22 @@
         "Le coût total sur 3 ans et le fonctionnement mensuel sont comparés au budget de 8 000 euros par mois (ENF-005).",
         "Aucune exigence retenue n'est laissée sans lot, ou elle est listée comme exclue avec sa raison."
       ]
+    },
+    {
+      "id": "revue-architecture",
+      "agent": "architecture-reviewer",
+      "prompt": "Fais la revue d'architecture de l'option A de options.json, dans revue/.",
+      "inputs": [
+        {"from": "fixtures/workflow/options.json", "to": "options.json"},
+        {"from": "fixtures/workflow/exigences.json", "to": "exigences.json"}
+      ],
+      "output": "revue/revue.md",
+      "rubric": [
+        "La revue donne un avis : favorable, favorable avec réserves ou défavorable.",
+        "L'arbre d'utilité a au moins un scénario de qualité pour la performance, la disponibilité et la sécurité, chacun évalué avec sa raison.",
+        "La revue relève la dépendance synchrone à l'annuaire des assurés sur le parcours de l'assuré.",
+        "Les composants et flux viennent de l'option A sans être recopiés dans la description (source)."
+      ]
     }
   ]
 }

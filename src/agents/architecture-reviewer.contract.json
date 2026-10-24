@@ -2,17 +2,20 @@
   "agent": "architecture-reviewer",
   "level": "complexe",
   "receives": [
+    "Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code",
     "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
-    "Ce que l'utilisateur veut : modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
+    "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
     "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
   ],
   "produces": [
+    "<sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code",
     "<sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés",
     "<sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison",
     "Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG"
   ],
   "never": [
     "Accepter un écart (accept) sans la raison donnée par l'utilisateur",
+    "Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local",
     "Modifier le schéma ou la description d'un autre agent sans le dire",
     "Envoyer une description ou un schéma à un service en ligne"
   ],
@@ -30,7 +33,7 @@
       "to": "architecture-workflow",
       "when": "la revue est faite pour une étape de workflow : rendre la main pour la soumission",
       "send": [
-        "les fichiers .threats.md et .wa.md",
+        "les fichiers .revue.md, .threats.md et .wa.md",
         "les constats de gravité haute restants",
         "le dossier du workflow"
       ]
@@ -39,7 +42,7 @@
       "to": "document-publisher",
       "when": "la revue doit être livrée en Word, HTML ou XWiki",
       "send": [
-        "les fichiers .threats.md et .wa.md",
+        "les fichiers .revue.md, .threats.md et .wa.md",
         "l'outil cible"
       ]
     }

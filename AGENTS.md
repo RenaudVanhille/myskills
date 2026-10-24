@@ -73,6 +73,14 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   de main vise un skill ou un agent qui existe **(vérifiée)**. La liste des
   agents de ces schémas est tenue par `build.py` : un nouvel agent n'y
   touche pas.
+- **Vault Obsidian** : toute note écrite dans le vault suit l'ontologie
+  `shared/vault-ontology.json` (types, propriétés, relations typées en
+  wikilinks, tags normalisés `type/<type>` et facettes). Le skill déclare
+  `vault` dans son contrat (`writes` : types écrits, `reads`) ; les types
+  existent et le script vérifie ses notes avec `scripts/lib/vault_ontology.py`
+  avant d'écrire **(vérifiée)**. Un nouveau type ou une nouvelle relation
+  s'ajoute dans l'ontologie, sans code. `vault_check.py`
+  (`markdown-to-obsidian`) vérifie un vault et exporte son graphe typé.
 - **Workflows** : un workflow est une définition JSON
   (`skills/decision-log/workflows/`), seule source des étapes, des skills,
   des livrables, des contrôles, des consignes et de la mémoire du vault.
@@ -120,8 +128,13 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 ## 5. Local et sûr
 
 - Tout rendu et toute conversion se font en local. Aucun contenu n'est envoyé
-  à un service en ligne (SaaS, API de rendu) ; seuls des outils ou
-  bibliothèques peuvent être téléchargés.
+  à un service tiers non maîtrisé (SaaS, API de rendu ou de conversion) ;
+  seuls des outils ou bibliothèques peuvent être téléchargés.
+- Les modèles du harness (Claude, Copilot, Kiro... sous offre entreprise,
+  avec sa politique de sécurité et de non-rétention) ne sont pas concernés :
+  un script peut leur confier un travail de modèle, de préférence au niveau
+  simple. Un modèle local (Ollama) reste possible ; tout autre fournisseur
+  de modèle est un service tiers.
 - Rendus de navigateur avec Playwright, jamais Puppeteer **(vérifiée)**, et
   pas de serveur MCP Playwright.
 - Un agent ne publie rien en ligne : il produit des fichiers.

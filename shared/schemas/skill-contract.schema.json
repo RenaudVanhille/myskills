@@ -69,6 +69,16 @@
         }
       }
     },
+    "vault": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "Notes du vault Obsidian que les scripts du skill écrivent ou lisent, selon shared/vault-ontology.json (scripts/lib/vault_ontology.py, copié par scripts/build.py).",
+      "properties": {
+        "writes": {"type": "array", "items": {"type": "string"}, "description": "Types de notes écrits : clés de types de l'ontologie."},
+        "reads": {"type": "boolean", "description": "Les scripts lisent les notes typées du vault."}
+      }
+    },
     "handoffs": {
       "type": "array",
       "items": {

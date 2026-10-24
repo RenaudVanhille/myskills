@@ -51,7 +51,7 @@ la demande ; les rendus passent par Playwright.
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 | `architecture-workflow` | Moteur de workflow générique : suit une définition JSON (par défaut `architecture` en 4 étapes : documents, exigences avec glossaire, 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité ; aussi `cloud-existant` : code d'infrastructure vers schéma cloud, menaces et revue Well-Architected) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
-| `architecture-reviewer` | Revue d'une architecture cloud : modèle de menaces STRIDE relu et revue Well-Architected des piliers, constats ouverts ou acceptés avec leur raison |
+| `architecture-reviewer` | Revue d'une architecture logicielle ou solution (ATAM : scénarios de qualité, risques, compromis, traçabilité, code comparé à l'architecture, avis calculé) et d'une architecture cloud : modèle de menaces STRIDE relu et revue Well-Architected des piliers, constats ouverts ou acceptés avec leur raison |
 | `solution-estimator` | Chiffrage de la solution retenue à partir des exigences et de l'architecture : lots estimés à trois points, hypothèses d'infrastructure et de run, charge, fourchette, coût total et budget calculés par script |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
@@ -75,7 +75,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | --- | --- |
 | `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants ; prépare le mode hors ligne (`--prefetch`, empreintes vérifiées) |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
-| `markdown-to-obsidian` | Markdown vers format Obsidian |
+| `markdown-to-obsidian` | Markdown vers format Obsidian, vérification d'un vault contre l'ontologie commune et export de son graphe typé (`vault_check.py`) |
 | `diagram-brief` | Choix du format de schéma : décision courte en JSON validée, format, skill et livraison selon le public et la destination (`brief.py`) |
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
@@ -90,6 +90,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, vue des menaces ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie |
+| `architecture-review` | Revue d'architecture logicielle ou solution à la manière d'ATAM : arbre d'utilité (scénarios de qualité évalués), risques, sensibilités, compromis, décisions ; structure, traçabilité des exigences et avis calculés par script ; code comparé à l'architecture avec graphify (code analysé en local) ; piliers Well-Architected d'une option cloud ; revue versée au vault Obsidian (notes typées de l'ontologie) |
 | `well-architected-review` | Revue Well-Architected (AWS, Azure, Google Cloud) des six piliers et des conventions de schéma des fournisseurs, constats acceptés avec leur raison |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
@@ -103,6 +104,7 @@ d'entrée, schéma de la sortie) ; myskills n'en copie pas le code.
 | Skill | Utilisé par | Installation |
 | --- | --- | --- |
 | `markdown-to-pptx` (md2pptx, Reno) | `markdown-publish` (`pptx_publish.py`) | plugin powerpoint-skill dans votre outil, ou dossier du skill dans `MD2PPTX_SKILL` ; `check-prerequisites` (groupe `publication`) le cherche |
+| `graphify` (Graphify Labs, Apache-2.0) | `architecture-review` (`arch_review.py`) : graphe du code, `--code-only` par défaut (analyse locale) ; documents lus, sur demande, par le modèle du harness ou Ollama | `uv tool install graphifyy`, ou chemin de la commande dans `GRAPHIFY_BIN` ; `check-prerequisites` (groupe `revue`) le cherche |
 
 ## Outils autorisés
 
@@ -152,6 +154,9 @@ mesure le coût réel de chaque cas d'agent.
 - **Agent** : `src/agents/<nom>.md` (avec le marqueur `{{niveaux}}`) et
   `<nom>.contract.json` ; les schémas des messages entre agents se mettent
   à jour seuls.
+- **Type de note du vault** : une entrée dans `shared/vault-ontology.json`
+  (propriétés, facettes, relations), puis `uv run scripts/build.py` ; le
+  skill qui l'écrit le déclare dans `vault.writes` de son contrat.
 - **Workflow** : une définition JSON dans `skills/decision-log/workflows/`
   (étapes avec niveau, skills, livrables, contrôles, consignes, mémoire du
   vault) ; l'agent `architecture-workflow` la suit sans modification.
@@ -169,6 +174,7 @@ Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 | `src/agents/` | **Source** des agents, en format neutre (à modifier ici) |
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
+| `shared/vault-ontology.json` | Ontologie du vault Obsidian (types de notes, propriétés, relations typées, tags), copiée avec `vault_ontology.py` dans les skills qui déclarent `vault` |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` (règles communes et section du format) |
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |

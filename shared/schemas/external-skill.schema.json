@@ -14,11 +14,13 @@
     "install": {"type": "string", "description": "Comment l'installer, repris dans les messages d'erreur."},
     "locate": {
       "type": "object",
-      "required": ["env", "entry", "folders"],
+      "required": ["env"],
+      "anyOf": [{"required": ["entry", "folders"]}, {"required": ["command"]}],
       "additionalProperties": false,
       "properties": {
         "env": {"type": "string", "pattern": "^[A-Z0-9_]+$", "description": "Variable qui donne le dossier du skill."},
-        "entry": {"type": "string", "description": "Script à lancer, relatif au dossier du skill."},
+        "entry": {"type": "string", "description": "Script à lancer, relatif au dossier du skill (avec folders)."},
+        "command": {"type": "string", "pattern": "^[\\w.-]+$", "description": "Outil en ligne de commande : nom de la commande cherchée sur le PATH (la variable env peut donner son chemin) ; remplace entry et folders."},
         "folders": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[~.]/"},
                     "description": "Dossiers d'installation habituels, dans l'ordre : ~/ = dossier personnel, ./ = dossier courant puis ses parents ; * accepté."}
       }
@@ -30,7 +32,7 @@
       "required": ["usage", "options"],
       "additionalProperties": false,
       "properties": {
-        "usage": {"type": "string", "description": "{python} = interpréteur de l'appelant, {entry} = script du skill."},
+        "usage": {"type": "string", "description": "{python} = interpréteur de l'appelant, {entry} = script du skill ou commande trouvée."},
         "version": {"type": "string", "description": "Option qui affiche la version."},
         "options": {"type": "object", "additionalProperties": {"type": "string"}}
       }
@@ -50,6 +52,7 @@
     },
     "outputs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "plan": {"type": "object", "description": "JSON Schema du fichier --plan écrit par le skill, validé par l'appelant."},
+    "output_schema": {"type": "object", "description": "JSON Schema du fichier JSON produit par le skill, que l'appelant valide avant de s'en servir."},
     "exit_codes": {"type": "object", "patternProperties": {"^[0-9]+$": {"type": "string"}},
                    "additionalProperties": false, "minProperties": 1}
   }
