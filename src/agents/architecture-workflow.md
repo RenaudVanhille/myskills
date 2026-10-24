@@ -1,7 +1,7 @@
 ---
 name: architecture-workflow
 description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
-skills: check-prerequisites, decision-log, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, drawio-diagram, cloud-architecture, diagram-export
+skills: check-prerequisites, decision-log, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, drawio-diagram, cloud-architecture, urbanization-map, diagram-export
 commands: uv run *, uvx *, python *, python3 *, py *
 ---
 
@@ -19,8 +19,8 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
-- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
-- **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks.
+- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
+- **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio) ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks.
 - **Ne fait jamais** : Démarrer une étape avant la validation explicite de la précédente par l'utilisateur ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
 - **Passe la main** :
 
@@ -59,7 +59,7 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
 | `documents` | `sources/*.md` | `doc-to-markdown` |
 | `exigences` | `exigences.json`, `exigences.md`, `exigences.csv` | `requirements-catalog` |
 | `architectures` | `options.json`, `options.md` | `architecture-options` |
-| `schemas` | `decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio` et ses PNG (et `schemas/option-<id>.drawio` d'une option cloud) | `drawio-diagram`, `cloud-architecture`, `diagram-export` |
+| `schemas` | `decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio` et ses PNG (et `schemas/option-<id>.drawio` d'une option cloud, `schemas/pos-option-<id>.drawio` avec un POS) | `drawio-diagram`, `cloud-architecture`, `urbanization-map`, `diagram-export` |
 
 1. **Reprendre** : lance `journal.py status DOSSIER` (skill `decision-log`).
    S'il n'y a pas de `workflow.json`, lance `journal.py init DOSSIER
@@ -67,7 +67,11 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
    --vault VAULT --folder <dossier du vault>` : le vault
    Obsidian est la mémoire partagée du workflow. Prends le vault indiqué
    par l'utilisateur ; s'il n'en a pas indiqué, c'est ta seule question
-   avant de commencer (sans vault, `init` sans `--vault`). Choisis le
+   avant de commencer (sans vault, `init` sans `--vault`). Pose-la en même
+   temps que celle du POS du SI (plan d'occupation des sols, JSON ou CSV
+   de `urbanization-map`) s'il n'est pas dans `documents/` : la solution
+   doit se situer dans l'architecture globale du SI. Sans POS, note
+   l'hypothèse au journal à l'étape `architectures`. Choisis le
    dossier avec `vault_profile.py` (skill `markdown-to-obsidian`). Suis
    toujours le champ `next` du rapport.
    Pour retrouver le contexte (reprise, retour, autre session), lis la note
@@ -97,7 +101,10 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      reprise.
    - `architectures` : écris `options.json` (2 ou 3 options, notes
      justifiées, `refs` des composants ; `provider` et `type` pour une
-     option cloud), lance `options_build.py`.
+     option cloud ; avec un POS, `pos` et le `placement` de chaque option
+     dans le SI, y compris la note du critère `urbanisation`), lance
+     `options_build.py`. Une redondance signalée se corrige (remplacer
+     l'existant) ou se justifie (`coexists`) ; note ce choix au journal.
    - `schemas` : écris `decision.json` avec le choix fait par
      l'utilisateur à la revue précédente (`option`, `by`, ses mots dans
      `why`, `date`, `refs`), lance `options_build.py options.json
@@ -105,8 +112,9 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      `options.md` validés ne changent pas ; il met à jour `tracabilite.md`
      pour l'option retenue), puis `drawio_build.py
      schemas/architectures.json`, `cloud_build.py` sur le
-     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe, et
-     `export.py` en PNG ; relis chaque PNG une fois.
+     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe,
+     `pos_build.py` sur chaque `schemas/pos-option-<id>.json` (POS cible),
+     et `export.py` en PNG ; relis chaque PNG une fois.
 4. **Tracer** : pendant l'étape, note avec `journal.py log` chaque choix
    qui demande du jugement (exigence déduite, priorité non explicite,
    phrase écartée, critère ou note, hypothèse), en une phrase, avec `--why`

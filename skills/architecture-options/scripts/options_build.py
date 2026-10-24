@@ -18,6 +18,12 @@ script, et non le modèle :
 Avec `--decision decision.json` (décision de l'utilisateur prise après la
 revue), seul l'ADR est écrit : la comparaison déjà validée ne change pas.
 
+Avec `pos` (POS existant du SI, JSON ou CSV de urbanization-map), chaque
+option dit où elle se place (`placement`) : le script vérifie les noms dans
+le POS, compte créations, évolutions, remplacements, redondances et flux
+entre zones, ajoute le critère « urbanisation » et écrit le POS cible de
+chaque option (`schemas/pos-option-<id>.json`, pour pos_build.py).
+
 Sans `criteria`, les critères sont les catégories des exigences non
 fonctionnelles retenues, pondérées par leur plus haute priorité
 (indispensable 3, importante 2, souhaitable 1).
@@ -32,6 +38,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from pos import check_option, placement_lines, read_pos, target_pos  # noqa: E402
+from pos import index as pos_index  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
 WEIGHTS = {"indispensable": 3, "importante": 2, "souhaitable": 1}
@@ -166,7 +174,18 @@ def render_trace(rows: list[list[str]], target: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: dict) -> str:
+def render_pos(impacts: list[dict]) -> list[str]:
+    lines = ["", "## Position dans le SI (POS)", "",
+             "Impacts calculés par le script depuis le POS existant et le placement de chaque option.", "",
+             "| Option | À créer | À faire évoluer | À remplacer | Réutilisées | Redondances possibles | Flux entre zones |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    lines += [f"| {i['option']} | {i['new']} | {i['evolve']} | {i['replace']} | {i['reuse']} | "
+              f"{cell('; '.join(i['redundancies']) or '-')} | {i['cross_zone']} |" for i in impacts]
+    return lines
+
+
+def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: dict,
+              impacts: list[dict] | None = None, idx: dict | None = None) -> str:
     options = {o["id"]: o for o in spec["options"]}
     lines = [f"# {spec.get('title') or 'Options d’architecture'}", "",
              "Fichier généré par `options_build.py` depuis `options.json`, qui fait foi. "
@@ -197,6 +216,8 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
                 row.append(f"{LEVELS[gap['level']]} : {cell(gap['note'])}" if gap else "couverte")
             title = catalog.get(gid, {}).get("title", "")
             lines.append(f"| {gid} {cell(title)} | {catalog.get(gid, {}).get('priority', '')} | " + " | ".join(row) + " |")
+    if impacts:
+        lines += render_pos(impacts)
     for option in spec["options"]:
         lines += ["", f"## Option {option['id']} : {option['name']}", "", option["summary"], ""]
         comps = ", ".join(c["label"] + (f" ({c['tech']})" if c.get("tech") else "") for c in option["components"])
@@ -204,7 +225,11 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
         for key, label in (("pros", "Avantages"), ("cons", "Inconvénients"), ("risks", "Risques")):
             if option.get(key):
                 lines += ["", f"**{label}**", ""] + [f"- {item}" for item in option[key]]
+        if idx and option.get("placement"):
+            lines += ["", "**Position dans le SI**", ""] + placement_lines(option, idx)
         lines += ["", f"Schéma : page « Option {option['id']} » de `schemas/architectures.drawio`."]
+        if idx:
+            lines[-1] += f" POS cible : `schemas/pos-option-{option['id'].lower()}.drawio`."
     rec = spec["recommendation"]
     lines += ["", "## Recommandation", "", f"Option **{rec['option']}** : {rec['why']}"]
     if rec.get("refs"):
@@ -216,7 +241,7 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
     return "\n".join(lines) + "\n"
 
 
-def render_adr(spec: dict, ranking: list[dict], catalog: dict) -> str:
+def render_adr(spec: dict, ranking: list[dict], catalog: dict, idx: dict | None = None) -> str:
     options = {o["id"]: o for o in spec["options"]}
     dec = spec["decision"]
     chosen = options[dec["option"]]
@@ -236,6 +261,9 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict) -> str:
     if dec["option"] != spec["recommendation"]["option"]:
         lines += ["", f"La recommandation était l'option {spec['recommendation']['option']} : "
                       f"{spec['recommendation']['why']}"]
+    if idx and chosen.get("placement"):
+        lines += ["", "## Position dans le SI", ""] + placement_lines(chosen, idx) + \
+                 ["", f"POS cible : `schemas/pos-option-{dec['option'].lower()}.drawio`."]
     lines += ["", "## Conséquences", ""]
     lines += [f"- {item}" for item in chosen.get("cons", []) + chosen.get("risks", [])] or ["- aucune notée"]
     for gid, gap in chosen.get("gaps", {}).items():
@@ -285,7 +313,15 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
     catalog = load_catalog(args.spec.parent, spec, errors)
+    idx = None
+    if spec.get("pos"):
+        pos_data = read_pos(args.spec.parent / spec["pos"], errors)
+        idx = pos_index(pos_data)
+        if not idx["apps"] and not errors:
+            errors.append(f"pos : aucune application dans {spec['pos']}")
     criteria = spec.get("criteria") or default_criteria(catalog)
+    if idx and not spec.get("criteria"):
+        criteria.append({"id": "urbanisation", "name": "Urbanisation (POS)", "weight": 2, "refs": []})
     if not criteria:
         errors.append("criteria : aucun critère, ni donné ni déduit des exigences non fonctionnelles")
     crit_ids = [c["id"] for c in criteria]
@@ -297,8 +333,14 @@ def main() -> int:
     option_ids = [o["id"] for o in spec["options"]]
     if len(set(option_ids)) != len(option_ids):
         errors.append("options : identifiant en double")
-    ranking = []
+    ranking, impacts = [], []
     for index, option in enumerate(spec["options"]):
+        if idx is not None:
+            if not option.get("placement"):
+                warnings.append(f"options/{index} ({option['id']}) : pas de placement dans le POS")
+            impacts.append(check_option(option, idx, errors, warnings))
+        elif option.get("placement"):
+            errors.append(f"options/{index} ({option['id']})/placement : POS absent, ajoutez pos à la description")
         where = f"options/{index} ({option['id']})"
         comp_ids = [c["id"] for c in option["components"]]
         if len(set(comp_ids)) != len(comp_ids):
@@ -350,6 +392,8 @@ def main() -> int:
 
     report = {"input": str(args.spec), "outputs": [], "options": len(spec["options"]), "criteria": len(criteria),
               "ranking": ranking, "recommended": rec["option"], "decided": decision["option"] if decision else None,
+              "pos": impacts if idx is not None else None,
+              "trace": None,
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
@@ -372,7 +416,7 @@ def main() -> int:
     if args.decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog))
+            handle.write(render_adr(spec, ranking, catalog, idx))
         report["outputs"] = [str(adr), str(trace_md), str(trace_csv)]
         print(json.dumps(report, ensure_ascii=False))
         return 0
@@ -380,7 +424,7 @@ def main() -> int:
     stem = args.spec.name.removesuffix(".json")
     md, diagrams = out_dir / f"{stem}.md", out_dir / "schemas" / "architectures.json"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, criteria, ranking, catalog))
+        handle.write(render_md(spec, criteria, ranking, catalog, impacts, idx))
     pages = [{"name": f"Option {o['id']}", "title": f"Option {o['id']} : {o['name']}", "elements": layout(o)}
              for o in spec["options"]]
     with open(diagrams, "w", encoding="utf-8", newline="\n") as handle:
@@ -395,10 +439,18 @@ def main() -> int:
                 json.dump(cloud_spec(option), handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
             report["outputs"].append(str(target_cloud))
+    if idx is not None:
+        for option in spec["options"]:
+            target_file = out_dir / "schemas" / f"pos-option-{option['id'].lower()}.json"
+            with open(target_file, "w", encoding="utf-8", newline="\n") as handle:
+                json.dump(target_pos(pos_data, option, f"POS cible, option {option['id']} : {option['name']}"),
+                          handle, ensure_ascii=False, indent=2)
+                handle.write("\n")
+            report["outputs"].append(str(target_file))
     if decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog))
+            handle.write(render_adr(spec, ranking, catalog, idx))
         report["outputs"].append(str(adr))
     print(json.dumps(report, ensure_ascii=False))
     return 0

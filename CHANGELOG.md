@@ -1,5 +1,18 @@
 # Journal des versions
 
+## À venir
+
+- `architecture-options` : position de chaque option dans le POS du SI
+  (`pos`, `placement`) : noms vérifiés dans le POS, impacts (créations,
+  évolutions, remplacements, redondances, flux entre zones), critère
+  « urbanisation », section dans `options.md` et l'ADR, POS cible par option
+  (`schemas/pos-option-<id>.json` pour `pos_build.py`).
+- `architecture-workflow` : demande le POS du SI avec le vault, construit
+  le POS cible de chaque option à l'étape `schemas` ; note d'option du vault
+  avec sa position.
+- `options_build.py` : rapport conforme au contrat aussi après une erreur
+  de référence (`trace` à null).
+
 ## 0.2.0 (2026-10-23)
 
 Revue complète après la 0.1 : fiabilité, contrôle des workflows multi-agents,

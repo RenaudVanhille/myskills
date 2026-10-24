@@ -705,6 +705,31 @@
                    "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases: [\"déclaration de sinistre\"]",
                                                                          "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
                    "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
+    },
+    {
+      "id": "options-pos",
+      "skill": "architecture-options",
+      "_note": "Position des options dans le POS du SI : impacts, redondance, critère urbanisation, POS cible construit par pos_build.py.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos.json", "--out-dir", "{out}"], "exit": 0, "report": {"criteria": 6, "pos.0.new": 1, "pos.0.evolve": 1, "pos.0.reuse": 1, "pos.0.redundancies": [], "pos.0.cross_zone": 1, "errors": []}, "report_contains": {"pos.1.redundancies": "Module portail de l'éditeur / Outil de gestion des sinistres", "warnings": "redondance possible, Module portail"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py", "args": ["{out}/schemas/pos-option-a.json"], "exit": 0, "report": {"applications": 7, "errors": [], "warnings": []}}
+      ],
+      "files": ["options-pos.md", "adr-architecture.md", "schemas/pos-option-a.json", "schemas/pos-option-b.json", "schemas/pos-option-a.drawio"],
+      "contains": {"options-pos.md": ["## Position dans le SI (POS)", "| A | 1 | 1 | 0 | 1 | - | 1 |", "Urbanisation (POS)", "(coexiste : canal web en plus du téléphone, mêmes dossiers)"],
+                   "adr-architecture.md": ["## Position dans le SI", "| Portail sinistres | à créer | Opérations / Sinistres / Déclaration"],
+                   "schemas/pos-option-a.json": ["\"name\": \"Portail sinistres\"", "\"status\": \"nouvelle\"", "\"status\": \"a-faire-evoluer\""]}
+    },
+    {
+      "id": "options-pos-erreurs",
+      "skill": "architecture-options",
+      "_note": "Placement refusé avec le nom le plus proche du POS : quartier, application, application déjà existante.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "quartier « Opérations / Sinistre » absent du POS ; vouliez-vous « Opérations / Sinistres » ?"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "application absente du POS ; vouliez-vous « Outil de gestion des sinistres » ?"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "déjà dans le POS (Support / Sécurité)"}}
+      ],
+      "absent": ["options-pos-invalide.md", "schemas"]
     }
   ]
 }
