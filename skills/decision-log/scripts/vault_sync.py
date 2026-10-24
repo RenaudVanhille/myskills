@@ -33,6 +33,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
+from lib import vault_ontology  # noqa: E402
 from skill_paths import schema_of  # noqa: E402
 
 # Livrables lus pour les notes métier, par rôle, quand la définition du workflow ne dit rien.
@@ -45,6 +46,7 @@ WRITERS = {"requirements": ("requirements-catalog", "req_build.py"),
 EMBEDDED = {".png", ".svg", ".jpg", ".jpeg", ".md"}
 
 MARK = "genere: decision-log"
+ONTOLOGY = vault_ontology.load()
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
                "passage": "Passage de main", "rapport": "Rapport d'agent"}
@@ -109,15 +111,8 @@ def load(path: Path):
         return None
 
 
-def yaml_value(value) -> str:
-    if isinstance(value, list):
-        return "[" + ", ".join(yaml_value(v) for v in value) + "]"
-    return json.dumps(value, ensure_ascii=False) if isinstance(value, str) else str(value).lower()
-
-
 def note(meta: dict, body: list[str]) -> str:
-    head = ["---", MARK] + [f"{k}: {yaml_value(v)}" for k, v in meta.items() if v not in (None, "", [])] + ["---", ""]
-    return "\n".join(head + body).rstrip() + "\n"
+    return vault_ontology.render(meta) + "\n" + "\n".join(body).rstrip() + "\n"
 
 
 def schema_for(role: str) -> dict | None:
@@ -196,7 +191,19 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             by_ref.setdefault(ref, []).append(entry)
     gaps = {(g, o["id"]): v for o in options.get("options", []) for g, v in o.get("gaps", {}).items()}
     notes: dict[str, str] = {}
+    metas: dict[str, dict] = {}  # chemin -> frontmatter, vérifié contre l'ontologie avant l'écriture
     up = f"Workflow : [[{index}|{alias(state['title'])}]]"
+
+    def typed(rel: str, kind: str, props: dict, body: list[str], relations: dict | None = None,
+              tags=()) -> None:
+        """Note typée selon l'ontologie du vault : frontmatter, relations (wikilinks) et tags normalisés."""
+        rels = {} if kind == "workflow" else {"workflow": (index, state["title"])}
+        metas[rel] = vault_ontology.meta(ONTOLOGY, kind, props, {**rels, **(relations or {})}, tags,
+                                         genere="decision-log")
+        notes[rel] = note(metas[rel], body)
+
+    def linked(ids) -> list[tuple[str, str]]:
+        return [(names[r], r.removeprefix("terme:")) for r in ids if r in names]
 
     for req in catalog.get("requirements", []):
         rid = req["id"]
@@ -218,12 +225,12 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         if by_ref.get(rid):
             body += ["", "## Décisions", ""] + [f"- {link(e['id'])} {KIND_LABELS[e['kind']]} : {e['text']}"
                                                for e in by_ref[rid]]
-        notes[names[rid]] = note({"id": rid, "type": "exigence",
-                                  "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
-                                                                   else "non-fonctionnelle"),
-                                  "priorite": req["priority"], "categorie": req.get("category"),
-                                  "domaine": req.get("domain"), "statut": req.get("status", "retenue"),
-                                  "tags": ["exigence"]}, body)
+        typed(names[rid], "exigence",
+              {"id": rid, "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
+                                                          else "non-fonctionnelle"),
+               "priorite": req["priority"], "categorie": req.get("category"), "domaine": req.get("domain"),
+               "statut": req.get("status", "retenue")}, body,
+              {"termes": linked("terme:" + term for term in terms)})
 
     for opt in options.get("options", []):
         chosen = bool(decision and decision.get("option") == opt["id"])
@@ -248,8 +255,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                                                for e in by_ref[opt["id"]]]
         if chosen and "ADR" in names:
             body += ["", f"Retenue : [[{names['ADR']}|ADR]]"]
-        notes[names[opt["id"]]] = note({"id": f"option-{opt['id']}", "type": "option-architecture",
-                                        "retenue": chosen, "tags": ["architecture"]}, body)
+        typed(names[opt["id"]], "option-architecture", {"id": f"option-{opt['id']}", "retenue": chosen}, body,
+              {"ecarts": linked(opt.get("gaps", {})), "adr": linked(["ADR"]) if chosen else []}, ["architecture"])
 
     for entry in glossary:
         sources = [s["doc"] + (f" : « {s['quote']} »" if s.get("quote") else "") for s in entry.get("sources", [])]
@@ -258,8 +265,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             body += ["", "## Sources", ""] + [f"- {s}" for s in sources]
         if uses[entry["term"]]:
             body += ["", "## Exigences", ""] + [f"- {link(r)}" for r in uses[entry["term"]]]
-        notes[names["terme:" + entry["term"]]] = note({"type": "terme", "aliases": entry.get("aliases", []),
-                                                         "tags": ["glossaire"]}, body)
+        typed(names["terme:" + entry["term"]], "terme", {"aliases": entry.get("aliases", [])}, body,
+              tags=["glossaire"])
 
     for entry in state["entries"]:
         refs = [link(r) for r in entry.get("refs", [])]
@@ -272,17 +279,19 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             body += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"])]
         if entry.get("via") == "obsidian":
             body += ["", "Décision prise par l'utilisateur dans sa note de revue Obsidian."]
-        notes[names[entry["id"]]] = note({"id": entry["id"], "type": "decision", "nature": entry["kind"],
-                                          "etape": entry["stage"], "par": entry["by"], "date": entry["date"],
-                                          "tags": ["decision"]}, body)
+        typed(names[entry["id"]], "decision", {"id": entry["id"], "nature": entry["kind"], "etape": entry["stage"],
+                                               "par": entry["by"], "date": entry["date"]}, body,
+              {"concerne": linked(entry.get("refs", []))})
 
     if "ADR" in names:
         text = adr.read_text(encoding="utf-8")
         ids = sorted((r["id"] for r in catalog.get("requirements", [])), key=len, reverse=True)
         for ref in ids:
             text = re.sub(rf"(?<![\[|/\w-]){re.escape(ref)}(?![\w-])", lambda _, r=ref: link(r), text)
-        notes[names["ADR"]] = note({"type": "adr", "statut": "acceptée", "tags": ["adr", "architecture"]},
-                                   [text, "", up])
+        cited = [r for r in ids if f"[[{names[r]}|" in text]
+        typed(names["ADR"], "adr", {"statut": "acceptee"}, [text, "", up],
+              {"option": linked([decision["option"]] if decision else []), "exigences": linked(sorted(cited))},
+              ["architecture"])
 
     # Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés.
     files_dir = f"{base}/Fichiers"
@@ -303,8 +312,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                 body += [f"### {file}", "", f"![[{copy}]]", ""]
             else:
                 body.append(f"- `{file}`")
-        notes[rel] = note({"type": "etape", "etape": stage["id"], "statut": stage["status"], "tags": ["etape"]},
-                          body)
+        typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
         stage_notes.append(rel)
     # Schéma de chaque option, s'il a été exporté (comme deck_build.py) : intégré à la note de l'option.
     for index_, opt in enumerate(options.get("options", [])):
@@ -329,8 +337,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         body = [f"# Revue de l'étape {stage['id']}", "", up, "", f"Soumission {link(submission['id'])} : "
                 f"{submission['text']}.", "", "**Fichiers** : " + ", ".join(f"`{f}`" for f in stage.get("files", {})),
                 "", REVIEW_HELP, "", "## Votre retour", "", feedback]
-        notes[rel] = note({"type": "revue", "etape": stage["id"], "soumission": submission["id"],
-                           "tags": ["revue"]}, body).replace("\n---\n", f"\nrevue: {json.dumps(value)}\n---\n", 1)
+        typed(rel, "revue", {"etape": stage["id"], "soumission": submission["id"]}, body)
+        metas[rel]["revue"] = value  # toujours présente, même vide : l'utilisateur la remplit dans Obsidian
+        notes[rel] = note(metas[rel], body)
         reviews.append(rel)
 
     body = [f"# {state['title']}", "", "Mémoire partagée du workflow, générée depuis `workflow.json` : "
@@ -354,7 +363,25 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     if state["entries"]:
         body += ["", "## Journal", ""] + [f"- {link(e['id'])} {e['stage']}, {KIND_LABELS[e['kind']].lower()} "
                                          f"({e['by']}) : {e['text']}" for e in state["entries"]]
-    notes[index] = note({"type": "workflow", "tags": ["workflow"]}, body)
+    typed(index, "workflow", {}, body)
+
+    # Chaque note suit l'ontologie du vault (types, propriétés, relations, tags) : sinon rien n'est écrit.
+    def resolve(path: str):
+        if path in metas:
+            return metas[path]["type"]
+        if not (vault / f"{path}.md").is_file():
+            raise KeyError(path)
+        return (vault_ontology.parse((vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0]
+                or {}).get("type")
+    invalid = []
+    for rel, meta in metas.items():
+        found = vault_ontology.check_meta(ONTOLOGY, meta, generated=True)[0] + \
+            vault_ontology.check_targets(ONTOLOGY, meta, resolve)[0]
+        invalid += [f"{rel} : {e}" for e in found]
+    if invalid:
+        return {"vault": str(vault), "folder": base, "notes": 0, "removed": 0,
+                "errors": errors + ["note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]],
+                "warnings": warnings}
 
     # Écriture, puis suppression des notes générées qui ne correspondent plus à rien.
     # Une note inchangée n'est pas réécrite : pas de bruit pour Obsidian Sync ou git.

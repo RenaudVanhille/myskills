@@ -227,6 +227,23 @@ def check_contracts() -> dict:
                 failures += [f"{name} : dépendance {d} du skill externe {handoff['to']} absente des en-têtes PEP 723"
                              for d in externals[handoff["to"]].get("dependencies", []) if f'"{d}"' not in headers]
 
+    # Ontologie du vault : conforme à son schéma et cohérente ; types écrits déclarés (vault.writes) existants.
+    ontology = json.loads((ROOT / "shared" / "vault-ontology.json").read_text(encoding="utf-8"))
+    failures += [f"vault-ontology.json : {e}" for e in schema_errors(ontology, contracts_lib.schema("vault-ontology"))]
+    kinds = set(ontology.get("types", {}))
+    for kind, spec in ontology.get("types", {}).items():
+        known = {*ontology["common"], *spec["properties"]}
+        failures += [f"vault-ontology.json : type {kind}, {p} ({field}) n'est pas une propriété déclarée"
+                     for field in ("required", "facets") for p in spec.get(field, []) if p not in known]
+        failures += [f"vault-ontology.json : type {kind}, propriété {p} déjà nommée par une relation"
+                     for p in spec["properties"] if p in ontology["relations"]]
+    for rel, spec in ontology.get("relations", {}).items():
+        failures += [f"vault-ontology.json : relation {rel}, type « {k} » inconnu"
+                     for k in spec["from"] + spec["to"] if k != "*" and k not in kinds]
+    for name, contract in skills.items():
+        failures += [f"{name} : vault.writes vise le type « {k} », absent de shared/vault-ontology.json"
+                     for k in contract.get("vault", {}).get("writes", []) if k not in kinds]
+
     # Workflows livrés : conformes au schéma de définition, skills et agents existants.
     journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
     definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
@@ -291,6 +308,9 @@ EXPORT_SKILLS = {"markdown-publish"}
 NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
+VAULT_IMPORT = r"^\s*(import\s+(lib\.)?vault_ontology\b|from\s+(lib\.)?vault_ontology\s+import|from\s+lib\s+import\s+.*\bvault_ontology\b)"
+
+
 def check_rules() -> dict:
     """Règles mécaniques d'AGENTS.md, celles marquées « vérifiée »."""
     from agents_lib import parse_agent, render_agent, source_agents, split_list
@@ -332,6 +352,16 @@ def check_rules() -> dict:
                          for call, skill, script in re.findall(
                              r'(find_script|load_module|schema_of)\("([a-z0-9-]+)",\s*"([^"]+)"\)', code)
                          if (skill, script) not in declared]
+    # Un script qui touche au vault passe par l'ontologie : import de vault_ontology et champ vault du contrat.
+    for name, contract in contracts.items():
+        for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):
+            uses = re.search(VAULT_IMPORT, path.read_text(encoding="utf-8"), re.M)
+            if uses and not contract.get("vault"):
+                failures.append(f"{name}/scripts/{path.name} : utilise l'ontologie du vault sans champ vault dans contract.json")
+        if contract.get("vault", {}).get("writes") and not any(
+                re.search(VAULT_IMPORT, p.read_text(encoding="utf-8"), re.M)
+                for p in (ROOT / "skills" / name / "scripts").glob("*.py")):
+            failures.append(f"{name} : écrit dans le vault (vault.writes) sans vérifier ses notes avec vault_ontology")
     for name, contract in contracts.items():
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):

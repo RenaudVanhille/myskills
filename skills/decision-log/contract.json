@@ -525,7 +525,7 @@
     },
     {
       "name": "vault_sync.py",
-      "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
+      "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks et typées selon l'ontologie du vault (type, propriétés, relations typées, tags normalisés, vérifiés avant l'écriture), depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
       "usage": "uv run scripts/vault_sync.py DOSSIER [--vault VAULT] [--folder DOSSIER_DU_VAULT] [--data DOSSIER_DES_LIVRABLES]",
       "options": {
         "DOSSIER": "dossier du workflow",
@@ -580,7 +580,7 @@
       },
       "exit_codes": {
         "0": "notes écrites, tous les liens résolus",
-        "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
+        "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), note hors ontologie du vault (rien n'est écrit), ou lien cassé"
       }
     }
   ],
@@ -598,6 +598,18 @@
       "optional": true
     }
   ],
+  "vault": {
+    "writes": [
+      "workflow",
+      "etape",
+      "revue",
+      "exigence",
+      "terme",
+      "option-architecture",
+      "decision",
+      "adr"
+    ]
+  },
   "handoffs": [
     {
       "to": "utilisateur",

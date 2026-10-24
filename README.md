@@ -74,7 +74,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | --- | --- |
 | `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants ; prépare le mode hors ligne (`--prefetch`, empreintes vérifiées) |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
-| `markdown-to-obsidian` | Markdown vers format Obsidian |
+| `markdown-to-obsidian` | Markdown vers format Obsidian, vérification d'un vault contre l'ontologie commune et export de son graphe typé (`vault_check.py`) |
 | `diagram-brief` | Choix du format de schéma : décision courte en JSON validée, format, skill et livraison selon le public et la destination (`brief.py`) |
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
@@ -150,6 +150,9 @@ mesure le coût réel de chaque cas d'agent.
 - **Agent** : `src/agents/<nom>.md` (avec le marqueur `{{niveaux}}`) et
   `<nom>.contract.json` ; les schémas des messages entre agents se mettent
   à jour seuls.
+- **Type de note du vault** : une entrée dans `shared/vault-ontology.json`
+  (propriétés, facettes, relations), puis `uv run scripts/build.py` ; le
+  skill qui l'écrit le déclare dans `vault.writes` de son contrat.
 - **Workflow** : une définition JSON dans `skills/decision-log/workflows/`
   (étapes avec niveau, skills, livrables, contrôles, consignes, mémoire du
   vault) ; l'agent `architecture-workflow` la suit sans modification.
@@ -167,6 +170,7 @@ Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 | `src/agents/` | **Source** des agents, en format neutre (à modifier ici) |
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
+| `shared/vault-ontology.json` | Ontologie du vault Obsidian (types de notes, propriétés, relations typées, tags), copiée avec `vault_ontology.py` dans les skills qui déclarent `vault` |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` (règles communes et section du format) |
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |
