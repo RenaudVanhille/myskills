@@ -50,7 +50,7 @@ la demande ; les rendus passent par Playwright.
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
-| `architecture-workflow` | Workflow décrit en JSON, par défaut en 4 étapes : documents, exigences (avec glossaire), 2 ou 3 architectures, schémas et matrice de traçabilité ; aussi `cloud-existant` (code d'infrastructure vers schéma cloud et STRIDE) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
+| `architecture-workflow` | Workflow décrit en JSON, par défaut en 4 étapes : documents, exigences (avec glossaire), 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité ; aussi `cloud-existant` (code d'infrastructure vers schéma cloud et STRIDE) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
 foi :
@@ -81,9 +81,9 @@ lire par un autre agent ou outil qui appelle myskills.
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte ou un inventaire CSV |
 | `mermaid-diagram` | Schémas Mermaid dans le Markdown |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
-| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), présentation du dossier assemblée depuis les étapes validées |
+| `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (impacts, redondances, POS cible), revue Well-Architected des piliers de chaque option cloud, présentation du dossier assemblée depuis les étapes validées |
 | `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, passages de main validés, et mémoire partagée dans un vault Obsidian (une note par exigence, terme, option et décision, revue dans Obsidian) |
-| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE ; description tirée de Terraform, docker-compose ou Kubernetes |
+| `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, modèle de menaces STRIDE, revue Well-Architected (AWS, Azure, Google Cloud) et conventions de schéma des fournisseurs ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
 

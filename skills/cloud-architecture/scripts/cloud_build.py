@@ -145,7 +145,7 @@ class Builder:
         self.spec, self.view, self.page = spec, view, page
         self.provider = spec.get("provider")
         self.errors, self.warnings = errors, warnings
-        self.nodes: dict[str, dict] = {}      # id -> {kind, label, path (groupes ancêtres)}
+        self.nodes: dict[str, dict] = {}      # id -> {kind, label, type, path (frontières ancêtres), count}
         self.groups: dict[str, dict] = {}     # id -> {type, label, boundary}
         self.styles_used: set[str] = set()
         self.ids: set[str] = set()
@@ -257,7 +257,7 @@ class Builder:
             label += f" ×{item['count']}"
         nid = self.new_id(item, label)
         self.nodes[nid] = {"kind": item.get("kind", info["kind"]), "label": label.replace("\n", " "),
-                           "type": ntype, "path": path}
+                           "type": ntype, "path": path, "count": item.get("count")}
         style = info["style"] + ("fontSize=12;fontColor=#1f2937;labelBackgroundColor=#ffffff;" if info["icon"] else "")
         if info["icon"]:
             iw, ih = float(item.get("w", info["w"])), float(item.get("h", info["h"]))

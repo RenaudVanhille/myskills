@@ -218,6 +218,14 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                                         for c in opt["components"]]
         if opt.get("gaps"):
             body += ["", "## Écarts", ""] + [f"- {link(g)} {v['level']} : {v['note']}" for g, v in opt["gaps"].items()]
+        if opt.get("placement"):
+            changes = {"nouvelle": "à créer", "a-faire-evoluer": "à faire évoluer", "a-remplacer": "à remplacer",
+                       "en-place": "réutilisée", "externe": "externe"}
+            body += ["", "## Position dans le SI (POS)", ""] + [
+                f"- {p['app']} : {changes[p['change']]}"
+                + (" dans " + " / ".join(p[k] for k in ("zone", "quartier", "ilot") if p.get(k))
+                   if p.get("zone") else "") + (f" (coexiste : {p['coexists']})" if p.get("coexists") else "")
+                for p in opt["placement"]]
         for key, label in (("pros", "Avantages"), ("cons", "Inconvénients"), ("risks", "Risques")):
             if opt.get(key):
                 body += ["", f"## {label}", ""] + [f"- {item}" for item in opt[key]]

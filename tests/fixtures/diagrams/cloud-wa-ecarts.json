@@ -1,0 +1,21 @@
+{
+  "title": "Écarts aux conventions",
+  "provider": "aws",
+  "accept": {"SEC-07": "CloudTrail géré par le compte de sécurité de l'organisation"},
+  "items": [
+    {"id": "clients", "type": "users", "label": "Clients"},
+    {"type": "vpc", "label": "VPC", "items": [
+      {"type": "region", "label": "eu-west-1", "items": [
+        {"type": "public-subnet", "label": "Public", "items": [
+          {"id": "web", "type": "ec2", "label": "Web"},
+          {"id": "db", "type": "rds", "label": "Base"},
+          {"id": "bucket", "type": "s3", "label": "Fichiers"}]}]},
+      {"id": "vm", "type": "azure:vm", "label": "VM Azure"}
+    ]},
+    {"type": "private-subnet", "label": "Sans VPC", "items": [{"id": "jobs", "type": "queue", "label": "Travaux"}]}
+  ],
+  "flows": [
+    {"from": "clients", "to": "web", "protocol": "HTTP", "port": 80},
+    {"from": "web", "to": "db"}
+  ]
+}

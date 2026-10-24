@@ -2,6 +2,7 @@
   "agent": "architecture-workflow",
   "receives": [
     "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
+    "Le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
     "Le vault Obsidian qui sert de mémoire partagée",
     "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
   ],
@@ -9,7 +10,7 @@
     "sources/*.md : les documents en Markdown",
     "exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées",
     "options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur",
-    "schemas/architectures.drawio et un PNG par option",
+    "schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio)",
     "workflow.json et journal.md : état des étapes, choix, questions, retours et validations",
     "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
   ],

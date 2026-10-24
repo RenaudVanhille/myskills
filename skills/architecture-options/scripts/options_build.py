@@ -18,6 +18,17 @@ script, et non le modèle :
 Avec `--decision decision.json` (décision de l'utilisateur prise après la
 revue), seul l'ADR est écrit : la comparaison déjà validée ne change pas.
 
+Avec `pos` (POS existant du SI, JSON ou CSV de urbanization-map), chaque
+option dit où elle se place (`placement`) : le script vérifie les noms dans
+le POS, compte créations, évolutions, remplacements, redondances et flux
+entre zones, ajoute le critère « urbanisation » et écrit le POS cible de
+chaque option (`schemas/pos-option-<id>.json`, pour pos_build.py).
+
+Chaque option cloud (`provider`) passe la revue Well-Architected des piliers
+(wa_check.py du skill cloud-architecture) : constats par pilier dans
+`options.md`, détail dans `schemas/option-<id>.wa.md`, constats de l'option
+retenue dans l'ADR. Un écart assumé s'accepte avec sa raison (`wa_accept`).
+
 Sans `criteria`, les critères sont les catégories des exigences non
 fonctionnelles retenues, pondérées par leur plus haute priorité
 (indispensable 3, importante 2, souhaitable 1).
@@ -32,6 +43,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from pos import check_option, placement_lines, read_pos, resolve, target_pos  # noqa: E402
+from pos import index as pos_index  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
 WEIGHTS = {"indispensable": 3, "importante": 2, "souhaitable": 1}
@@ -41,6 +54,17 @@ CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilit�
                    "interoperabilite": "Interopérabilité", "utilisabilite": "Utilisabilité",
                    "portabilite": "Portabilité", "cout": "Coût", "autre": "Autre"}
 LEVELS = {"partiel": "partielle", "non": "non couverte"}
+WA_PILLARS = ("reliability", "security", "operations", "performance", "cost")
+
+
+def load_wa():
+    """wa_check.py du skill cloud-architecture, s'il est installé à côté ; sinon None."""
+    scripts = Path(__file__).resolve().parents[2] / "cloud-architecture" / "scripts"
+    if not (scripts / "wa_check.py").exists():
+        return None
+    sys.path.insert(0, str(scripts))
+    import wa_check
+    return wa_check
 
 
 def cell(text) -> str:
@@ -125,11 +149,57 @@ CLOUD_TYPES = {"person": "user", "system": "service", "external": "external", "d
 
 def cloud_spec(option: dict) -> dict:
     """Description cloud_build.py d'une option hébergée chez un fournisseur."""
-    items = [{"id": c["id"], "type": c.get("type") or CLOUD_TYPES[c.get("role", "system")], "label": c["label"]}
-             for c in option["components"]]
-    flows = [{k: f[k] for k in ("from", "to", "label", "style") if f.get(k)} for f in option.get("flows", [])]
+    items = [{"id": c["id"], "type": c.get("type") or CLOUD_TYPES[c.get("role", "system")], "label": c["label"],
+              **({"count": c["count"]} if c.get("count") else {})} for c in option["components"]]
+    flows = [{k: f[k] for k in ("from", "to", "label", "style", "protocol") if f.get(k)}
+             for f in option.get("flows", [])]
     return {"_source": "généré par options_build.py", "title": f"Option {option['id']} : {option['name']}",
             "provider": option["provider"], "items": items, "flows": flows}
+
+
+def wa_review(wa, option: dict, where: str, errors: list[str], warnings: list[str]) -> dict:
+    """Revue Well-Architected des piliers d'une option cloud (sans les conventions de schéma)."""
+    findings, errs, clouds = wa.check(cloud_spec(option))
+    errors += [f"{where}/components : {e}" for e in errs]
+    findings = [f for f in findings if f["pillar"] != "conventions"]
+    unused: list[str] = []
+    wa.accept(findings, option.get("wa_accept", {}), unused)
+    warnings += [f"{where}/wa_accept : {w}" for w in unused]
+    findings.sort(key=lambda f: (wa.SEVERITIES.index(f["severity"]), f["rule"]))
+    open_ = [f for f in findings if not f["accepted"]]
+    high = sorted({f"{f['rule']}@{f['element']}" for f in open_ if f["severity"] == "haute"})
+    if high:
+        warnings.append(f"option {option['id']} : constat(s) Well-Architected de gravité haute à traiter : "
+                        f"{', '.join(high)} (composant à ajouter, ou wa_accept avec la raison)")
+    counts = {s: sum(f["severity"] == s for f in open_) for s in wa.SEVERITIES}
+    counts["acceptés"] = len(findings) - len(open_)
+    return {"option": option["id"], "counts": counts,
+            "open": [f"{f['rule']}@{f['element']}" for f in open_], "findings": findings, "clouds": clouds}
+
+
+def render_wa(reviews: list[dict], wa) -> list[str]:
+    names = [wa.PILLARS[p] for p in WA_PILLARS]
+    lines = ["", "## Revue Well-Architected", "",
+             "Constats ouverts par pilier, calculés par `wa_check.py` sur les composants et les flux de chaque option "
+             "cloud (h : gravité haute). Ils doivent se retrouver dans les notes et la recommandation.", "",
+             "| Option | " + " | ".join(names) + " | Acceptés | Détail |", "| --- | " + "--- | " * len(names) + "--- | --- |"]
+    for review in reviews:
+        cells = []
+        for pillar in WA_PILLARS:
+            mine = [f for f in review["findings"] if f["pillar"] == pillar and not f["accepted"]]
+            high = sum(f["severity"] == "haute" for f in mine)
+            cells.append(f"{len(mine)}" + (f" ({high} h)" if high else ""))
+        lines.append(f"| {review['option']} | " + " | ".join(cells) + f" | {review['counts']['acceptés']} | "
+                     f"`schemas/option-{review['option'].lower()}.wa.md` |")
+    return lines
+
+
+def wa_lines(review: dict, wa) -> list[str]:
+    lines = []
+    for f in review["findings"]:
+        status = f" (accepté : {f['accepted']})" if f["accepted"] else ""
+        lines.append(f"- {f['rule']} {wa.PILLARS[f['pillar']]}, {f['severity']} : {f['message']}{status}")
+    return lines or ["- aucun constat"]
 
 
 def traceability(spec: dict, catalog: dict) -> tuple[list[list[str]], dict]:
@@ -166,7 +236,19 @@ def render_trace(rows: list[list[str]], target: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: dict) -> str:
+def render_pos(impacts: list[dict]) -> list[str]:
+    lines = ["", "## Position dans le SI (POS)", "",
+             "Impacts calculés par le script depuis le POS existant et le placement de chaque option.", "",
+             "| Option | À créer | À faire évoluer | À remplacer | Réutilisées | Redondances possibles | Flux entre zones |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    lines += [f"| {i['option']} | {i['new']} | {i['evolve']} | {i['replace']} | {i['reuse']} | "
+              f"{cell('; '.join(i['redundancies']) or '-')} | {i['cross_zone']} |" for i in impacts]
+    return lines
+
+
+def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: dict,
+              impacts: list[dict] | None = None, idx: dict | None = None, reviews: list[dict] | None = None,
+              wa=None) -> str:
     options = {o["id"]: o for o in spec["options"]}
     lines = [f"# {spec.get('title') or 'Options d’architecture'}", "",
              "Fichier généré par `options_build.py` depuis `options.json`, qui fait foi. "
@@ -197,6 +279,10 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
                 row.append(f"{LEVELS[gap['level']]} : {cell(gap['note'])}" if gap else "couverte")
             title = catalog.get(gid, {}).get("title", "")
             lines.append(f"| {gid} {cell(title)} | {catalog.get(gid, {}).get('priority', '')} | " + " | ".join(row) + " |")
+    if impacts:
+        lines += render_pos(impacts)
+    if reviews:
+        lines += render_wa(reviews, wa)
     for option in spec["options"]:
         lines += ["", f"## Option {option['id']} : {option['name']}", "", option["summary"], ""]
         comps = ", ".join(c["label"] + (f" ({c['tech']})" if c.get("tech") else "") for c in option["components"])
@@ -204,7 +290,11 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
         for key, label in (("pros", "Avantages"), ("cons", "Inconvénients"), ("risks", "Risques")):
             if option.get(key):
                 lines += ["", f"**{label}**", ""] + [f"- {item}" for item in option[key]]
+        if idx and option.get("placement"):
+            lines += ["", "**Position dans le SI**", ""] + placement_lines(option, idx)
         lines += ["", f"Schéma : page « Option {option['id']} » de `schemas/architectures.drawio`."]
+        if idx:
+            lines[-1] += f" POS cible : `schemas/pos-option-{option['id'].lower()}.drawio`."
     rec = spec["recommendation"]
     lines += ["", "## Recommandation", "", f"Option **{rec['option']}** : {rec['why']}"]
     if rec.get("refs"):
@@ -216,7 +306,8 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
     return "\n".join(lines) + "\n"
 
 
-def render_adr(spec: dict, ranking: list[dict], catalog: dict) -> str:
+def render_adr(spec: dict, ranking: list[dict], catalog: dict, idx: dict | None = None,
+               reviews: list[dict] | None = None, wa=None) -> str:
     options = {o["id"]: o for o in spec["options"]}
     dec = spec["decision"]
     chosen = options[dec["option"]]
@@ -236,6 +327,14 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict) -> str:
     if dec["option"] != spec["recommendation"]["option"]:
         lines += ["", f"La recommandation était l'option {spec['recommendation']['option']} : "
                       f"{spec['recommendation']['why']}"]
+    if idx and chosen.get("placement"):
+        lines += ["", "## Position dans le SI", ""] + placement_lines(chosen, idx) + \
+                 ["", f"POS cible : `schemas/pos-option-{dec['option'].lower()}.drawio`."]
+    review = next((r for r in reviews or [] if r["option"] == dec["option"]), None)
+    if review:
+        lines += ["", "## Revue Well-Architected", "",
+                  f"Constats de `wa_check.py` sur l'option {dec['option']} ; détail dans "
+                  f"`schemas/option-{dec['option'].lower()}.wa.md`.", ""] + wa_lines(review, wa)
     lines += ["", "## Conséquences", ""]
     lines += [f"- {item}" for item in chosen.get("cons", []) + chosen.get("risks", [])] or ["- aucune notée"]
     for gid, gap in chosen.get("gaps", {}).items():
@@ -246,12 +345,24 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def analyse(spec: dict, base: Path) -> tuple[list[dict], list[dict], dict, list[str], list[str]]:
-    """Contrôles croisés, scores et classement : critères, classement, catalogue, erreurs, avertissements."""
+def analyse(spec: dict, base: Path) -> dict:
+    """Contrôles croisés, POS, revue Well-Architected, scores et classement (partagés avec deck_build.py)."""
+    pos_data = None
     errors: list[str] = []
     warnings: list[str] = []
     catalog = load_catalog(base, spec, errors)
+    idx = None
+    if spec.get("pos"):
+        pos_path = resolve(base, spec["pos"], errors)
+        pos_data = read_pos(pos_path, errors) if pos_path else {"zones": []}
+        idx = pos_index(pos_data)
+        if not idx["apps"] and not errors:
+            errors.append(f"pos : aucune application dans {spec['pos']}")
+        if errors:  # POS illisible : pas d'erreurs en cascade sur chaque placement
+            idx = {"apps": {}, "places": set(), "unreadable": True}
     criteria = spec.get("criteria") or default_criteria(catalog)
+    if idx and not spec.get("criteria"):
+        criteria.append({"id": "urbanisation", "name": "Urbanisation (POS)", "weight": 2, "refs": []})
     if not criteria:
         errors.append("criteria : aucun critère, ni donné ni déduit des exigences non fonctionnelles")
     crit_ids = [c["id"] for c in criteria]
@@ -263,8 +374,17 @@ def analyse(spec: dict, base: Path) -> tuple[list[dict], list[dict], dict, list[
     option_ids = [o["id"] for o in spec["options"]]
     if len(set(option_ids)) != len(option_ids):
         errors.append("options : identifiant en double")
-    ranking = []
+    ranking, impacts, reviews = [], [], []
+    wa = load_wa() if any(o.get("provider") for o in spec["options"]) else None
+    if wa is None and any(o.get("provider") for o in spec["options"]):
+        warnings.append("revue Well-Architected non faite : skill cloud-architecture (wa_check.py) absent")
     for index, option in enumerate(spec["options"]):
+        if idx is not None and not idx.get("unreadable"):
+            if not option.get("placement"):
+                warnings.append(f"options/{index} ({option['id']}) : pas de placement dans le POS")
+            impacts.append(check_option(option, idx, errors, warnings))
+        elif option.get("placement") and idx is None:
+            errors.append(f"options/{index} ({option['id']})/placement : POS absent, ajoutez pos à la description")
         where = f"options/{index} ({option['id']})"
         comp_ids = [c["id"] for c in option["components"]]
         if len(set(comp_ids)) != len(comp_ids):
@@ -274,6 +394,10 @@ def analyse(spec: dict, base: Path) -> tuple[list[dict], list[dict], dict, list[
                 if flow[end] not in comp_ids:
                     errors.append(f"{where}/flows/{fi}/{end} : composant inconnu « {flow[end]} »")
         check_refs(f"{where}/gaps", option.get("gaps", {}), catalog, errors)
+        if wa and option.get("provider"):
+            reviews.append(wa_review(wa, option, where, errors, warnings))
+        elif option.get("wa_accept"):
+            warnings.append(f"{where}/wa_accept : ignoré, l'option n'a pas de provider")
         for ci, comp in enumerate(option["components"]):
             check_refs(f"{where}/components/{ci}/refs", comp.get("refs", []), catalog, errors)
         missing = [c for c in crit_ids if c not in option["scores"]]
@@ -314,7 +438,8 @@ def analyse(spec: dict, base: Path) -> tuple[list[dict], list[dict], dict, list[
         if not option.get("cons") and not option.get("risks"):
             warnings.append(f"option {option['id']} : ni inconvénient ni risque noté")
 
-    return criteria, ranking, catalog, errors, warnings
+    return {"criteria": criteria, "ranking": ranking, "catalog": catalog, "idx": idx, "pos_data": pos_data,
+            "impacts": impacts, "reviews": reviews, "wa": wa, "errors": errors, "warnings": warnings}
 
 
 def main() -> int:
@@ -353,10 +478,16 @@ def main() -> int:
             print(json.dumps({"input": str(args.decision), "errors": invalid, "warnings": []}, ensure_ascii=False))
             return 1
 
-    criteria, ranking, catalog, errors, warnings = analyse(spec, args.spec.parent)
+    found = analyse(spec, args.spec.parent)
+    criteria, ranking, catalog, idx, pos_data, impacts, reviews, wa, errors, warnings = (
+        found[k] for k in ("criteria", "ranking", "catalog", "idx", "pos_data", "impacts", "reviews", "wa",
+                           "errors", "warnings"))
     rec, decision = spec["recommendation"], spec.get("decision")
     report = {"input": str(args.spec), "outputs": [], "options": len(spec["options"]), "criteria": len(criteria),
               "ranking": ranking, "recommended": rec["option"], "decided": decision["option"] if decision else None,
+              "pos": impacts if idx is not None else None,
+              "wa": [{k: r[k] for k in ("option", "counts", "open")} for r in reviews] if wa else None,
+              "trace": None,
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
@@ -379,7 +510,7 @@ def main() -> int:
     if args.decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog))
+            handle.write(render_adr(spec, ranking, catalog, idx, reviews, wa))
         report["outputs"] = [str(adr), str(trace_md), str(trace_csv)]
         print(json.dumps(report, ensure_ascii=False))
         return 0
@@ -387,7 +518,7 @@ def main() -> int:
     stem = args.spec.name.removesuffix(".json")
     md, diagrams = out_dir / f"{stem}.md", out_dir / "schemas" / "architectures.json"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, criteria, ranking, catalog))
+        handle.write(render_md(spec, criteria, ranking, catalog, impacts, idx, reviews, wa))
     pages = [{"name": f"Option {o['id']}", "title": f"Option {o['id']} : {o['name']}", "elements": layout(o)}
              for o in spec["options"]]
     with open(diagrams, "w", encoding="utf-8", newline="\n") as handle:
@@ -402,10 +533,26 @@ def main() -> int:
                 json.dump(cloud_spec(option), handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
             report["outputs"].append(str(target_cloud))
+    for review in reviews:
+        option = next(o for o in spec["options"] if o["id"] == review["option"])
+        target_wa = out_dir / "schemas" / f"option-{review['option'].lower()}.wa.md"
+        rules = sum(1 for v in wa.RULES.values() if v[0] != "conventions")
+        with open(target_wa, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(wa.markdown(f"Option {option['id']} : {option['name']}", review["findings"],
+                                     review["clouds"], rules))
+        report["outputs"].append(str(target_wa))
+    if idx is not None:
+        for option in spec["options"]:
+            target_file = out_dir / "schemas" / f"pos-option-{option['id'].lower()}.json"
+            with open(target_file, "w", encoding="utf-8", newline="\n") as handle:
+                json.dump(target_pos(pos_data, option, f"POS cible, option {option['id']} : {option['name']}"),
+                          handle, ensure_ascii=False, indent=2)
+                handle.write("\n")
+            report["outputs"].append(str(target_file))
     if decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog))
+            handle.write(render_adr(spec, ranking, catalog, idx, reviews, wa))
         report["outputs"].append(str(adr))
     print(json.dumps(report, ensure_ascii=False))
     return 0

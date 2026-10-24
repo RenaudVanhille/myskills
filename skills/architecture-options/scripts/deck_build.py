@@ -218,7 +218,9 @@ def main() -> int:
                              check(spec["decision"], input_schema(options_script)["properties"]["decision"])]
     if report["errors"]:
         return done(1)
-    criteria, ranking, catalog, errors, warnings = analyse(spec, args.folder)
+    found = analyse(spec, args.folder)
+    criteria, ranking, catalog, errors, warnings = (found[k] for k in
+                                                    ("criteria", "ranking", "catalog", "errors", "warnings"))
     report["errors"] += errors
     report["warnings"] += warnings
     if errors:
