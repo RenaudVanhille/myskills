@@ -7,7 +7,7 @@
   "required": ["agent", "level", "receives", "produces", "handoffs"],
   "additionalProperties": false,
   "properties": {
-    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer"]},
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator"]},
     "level": {"enum": ["simple", "moyen", "complexe"],
               "description": "Niveau par défaut de l'agent : shared/models.json en tire son modèle dans chaque outil."},
     "receives": {"type": "array", "items": {"type": "string"}, "minItems": 1},
@@ -20,7 +20,7 @@
         "required": ["to", "when", "send"],
         "additionalProperties": false,
         "properties": {
-          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer"]},
+          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator"]},
           "when": {"type": "string"},
           "send": {"type": "array", "items": {"type": "string"}, "minItems": 1,
                    "description": "Ce qui va dans files, objective et constraints du message de passage."}

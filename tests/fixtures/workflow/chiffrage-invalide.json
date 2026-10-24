@@ -1,0 +1,9 @@
+{
+  "rates": {"developpeur": 650},
+  "work": [
+    {"id": "L1", "name": "API", "phase": "realisaton", "component": "api", "effort": {"developpeur": [10, 20]}},
+    {"id": "L2", "name": "Portail", "phase": "realisation", "component": "portal", "refs": ["EF-099"],
+     "effort": {"developeur": 10, "developpeur": [30, 20, 40]}}
+  ],
+  "infra": [{"id": "I1", "name": "Conteneurs", "kind": "cloud", "unit_cost": 70, "period": "mensuel"}]
+}

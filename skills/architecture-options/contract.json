@@ -713,6 +713,11 @@
       "to": "architecture-deck",
       "kind": "skill",
       "when": "la décision est prise et les schémas exportés : assembler la présentation du dossier"
+    },
+    {
+      "to": "solution-estimator",
+      "kind": "agent",
+      "when": "la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total)"
     }
   ]
 }

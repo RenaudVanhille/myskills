@@ -36,6 +36,8 @@
     {"prompt": "Exporte les exigences de ces documents dans un tableur.", "skill": "requirements-catalog"},
     {"prompt": "Propose deux ou trois architectures possibles et compare-les.", "skill": "architecture-options"},
     {"prompt": "Rédige l'ADR du choix d'architecture.", "skill": "architecture-options"},
-    {"prompt": "Trace chaque décision du projet et fais-moi valider chaque étape avant de continuer.", "skill": "decision-log"}
+    {"prompt": "Trace chaque décision du projet et fais-moi valider chaque étape avant de continuer.", "skill": "decision-log"},
+    {"prompt": "Combien coûterait l'architecture retenue, en jours de réalisation et en infrastructure ?", "skill": "solution-estimate"},
+    {"prompt": "Estime le coût total sur trois ans de la solution, maintenance comprise, et dis-moi si on tient le budget.", "skill": "solution-estimate"}
   ]
 }

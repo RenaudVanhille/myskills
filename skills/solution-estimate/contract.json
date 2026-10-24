@@ -1,0 +1,637 @@
+{
+  "skill": "solution-estimate",
+  "level": "complexe",
+  "inputs": [
+    "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
+    "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
+    "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions"
+  ],
+  "outputs": [
+    "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
+    "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script"
+  ],
+  "scripts": [
+    {
+      "name": "estimate_build.py",
+      "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
+      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema",
+      "options": {
+        "chiffrage.json": "description du chiffrage ; requirements et architecture sont relatifs à ce fichier",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, phase ou période inconnue, estimation qui n'a pas trois valeurs donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "rates",
+            "work"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string",
+              "description": "Périmètre du chiffrage, repris en tête de chiffrage.md."
+            },
+            "requirements": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Catalogue d'exigences, relatif au .json (défaut : exigences.json)."
+            },
+            "architecture": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Description des options d'architecture-options, relative au .json (défaut : options.json)."
+            },
+            "option": {
+              "type": "string",
+              "pattern": "^[A-Z]$",
+              "description": "Option chiffrée (défaut : la décision de options.json, sinon sa recommandation)."
+            },
+            "currency": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Devise affichée (défaut : €)."
+            },
+            "horizon": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Années de fonctionnement du coût total (défaut : 3)."
+            },
+            "rates": {
+              "type": "object",
+              "description": "Taux journalier de chaque profil (chef-de-projet, architecte, developpeur...).",
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 1
+              }
+            },
+            "work": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "phase",
+                  "effort"
+                ],
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^_": {}
+                },
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "phase": {
+                    "enum": [
+                      "cadrage",
+                      "conception",
+                      "realisation",
+                      "integration",
+                      "tests",
+                      "deploiement",
+                      "migration",
+                      "conduite-changement",
+                      "pilotage"
+                    ]
+                  },
+                  "component": {
+                    "type": "string",
+                    "description": "Composant de l'option que le lot réalise."
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                    },
+                    "description": "Exigences que le lot porte (en plus de celles du composant)."
+                  },
+                  "effort": {
+                    "type": "object",
+                    "description": "Charge par profil en jours : nombre, ou [mini, probable, maxi].",
+                    "additionalProperties": {
+                      "type": [
+                        "number",
+                        "array"
+                      ],
+                      "minimum": 0,
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    }
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Hypothèse propre au lot."
+                  }
+                }
+              }
+            },
+            "overheads": {
+              "type": "array",
+              "description": "Pilotage, qualité, architecture transverse : pourcentage de la charge des lots, au taux d'un profil.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "percent",
+                  "profile"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "percent": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "profile": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "contingency": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Provision pour risques, en % du coût de réalisation."
+            },
+            "infra": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "kind",
+                  "unit_cost",
+                  "period",
+                  "basis"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "component": {
+                    "type": "string"
+                  },
+                  "environment": {
+                    "enum": [
+                      "production",
+                      "hors-production",
+                      "toutes"
+                    ]
+                  },
+                  "kind": {
+                    "enum": [
+                      "cloud",
+                      "licence",
+                      "materiel",
+                      "service",
+                      "autre"
+                    ]
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "unit_cost": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "period": {
+                    "enum": [
+                      "mois",
+                      "an",
+                      "unique"
+                    ]
+                  },
+                  "basis": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "D'où vient le prix : grille tarifaire et date, devis, hypothèse de dimensionnement."
+                  }
+                }
+              }
+            },
+            "run": {
+              "type": "array",
+              "description": "Maintenance et exploitation par an : jours d'un profil, ou pourcentage de la réalisation hors provision.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "profile": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "days_per_year": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "percent_of_build": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              }
+            },
+            "budget": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Plafonds à tenir ; un dépassement est signalé.",
+              "properties": {
+                "build": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "monthly": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Fonctionnement par mois : infrastructure et run."
+                },
+                "tco": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  }
+                }
+              }
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "exclusions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, budget dépassé, exigences et composants non chiffrés, estimations incertaines, fichiers produits, erreurs et avertissements.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "option",
+                "currency",
+                "lots",
+                "build",
+                "infra",
+                "run",
+                "operate",
+                "tco",
+                "budget",
+                "unestimated",
+                "uncovered",
+                "uncertain",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "option": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "lots": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "build": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "days",
+                    "days_low",
+                    "days_high",
+                    "cost",
+                    "cost_low",
+                    "cost_high",
+                    "contingency"
+                  ],
+                  "description": "Réalisation : jours espérés et fourchette P10-P90, coût provision comprise.",
+                  "properties": {
+                    "days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "days_low": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "days_high": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cost": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cost_low": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cost_high": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "contingency": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "infra": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "one_time",
+                    "monthly",
+                    "annual"
+                  ],
+                  "properties": {
+                    "one_time": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "monthly": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "annual": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "run": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "annual"
+                  ],
+                  "properties": {
+                    "annual": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "operate": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "monthly"
+                  ],
+                  "properties": {
+                    "monthly": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "description": "Fonctionnement par mois : infrastructure récurrente et run."
+                },
+                "tco": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "years",
+                    "total"
+                  ],
+                  "properties": {
+                    "years": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "total": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "budget": {
+                  "description": "Postes du budget dépassés (build, monthly, tco), ou null sans budget.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "over"
+                      ],
+                      "properties": {
+                        "over": {
+                          "type": "array",
+                          "items": {
+                            "enum": [
+                              "build",
+                              "monthly",
+                              "tco"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "unestimated": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Exigences retenues qu'aucun lot ni composant chiffré ne porte."
+                },
+                "uncovered": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Composants de l'option (system, db, queue) sans lot ni ligne d'infrastructure."
+                },
+                "uncertain": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Lots dont l'écart mini-maxi dépasse la charge probable."
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "option": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exit_codes": {
+        "0": "chiffrage produit et CSV vérifié (avertissements possibles)",
+        "1": "description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "valider options.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "requirements-catalog",
+      "script": "req_build.py",
+      "why": "valider exigences.json contre son schéma",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "noter les hypothèses de chiffrage, soumettre le chiffrage à la revue"
+    },
+    {
+      "to": "document-publisher",
+      "kind": "agent",
+      "when": "le chiffrage doit être livré en Word, HTML ou XWiki"
+    },
+    {
+      "to": "architecture-options",
+      "kind": "skill",
+      "when": "le coût chiffré contredit la note du critère coût d'une option : revoir sa note"
+    }
+  ]
+}

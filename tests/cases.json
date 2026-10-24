@@ -828,6 +828,33 @@
       "absent": ["options-wa-invalide.md", "schemas"]
     },
     {
+      "id": "chiffrage",
+      "skill": "solution-estimate",
+      "_note": "Chiffrage de l'option recommandée : charge espérée et fourchette P10-P90, pilotage, provision, infrastructure, run, coût total sur 3 ans, budget tenu, couverture par les composants, lot incertain signalé, CSV relu.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/chiffrage.json", "{out}/chiffrage.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json"], "exit": 0, "report": {"option": "A", "lots": 10, "build.days": 169.1, "build.days_low": 156.0, "build.cost": 128776, "build.contingency": 11707, "infra.one_time": 6000, "infra.annual": 10200, "run.annual": 33160, "operate.monthly": 3613, "tco.total": 264857, "budget.over": [], "unestimated": [], "uncovered": [], "uncertain": ["L4"], "errors": []}, "report_contains": {"warnings": "option A chiffrée sur la recommandation"}}
+      ],
+      "files": ["chiffrage.md", "chiffrage.csv"],
+      "contains": {"chiffrage.md": ["| Réalisation, coût | 128 776 € (de 119 164 € à 138 387 €), dont provision 11 707 € |", "| Fonctionnement par mois | 8 000 € | 3 613 € | tenu |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet | 12 % |", "| **Total** | | | | **264 857 €** |", "devis infogérant du 2026-10-01"], "chiffrage.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;architecte;8;10;14;10,33;950;0;0;9816,67;;"]}
+    },
+    {
+      "id": "chiffrage-erreurs",
+      "skill": "solution-estimate",
+      "_note": "Description refusée avec le chemin et la valeur proche ; composant, profil et exigence inconnus, estimation hors ordre ; aucun fichier produit.",
+      "steps": [
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "work/0/phase : « realisaton » non permis"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "infra/0 : champ « basis » manquant"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "composant inconnu « portal » dans l'option A ; vouliez-vous « portail » ?"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "profil inconnu « developeur » ; vouliez-vous « developpeur » ?"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "exigence inconnue EF-099"}},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage-refs-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "attendu dans l'ordre croissant, reçu [30, 20, 40]"}}
+      ],
+      "absent": ["chiffrage-invalide.md", "chiffrage-refs-invalide.md", "chiffrage-refs-invalide.csv"]
+    },
+    {
       "id": "brief",
       "skill": "diagram-brief",
       "_note": "Décision courte validée puis grille appliquée : séquence en Mermaid, public non technique en Excalidraw malgré la destination, vue cloud ; décision invalide refusée sans fichier.",
