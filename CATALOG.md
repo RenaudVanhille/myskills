@@ -16,23 +16,23 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 
 ### `architecture-reviewer`
 
-Revoit la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE (frontières de confiance, flux qui les traversent, mesures) et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.
+Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.
 
-**Skills** : `check-prerequisites`, `threat-model`, `well-architected-review`, `cloud-architecture`, `diagram-export`, `decision-log`, `agent-handoff`
+**Skills** : `check-prerequisites`, `architecture-review`, `threat-model`, `well-architected-review`, `cloud-architecture`, `diagram-export`, `decision-log`, `agent-handoff`
 
 Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
-- **Reçoit** : La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
-- **Produit** : <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
-- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Modifier le schéma ou la description d'un autre agent sans le dire ; Envoyer une description ou un schéma à un service en ligne.
+- **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
+- **Produit** : <sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code ; <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
+- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local ; Modifier le schéma ou la description d'un autre agent sans le dire ; Envoyer une description ou un schéma à un service en ligne.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
 | `schema-designer` | le schéma doit être corrigé ou complété après la revue (composant manquant, flux à chiffrer) | la description JSON corrigée ; les constats qui la justifient ; la destination du schéma |
-| `architecture-workflow` | la revue est faite pour une étape de workflow : rendre la main pour la soumission | les fichiers .threats.md et .wa.md ; les constats de gravité haute restants ; le dossier du workflow |
-| `document-publisher` | la revue doit être livrée en Word, HTML ou XWiki | les fichiers .threats.md et .wa.md ; l'outil cible |
+| `architecture-workflow` | la revue est faite pour une étape de workflow : rendre la main pour la soumission | les fichiers .revue.md, .threats.md et .wa.md ; les constats de gravité haute restants ; le dossier du workflow |
+| `document-publisher` | la revue doit être livrée en Word, HTML ou XWiki | les fichiers .revue.md, .threats.md et .wa.md ; l'outil cible |
 
 ### `architecture-workflow`
 
@@ -53,7 +53,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 | `document-extractor` | des documents demandent une transcription par vision page à page (scans, schémas en image) en lot | les documents ; la cible markdown et le dossier sources/ |
 | `schema-designer` | l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles ou réseau | options.md et options.json ; l'option retenue et ses noms de composants ; le dossier schemas/ ; la note de l'option dans le vault |
 | `document-publisher` | le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint | exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py, skill architecture-deck) pour PowerPoint ; l'outil cible ; le gabarit .potx de la marque, s'il est connu |
-| `architecture-reviewer` | un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow | la description JSON cloud (schemas/option-<id>.cloud.json ou schemas/architecture.json) ; le dossier schemas/ ; la note de l'option dans le vault |
+| `architecture-reviewer` | une revue d'architecture (ATAM, traçabilité, code comparé à l'architecture), un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow | options.json et l'option retenue, exigences.json et adr-architecture.md pour une revue d'architecture ; la description JSON cloud (schemas/option-<id>.cloud.json ou schemas/architecture.json) ; le dossier schemas/ ; la note de l'option dans le vault |
 
 ### `document-extractor`
 
@@ -162,6 +162,28 @@ Résumé de [`contract.json`](skills/architecture-options/contract.json), qui fa
 - **Passe la main** au skill `urbanization-map` : construire le POS cible de chaque option avec pos_build.py.
 - **Passe la main** au skill `architecture-deck` : la décision est prise et les schémas exportés : assembler la présentation du dossier.
 
+### `architecture-review`
+
+Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture.
+
+Résumé de [`contract.json`](skills/architecture-review/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : complexe (modèle puissant).
+- **Entrées** : Description JSON de la revue (revue.json) : composants, flux, couches, scénarios de qualité, risques, points de sensibilité, compromis, décisions ; ou les composants et flux d'une option d'architecture-options (source) ; Facultatif : le catalogue d'exigences (exigences.json de requirements-catalog), pour la traçabilité ; Facultatif : la description cloud de la même architecture (schemas/option-<id>.cloud.json), pour les piliers Well-Architected ; Facultatif : le code source, ou le graph.json déjà produit par graphify, pour comparer le code à l'architecture ; Facultatif : accept, les écarts acceptés avec leur raison.
+- **Sorties** : <sujet>.revue.md : avis, synthèse par axe, arbre d'utilité (scénarios de qualité et leur évaluation), constats, risques, points de sensibilité et compromis, décisions, traçabilité des exigences, conformité du code, points à vérifier hors de la description ; Avec --vault : dans le vault, Revues d'architecture/<titre>.md (revue-architecture, avis, evalue), Constats/<titre>/*.md et Risques/<titre>/*.md (porte-sur, issu-de).
+- **`arch_review.py`** : Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture. Rapport JSON, codes de sortie : 0 revue écrite, aucun constat non accepté au seuil --fail-on ; 1 description illisible, référence inconnue, graphify manquant ou en échec, note du vault hors ontologie, ou constat non accepté au seuil --fail-on ; sauf erreur, le rapport et <sujet>.revue.md sont tout de même produits.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et en reprendre les composants et les flux de l'option revue.
+- **Dépend de** `well-architected-review` (`wa_check.py`, facultatif : sans lui, avertissement) : piliers Well-Architected de la description cloud (cloud).
+- **Vault Obsidian** : écrit les notes de type `revue-architecture`, `constat`, `risque` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
+- **Passe la main** au skill externe `graphify` (installé à part, contrat `shared/external/graphify.contract.json`) : comparer le code à l'architecture : le script lance graphify extract sur code.root (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit le graphe.
+- **Passe la main** au skill `architecture-options` : un constat demande de changer l'option (composant, flux, écart) : corriger options.json puis relancer.
+- **Passe la main** au skill `well-architected-review` : revue Well-Architected complète d'une architecture cloud, conventions du schéma comprises.
+- **Passe la main** au skill `threat-model` : analyse des menaces STRIDE de l'architecture revue.
+- **Passe la main** au skill `decision-log` : dans un workflow : noter les écarts acceptés et soumettre la revue.
+- **Passe la main** à l'utilisateur : un écart est voulu : sa raison va dans accept ; un risque attend un responsable.
+
 ### `c4-architecture`
 
 Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue. À utiliser pour les schémas d'architecture.
@@ -182,7 +204,7 @@ Vérifie que les outils locaux nécessaires aux skills de myskills sont install�
 Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Un groupe : extraction, schemas, publication ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne.
+- **Entrées** : Un groupe : extraction, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne.
 - **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills.
 - **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.

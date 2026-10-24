@@ -173,10 +173,11 @@ def check_contracts() -> dict:
             failures.append(f"external/{name}.contract.json : skill = {contract.get('skill')!r}")
         if name in skills:
             failures.append(f"external/{name} : un skill du dépôt porte déjà ce nom")
-        try:
-            Draft202012Validator.check_schema(contract.get("plan", {}))
-        except Exception as error:  # noqa: BLE001 - message du validateur
-            failures.append(f"external/{name} : schéma du plan invalide ({error})")
+        for key in ("plan", "output_schema"):
+            try:
+                Draft202012Validator.check_schema(contract.get(key, {}))
+            except Exception as error:  # noqa: BLE001 - message du validateur
+                failures.append(f"external/{name} : schéma {key} invalide ({error})")
 
     for folder in sorted((ROOT / "skills").glob("*/")):
         if folder.name not in skills:

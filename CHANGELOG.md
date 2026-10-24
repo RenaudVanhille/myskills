@@ -28,6 +28,31 @@
   cohérente (`contrats`), import de `vault_ontology` par tout skill qui
   écrit dans le vault (`regles`).
 
+### Revue d'architecture
+
+- Skill `architecture-review` (`arch_review.py`) : revue d'une architecture
+  logicielle ou solution à la manière d'ATAM. Le modèle écrit et évalue les
+  scénarios de qualité (arbre d'utilité), les risques, sensibilités,
+  compromis et décisions ; le script contrôle la structure (cycles
+  synchrones, base partagée, couches, pivot, chaîne synchrone longue,
+  dépendance externe synchrone, point unique de défaillance), la
+  traçabilité des exigences, les scénarios, décisions et risques, reprend
+  une option d'`architecture-options` (`source`) sans recopie, ajoute les
+  piliers Well-Architected d'une description cloud et calcule l'avis.
+- Code comparé à l'architecture avec graphify, skill externe appelé par son
+  contrat (`shared/external/graphify.contract.json`) : `--code-only` par
+  défaut (analyse locale) ; `semantic` fait lire aussi les documents par le
+  modèle du harness ou par Ollama.
+- AGENTS.md, section 5 : la règle vise les services tiers non maîtrisés ;
+  les modèles du harness (offre entreprise) ne sont pas concernés. Le contrat des skills
+  externes accepte un outil en ligne de commande (`locate.command`) et le
+  schéma de sa sortie (`output_schema`).
+- `--vault` : la revue, ses constats et ses risques deviennent des notes
+  typées du vault (`revue-architecture`, `constat`, `risque` de
+  l'ontologie), reliées aux notes d'exigence, d'option et d'ADR.
+- Agent `architecture-reviewer` : revue d'architecture en plus des menaces
+  et du Well-Architected ; `check-prerequisites` : groupe `revue`.
+
 ## 0.4.0 (2026-10-24)
 
 Revue de cohérence des skills et des agents : dépendances déclarées,

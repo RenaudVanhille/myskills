@@ -1,0 +1,64 @@
+{
+  "_source": "généré par options_build.py",
+  "title": "Option A : Application web dans le cloud européen",
+  "provider": "aws",
+  "items": [
+    {
+      "id": "assure",
+      "type": "user",
+      "label": "Assuré"
+    },
+    {
+      "id": "portail",
+      "type": "cloudfront",
+      "label": "Portail web"
+    },
+    {
+      "id": "api",
+      "type": "ecs",
+      "label": "API déclarations"
+    },
+    {
+      "id": "file",
+      "type": "sqs",
+      "label": "File de déclarations"
+    },
+    {
+      "id": "gestion",
+      "type": "external",
+      "label": "Outil de gestion des sinistres"
+    },
+    {
+      "id": "annuaire",
+      "type": "external",
+      "label": "Annuaire des assurés"
+    }
+  ],
+  "flows": [
+    {
+      "from": "assure",
+      "to": "portail",
+      "label": "HTTPS"
+    },
+    {
+      "from": "portail",
+      "to": "api"
+    },
+    {
+      "from": "api",
+      "to": "annuaire",
+      "label": "OIDC + MFA"
+    },
+    {
+      "from": "api",
+      "to": "file",
+      "style": "async"
+    },
+    {
+      "from": "file",
+      "to": "gestion",
+      "label": "déclaration",
+      "style": "async"
+    }
+  ]
+}

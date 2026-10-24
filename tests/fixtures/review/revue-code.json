@@ -1,0 +1,7 @@
+{
+  "title": "Code à analyser par graphify",
+  "code": {"root": "code"},
+  "components": [{"id": "api", "label": "API", "code": ["src/api"]},
+                 {"id": "file", "label": "File", "role": "queue", "code": ["src/messagerie"]}],
+  "flows": [{"from": "api", "to": "file", "style": "async"}]
+}

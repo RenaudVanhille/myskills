@@ -1,0 +1,7 @@
+{
+  "title": "Références inconnues",
+  "requirements": "../workflow/exigences.json",
+  "components": [{"id": "api", "label": "API", "refs": ["ENF-099"]}],
+  "flows": [{"from": "api", "to": "Base"}],
+  "risks": [{"id": "R-01", "text": "panne", "severity": "basse", "scenarios": ["QS-09"]}]
+}
