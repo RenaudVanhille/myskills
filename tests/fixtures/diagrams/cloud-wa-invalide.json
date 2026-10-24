@@ -1,0 +1,6 @@
+{
+  "title": "Acceptations invalides",
+  "provider": "aws",
+  "accept": {"sec-5": "WAF du CDN", "OPS-01": ""},
+  "items": [{"id": "fn", "type": "lambda"}]
+}

@@ -1,5 +1,24 @@
 # Journal des versions
 
+## À venir
+
+### Nouveautés
+
+- `cloud-architecture` : `wa_check.py` contrôle la description d'une
+  architecture contre l'AWS Well-Architected Framework, l'Azure
+  Well-Architected Framework et le Google Cloud Well-Architected Framework
+  (fiabilité, sécurité, excellence opérationnelle, performances, coûts,
+  durabilité) et contre les conventions de schéma des fournisseurs
+  (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles).
+  20 règles, constats avec pilier, gravité, correction et référence du
+  cadre, rapport JSON et `<sujet>.wa.md`. Clé `accept` de la description
+  pour accepter un écart avec sa raison ; `--fail-on` pour la porte de
+  revue.
+- Workflow `cloud-existant` : l'étape `menaces` livre aussi la revue
+  Well-Architected ; `schema-designer` la lance pour un schéma cloud.
+- Message d'erreur des descriptions JSON : forme attendue d'une clé libre
+  (`accept`) au lieu d'une liste vide.
+
 ## 0.2.0 (2026-10-23)
 
 Revue complète après la 0.1 : fiabilité, contrôle des workflows multi-agents,
