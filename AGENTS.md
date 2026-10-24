@@ -149,7 +149,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 
 ## 8. Avant de livrer un skill ou un agent
 
-1. Contrat écrit ou mis à jour, puis `uv run scripts/build.py`.
+1. Contrat écrit ou mis à jour : `level` (le modèle écrit-il ou décide-t-il
+   quelque chose ? non : simple ; une description ou une correction :
+   moyen ; concevoir, noter, analyser : complexe), `requires` pour chaque
+   script d'un autre skill appelé ; pour un agent, le marqueur
+   `{{niveaux}}`, pour un workflow, une définition JSON avec un `level` par
+   étape. Puis `uv run scripts/build.py`.
 2. Au moins un cas dans `tests/cases.json` (dont un cas d'entrée invalide
    pour un script qui lit une description), fixtures dans `tests/fixtures/`.
 3. `uv run tests/run.py` sans échec, `regles` et `contrats` compris.
