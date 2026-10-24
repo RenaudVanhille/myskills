@@ -1,0 +1,211 @@
+{
+  "title": "Option cloud avec un type inconnu",
+  "context": "Le portail doit ouvrir la déclaration en ligne aux assurés, relié à l'outil de gestion existant, hébergé en Union européenne.",
+  "requirements": "exigences.json",
+  "options": [
+    {
+      "id": "A",
+      "name": "Application web dans le cloud européen",
+      "summary": "Portail web et API en conteneurs managés, file de messages vers l'outil de gestion.",
+      "components": [
+        {
+          "id": "assure",
+          "label": "Assuré",
+          "role": "person"
+        },
+        {
+          "id": "portail",
+          "label": "Portail web",
+          "tech": "React",
+          "type": "cloudfront",
+          "refs": [
+            "EF-001",
+            "SEC-01"
+          ]
+        },
+        {
+          "id": "api",
+          "label": "API déclarations",
+          "tech": "conteneurs managés",
+          "type": "ecs",
+          "refs": [
+            "EF-001",
+            "EF-002",
+            "ENF-001",
+            "ENF-003",
+            "ENF-005",
+            "SEC-02"
+          ],
+          "count": "2-10"
+        },
+        {
+          "id": "file",
+          "label": "File de déclarations",
+          "role": "queue",
+          "type": "sqs",
+          "refs": [
+            "EF-003",
+            "ENF-002"
+          ]
+        },
+        {
+          "id": "gestion",
+          "label": "Outil de gestion des sinistres",
+          "role": "external",
+          "refs": [
+            "EF-003"
+          ]
+        },
+        {
+          "id": "annuaire",
+          "label": "Annuaire des assurés",
+          "role": "external",
+          "refs": [
+            "ENF-004"
+          ]
+        },
+        {
+          "id": "pieces",
+          "label": "Pièces jointes",
+          "type": "s4",
+          "refs": [
+            "EF-001"
+          ]
+        }
+      ],
+      "flows": [
+        {
+          "from": "assure",
+          "to": "portail",
+          "label": "HTTPS",
+          "protocol": "HTTPS"
+        },
+        {
+          "from": "portail",
+          "to": "api"
+        },
+        {
+          "from": "api",
+          "to": "annuaire",
+          "label": "OIDC + MFA",
+          "protocol": "HTTPS"
+        },
+        {
+          "from": "api",
+          "to": "file",
+          "style": "async"
+        },
+        {
+          "from": "file",
+          "to": "gestion",
+          "label": "déclaration",
+          "style": "async"
+        },
+        {
+          "from": "assure",
+          "to": "pieces",
+          "label": "dépôt direct"
+        }
+      ],
+      "scores": {
+        "performance": 5,
+        "disponibilite": 4,
+        "conformite": 4,
+        "securite": 4,
+        "cout": 3
+      },
+      "score_notes": {
+        "performance": "mise à l'échelle automatique",
+        "disponibilite": "deux zones de disponibilité",
+        "conformite": "région UE, contrat à vérifier",
+        "securite": "MFA par l'annuaire existant",
+        "cout": "estimé à 6 000 euros par mois hors pics"
+      },
+      "pros": [
+        "absorbe les pics après tempête"
+      ],
+      "cons": [
+        "compétences conteneurs à acquérir"
+      ],
+      "risks": [
+        "coût variable pendant les pics"
+      ],
+      "provider": "aws",
+      "wa_accept": {
+        "OPS-01": "supervision par l'outil central de l'exploitation",
+        "SEC-99": "règle inexistante"
+      }
+    },
+    {
+      "id": "B",
+      "name": "Extension du progiciel de gestion",
+      "summary": "Module portail fourni par l'éditeur de l'outil de gestion, hébergé chez l'éditeur.",
+      "components": [
+        {
+          "id": "assure",
+          "label": "Assuré",
+          "role": "person"
+        },
+        {
+          "id": "module",
+          "label": "Module portail de l'éditeur",
+          "role": "external"
+        },
+        {
+          "id": "gestion",
+          "label": "Outil de gestion des sinistres",
+          "role": "external"
+        }
+      ],
+      "flows": [
+        {
+          "from": "assure",
+          "to": "module",
+          "label": "HTTPS"
+        },
+        {
+          "from": "module",
+          "to": "gestion"
+        }
+      ],
+      "gaps": {
+        "ENF-001": {
+          "level": "partiel",
+          "note": "capacité de l'éditeur non garantie au-delà de 5 000 déclarations par jour"
+        },
+        "ENF-004": {
+          "level": "non",
+          "note": "pas de MFA ni de lien avec l'annuaire"
+        }
+      },
+      "scores": {
+        "performance": 2,
+        "disponibilite": 3,
+        "conformite": 3,
+        "securite": 2,
+        "cout": 4
+      },
+      "score_notes": {
+        "performance": "plafond de l'éditeur",
+        "disponibilite": "99 % contractuel",
+        "conformite": "hébergement UE annoncé, sous-traitants hors UE",
+        "securite": "mot de passe seul",
+        "cout": "licence forfaitaire"
+      },
+      "pros": [
+        "aucune intégration à développer"
+      ],
+      "cons": [
+        "dépendance à l'éditeur"
+      ]
+    }
+  ],
+  "recommendation": {
+    "option": "A",
+    "why": "seule option qui couvre toutes les exigences indispensables, dont l'authentification forte",
+    "refs": [
+      "ENF-004",
+      "ENF-001"
+    ]
+  }
+}

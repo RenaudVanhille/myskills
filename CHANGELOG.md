@@ -1,5 +1,48 @@
 # Journal des versions
 
+## À venir
+
+### Nouveautés
+
+- `cloud-architecture` : `wa_check.py` contrôle la description d'une
+  architecture contre l'AWS Well-Architected Framework, l'Azure
+  Well-Architected Framework et le Google Cloud Well-Architected Framework
+  (fiabilité, sécurité, excellence opérationnelle, performances, coûts,
+  durabilité) et contre les conventions de schéma des fournisseurs
+  (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles).
+  20 règles, constats avec pilier, gravité, correction et référence du
+  cadre, rapport JSON et `<sujet>.wa.md`. Clé `accept` de la description
+  pour accepter un écart avec sa raison ; `--fail-on` pour la porte de
+  revue ; `--scope piliers` dès la définition de l'architecture (options
+  cloud de `architecture-options`), `--scope conventions` au dessin.
+- Workflow `architecture` : l'étape `architectures` contrôle chaque option
+  cloud contre les piliers Well-Architected ; l'étape `schemas` contrôle les
+  conventions du schéma de l'option retenue.
+- Workflow `cloud-existant` : l'étape `menaces` livre aussi la revue
+  Well-Architected ; `schema-designer` la lance pour un schéma cloud.
+- Message d'erreur des descriptions JSON : forme attendue d'une clé libre
+  (`accept`) au lieu d'une liste vide.
+- `architecture-options` : position de chaque option dans le POS du SI
+  (`pos`, `placement`) : noms vérifiés dans le POS, impacts (créations,
+  évolutions, remplacements, redondances, flux entre zones), critère
+  « urbanisation », section dans `options.md` et l'ADR, POS cible par option
+  (`schemas/pos-option-<id>.json` pour `pos_build.py`).
+- POS d'entrée lu aussi depuis une note Markdown (tableau zone, quartier,
+  ilot, application, statut) et depuis le vault du workflow
+  (`"pos": "vault:<chemin>"`), quand il a été versé à l'étude.
+- `architecture-workflow` : demande le POS du SI avec le vault, construit
+  le POS cible de chaque option à l'étape `schemas` ; note d'option du vault
+  avec sa position.
+- `architecture-options` : revue Well-Architected des piliers dès la
+  définition des options (`wa_check.py`) : constats par pilier dans
+  `options.md`, détail dans `schemas/option-<id>.wa.md`, constats de
+  l'option retenue dans l'ADR ; écart accepté avec sa raison
+  (`wa_accept`), gravité haute non traitée signalée ; `count` des
+  composants et `protocol` des flux ; type cloud inconnu refusé dès cette
+  étape. `architecture-workflow` y répond avant la revue.
+- `options_build.py` : rapport conforme au contrat aussi après une erreur
+  de référence (`trace` à null).
+
 ## 0.2.0 (2026-10-23)
 
 Revue complète après la 0.1 : fiabilité, contrôle des workflows multi-agents,

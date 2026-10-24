@@ -2,7 +2,8 @@
   "skill": "architecture-options",
   "inputs": [
     "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
-    "Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision",
+    "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
+    "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
     "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
   ],
   "outputs": [
@@ -10,12 +11,14 @@
     "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
     "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
     "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
-    "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)"
+    "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)",
+    "schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture)",
+    "schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py"
   ],
   "scripts": [
     {
       "name": "options_build.py",
-      "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles.",
+      "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
       "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
       "options": {
         "options.json": "description des options ; requirements est relatif à ce fichier",
@@ -55,6 +58,11 @@
               "type": "string",
               "minLength": 1,
               "description": "Catalogue d'exigences, relatif au .json (défaut : exigences.json)."
+            },
+            "pos": {
+              "type": "string",
+              "minLength": 1,
+              "description": "POS existant du SI : description JSON ou inventaire CSV de urbanization-map, ou note Markdown avec le tableau zone, quartier, ilot, application, statut ; relatif au .json, ou « vault:<chemin> » pour un POS versé au vault du workflow (memory.vault de workflow.json)."
             },
             "criteria": {
               "type": "array",
@@ -165,6 +173,13 @@
                           "type": "string",
                           "minLength": 1,
                           "description": "Type cloud_build.py du composant (ecs, aurora, sqs... ; cloud_build.py --types) si l'option a un provider ; sinon déduit du rôle."
+                        },
+                        "count": {
+                          "type": [
+                            "integer",
+                            "string"
+                          ],
+                          "description": "Option cloud : nombre d'instances (2, « 2-10 ») ; au-delà de 1, la revue Well-Architected compte le composant comme redondant."
                         }
                       }
                     }
@@ -193,6 +208,10 @@
                             "sync",
                             "async"
                           ]
+                        },
+                        "protocol": {
+                          "type": "string",
+                          "description": "Protocole (HTTPS, TLS, AMQPS...) : la revue Well-Architected contrôle le chiffrement des flux d'une option cloud."
                         }
                       }
                     }
@@ -267,6 +286,60 @@
                       "k8s"
                     ],
                     "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
+                  },
+                  "placement": {
+                    "type": "array",
+                    "description": "Position de l'option dans le POS : applications créées (zone, quartier, îlot), modifiées, remplacées ou réutilisées.",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "app",
+                        "change"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "app": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Nom de l'application, tel que dans le POS pour une application existante."
+                        },
+                        "change": {
+                          "enum": [
+                            "nouvelle",
+                            "a-faire-evoluer",
+                            "a-remplacer",
+                            "en-place",
+                            "externe"
+                          ]
+                        },
+                        "zone": {
+                          "type": "string"
+                        },
+                        "quartier": {
+                          "type": "string"
+                        },
+                        "ilot": {
+                          "type": "string"
+                        },
+                        "component": {
+                          "type": "string",
+                          "description": "Composant de l'option qui correspond à cette application (flux entre zones)."
+                        },
+                        "coexists": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Nouvelle application dans un îlot déjà occupé : pourquoi elle coexiste avec l'existant (sinon redondance signalée)."
+                        }
+                      }
+                    }
+                  },
+                  "wa_accept": {
+                    "type": "object",
+                    "description": "Option cloud : constats Well-Architected acceptés, clé « RÈGLE@élément » ou « RÈGLE » (champ open du rapport wa), valeur la raison ; ils restent dans l'ADR mais ne comptent plus.",
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   }
                 }
               }
@@ -347,9 +420,11 @@
                 "ranking",
                 "recommended",
                 "decided",
+                "pos",
                 "errors",
                 "warnings",
-                "trace"
+                "trace",
+                "wa"
               ],
               "additionalProperties": false,
               "properties": {
@@ -419,28 +494,136 @@
                   }
                 },
                 "trace": {
-                  "type": "object",
-                  "required": [
-                    "uncovered",
-                    "unassigned"
-                  ],
-                  "additionalProperties": false,
-                  "properties": {
-                    "uncovered": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      },
-                      "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                  "description": "Matrice de traçabilité de l'option retenue (ou recommandée), ou null si la description a une erreur.",
+                  "anyOf": [
+                    {
+                      "type": "null"
                     },
-                    "unassigned": {
+                    {
+                      "type": "object",
+                      "required": [
+                        "uncovered",
+                        "unassigned"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "uncovered": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                        },
+                        "unassigned": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                        }
+                      }
+                    }
+                  ]
+                },
+                "pos": {
+                  "description": "Impacts de chaque option sur le POS, ou null sans POS.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
                       "type": "array",
                       "items": {
-                        "type": "string"
-                      },
-                      "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                        "type": "object",
+                        "required": [
+                          "option",
+                          "new",
+                          "evolve",
+                          "replace",
+                          "reuse",
+                          "redundancies",
+                          "cross_zone"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "option": {
+                            "type": "string"
+                          },
+                          "new": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "evolve": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "replace": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "reuse": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "redundancies": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "cross_zone": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
                     }
-                  }
+                  ]
+                },
+                "wa": {
+                  "description": "Revue Well-Architected des piliers de chaque option cloud (wa_check.py), ou null sans option cloud.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "option",
+                          "counts",
+                          "open"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "option": {
+                            "type": "string"
+                          },
+                          "counts": {
+                            "type": "object",
+                            "required": [
+                              "haute",
+                              "moyenne",
+                              "basse",
+                              "acceptés"
+                            ],
+                            "additionalProperties": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          },
+                          "open": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Constats ouverts, « RÈGLE@élément » : clés possibles de wa_accept."
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -499,6 +682,11 @@
       "to": "decision-log",
       "kind": "skill",
       "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+    },
+    {
+      "to": "urbanization-map",
+      "kind": "skill",
+      "when": "construire le POS cible de chaque option avec pos_build.py"
     }
   ]
 }

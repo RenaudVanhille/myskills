@@ -13,14 +13,15 @@ calcule scores et rang, met en forme et prépare les schémas.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
-- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles).
-- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
+- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>) ; Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
+- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles) ; schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture) ; schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py.
+- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
 - **Passe la main** à l'agent `schema-designer` : un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue.
 - **Passe la main** au skill `decision-log` : noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur.
+- **Passe la main** au skill `urbanization-map` : construire le POS cible de chaque option avec pos_build.py.
 
 ## 1. Concevoir les options
 
@@ -72,7 +73,17 @@ Fichier `options.json`, à côté de `exigences.json` :
 - **Option cloud** : avec `provider` (aws, azure, gcp, k8s) et un `type`
   `cloud_build.py` par composant (`ecs`, `aurora`, `sqs`... ; sinon déduit
   du rôle), le script écrit aussi `schemas/option-<id>.cloud.json`, schéma
-  aux icônes officielles.
+  aux icônes officielles. Le script la contrôle aussi contre les piliers
+  du cadre Well-Architected du fournisseur (`wa_check.py` du skill
+  `cloud-architecture`) : constats par pilier dans `options.md`, détail
+  dans `schemas/option-<id>.wa.md`, constats de l'option retenue dans
+  l'ADR. Donnez `count` (2, « 2-10 ») aux composants redondés et
+  `protocol` (HTTPS, TLS...) aux flux. Chaque constat ouvert (pas de
+  supervision, pas de WAF, instance unique...) s'ajoute à l'option comme
+  composant, ou s'accepte avec sa raison dans `wa_accept` (clé du champ
+  `open` du rapport, `"SEC-05@F1": "WAF du groupe en amont"`) ; il pèse
+  sur la note du critère concerné. Une gravité haute non traitée est
+  signalée.
 - **Recommandation** : l'option et pourquoi, avec les exigences
   déterminantes. Si elle ne suit pas le classement, le script l'avertit :
   la justification doit l'expliquer.
@@ -82,6 +93,29 @@ Fichier `options.json`, à côté de `exigences.json` :
   decision.json` : il n'écrit que l'ADR, la comparaison validée ne change
   pas. Hors workflow, le même objet peut aller dans `decision` de
   `options.json`.
+
+- **Position dans le SI** : avec le POS existant du SI (`"pos":
+  "pos-si.csv"` : description JSON ou inventaire CSV de `urbanization-map`,
+  ou note Markdown avec le tableau zone, quartier, ilot, application,
+  statut ; `"vault:Études/POS du SI.md"` pour un POS versé au vault du
+  workflow), chaque option dit où elle se place dans l'architecture
+  globale :
+
+  ```json
+  "placement": [
+    {"app": "Portail sinistres", "change": "nouvelle", "zone": "Opérations",
+     "quartier": "Sinistres", "ilot": "Déclaration", "component": "api",
+     "coexists": "canal web en plus du téléphone"},
+    {"app": "Outil de gestion des sinistres", "change": "a-faire-evoluer", "component": "gestion"}
+  ]
+  ```
+
+  `change` : `nouvelle` (zone et quartier du POS, îlot conseillé),
+  `a-faire-evoluer`, `a-remplacer`, `en-place` (réutilisée), `externe`. Une
+  application existante garde son nom exact du POS. Le script signale une
+  redondance (nouvelle application dans un îlot déjà occupé, sans
+  `coexists` qui l'explique), compte les flux entre zones (via
+  `component`) et ajoute le critère `urbanisation` à noter.
 
 ## 3. Construire
 
@@ -93,7 +127,8 @@ Produit `options.md` (comparaison pour la revue),
 `schemas/architectures.json` (une page draw.io par option), la matrice de
 traçabilité `tracabilite.md` et `.csv` (exigence, couverture par option,
 composants de l'option retenue ou recommandée) et, pour une option cloud,
-`schemas/option-<id>.cloud.json` ;
+`schemas/option-<id>.cloud.json` ; avec un POS, la section « Position dans
+le SI » et le POS cible de chaque option, `schemas/pos-option-<id>.json` ;
 `--decision decision.json` produit `adr-architecture.md`. Corrigez jusqu'à zéro erreur.
 
 ## 4. Schémas
@@ -109,6 +144,13 @@ officielles :
 
 ```bash
 uv run ../cloud-architecture/scripts/cloud_build.py schemas/option-a.cloud.json
+```
+
+Avec un POS, le POS cible de chaque option (applications touchées colorées
+par statut) :
+
+```bash
+uv run ../urbanization-map/scripts/pos_build.py schemas/pos-option-a.json
 ```
 
 Pour l'option retenue, un schéma C4, réseau ou un modèle de menaces STRIDE

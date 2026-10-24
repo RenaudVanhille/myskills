@@ -11,6 +11,7 @@
       "agent": "architecture-workflow",
       "receives": [
         "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
+        "Le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
         "Le vault Obsidian qui sert de mémoire partagée",
         "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
       ],
@@ -18,7 +19,7 @@
         "sources/*.md : les documents en Markdown",
         "exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées",
         "options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur",
-        "schemas/architectures.drawio et un PNG par option",
+        "schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio)",
         "workflow.json et journal.md : état des étapes, choix, questions, retours et validations",
         "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
       ],
@@ -66,6 +67,7 @@
         "architecture-options",
         "drawio-diagram",
         "cloud-architecture",
+        "urbanization-map",
         "diagram-export"
       ]
     },
@@ -159,7 +161,7 @@
         "Si possible le public, la destination et le dossier de sortie"
       ],
       "produces": [
-        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux ou le modèle de menaces en Markdown si demandés",
+        "La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux, le modèle de menaces ou la revue Well-Architected en Markdown si demandés",
         "Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png"
       ],
       "never": [
@@ -205,7 +207,8 @@
       "skill": "architecture-options",
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
-        "Description JSON des options : title, context, audience, requirements, criteria, options (id, name, summary, components, flows, gaps, scores, score_notes, pros, cons, risks), recommendation, decision",
+        "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
+        "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
         "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
       ],
       "outputs": [
@@ -213,12 +216,14 @@
         "schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py",
         "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
         "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
-        "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)"
+        "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)",
+        "schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture)",
+        "schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py"
       ],
       "scripts": [
         {
           "name": "options_build.py",
-          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles.",
+          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
           "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
           "options": {
             "options.json": "description des options ; requirements est relatif à ce fichier",
@@ -258,6 +263,11 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Catalogue d'exigences, relatif au .json (défaut : exigences.json)."
+                },
+                "pos": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "POS existant du SI : description JSON ou inventaire CSV de urbanization-map, ou note Markdown avec le tableau zone, quartier, ilot, application, statut ; relatif au .json, ou « vault:<chemin> » pour un POS versé au vault du workflow (memory.vault de workflow.json)."
                 },
                 "criteria": {
                   "type": "array",
@@ -368,6 +378,13 @@
                               "type": "string",
                               "minLength": 1,
                               "description": "Type cloud_build.py du composant (ecs, aurora, sqs... ; cloud_build.py --types) si l'option a un provider ; sinon déduit du rôle."
+                            },
+                            "count": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ],
+                              "description": "Option cloud : nombre d'instances (2, « 2-10 ») ; au-delà de 1, la revue Well-Architected compte le composant comme redondant."
                             }
                           }
                         }
@@ -396,6 +413,10 @@
                                 "sync",
                                 "async"
                               ]
+                            },
+                            "protocol": {
+                              "type": "string",
+                              "description": "Protocole (HTTPS, TLS, AMQPS...) : la revue Well-Architected contrôle le chiffrement des flux d'une option cloud."
                             }
                           }
                         }
@@ -470,6 +491,60 @@
                           "k8s"
                         ],
                         "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
+                      },
+                      "placement": {
+                        "type": "array",
+                        "description": "Position de l'option dans le POS : applications créées (zone, quartier, îlot), modifiées, remplacées ou réutilisées.",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "app",
+                            "change"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "app": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Nom de l'application, tel que dans le POS pour une application existante."
+                            },
+                            "change": {
+                              "enum": [
+                                "nouvelle",
+                                "a-faire-evoluer",
+                                "a-remplacer",
+                                "en-place",
+                                "externe"
+                              ]
+                            },
+                            "zone": {
+                              "type": "string"
+                            },
+                            "quartier": {
+                              "type": "string"
+                            },
+                            "ilot": {
+                              "type": "string"
+                            },
+                            "component": {
+                              "type": "string",
+                              "description": "Composant de l'option qui correspond à cette application (flux entre zones)."
+                            },
+                            "coexists": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Nouvelle application dans un îlot déjà occupé : pourquoi elle coexiste avec l'existant (sinon redondance signalée)."
+                            }
+                          }
+                        }
+                      },
+                      "wa_accept": {
+                        "type": "object",
+                        "description": "Option cloud : constats Well-Architected acceptés, clé « RÈGLE@élément » ou « RÈGLE » (champ open du rapport wa), valeur la raison ; ils restent dans l'ADR mais ne comptent plus.",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
                       }
                     }
                   }
@@ -550,9 +625,11 @@
                     "ranking",
                     "recommended",
                     "decided",
+                    "pos",
                     "errors",
                     "warnings",
-                    "trace"
+                    "trace",
+                    "wa"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -622,28 +699,136 @@
                       }
                     },
                     "trace": {
-                      "type": "object",
-                      "required": [
-                        "uncovered",
-                        "unassigned"
-                      ],
-                      "additionalProperties": false,
-                      "properties": {
-                        "uncovered": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          },
-                          "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                      "description": "Matrice de traçabilité de l'option retenue (ou recommandée), ou null si la description a une erreur.",
+                      "anyOf": [
+                        {
+                          "type": "null"
                         },
-                        "unassigned": {
+                        {
+                          "type": "object",
+                          "required": [
+                            "uncovered",
+                            "unassigned"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "uncovered": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Exigences indispensables non couvertes par l'option retenue (ou recommandée)."
+                            },
+                            "unassigned": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "pos": {
+                      "description": "Impacts de chaque option sur le POS, ou null sans POS.",
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
                           "type": "array",
                           "items": {
-                            "type": "string"
-                          },
-                          "description": "Exigences couvertes que l'option retenue n'attribue à aucun composant (si ses composants ont des refs)."
+                            "type": "object",
+                            "required": [
+                              "option",
+                              "new",
+                              "evolve",
+                              "replace",
+                              "reuse",
+                              "redundancies",
+                              "cross_zone"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "option": {
+                                "type": "string"
+                              },
+                              "new": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "evolve": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "replace": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "reuse": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "redundancies": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "cross_zone": {
+                                "type": "integer",
+                                "minimum": 0
+                              }
+                            }
+                          }
                         }
-                      }
+                      ]
+                    },
+                    "wa": {
+                      "description": "Revue Well-Architected des piliers de chaque option cloud (wa_check.py), ou null sans option cloud.",
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "option",
+                              "counts",
+                              "open"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "option": {
+                                "type": "string"
+                              },
+                              "counts": {
+                                "type": "object",
+                                "required": [
+                                  "haute",
+                                  "moyenne",
+                                  "basse",
+                                  "acceptés"
+                                ],
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "open": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Constats ouverts, « RÈGLE@élément » : clés possibles de wa_accept."
+                              }
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -702,6 +887,11 @@
           "to": "decision-log",
           "kind": "skill",
           "when": "noter la recommandation, soumettre la comparaison, puis la décision de l'utilisateur"
+        },
+        {
+          "to": "urbanization-map",
+          "kind": "skill",
+          "when": "construire le POS cible de chaque option avec pos_build.py"
         }
       ],
       "description": "Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exigences : écarts de couverture, notes par critère justifiées, score pondéré et rang calculés par script, recommandation, puis ADR de la décision et un schéma draw.io par option. À utiliser pour proposer des architectures, comparer des scénarios ou documenter un choix d'architecture.",
@@ -849,6 +1039,7 @@
         "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
         "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
         "Avec stride.py : <sujet>.threats.md, le modèle de menaces STRIDE à compléter",
+        "Avec wa_check.py : <sujet>.wa.md, la revue Well-Architected du schéma (constats par pilier, conventions du fournisseur, points hors du schéma)",
         "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
       ],
       "scripts": [
@@ -1018,6 +1209,17 @@
                       "name": {
                         "type": "string"
                       }
+                    }
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }
@@ -1443,6 +1645,17 @@
                       }
                     }
                   }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               },
               "$defs": {
@@ -1685,6 +1898,515 @@
           }
         },
         {
+          "name": "wa_check.py",
+          "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
+          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "options": {
+            "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
+            "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
+            "--scope": "règles appliquées : piliers à la définition de l'architecture (description d'une option, avant tout schéma), conventions au dessin, tout (défaut) pour un schéma terminé",
+            "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
+            "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires. Même schéma que cloud_build.py ; accept y liste les constats acceptés avec leur raison.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "provider": {
+                  "enum": [
+                    "aws",
+                    "azure",
+                    "gcp",
+                    "k8s"
+                  ]
+                },
+                "view": {
+                  "enum": [
+                    "deployment",
+                    "network",
+                    "kubernetes",
+                    "dr",
+                    "pipeline",
+                    "threats"
+                  ]
+                },
+                "audience": {
+                  "enum": [
+                    "technique",
+                    "non technique"
+                  ]
+                },
+                "legend": {
+                  "enum": [
+                    "auto",
+                    true,
+                    false
+                  ]
+                },
+                "layout": {
+                  "enum": [
+                    "row",
+                    "column"
+                  ]
+                },
+                "wrap": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "chain": {
+                  "type": "boolean"
+                },
+                "objectives": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/item"
+                  }
+                },
+                "flows": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/flow"
+                  }
+                },
+                "pages": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "enum": [
+                          "aws",
+                          "azure",
+                          "gcp",
+                          "k8s"
+                        ]
+                      },
+                      "view": {
+                        "enum": [
+                          "deployment",
+                          "network",
+                          "kubernetes",
+                          "dr",
+                          "pipeline",
+                          "threats"
+                        ]
+                      },
+                      "audience": {
+                        "enum": [
+                          "technique",
+                          "non technique"
+                        ]
+                      },
+                      "legend": {
+                        "enum": [
+                          "auto",
+                          true,
+                          false
+                        ]
+                      },
+                      "layout": {
+                        "enum": [
+                          "row",
+                          "column"
+                        ]
+                      },
+                      "wrap": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "chain": {
+                        "type": "boolean"
+                      },
+                      "objectives": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/item"
+                        }
+                      },
+                      "flows": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/flow"
+                        }
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (SEC-05) ou règle@élément (SEC-05@F2, OPS-01@aws) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "$defs": {
+                "item": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/item"
+                          }
+                        },
+                        "layout": {
+                          "enum": [
+                            "row",
+                            "column"
+                          ]
+                        },
+                        "wrap": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "chain": {
+                          "type": "boolean"
+                        },
+                        "state": {
+                          "enum": [
+                            "active",
+                            "passive"
+                          ]
+                        },
+                        "boundary": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "properties": {
+                        "type": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "count": {
+                          "type": [
+                            "integer",
+                            "string"
+                          ]
+                        },
+                        "kind": {
+                          "enum": [
+                            "external",
+                            "process",
+                            "store",
+                            "network"
+                          ]
+                        },
+                        "w": {
+                          "type": "number",
+                          "minimum": 1
+                        },
+                        "h": {
+                          "type": "number",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "flow": {
+                  "type": "object",
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "protocol": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "style": {
+                      "enum": [
+                        "sync",
+                        "async",
+                        "replication"
+                      ]
+                    },
+                    "both": {
+                      "type": "boolean"
+                    },
+                    "encrypted": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input, errors et warnings. findings va du plus grave au moins grave ; un constat accepté garde sa raison dans accepted et ne compte pas dans counts.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "providers",
+                    "scope",
+                    "rules",
+                    "counts",
+                    "findings",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "providers": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "aws",
+                          "azure",
+                          "gcp",
+                          "k8s"
+                        ]
+                      }
+                    },
+                    "scope": {
+                      "enum": [
+                        "tout",
+                        "piliers",
+                        "conventions"
+                      ]
+                    },
+                    "rules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "counts": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "haute",
+                        "moyenne",
+                        "basse",
+                        "acceptés"
+                      ],
+                      "properties": {
+                        "haute": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "moyenne": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "basse": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "acceptés": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "rule",
+                          "pillar",
+                          "severity",
+                          "element",
+                          "message",
+                          "fix",
+                          "ref",
+                          "accepted"
+                        ],
+                        "properties": {
+                          "rule": {
+                            "type": "string",
+                            "pattern": "^[A-Z]+-[0-9]{2}$"
+                          },
+                          "pillar": {
+                            "enum": [
+                              "reliability",
+                              "security",
+                              "operations",
+                              "performance",
+                              "cost",
+                              "sustainability",
+                              "conventions"
+                            ]
+                          },
+                          "severity": {
+                            "enum": [
+                              "haute",
+                              "moyenne",
+                              "basse"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "fix": {
+                            "type": "string"
+                          },
+                          "ref": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "revue écrite, aucun constat non accepté au seuil --fail-on",
+            "1": "description illisible, erreur, ou constat non accepté au seuil --fail-on ; le rapport et <sujet>.wa.md sont tout de même produits sauf erreur"
+          }
+        },
+        {
           "name": "iac_import.py",
           "role": "Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite.",
           "usage": "uv run scripts/iac_import.py SOURCE [...] [--out SUJET.json] [--title T]",
@@ -1806,7 +2528,7 @@
           "when": "diagramme de séquence des appels entre services pour un parcours"
         }
       ],
-      "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE de l'architecture. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
+      "description": "Dessine des schémas d'architecture cloud en draw.io avec les icônes officielles AWS, Azure, GCP et Kubernetes : déploiement (régions, VPC, sous-réseaux), réseau et flux (matrice des flux), cluster Kubernetes, haute disponibilité et PRA (RPO, RTO), pipeline data ou CI/CD GitOps. Prépare aussi le modèle de menaces STRIDE et contrôle le respect des cadres Well-Architected d'AWS, Azure et Google Cloud et des conventions de schéma des fournisseurs. À utiliser pour un architecte solution, à partir d'une description ou de code d'infrastructure.",
       "path": "skills/cloud-architecture"
     },
     {

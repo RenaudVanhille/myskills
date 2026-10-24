@@ -254,6 +254,41 @@
                    "gitops.drawio": ["Argo CD", "image=data:image/svg+xml"]}
     },
     {
+      "id": "cloud-well-architected",
+      "skill": "cloud-architecture",
+      "_note": "wa_check.py : architecture conforme sans constat, écarts aux piliers et aux conventions de schéma, constat accepté.",
+      "steps": [
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-wa.json", "--out", "{out}/conforme.wa.md", "--fail-on", "basse"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "findings": [], "providers": ["aws"], "scope": "tout", "rules": 20}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-wa.json", "--out", "{out}/conforme.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "groups": 11, "services": 14}},
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{fixtures}/diagrams/cloud-wa-ecarts.json", "--out", "{out}/ecarts.wa.md"],
+         "exit": 1, "report": {"errors": [], "counts.haute": 3, "counts.acceptés": 2, "findings.0.rule": "SEC-01",
+                               "providers": ["aws", "azure"]},
+         "report_contains": {"findings": "CONV-01"}},
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/web.wa.md", "--fail-on", "aucune"],
+         "exit": 0, "report": {"errors": [], "counts.haute": 0}, "report_contains": {"findings": "REL-01"}},
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{fixtures}/diagrams/cloud-wa-ecarts.json", "--out", "{out}/conventions.wa.md", "--scope", "conventions"],
+         "exit": 0, "report": {"scope": "conventions", "rules": 6, "counts.haute": 0, "counts.moyenne": 4}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py",
+         "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}/options"], "exit": 0, "report": {"errors": []}},
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{out}/options/schemas/option-a.cloud.json", "--scope", "piliers", "--fail-on", "moyenne"],
+         "exit": 1, "report": {"errors": [], "scope": "piliers", "rules": 14, "counts.moyenne": 4},
+         "report_contains": {"findings": "SEC-05"}}
+      ],
+      "files": ["conforme.wa.md", "conforme.drawio", "ecarts.wa.md", "web.wa.md", "options/schemas/option-a.wa.md"],
+      "contains": {"conforme.wa.md": ["# Revue Well-Architected", "Aucun constat.", "## À vérifier hors du schéma"],
+                   "ecarts.wa.md": ["| SEC-01 | Sécurité | haute |", "AWS Well-Architected SEC05",
+                                    "AWS Architecture Icons", "accepté : CloudTrail géré"],
+                   "web.wa.md": ["REL10", "| Durabilité |"]}
+    },
+    {
       "id": "cloud-iac",
       "skill": "cloud-architecture",
       "_note": "Terraform, docker-compose et Kubernetes vers la description de cloud_build.py ; un gabarit Helm et un fichier sans ressource.",
@@ -304,9 +339,12 @@
          "exit": 1, "report_contains": {"errors": "racine : clé inconnue « flow » ; vouliez-vous « flows » ?"}},
         {"script": "{skills}/cloud-architecture/scripts/stride.py",
          "args": ["{fixtures}/diagrams/cloud-invalide.json", "--out", "{out}/c.threats.md"],
-         "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}}
+         "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}},
+        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+         "args": ["{fixtures}/diagrams/cloud-wa-invalide.json", "--out", "{out}/c.wa.md"],
+         "exit": 1, "report_contains": {"errors": "accept : clé inconnue « sec-5 » (forme attendue"}}
       ],
-      "absent": ["d.drawio", "d.excalidraw", "p.drawio", "c.drawio", "c.threats.md"]
+      "absent": ["d.drawio", "d.excalidraw", "p.drawio", "c.drawio", "c.threats.md", "c.wa.md"]
     },
     {
       "id": "export-erreurs",
@@ -705,6 +743,57 @@
                    "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases: [\"déclaration de sinistre\"]",
                                                                          "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
                    "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
+    },
+    {
+      "id": "options-pos",
+      "skill": "architecture-options",
+      "_note": "Position des options dans le POS du SI : impacts, redondance, critère urbanisation, POS cible construit par pos_build.py.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos.json", "--out-dir", "{out}"], "exit": 0, "report": {"criteria": 6, "pos.0.new": 1, "pos.0.evolve": 1, "pos.0.reuse": 1, "pos.0.redundancies": [], "pos.0.cross_zone": 1, "errors": []}, "report_contains": {"pos.1.redundancies": "Module portail de l'éditeur / Outil de gestion des sinistres", "warnings": "redondance possible, Module portail"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py", "args": ["{out}/schemas/pos-option-a.json"], "exit": 0, "report": {"applications": 7, "errors": [], "warnings": []}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-md.json", "--out-dir", "{out}/md"], "exit": 0, "report": {"pos.0.new": 1, "pos.0.cross_zone": 1, "errors": []}}
+      ],
+      "files": ["options-pos.md", "md/options-pos-md.md", "adr-architecture.md", "schemas/pos-option-a.json", "schemas/pos-option-b.json", "schemas/pos-option-a.drawio"],
+      "contains": {"options-pos.md": ["## Position dans le SI (POS)", "| A | 1 | 1 | 0 | 1 | - | 1 |", "Urbanisation (POS)", "(coexiste : canal web en plus du téléphone, mêmes dossiers)"],
+                   "adr-architecture.md": ["## Position dans le SI", "| Portail sinistres | à créer | Opérations / Sinistres / Déclaration"],
+                   "schemas/pos-option-a.json": ["\"name\": \"Portail sinistres\"", "\"status\": \"nouvelle\"", "\"status\": \"a-faire-evoluer\""]}
+    },
+    {
+      "id": "options-pos-erreurs",
+      "skill": "architecture-options",
+      "_note": "Placement refusé avec le nom le plus proche du POS : quartier, application, application déjà existante ; POS visé dans le vault sans vault déclaré, sans erreurs en cascade.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "quartier « Opérations / Sinistre » absent du POS ; vouliez-vous « Opérations / Sinistres » ?"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "application absente du POS ; vouliez-vous « Outil de gestion des sinistres » ?"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "déjà dans le POS (Support / Sécurité)"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-vault.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vise le vault, mais"}}
+      ],
+      "absent": ["options-pos-invalide.md", "schemas"]
+    },
+    {
+      "id": "options-wa",
+      "skill": "architecture-options",
+      "_note": "Revue Well-Architected des piliers à la définition des options : constats par pilier, gravité haute signalée, écart accepté avec sa raison, acceptation sans constat, constats de l'option retenue dans l'ADR.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--out-dir", "{out}"], "exit": 0, "report": {"wa.0.option": "A", "wa.0.counts.haute": 1, "wa.0.counts.acceptés": 1, "errors": []}, "report_contains": {"wa.0.open": "SEC-02@F6", "warnings": "constat(s) Well-Architected de gravité haute à traiter : SEC-02@F6"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--out-dir", "{out}"], "exit": 0, "report_contains": {"warnings": "acceptation « SEC-99 » sans constat correspondant"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/schemas/option-a.cloud.json", "--out", "{out}/schemas/option-a.drawio"], "exit": 0, "report": {"errors": []}}
+      ],
+      "files": ["options-wa.md", "schemas/option-a.wa.md", "adr-architecture.md", "schemas/option-a.drawio"],
+      "contains": {"options-wa.md": ["## Revue Well-Architected", "| A | 0 | 3 (1 h) | 0 | 0 | 1 | 1 | `schemas/option-a.wa.md` |"],
+                   "schemas/option-a.wa.md": ["# Revue Well-Architected : Option A", "SEC-02"],
+                   "adr-architecture.md": ["## Revue Well-Architected", "OPS-01 Excellence opérationnelle, moyenne", "(accepté : supervision par l'outil central de l'exploitation)"]}
+    },
+    {
+      "id": "options-wa-erreurs",
+      "skill": "architecture-options",
+      "_note": "Type cloud inconnu d'un composant refusé dès la définition des options, sans fichier produit.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "options/0 (A)/components : Option A : Application web dans le cloud européen : élément « Pièces jointes », type inconnu « s4 »"}}
+      ],
+      "absent": ["options-wa-invalide.md", "schemas"]
     }
   ]
 }
