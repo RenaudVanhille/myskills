@@ -3,9 +3,11 @@
 # ///
 """Met un fichier Markdown au format Obsidian.
 
-- ajoute un frontmatter (title, source, created, tags) s'il n'y en a pas ;
-  avec --classify, y ajoute aussi `type` et `domaine`, devinés en local par
-  le modèle Laya (script classify.py du skill doc-to-markdown) ;
+- ajoute un frontmatter s'il n'y en a pas, selon l'ontologie du vault
+  (type document, title, source, created, tags normalisés) ; avec
+  --classify, y ajoute aussi la nature du document (`nature`) et son
+  `domaine`, devinés en local par le modèle Laya (script classify.py du
+  skill doc-to-markdown) ;
 - transforme les images locales en embeds `![[nom.png]]` ;
 - transforme les liens vers d'autres .md en wikilinks `[[note|texte]]` ;
 - transforme les citations « Note : », « Attention : »... en callouts ;
@@ -32,6 +34,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import vault_ontology  # noqa: E402
 from script_report import print_report  # noqa: E402
 from skill_paths import absent, find_script, load_module  # noqa: E402
 
@@ -47,10 +50,6 @@ CALLOUTS = {
     "warning": "warning", "danger": "danger", "exemple": "example", "example": "example",
 }
 QUOTE_KEYWORD = re.compile(r"^>\s*\**(" + "|".join(CALLOUTS) + r")\**\s*:\s*(.*)$", re.I)
-
-
-def yaml_string(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
@@ -76,22 +75,17 @@ def load_check():
 
 
 def frontmatter(text: str, path: Path, source: str | None, tags: list[str],
-                extra: dict | None = None) -> str:
+                extra: dict | None = None) -> tuple[str, list[str]]:
+    """Note avec un frontmatter de type document (ontologie du vault) s'il n'en a pas ; erreurs d'ontologie."""
     if text.startswith("---\n"):
-        return text
+        return text, []
     match = H1.search(text)
     title = match.group(1).strip() if match else path.stem
-    lines = ["---", f"title: {yaml_string(title)}"]
-    if source:
-        lines.append(f"source: {yaml_string(source)}")
-    lines.append(f"created: {datetime.date.today().isoformat()}")
-    for key, value in (extra or {}).items():
-        lines.append(f"{key}: {yaml_string(value)}")
-    if tags:
-        lines.append("tags:")
-        lines += [f"  - {tag}" for tag in tags]
-    lines.append("---")
-    return "\n".join(lines) + "\n\n" + text.lstrip()
+    onto = vault_ontology.load()
+    meta = vault_ontology.meta(onto, "document", {"title": title, "source": source,
+                                                  "created": datetime.date.today().isoformat(), **(extra or {})},
+                               tags=tags)
+    return vault_ontology.render(meta) + "\n" + text.lstrip(), vault_ontology.check_meta(onto, meta)[0]
 
 
 def callouts(text: str) -> tuple[str, int]:
@@ -116,12 +110,13 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
               "callouts": 0, "attachments_copied": 0, "missing": []}
     extra = {}
     if classification:
-        extra = {key: classification[key] for key in ("type", "domaine") if classification[key]}
+        extra = {name: classification[key] for key, name in (("type", "nature"), ("domaine", "domaine"))
+                 if classification[key]}
         report["classification"] = {key: classification[key] for key in
                                     ("type", "domaine", "method", "warnings")}
         if text.startswith("---\n") and extra:
             report["classification"]["warnings"].append(
-                "Frontmatter déjà présent : type et domaine non ajoutés")
+                "Frontmatter déjà présent : nature et domaine non ajoutés")
     images: list[Path] = []
 
     def embed(match: re.Match) -> str:
@@ -148,7 +143,7 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
     text = MD_LINK.sub(wikilink, text)
     text, report["callouts"] = callouts(text)
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
-    text = frontmatter(text, path, args.source, tags, extra)
+    text, ontology_errors = frontmatter(text, path, args.source, tags, extra)
 
     if args.vault:
         note_dir = args.vault / (args.folder or "")
@@ -176,6 +171,8 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
     if check:
         result = check(target, obsidian=True, vault=args.vault)
         report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
+        report["validation"]["errors"] += [f"ontologie : {e}" for e in ontology_errors]
+        report["validation"]["ok"] = result["ok"] and not ontology_errors
     else:
         report["validation"] = {"ok": False, "errors": [],
                                 "warnings": ["note non vérifiée : " + absent("doc-to-markdown", "validate.py")]}
@@ -203,7 +200,7 @@ def main() -> int:
     parser.add_argument("--move", action="store_true",
                         help="avec --vault : supprimer la note et les images d'origine")
     parser.add_argument("--classify", action="store_true",
-                        help="ajouter type et domaine au frontmatter (modèle local Laya)")
+                        help="ajouter nature et domaine au frontmatter (modèle local Laya)")
     parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
     args = parser.parse_args()
     if args.vault:

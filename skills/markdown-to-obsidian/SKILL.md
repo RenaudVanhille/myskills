@@ -14,11 +14,13 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Notes Markdown (sortie de doc-to-markdown ou existantes) ; Dossier du vault Obsidian (facultatif).
-- **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail.
+- **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail ; Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX).
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON, codes de sortie : 0 toutes les notes sont traitées ; 1 une note est introuvable ou une image manque (missing).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON, codes de sortie : 0 profil produit ; 1 vault introuvable.
+- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule). Rapport JSON, codes de sortie : 0 notes conformes (ou ontologie affichée) ; 1 vault introuvable, type inconnu, ou note hors ontologie (avec --strict : aussi un avertissement).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
+- **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
 
@@ -42,8 +44,8 @@ jointes réglé dans Obsidian (`attachments`).
   tag existant ne couvre le sujet.
 - **Pièces jointes** : si `attachments` est renseigné, passez-le à
   `--attachments`.
-- **Type et domaine** (optionnel) : `--classify` ajoute au frontmatter les
-  propriétés `type` et `domaine`, devinées en local par le modèle Laya (voir
+- **Nature et domaine** (optionnel) : `--classify` ajoute au frontmatter les
+  propriétés `nature` (type de document) et `domaine`, devinées en local par le modèle Laya (voir
   `classify.py` dans `doc-to-markdown`). Passez les tags principaux du vault
   à `--domains` pour que `domaine` reprenne son vocabulaire. Une valeur
   incertaine n'est pas écrite.
@@ -64,7 +66,7 @@ quittent le dossier de travail pour le vault, sans laisser de copie.
 
 | Transformation | Avant | Après |
 | --- | --- | --- |
-| Frontmatter (si absent) | | `title`, `source`, `created`, `tags` (+ `type`, `domaine` avec `--classify`) |
+| Frontmatter (si absent) | | `type: document`, `title`, `source`, `created`, `tags` normalisés (+ `nature`, `domaine` avec `--classify`) |
 | Image locale | `![alt](attachments/a.png)` | `![[a.png\|alt]]` |
 | Lien vers une note | `[texte](autre.md)` | `[[autre\|texte]]` |
 | Citation avec mot-clé | `> Attention : ...` | `> [!warning]` puis le texte |
@@ -93,7 +95,36 @@ la main, revérifiez :
 uv run ../doc-to-markdown/scripts/validate.py VAULT/SOUS-DOSSIER/NOTE.md --obsidian --vault VAULT
 ```
 
-## 4. Finir à la main
+## 4. Ontologie du vault
+
+Les notes écrites par les skills suivent une ontologie commune
+(`scripts/lib/vault-ontology.json`, copie de `shared/vault-ontology.json`) :
+`type` de note (exigence, option-architecture, decision, adr, document,
+constat, risque...), propriétés et valeurs permises, relations typées
+écrites en wikilinks entre guillemets (`concerne: ["[[...]]"]`) et tags
+normalisés (`type/<type>`, puis une facette par propriété :
+`statut/retenue`). Pour écrire ou corriger une note typée à la main,
+demandez l'ontologie d'un type plutôt que de lire le fichier :
+
+```bash
+uv run scripts/vault_check.py --ontology constat
+```
+
+Pour vérifier un vault (ou un dossier) et en tirer le graphe typé :
+
+```bash
+uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict]
+```
+
+Le rapport compte les notes par type et ne détaille (`results`) que les
+notes en erreur : type inconnu (avec le type proche), valeur hors liste,
+relation non permise ou vers une note du mauvais type, tag non normalisé
+(avec la forme proposée). `--graph` écrit le graphe au format node-link de
+NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
+pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
+à networkx : ne relisez pas le vault note à note.
+
+## 5. Finir à la main
 
 - **Ancres** : un lien `[[note#section]]` doit reprendre le texte exact du
   titre visé (`[[note#Flux d'un paiement]]`), pas un identifiant web.

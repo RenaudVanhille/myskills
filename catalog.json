@@ -3321,7 +3321,7 @@
         },
         {
           "name": "vault_sync.py",
-          "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
+          "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks et typées selon l'ontologie du vault (type, propriétés, relations typées, tags normalisés, vérifiés avant l'écriture), depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
           "usage": "uv run scripts/vault_sync.py DOSSIER [--vault VAULT] [--folder DOSSIER_DU_VAULT] [--data DOSSIER_DES_LIVRABLES]",
           "options": {
             "DOSSIER": "dossier du workflow",
@@ -3376,7 +3376,7 @@
           },
           "exit_codes": {
             "0": "notes écrites, tous les liens résolus",
-            "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
+            "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), note hors ontologie du vault (rien n'est écrit), ou lien cassé"
           }
         }
       ],
@@ -3394,6 +3394,18 @@
           "optional": true
         }
       ],
+      "vault": {
+        "writes": [
+          "workflow",
+          "etape",
+          "revue",
+          "exigence",
+          "terme",
+          "option-architecture",
+          "decision",
+          "adr"
+        ]
+      },
       "handoffs": [
         {
           "to": "utilisateur",
@@ -5159,7 +5171,8 @@
       "outputs": [
         "Note au format Obsidian, sur place ou dans VAULT/<dossier>/",
         "Images dans le dossier de pièces jointes du vault",
-        "Avec --move : rien ne reste dans le dossier de travail"
+        "Avec --move : rien ne reste dans le dossier de travail",
+        "Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX)"
       ],
       "scripts": [
         {
@@ -5174,7 +5187,7 @@
             "--source": "document d'origine, pour le frontmatter",
             "--tags": "tags séparés par des virgules",
             "--move": "avec --vault : supprime la note et les images d'origine",
-            "--classify": "ajoute type et domaine au frontmatter (Laya)",
+            "--classify": "ajoute nature et domaine au frontmatter (Laya)",
             "--domains": "avec --classify : domaines possibles"
           },
           "report": {
@@ -5457,8 +5470,223 @@
             "0": "profil produit",
             "1": "vault introuvable"
           }
+        },
+        {
+          "name": "vault_check.py",
+          "role": "Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule).",
+          "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] | --ontology [TYPE]",
+          "options": {
+            "VAULT": "racine du vault",
+            "--folder": "ne vérifier que ce dossier du vault (liens résolus dans tout le vault)",
+            "--graph": "écrit le graphe des notes au format node-link de NetworkX (nodes ; links avec relation, lien pour un wikilink du corps)",
+            "--strict": "code de sortie 1 aussi sur un avertissement",
+            "--ontology": "affiche l'ontologie résumée (ou celle d'un type) sur une ligne et s'arrête"
+          },
+          "report": {
+            "format": "json",
+            "description": "Compteurs par type ; results ne liste que les notes en erreur ou en avertissement. Avec --ontology : l'ontologie résumée.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "vault",
+                    "notes",
+                    "typed",
+                    "untyped",
+                    "types",
+                    "relations",
+                    "graph",
+                    "results",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "vault": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "typed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "untyped": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "types": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "relations": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "graph": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "file",
+                            "nodes",
+                            "links"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "file": {
+                              "type": "string"
+                            },
+                            "nodes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "links": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "note",
+                          "type",
+                          "errors",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "note": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          },
+                          "errors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "version",
+                    "common",
+                    "tags",
+                    "types",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "version": {
+                      "type": "integer"
+                    },
+                    "common": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "tags": {
+                      "type": "string"
+                    },
+                    "types": {
+                      "type": "object"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "vault": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "notes conformes (ou ontologie affichée)",
+            "1": "vault introuvable, type inconnu, ou note hors ontologie (avec --strict : aussi un avertissement)"
+          }
         }
       ],
+      "vault": {
+        "writes": [
+          "document"
+        ],
+        "reads": true
+      },
       "handoffs": [
         {
           "to": "doc-to-markdown",

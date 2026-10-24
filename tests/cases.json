@@ -125,12 +125,15 @@
          "exit": 0, "report": {"results.0.embeds": 1, "results.0.attachments_copied": 1, "results.0.validation.ok": true}},
         {"script": "{skills}/doc-to-markdown/scripts/validate.py",
          "args": ["{out}/vault/Architecture/architecture.md", "--obsidian", "--vault", "{out}/vault"],
-         "exit": 0}
+         "exit": 0},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--strict"], "exit": 0,
+         "report": {"types.document": 1, "errors": []}}
       ],
       "files": ["vault/Architecture/architecture.md", "vault/attachments/architecture-1.png"],
       "absent": ["tmp/architecture.md"],
       "contains": {"vault/Architecture/architecture.md": ["source: \"architecture.docx\"",
-                                                          "  - paiement", "![[architecture-1.png]]"]}
+                                                          "  - paiement", "![[architecture-1.png]]",
+                                                          "type: \"document\"", "  - type/document"]}
     },
     {
       "id": "prerequis",
@@ -765,16 +768,41 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "documents", "--kind", "choix", "--text", "Compte rendu retenu comme source", "--refs", "ENF-004,A"], "exit": 0, "report": {"memory.folder": "Projets/Sinistres", "memory.notes": 2, "warnings": []}},
-        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 18, "removed": 0, "errors": []}}
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w", "--data", "{fixtures}/workflow"], "exit": 0, "report": {"notes": 18, "removed": 0, "errors": []}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--folder", "Projets/Sinistres", "--graph", "{out}/graphe.json", "--strict"], "exit": 0, "report": {"errors": [], "untyped": 0, "types.decision": 1, "types.exigence": 10}}
       ],
       "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
       "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],
                    "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001]]"],
                    "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte",
-                                                                      "**Termes** : [[Projets/Sinistres/Glossaire/Assuré|Assuré]]"],
-                   "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases: [\"déclaration de sinistre\"]",
+                                                                      "**Termes** : [[Projets/Sinistres/Glossaire/Assuré|Assuré]]",
+                                                                      "  - type/exigence", "  - priorite/indispensable",
+                                                                      "termes:\n  - \"[[Projets/Sinistres/Glossaire/Assuré]]\""],
+                   "graphe.json": ["\"relation\": \"concerne\"", "\"relation\": \"ecarts\"", "\"type\": \"option-architecture\""],
+                   "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases:\n  - \"déclaration de sinistre\"",
                                                                          "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
                    "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
+    },
+    {
+      "id": "vault-ontologie",
+      "skill": "markdown-to-obsidian",
+      "_note": "Ontologie du vault : type mal écrit avec le type proche, valeur hors liste, tag non normalisé, relation vers une note du mauvais type ; graphe typé node-link ; ontologie résumée pour le modèle.",
+      "steps": [
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{fixtures}/vault-ontologie", "--graph", "{out}/graphe.json"], "exit": 1,
+         "report": {"typed": 5, "untyped": 1, "graph.nodes": 6},
+         "report_contains": {"errors": "2 note(s) hors ontologie", "results.0.errors": "vouliez-vous « constat » ?",
+                             "results.1.errors": "« retenu » non permis", "results.1.type": "exigence"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{fixtures}/vault-ontologie", "--folder", "Projet/Exigences"], "exit": 1,
+         "report_contains": {"results.0.errors": "est de type exigence, attendu terme"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{fixtures}/vault-ontologie", "--folder", "Notes", "--strict"], "exit": 0,
+         "report": {"untyped": 1, "errors": []}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["--ontology", "constat"], "exit": 0,
+         "report_contains": {"types.constat.required": "gravite", "types.constat.relations.issu-de": "revue-architecture"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["--ontology", "constats"], "exit": 1,
+         "report_contains": {"errors": "type « constats » inconnu"}}
+      ],
+      "files": ["graphe.json"],
+      "contains": {"graphe.json": ["\"relation\": \"porte-sur\"", "\"relation\": \"lien\"", "\"multigraph\": true"]}
     },
     {
       "id": "options-pos",

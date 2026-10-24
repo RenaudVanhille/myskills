@@ -35,12 +35,19 @@ def generated_libs() -> dict[Path, str]:
         # Aussi pour un skill qui valide l'entrée d'un skill requis (requires), ou le plan rendu par un
         # skill externe (markdown-publish).
         if any(script.get("input") for script in contract["scripts"]) or contract.get("requires") \
-                or name == "markdown-publish":
+                or contract.get("vault") or name == "markdown-publish":
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     for module, skills in LIB_USERS.items():
         text = (shared / module).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / module] = text
+    # Ontologie du vault Obsidian et son module, pour les skills qui lisent ou écrivent le vault (champ vault).
+    ontology = (REPO / "shared" / "vault-ontology.json").read_text(encoding="utf-8")
+    module = (shared / "vault_ontology.py").read_text(encoding="utf-8")
+    for name, contract in skill_contracts().items():
+        if contract.get("vault"):
+            files[REPO / "skills" / name / "scripts" / "lib" / "vault-ontology.json"] = ontology
+            files[REPO / "skills" / name / "scripts" / "lib" / "vault_ontology.py"] = module
     # Accès déclaré aux scripts des autres skills (champ requires du contrat).
     paths = (shared / "skill_paths.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
@@ -215,6 +222,12 @@ def render_skill(contract: dict) -> str:
     for need in contract.get("requires", []):
         mode = "facultatif : sans lui, avertissement" if need.get("optional") else "obligatoire"
         lines.append(f"- **Dépend de** `{need['skill']}` (`{need['script']}`, {mode}) : {need['why']}.")
+    vault = contract.get("vault")
+    if vault:
+        parts = [f"écrit les notes de type {', '.join(f'`{k}`' for k in vault['writes'])}"] if vault.get("writes") else []
+        parts += ["lit les notes typées"] if vault.get("reads") else []
+        lines.append(f"- **Vault Obsidian** : {' ; '.join(parts)}, selon l'ontologie `shared/vault-ontology.json` "
+                     "(frontmatter vérifié par `scripts/lib/vault_ontology.py`).")
     for handoff in contract["handoffs"]:
         target = {"skill": f"au skill `{handoff['to']}`", "agent": f"à l'agent `{handoff['to']}`",
                   "utilisateur": "à l'utilisateur",

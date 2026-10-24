@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/vault-ontology.schema.json",
+  "title": "Ontologie du vault Obsidian",
+  "description": "Fichier shared/vault-ontology.json : types de notes, propriétés, relations typées et tags. Vérifié par le cas contrats de tests/run.py.",
+  "type": "object",
+  "required": ["version", "tags", "common", "types", "relations"],
+  "additionalProperties": false,
+  "properties": {
+    "_doc": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "tags": {
+      "type": "object",
+      "required": ["pattern", "type_prefix"],
+      "additionalProperties": false,
+      "properties": {
+        "_doc": {"type": "string"},
+        "pattern": {"type": "string"},
+        "type_prefix": {"type": "string", "pattern": "^[a-z0-9-]+$"}
+      }
+    },
+    "common": {"$ref": "#/$defs/properties"},
+    "types": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*$": {
+          "type": "object",
+          "required": ["label", "description", "folder", "properties"],
+          "additionalProperties": false,
+          "properties": {
+            "label": {"type": "string", "minLength": 1},
+            "description": {"type": "string", "minLength": 1},
+            "folder": {"type": "string", "description": "Sous-dossier conseillé, relatif au dossier du workflow ou du référentiel ; vide : à sa racine."},
+            "required": {"type": "array", "items": {"type": "string"}},
+            "properties": {"$ref": "#/$defs/properties"},
+            "facets": {"type": "array", "items": {"type": "string"}, "description": "Propriétés recopiées en tags <propriété>/<valeur>."}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "relations": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*$": {
+          "type": "object",
+          "required": ["label", "from", "to", "many"],
+          "additionalProperties": false,
+          "properties": {
+            "label": {"type": "string", "minLength": 1},
+            "from": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Types qui portent la relation ; * : tous."},
+            "to": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Types visés ; * : tous."},
+            "many": {"type": "boolean", "description": "Liste de wikilinks (true) ou un seul (false)."},
+            "same_type": {"type": "boolean", "description": "La note visée est du même type que la note qui porte la relation."}
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "properties": {
+      "type": "object",
+      "patternProperties": {"^[a-z][a-z0-9-]*$": {"type": "object"}},
+      "additionalProperties": false
+    }
+  }
+}
