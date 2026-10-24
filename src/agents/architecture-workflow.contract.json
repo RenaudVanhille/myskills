@@ -1,8 +1,9 @@
 {
   "agent": "architecture-workflow",
+  "level": "moyen",
   "receives": [
     "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
-    "Le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
+    "Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
     "Le vault Obsidian qui sert de mémoire partagée",
     "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
   ],
@@ -21,8 +22,41 @@
     "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
   ],
   "handoffs": [
-    {"to": "document-extractor", "when": "des documents demandent une transcription par vision page à page (scans, schémas en image) en lot", "send": ["les documents", "la cible markdown et le dossier sources/"]},
-    {"to": "schema-designer", "when": "l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles, réseau ou un modèle de menaces", "send": ["options.md et options.json", "l'option retenue et ses noms de composants", "le dossier schemas/", "la note de l'option dans le vault"]},
-    {"to": "document-publisher", "when": "le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint", "send": ["exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py) pour PowerPoint", "l'outil cible", "le gabarit .potx de la marque, s'il est connu"]}
+    {
+      "to": "document-extractor",
+      "when": "des documents demandent une transcription par vision page à page (scans, schémas en image) en lot",
+      "send": [
+        "les documents",
+        "la cible markdown et le dossier sources/"
+      ]
+    },
+    {
+      "to": "schema-designer",
+      "when": "l'utilisateur veut pour l'option retenue un schéma C4, cloud aux icônes officielles ou réseau",
+      "send": [
+        "options.md et options.json",
+        "l'option retenue et ses noms de composants",
+        "le dossier schemas/",
+        "la note de l'option dans le vault"
+      ]
+    },
+    {
+      "to": "document-publisher",
+      "when": "le dossier d'architecture doit être livré en Word, HTML, XWiki ou présenté en PowerPoint",
+      "send": [
+        "exigences.md, options.md, adr-architecture.md et les PNG, ou presentation.md (deck_build.py, skill architecture-deck) pour PowerPoint",
+        "l'outil cible",
+        "le gabarit .potx de la marque, s'il est connu"
+      ]
+    },
+    {
+      "to": "architecture-reviewer",
+      "when": "un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow",
+      "send": [
+        "la description JSON cloud (schemas/option-<id>.cloud.json ou schemas/architecture.json)",
+        "le dossier schemas/",
+        "la note de l'option dans le vault"
+      ]
+    }
   ]
 }

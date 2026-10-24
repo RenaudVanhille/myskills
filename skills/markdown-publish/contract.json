@@ -1,5 +1,6 @@
 {
   "skill": "markdown-publish",
+  "level": "simple",
   "inputs": [
     "Markdown ou notes Obsidian, avec leurs images et schémas sources",
     "Modèle Word ou gabarit PowerPoint .potx (facultatif)",
@@ -279,6 +280,14 @@
       "to": "utilisateur",
       "kind": "utilisateur",
       "when": "importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx"
+    }
+  ],
+  "requires": [
+    {
+      "skill": "diagram-export",
+      "script": "export.py",
+      "why": "exporter en image les schémas cités par le Markdown (sources .drawio, .excalidraw, .mmd, .c4)",
+      "optional": false
     }
   ]
 }

@@ -1,5 +1,6 @@
 {
   "skill": "check-prerequisites",
+  "level": "simple",
   "inputs": [
     "Un groupe : extraction, schemas, publication ou tout (défaut)",
     "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"

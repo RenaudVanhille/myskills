@@ -1,0 +1,4 @@
+{"subject": "Paiement en ligne", "audience": "technique", "destination": "confluence",
+ "kind": "sequence", "message": "Le paiement est confirmé avant la commande.",
+ "elements": ["client", "boutique", "service de paiement", "banque"],
+ "left_out": ["remboursements"]}

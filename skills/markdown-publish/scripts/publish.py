@@ -26,7 +26,6 @@ page séparément.
 """
 
 import argparse
-import importlib.util
 import json
 import re
 import os
@@ -42,8 +41,8 @@ from urllib.parse import unquote
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import local_tools  # noqa: E402
 from script_report import print_report  # noqa: E402
+from skill_paths import absent, load_module  # noqa: E402
 
-EXPORT_SCRIPT = Path(__file__).resolve().parents[2] / "diagram-export" / "scripts" / "export.py"
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[([^\]]*)\]\(<?([^)>\s]+)>?(\s+\"[^\"]*\")?\)")
 EMBED = re.compile(r"!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]")
@@ -79,11 +78,9 @@ def size_attr(path: Path, hidpi: bool) -> str:
 
 
 def load_exporter():
-    spec = importlib.util.spec_from_file_location("myskills_export", EXPORT_SCRIPT)
-    if spec is None or not EXPORT_SCRIPT.is_file():
-        raise SystemExit(f"Script d'export introuvable : {EXPORT_SCRIPT}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    module = load_module("diagram-export", "export.py")
+    if module is None:
+        raise SystemExit(absent("diagram-export", "export.py"))
     return module
 
 

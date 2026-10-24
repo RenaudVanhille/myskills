@@ -1,5 +1,6 @@
 {
   "skill": "doc-to-markdown",
+  "level": "simple",
   "inputs": [
     "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
     "Images PNG, JPG, GIF, BMP, TIFF, WEBP",

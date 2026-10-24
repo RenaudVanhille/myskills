@@ -30,6 +30,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from drawio_xml import (edge as new_edge, html, new_file, new_page, text_lines, text_width, vertex,  # noqa: E402
+                        waypoints, write)
+from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -124,20 +127,8 @@ NOTE = "rounded=0;whiteSpace=wrap;html=1;align=left;spacingLeft=8;fillColor=#fef
 PAD, HEADER, GAP, ICON_PAD = 24, 38, 40, 16
 
 
-def text_width(text: str, size: float = 12) -> float:
-    return max((len(line) for line in text.split("\n")), default=0) * size * 0.6
-
-
-def text_lines(text: str) -> int:
-    return len(text.split("\n")) if text else 0
-
-
 def slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-") or "n"
-
-
-def html(text: str) -> str:
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
 
 
 class Builder:
@@ -291,9 +282,9 @@ class Builder:
         x, y = box.get("x", 0), box.get("y", 0)
         if box.get("icon"):
             iw, ih = box["icon"]
-            add_cell(root, box["id"], html(box["label"]), box["style"], x + (box["w"] - iw) / 2, y, iw, ih, parent)
+            vertex(root, box["id"], html(box["label"]), box["style"], x + (box["w"] - iw) / 2, y, iw, ih, parent)
         else:
-            add_cell(root, box["id"], html(box["label"]), box["style"], x, y, box["w"], box["h"], parent)
+            vertex(root, box["id"], html(box["label"]), box["style"], x, y, box["w"], box["h"], parent)
         children = box.get("children", [])
         for child in [c for c in children if "children" in c]:
             self.emit(root, child, box["id"], edges)
@@ -375,12 +366,6 @@ def align(boxes: list, flows: list, y0: float, row: bool) -> None:
             changed = True
 
 
-def add_cell(root, cid, value, style, x, y, w, h, parent="1"):
-    node = ET.SubElement(root, "mxCell", id=cid, value=value, style=style, vertex="1", parent=parent)
-    ET.SubElement(node, "mxGeometry", x=f"{x:g}", y=f"{y:g}", width=f"{w:g}", height=f"{h:g}",
-                  attrib={"as": "geometry"})
-
-
 def flow_label(flow: dict) -> str:
     parts = [str(flow[k]) for k in ("protocol", "port") if flow.get(k)]
     head = " ".join(parts)
@@ -390,11 +375,7 @@ def flow_label(flow: dict) -> str:
 
 def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -> tuple[ET.Element, Builder, list]:
     b = Builder(spec, view, name, errors, warnings)
-    diagram = ET.Element("diagram", id=f"p-{slug(name)}", name=name)
-    model = ET.SubElement(diagram, "mxGraphModel", grid="1", gridSize="10", page="0")
-    root = ET.SubElement(model, "root")
-    ET.SubElement(root, "mxCell", id="0")
-    ET.SubElement(root, "mxCell", id="1", parent="0")
+    diagram, root = new_page(f"p-{slug(name)}", name)
 
     top = {"type": "zone", "items": spec.get("items", []), "layout": spec.get("layout", "row"),
            "wrap": spec.get("wrap"), "chain": spec.get("chain")}
@@ -426,12 +407,12 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
 
     title = spec.get("title")
     if title:
-        add_cell(root, "title", html(str(title)), TITLE, 0, 0, max(400, len(str(title)) * 12), 30)
+        vertex(root, "title", html(str(title)), TITLE, 0, 0, max(400, len(str(title)) * 12), 30)
     else:
         warnings.append(f"{name} : pas de titre")
     if objectives:
         text = " · ".join(f"{k.upper()} {v}" for k, v in objectives.items())
-        add_cell(root, "objectives", html(text), NOTE, 0, 45, max(220, text_width(text, 13) + 30), 34)
+        vertex(root, "objectives", html(text), NOTE, 0, 45, max(220, text_width(text, 13) + 30), 34)
     for bx in boxes:
         b.place(bx)
 
@@ -470,13 +451,9 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
         if parent != b.parent_of.get(target) or source in b.groups or target in b.groups:
             parent = "1"
         px0, py0 = b.absolute[parent][:2] if parent != "1" else (0, 0)
-        node = ET.Element("mxCell", id=f"f{number}-{source}-{target}", value=html(label), style=style,
-                          edge="1", parent=parent, source=source, target=target)
-        geometry = ET.SubElement(node, "mxGeometry", relative="1", attrib={"as": "geometry"})
+        node, geometry = new_edge(None, f"f{number}-{source}-{target}", html(label), style, source, target, parent)
         if points:
-            array = ET.SubElement(geometry, "Array", attrib={"as": "points"})
-            for px, py in points:
-                ET.SubElement(array, "mxPoint", x=f"{px - px0:g}", y=f"{py - py0:g}")
+            waypoints(geometry, [(px - px0, py - py0) for px, py in points])
         edges.setdefault(parent, []).append(node)
         flows.append({"n": number, "from": source, "to": target, "label": str(flow.get("label", "")),
                       "protocol": flow.get("protocol", ""), "port": flow.get("port", ""),
@@ -491,12 +468,12 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
     legend = spec.get("legend", "auto")
     if legend and (legend is True or len(b.styles_used) > 1 or b.styles_used - {"sync"}):
         lx = right + 80
-        add_cell(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;fontSize=13;",
+        vertex(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;fontSize=13;",
                  lx, y0, 120, 20)
         for row, kind in enumerate(k for k in FLOWS if k in b.styles_used):
             # Un trait du style du flux, libellé à droite (draw.io : forme « line »).
             line = re.sub(r"(edgeStyle|endArrow|endFill|startArrow|labelBackgroundColor)=[^;]*;", "", FLOWS[kind][0])
-            add_cell(root, f"legend-{kind}", FLOWS[kind][1], "shape=line;" + line + "labelPosition=right;"
+            vertex(root, f"legend-{kind}", FLOWS[kind][1], "shape=line;" + line + "labelPosition=right;"
                      "verticalLabelPosition=middle;align=left;spacingLeft=8;fontSize=12;", lx, y0 + 30 + row * 28, 40, 20)
 
     leaves = len(b.nodes)
@@ -530,17 +507,13 @@ def matrix(title: str, pages: list[tuple[str, Builder, list]]) -> str:
 
 def load_check():
     """check_drawio.py du skill drawio-diagram, s'il est installé à côté."""
-    folder = HERE.parent.parent / "drawio-diagram" / "scripts"
-    if not (folder / "check_drawio.py").exists():
-        return None
-    sys.path.insert(0, str(folder))
-    from check_drawio import check
-    return check
+    module = load_module("drawio-diagram", "check_drawio.py")
+    return module.check if module else None
 
 
 def build(spec: dict, view_override: str | None = None):
     errors, warnings = [], []
-    mxfile = ET.Element("mxfile", host="myskills")
+    mxfile = new_file()
     pages = []
     for number, page in enumerate(spec.get("pages") or [spec], 1):
         merged = {k: v for k, v in spec.items() if k not in ("pages", "items", "flows", "title", "objectives")}
@@ -611,8 +584,7 @@ def main() -> int:
               "flows": sum(len(f) for _, _, f in pages), "errors": errors, "warnings": warnings}
     report["views"] = sorted({b.view for _, b, _ in pages})
     if not errors:
-        ET.indent(mxfile)
-        ET.ElementTree(mxfile).write(out, encoding="utf-8", xml_declaration=False)
+        write(mxfile, out)
         report["output"] = str(out)
         if args.matrix or "network" in report["views"]:
             target = out.with_name(out.name.removesuffix(".drawio") + ".flows.md")
@@ -624,7 +596,7 @@ def main() -> int:
             report["errors"] += checked["errors"]
             report["warnings"] += checked["warnings"]
         else:
-            report["warnings"].append("fichier non vérifié : check_drawio.py introuvable (installez aussi le skill drawio-diagram)")
+            report["warnings"].append("fichier non vérifié : " + absent("drawio-diagram", "check_drawio.py"))
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

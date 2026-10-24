@@ -35,6 +35,7 @@ besoin s'arrête avec la marche à suivre. Le cache est un dossier copiable
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
+- **Niveau** : simple (modèle léger).
 - **Entrées** : Un groupe : extraction, schemas, publication ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne.
 - **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills.
 - **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).

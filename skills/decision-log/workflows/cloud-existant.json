@@ -2,22 +2,74 @@
   "name": "cloud-existant",
   "title": "Schémas et menaces d'une infrastructure existante",
   "description": "Du code d'infrastructure (Terraform, docker-compose, Kubernetes) au schéma cloud relu, puis au modèle de menaces STRIDE et à la revue Well-Architected du fournisseur.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le dossier du code d'infrastructure, s'il n'est pas dans infra/"
+  ],
   "stages": [
-    {"id": "description", "label": "Description tirée du code", "skills": ["cloud-architecture"],
-     "inputs": ["infra/**/*"], "deliverables": ["schemas/architecture.json"],
-     "checks": ["cloud-architecture : iac_import.py <sources> --out schemas/architecture.json"],
-     "instructions": "Compléter la description produite : titre, acteurs externes, protocoles et ports, flux que le code ne montre pas ; vérifier le sens des flux."},
-    {"id": "schemas", "label": "Schémas cloud", "skills": ["cloud-architecture", "diagram-export"],
-     "agent": "schema-designer",
-     "inputs": ["schemas/architecture.json"], "deliverables": ["schemas/architecture.drawio", "schemas/*.png"],
-     "optional": ["schemas/architecture.flows.md"],
-     "checks": ["cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
-                "diagram-export : export.py schemas/architecture.drawio, puis relire l'image"]},
-    {"id": "menaces", "label": "Modèle de menaces STRIDE et revue Well-Architected", "skills": ["cloud-architecture"],
-     "inputs": ["schemas/architecture.json"],
-     "deliverables": ["schemas/architecture.threats.md", "schemas/architecture.wa.md"],
-     "checks": ["cloud-architecture : stride.py schemas/architecture.json",
-                "cloud-architecture : wa_check.py schemas/architecture.json --fail-on moyenne"],
-     "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue. Constats Well-Architected : corriger la description, ou les accepter dans accept avec la raison donnée par l'utilisateur."}
+    {
+      "id": "description",
+      "label": "Description tirée du code",
+      "level": "moyen",
+      "skills": [
+        "cloud-architecture"
+      ],
+      "inputs": [
+        "infra/**/*"
+      ],
+      "deliverables": [
+        "schemas/architecture.json"
+      ],
+      "checks": [
+        "cloud-architecture : iac_import.py <sources> --out schemas/architecture.json"
+      ],
+      "instructions": "Compléter la description produite : titre, acteurs externes, protocoles et ports, flux que le code ne montre pas ; vérifier le sens des flux. Chaque flux ajouté sans source dans le code se note au journal comme hypothèse."
+    },
+    {
+      "id": "schemas",
+      "label": "Schémas cloud",
+      "level": "simple",
+      "skills": [
+        "cloud-architecture",
+        "diagram-export"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "schemas/architecture.json"
+      ],
+      "deliverables": [
+        "schemas/architecture.drawio",
+        "schemas/*.png"
+      ],
+      "optional": [
+        "schemas/architecture.flows.md"
+      ],
+      "checks": [
+        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
+        "diagram-export : export.py schemas/architecture.drawio, puis relire l'image une fois"
+      ]
+    },
+    {
+      "id": "menaces",
+      "label": "Modèle de menaces STRIDE et revue Well-Architected",
+      "level": "complexe",
+      "skills": [
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "schemas/architecture.json"
+      ],
+      "deliverables": [
+        "schemas/architecture.threats.md",
+        "schemas/architecture.wa.md"
+      ],
+      "checks": [
+        "threat-model : stride.py schemas/architecture.json",
+        "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (piliers et conventions du schéma)"
+      ],
+      "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue. Constats Well-Architected : corriger la description, ou les accepter dans accept avec la raison donnée par l'utilisateur."
+    }
   ]
 }

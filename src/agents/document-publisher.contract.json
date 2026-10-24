@@ -1,5 +1,6 @@
 {
   "agent": "document-publisher",
+  "level": "simple",
   "receives": [
     "Des fichiers Markdown ou des notes Obsidian (et le vault)",
     "L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki",

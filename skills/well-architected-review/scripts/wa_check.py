@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Contrôle une architecture décrite pour cloud_build.py contre les cadres des fournisseurs.
+"""Contrôle une architecture décrite pour cloud_build.py contre les cadres Well-Architected des fournisseurs.
 
 Même description JSON que cloud_build.py. Le script applique des règles
 mécaniques tirées de l'AWS Well-Architected Framework, de l'Azure
@@ -29,10 +29,13 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from cloud_build import build  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+
+# Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
+CLOUD = load_module("cloud-architecture", "cloud_build.py")
+MISSING = None if CLOUD else absent("cloud-architecture", "cloud_build.py")
 
 CLOUDS = ("aws", "azure", "gcp")
 SEVERITIES = ("haute", "moyenne", "basse")
@@ -197,7 +200,7 @@ def replicated(node: dict) -> bool:
 
 
 def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
-    _, pages, errors, _ = build(spec, None)
+    _, pages, errors, _ = CLOUD.build(spec, None)
     findings, seen = [], set()
     clouds = {spec.get("provider")} | {p.get("provider") for p in spec.get("pages", [])}
     types_all: set[str] = set()
@@ -428,6 +431,9 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if MISSING:
+        print(json.dumps({"input": str(args.spec), "errors": [MISSING], "warnings": []}, ensure_ascii=False))
+        return 1
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

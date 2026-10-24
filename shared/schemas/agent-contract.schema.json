@@ -4,10 +4,12 @@
   "title": "Contrat d'interface d'un agent",
   "description": "Fichier src/agents/<nom>.contract.json : ce que l'agent reçoit, ce qu'il produit et à qui il passe la main. Ses messages suivent handoff.schema.json et agent-report.schema.json.",
   "type": "object",
-  "required": ["agent", "receives", "produces", "handoffs"],
+  "required": ["agent", "level", "receives", "produces", "handoffs"],
   "additionalProperties": false,
   "properties": {
-    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow"]},
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer"]},
+    "level": {"enum": ["simple", "moyen", "complexe"],
+              "description": "Niveau par défaut de l'agent : shared/models.json en tire son modèle dans chaque outil."},
     "receives": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "produces": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "never": {"type": "array", "items": {"type": "string"}, "description": "Ce que l'agent ne fait jamais."},
@@ -18,7 +20,7 @@
         "required": ["to", "when", "send"],
         "additionalProperties": false,
         "properties": {
-          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow"]},
+          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer"]},
           "when": {"type": "string"},
           "send": {"type": "array", "items": {"type": "string"}, "minItems": 1,
                    "description": "Ce qui va dans files, objective et constraints du message de passage."}

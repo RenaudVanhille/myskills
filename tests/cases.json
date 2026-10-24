@@ -11,7 +11,7 @@
       "files": [".opencode/agents/schema-designer.md", ".opencode/skills/decision-log/scripts/journal.py",
                 ".kiro/agents/architecture-workflow.md", ".kiro/skills/decision-log/SKILL.md",
                 ".hermes/skills/document-publisher/SKILL.md", ".hermes/skills/drawio-diagram/scripts/lib/charter.json"],
-      "contains": {".kiro/agents/schema-designer.md": ["skill://.kiro/skills/decision-log/SKILL.md", "capability: shell"],
+      "contains": {".kiro/agents/schema-designer.md": ["skill://.kiro/skills/agent-handoff/SKILL.md", "capability: shell"],
                    ".opencode/agents/document-extractor.md": ["webfetch: deny", "\"uv run *\": allow"]}
     },
     {
@@ -217,7 +217,7 @@
         {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
          "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/reseau.drawio", "--view", "network"],
          "exit": 0, "report": {"errors": [], "warnings": [], "views": ["network"]}},
-        {"script": "{skills}/cloud-architecture/scripts/stride.py",
+        {"script": "{skills}/threat-model/scripts/stride.py",
          "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/menaces.md"],
          "exit": 0, "report": {"errors": [], "boundaries": 4, "crossing": 8},
          "report_contains": {"warnings": "F4"}},
@@ -255,29 +255,29 @@
     },
     {
       "id": "cloud-well-architected",
-      "skill": "cloud-architecture",
+      "skill": "well-architected-review",
       "_note": "wa_check.py : architecture conforme sans constat, écarts aux piliers et aux conventions de schéma, constat accepté.",
       "steps": [
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{fixtures}/diagrams/cloud-aws-wa.json", "--out", "{out}/conforme.wa.md", "--fail-on", "basse"],
          "exit": 0, "report": {"errors": [], "warnings": [], "findings": [], "providers": ["aws"], "scope": "tout", "rules": 20}},
         {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
          "args": ["{fixtures}/diagrams/cloud-aws-wa.json", "--out", "{out}/conforme.drawio"],
          "exit": 0, "report": {"errors": [], "warnings": [], "groups": 11, "services": 14}},
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{fixtures}/diagrams/cloud-wa-ecarts.json", "--out", "{out}/ecarts.wa.md"],
          "exit": 1, "report": {"errors": [], "counts.haute": 3, "counts.acceptés": 2, "findings.0.rule": "SEC-01",
                                "providers": ["aws", "azure"]},
          "report_contains": {"findings": "CONV-01"}},
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{fixtures}/diagrams/cloud-aws-web.json", "--out", "{out}/web.wa.md", "--fail-on", "aucune"],
          "exit": 0, "report": {"errors": [], "counts.haute": 0}, "report_contains": {"findings": "REL-01"}},
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{fixtures}/diagrams/cloud-wa-ecarts.json", "--out", "{out}/conventions.wa.md", "--scope", "conventions"],
          "exit": 0, "report": {"scope": "conventions", "rules": 6, "counts.haute": 0, "counts.moyenne": 4}},
         {"script": "{skills}/architecture-options/scripts/options_build.py",
          "args": ["{fixtures}/workflow/options.json", "--out-dir", "{out}/options"], "exit": 0, "report": {"errors": []}},
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{out}/options/schemas/option-a.cloud.json", "--scope", "piliers", "--fail-on", "moyenne"],
          "exit": 1, "report": {"errors": [], "scope": "piliers", "rules": 14, "counts.moyenne": 4},
          "report_contains": {"findings": "SEC-05"}}
@@ -337,10 +337,10 @@
         {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
          "args": ["{fixtures}/diagrams/cloud-invalide.json", "--out", "{out}/c.drawio"],
          "exit": 1, "report_contains": {"errors": "racine : clé inconnue « flow » ; vouliez-vous « flows » ?"}},
-        {"script": "{skills}/cloud-architecture/scripts/stride.py",
+        {"script": "{skills}/threat-model/scripts/stride.py",
          "args": ["{fixtures}/diagrams/cloud-invalide.json", "--out", "{out}/c.threats.md"],
          "exit": 1, "report_contains": {"errors": "flows/0/style : « asyn » non permis"}},
-        {"script": "{skills}/cloud-architecture/scripts/wa_check.py",
+        {"script": "{skills}/well-architected-review/scripts/wa_check.py",
          "args": ["{fixtures}/diagrams/cloud-wa-invalide.json", "--out", "{out}/c.wa.md"],
          "exit": 1, "report_contains": {"errors": "accept : clé inconnue « sec-5 » (forme attendue"}}
       ],
@@ -440,16 +440,16 @@
     },
     {
       "id": "presentation",
-      "skill": "architecture-options",
+      "skill": "architecture-deck",
       "_note": "Présentation assemblée depuis les fichiers validés du workflow, puis rendue par la doublure du skill externe.",
       "steps": [
         {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
         {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
         {"copy": ["{fixtures}/workflow/decision.json", "{out}/decision.json"]},
         {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/schemas/architectures.drawio.png"]},
-        {"script": "{skills}/architecture-options/scripts/deck_build.py", "args": ["{out}"], "exit": 0, "report": {"errors": [], "sections": 12, "images": 1, "decided": "A"}, "report_contains": {"warnings": "option B : schéma non exporté"}},
+        {"script": "{skills}/architecture-deck/scripts/deck_build.py", "args": ["{out}"], "exit": 0, "report": {"errors": [], "sections": 12, "images": 1, "decided": "A"}, "report_contains": {"warnings": "option B : schéma non exporté"}},
         {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/presentation.md"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 0, "report": {"errors": [], "slides": 13, "images": 1, "missing_alt": 0}},
-        {"script": "{skills}/architecture-options/scripts/deck_build.py", "args": ["{fixtures}/pptx"], "exit": 1, "report": {"output": null}, "report_contains": {"errors": "options.json illisible"}}
+        {"script": "{skills}/architecture-deck/scripts/deck_build.py", "args": ["{fixtures}/pptx"], "exit": 1, "report": {"output": null}, "report_contains": {"errors": "options.json illisible"}}
       ],
       "files": ["presentation.md", "presentation.pptx"],
       "contains": {"presentation.md": ["<!-- part: Le besoin -->", "- **82 %** option A, recevable", "| Performance | 5 | 2 |", "![Schéma de l'option A : Application web dans le cloud européen](schemas/architectures.drawio.png)", "> — Reno (utilisateur), 2026-10-23", "| ENF-004 | indispensable | Annuaire des assurés |", "Quel est le pic observé après une tempête ? (ENF-001)"]}
@@ -725,7 +725,7 @@
           }
         },
         {
-          "script": "{skills}/decision-log/scripts/journal.py",
+          "script": "{skills}/agent-handoff/scripts/check_message.py",
           "args": [
             "report",
             "{out}/w",
@@ -738,7 +738,7 @@
           }
         },
         {
-          "script": "{skills}/decision-log/scripts/journal.py",
+          "script": "{skills}/agent-handoff/scripts/check_message.py",
           "args": [
             "handoff",
             "{out}/w",
@@ -826,6 +826,64 @@
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "options/0 (A)/components : Option A : Application web dans le cloud européen : élément « Pièces jointes », type inconnu « s4 »"}}
       ],
       "absent": ["options-wa-invalide.md", "schemas"]
+    },
+    {
+      "id": "brief",
+      "skill": "diagram-brief",
+      "_note": "Décision courte validée puis grille appliquée : séquence en Mermaid, public non technique en Excalidraw malgré la destination, vue cloud ; décision invalide refusée sans fichier.",
+      "steps": [
+        {"script": "{skills}/diagram-brief/scripts/brief.py", "args": ["{fixtures}/brief/sequence.json", "--out", "{out}/decision.json"], "exit": 0, "report": {"errors": [], "warnings": [], "decision.format": "Mermaid", "decision.skill": "mermaid-diagram"}},
+        {"script": "{skills}/diagram-brief/scripts/brief.py", "args": ["--json", "{\"audience\": \"non technique\", \"destination\": \"confluence\", \"kind\": \"flux\", \"message\": \"Le dossier passe par trois équipes.\", \"elements\": [\"accueil\", \"gestion\", \"paiement\"]}"], "exit": 0, "report": {"decision.format": "Excalidraw", "decision.skill": "excalidraw-diagram", "warnings": []}},
+        {"script": "{skills}/diagram-brief/scripts/brief.py", "args": ["--json", "{\"audience\": \"technique\", \"destination\": \"confluence\", \"kind\": \"cloud-reseau\", \"message\": \"Seule la passerelle est exposée.\", \"elements\": [\"passerelle\", \"API\"]}"], "exit": 0, "report": {"decision.skill": "cloud-architecture", "decision.view": "network", "decision.format": "draw.io"}, "report_contains": {"warnings": "2 éléments, 3 à 7 attendus", "decision.delivery": ".drawio.png"}},
+        {"script": "{skills}/diagram-brief/scripts/brief.py", "args": ["{fixtures}/brief/invalide.json", "--out", "{out}/invalide.json"], "exit": 1, "report": {"decision": null, "output": null}, "report_contains": {"errors": "« sequance » non permis"}}
+      ],
+      "files": ["decision.json"],
+      "absent": ["invalide.json"],
+      "contains": {"decision.json": ["\"skill\": \"mermaid-diagram\"", "\"reason\""]}
+    },
+    {
+      "id": "pos-impact",
+      "skill": "urbanization-map",
+      "_note": "Options situées dans le POS existant : impacts comptés, redondance signalée, POS cibles écrits et constructibles ; placements faux refusés sans fichier.",
+      "steps": [
+        {"script": "{skills}/urbanization-map/scripts/pos_impact.py", "args": ["{fixtures}/workflow/options-pos.json", "--out-dir", "{out}"], "exit": 0, "report": {"errors": [], "apps": 6, "impacts.0.new": 1, "impacts.0.cross_zone": 1, "impacts.1.redundancies.0": "Module portail de l'éditeur / Outil de gestion des sinistres"}, "report_contains": {"warnings": "redondance possible"}},
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py", "args": ["{out}/pos-option-a.json"], "exit": 0, "report": {"applications": 7, "errors": [], "warnings": []}},
+        {"script": "{skills}/urbanization-map/scripts/pos_impact.py", "args": ["{fixtures}/workflow/options-pos-invalide.json", "--out-dir", "{out}/invalide"], "exit": 1, "report": {"outputs": []}, "report_contains": {"errors": "quartier « Opérations / Sinistre » absent du POS ; vouliez-vous « Opérations / Sinistres » ?"}}
+      ],
+      "files": ["pos-option-a.json", "pos-option-b.json", "pos-option-a.drawio"],
+      "absent": ["invalide"],
+      "contains": {"pos-option-a.json": ["généré par pos_impact.py"]}
+    },
+    {
+      "id": "passage-agents",
+      "skill": "agent-handoff",
+      "_note": "Message de passage et rapport final validés hors workflow, puis notés au journal dans un dossier de workflow ; champ faux refusé avec les valeurs permises.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/sources/cahier-des-charges.md", "{out}/sortie/cahier.md"]},
+        {"script": "{skills}/agent-handoff/scripts/check_message.py", "args": ["handoff", "{out}", "--json", "{\"agent\": \"schema-designer\", \"objective\": \"Schéma du flux de déclaration.\", \"files\": [\"sortie/cahier.md\"], \"audience\": \"technique\", \"destination\": \"confluence\", \"output\": \"sortie/schemas/\"}"], "exit": 0, "report": {"errors": [], "warnings": [], "kind": "handoff", "agent": "schema-designer", "workflow": null, "entry": null}},
+        {"script": "{skills}/agent-handoff/scripts/check_message.py", "args": ["report", "{out}", "--json", "{\"agent\": \"schema-designer\", \"status\": \"ok\", \"files\": [\"sortie/absent.md\"], \"tools\": \"t\", \"level\": \"simple\", \"corrections\": [], \"todo\": [], \"next\": null}"], "exit": 1, "report_contains": {"errors": "sortie/absent.md"}},
+        {"script": "{skills}/agent-handoff/scripts/check_message.py", "args": ["report", "{out}", "--json", "{\"agent\": \"architecte\", \"status\": \"ok\", \"files\": [], \"tools\": \"t\", \"level\": \"simple\", \"corrections\": [], \"todo\": [], \"next\": null}"], "exit": 1, "report_contains": {"errors": "architecture-reviewer"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Passages", "--stages", "schemas"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "schemas"], "exit": 0},
+        {"script": "{skills}/agent-handoff/scripts/check_message.py", "args": ["report", "{out}/w", "--json", "{\"agent\": \"schema-designer\", \"status\": \"ok\", \"files\": [], \"tools\": \"draw.io\", \"level\": \"moyen\", \"corrections\": [], \"todo\": [], \"next\": null}"], "exit": 0, "report": {"errors": [], "warnings": []}, "report_contains": {"workflow": "workflow.json"}}
+      ],
+      "contains": {"w/journal.md": ["schema-designer"]}
+    },
+    {
+      "id": "vault-cloud-existant",
+      "skill": "decision-log",
+      "_note": "Mémoire du vault pilotée par la définition cloud-existant : une note par étape soumise, schéma PNG intégré et copié dans le vault, lien depuis l'index.",
+      "steps": [
+        {"copy": ["{fixtures}/diagrams/cloud-aws-web.json", "{out}/w/schemas/architecture.json"]},
+        {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/w/schemas/architecture.drawio.png"]},
+        {"copy": ["{fixtures}/workflow/sources/cahier-des-charges.md", "{out}/vault/Notes/autre.md"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Boutique", "--definition", "cloud-existant", "--vault", "{out}/vault"], "exit": 0, "report": {"stage.level": "moyen", "errors": []}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "description"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description", "--files", "schemas/architecture.json", "schemas/architecture.drawio.png"], "exit": 0, "report": {"memory.notes": 4, "errors": [], "warnings": []}}
+      ],
+      "files": ["vault/Workflows/Boutique/Étapes/Description tirée du code.md", "vault/Workflows/Boutique/Fichiers/schemas/architecture.drawio.png", "vault/Notes/autre.md"],
+      "contains": {"vault/Workflows/Boutique/Étapes/Description tirée du code.md": ["type: \"etape\"", "![[Workflows/Boutique/Fichiers/schemas/architecture.drawio.png]]", "`schemas/architecture.json`"],
+                   "vault/Workflows/Boutique/Boutique.md": ["## Livrables par étape", "[[Workflows/Boutique/Étapes/Description tirée du code|Description tirée du code]]"]}
     }
   ]
 }

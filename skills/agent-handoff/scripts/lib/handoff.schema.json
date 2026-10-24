@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/handoff.schema.json",
+  "title": "Message de passage entre agents",
+  "description": "Ce qu'un agent envoie à un autre agent (ou à l'utilisateur) pour lui passer la main.",
+  "type": "object",
+  "required": ["agent", "objective", "files", "audience", "destination", "output"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer"],
+              "description": "Agent qui reçoit la demande."},
+    "objective": {"type": "string", "minLength": 1, "description": "Ce qu'il faut produire, en une phrase."},
+    "files": {"type": "array", "items": {"type": "string"}, "minItems": 1,
+              "description": "Chemins des fichiers d'entrée."},
+    "audience": {"enum": ["technique", "non technique"], "description": "Public visé."},
+    "destination": {"enum": ["markdown", "obsidian", "word", "powerpoint", "pdf", "confluence", "sharepoint", "xwiki", "html"],
+                    "description": "Où le résultat sera lu."},
+    "output": {"type": "string", "minLength": 1, "description": "Dossier ou fichier attendu."},
+    "constraints": {"type": "array", "items": {"type": "string"},
+                    "description": "Ce qu'il ne faut pas changer, modèle Word, délais..."}
+  }
+}

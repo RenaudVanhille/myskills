@@ -23,6 +23,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from drawio_xml import br, edge, new_file, new_page, text_size, vertex, write  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 from check_drawio import check  # noqa: E402
 
@@ -49,28 +50,9 @@ TITLE = "text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;fon
 W, H, GAP_X, GAP_Y = 180, 80, 120, 100
 
 
-def text_size(text: str, size: int) -> tuple[float, float]:
-    lines = text.split("\n")
-    return max(len(l) for l in lines) * size * 0.6, len(lines) * size * 1.4
-
-
-def label(text: str) -> str:
-    return text.replace("\n", "<br>")
-
-
-def cell(root: ET.Element, cid: str, value: str, style: str, x: float, y: float,
-         w: float, h: float) -> None:
-    node = ET.SubElement(root, "mxCell", id=cid, value=value, style=style, vertex="1", parent="1")
-    ET.SubElement(node, "mxGeometry", x=f"{x:g}", y=f"{y:g}", width=f"{w:g}", height=f"{h:g}",
-                  attrib={"as": "geometry"})
-
 
 def build_page(spec: dict, name: str, errors: list, warnings: list) -> ET.Element:
-    diagram = ET.Element("diagram", id=f"p-{name}", name=name)
-    model = ET.SubElement(diagram, "mxGraphModel", grid="1", gridSize="10", page="0")
-    root = ET.SubElement(model, "root")
-    ET.SubElement(root, "mxCell", id="0")
-    ET.SubElement(root, "mxCell", id="1", parent="0")
+    diagram, root = new_page(f"p-{name}", name)
     items = spec.get("elements", [])
     nodes = [i for i in items if "from" not in i]
     arrows = [i for i in items if "from" in i]
@@ -103,7 +85,7 @@ def build_page(spec: dict, name: str, errors: list, warnings: list) -> ET.Elemen
             y = float(item.get("row", 0)) * (H + GAP_Y)
             if role == "person":
                 x, y = x + (W - w) / 2, y
-        cell(root, cid, label(text), style, x, y, w, h)
+        vertex(root, cid, br(text), style, x, y, w, h)
         boxes[cid] = (x, y, w, h)
         if role not in ("zone", "note") and role not in roles_used:
             roles_used.append(role)
@@ -114,10 +96,8 @@ def build_page(spec: dict, name: str, errors: list, warnings: list) -> ET.Elemen
         if source not in boxes or target not in boxes:
             errors.append(f"{name} : flèche {cid}, forme inconnue ({source} -> {target})")
             continue
-        node = ET.SubElement(root, "mxCell", id=cid, value=label(str(item.get("label", ""))),
-                             style=ASYNC if item.get("style") == "async" else SYNC,
-                             edge="1", parent="1", source=source, target=target)
-        ET.SubElement(node, "mxGeometry", relative="1", attrib={"as": "geometry"})
+        edge(root, cid, br(str(item.get("label", ""))), ASYNC if item.get("style") == "async" else SYNC,
+             source, target)
 
     count = len([n for n in nodes if n.get("role") not in ("zone", "note")])
     if str(spec.get("audience", "")).startswith("non") and count > 7:
@@ -126,27 +106,27 @@ def build_page(spec: dict, name: str, errors: list, warnings: list) -> ET.Elemen
     left, top = min(b[0] for b in shown), min(b[1] for b in shown)
     right = max(b[0] + b[2] for b in shown)
     if spec.get("title"):
-        cell(root, "title", str(spec["title"]), TITLE, left, top - 60, max(400, len(spec["title"]) * 12), 30)
+        vertex(root, "title", str(spec["title"]), TITLE, left, top - 60, max(400, len(spec["title"]) * 12), 30)
     legend = spec.get("legend", "auto")
     has_async = any(a.get("style") == "async" for a in arrows)
     if legend and (legend is True or len(roles_used) > 1 or has_async):
         lx = right + 80
-        cell(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;fontSize=14;",
+        vertex(root, "legend-title", "Légende", "text;html=1;fontStyle=1;align=left;fontColor=#1f2937;fontSize=14;",
              lx, top, 120, 20)
         side = "labelPosition=right;verticalLabelPosition=middle;align=left;spacingLeft=8;"
         for row, role in enumerate(roles_used, 1):
             style = ROLES[role][0].replace("verticalLabelPosition=bottom;verticalAlign=top;", "")
-            cell(root, f"legend-{role}", ROLES[role][1], side + style.replace("fontSize=14;", "fontSize=12;"),
+            vertex(root, f"legend-{role}", ROLES[role][1], side + style.replace("fontSize=14;", "fontSize=12;"),
                  lx, top + row * 32, 30, 20)
         if has_async:
-            cell(root, "legend-async", "Asynchrone", side + "shape=line;dashed=1;html=1;strokeColor=#374151;"
+            vertex(root, "legend-async", "Asynchrone", side + "shape=line;dashed=1;html=1;strokeColor=#374151;"
                  "fontColor=#1f2937;fontSize=12;", lx, top + (len(roles_used) + 1) * 32, 30, 20)
     return diagram
 
 
 def build(spec: dict) -> tuple[ET.Element, list[str], list[str]]:
     errors, warnings = [], []
-    mxfile = ET.Element("mxfile", host="myskills")
+    mxfile = new_file()
     pages = spec.get("pages") or [spec]
     for number, page in enumerate(pages, 1):
         name = str(page.get("name") or page.get("title") or f"Page-{number}")
@@ -184,8 +164,7 @@ def main() -> int:
     report = {"input": str(args.spec), "output": None, "pages": len(mxfile), "shapes": 0,
               "errors": errors, "warnings": warnings}
     if not errors:
-        ET.indent(mxfile)
-        ET.ElementTree(mxfile).write(out, encoding="utf-8", xml_declaration=False)
+        write(mxfile, out)
         checked = check(out)
         report.update(output=str(out), shapes=checked["shapes"])
         report["errors"] += checked["errors"]

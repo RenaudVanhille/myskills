@@ -25,7 +25,7 @@ commandes de l'agent sont acceptées sans confirmation : elles ne touchent
 que le dossier temporaire.
 
 Usage :
-    uv run tests/cost.py [--only ID[,ID]] [--model sonnet] [--label TEXTE] [--keep] [--max-increase 20]
+    uv run tests/cost.py [--only ID[,ID]] [--model sonnet|agent] [--label TEXTE] [--keep] [--max-increase 20]
 """
 
 import argparse
@@ -80,7 +80,7 @@ def run_case(case: dict, model: str, keep: bool) -> dict:
     prepare(case, work)
     command = ["claude", "-p", case["prompt"], "--output-format", "json",
                "--plugin-dir", str(ROOT), "--agent", f"myskills:{case['agent']}",
-               "--model", model, "--permission-mode", "bypassPermissions"]
+               "--permission-mode", "bypassPermissions"] + ([] if model == "agent" else ["--model", model])
     try:
         env = {**os.environ, **{k: v.replace("{tests}", str(TESTS)) for k, v in case.get("env", {}).items()}}
         result = subprocess.run(command, cwd=work, capture_output=True, text=True,
@@ -111,7 +111,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="identifiants des cas, séparés par des virgules")
     parser.add_argument("--model", default="sonnet",
-                        help="modèle fixe, pour comparer deux mesures (défaut : sonnet)")
+                        help="modèle fixe, pour comparer deux mesures (défaut : sonnet) ; « agent » : le "
+                             "modèle du niveau de chaque agent (shared/models.json)")
     parser.add_argument("--label", default="", help="étiquette de la mesure (ex. avant, lot-1)")
     parser.add_argument("--keep", action="store_true",
                         help="garder les dossiers de travail (pour tests/judge.py outputs)")

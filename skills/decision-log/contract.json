@@ -1,5 +1,6 @@
 {
   "skill": "decision-log",
+  "level": "simple",
   "inputs": [
     "Dossier du workflow",
     "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
@@ -8,13 +9,13 @@
   "outputs": [
     "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
-    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md"
+    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)"
   ],
   "scripts": [
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|log|submit|review|status|handoff|report DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--file MESSAGE.json | --json J] | --schema",
+      "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -22,9 +23,7 @@
         "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
         "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
-        "--schema": "affiche le schéma de workflow.json sur une ligne",
-        "handoff DOSSIER": "valide un message de passage (--file ou --json) contre shared/schemas/handoff.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json",
-        "report DOSSIER": "valide un rapport final d'agent contre shared/schemas/agent-report.schema.json et vérifie ses fichiers ; le note au journal s'il y a un workflow.json"
+        "--schema": "affiche le schéma de workflow.json sur une ligne"
       },
       "report": {
         "format": "json",
@@ -44,7 +43,8 @@
             "errors",
             "warnings",
             "changes",
-            "stage"
+            "stage",
+            "ask"
           ],
           "additionalProperties": false,
           "properties": {
@@ -58,9 +58,7 @@
                 "log",
                 "submit",
                 "review",
-                "status",
-                "handoff",
-                "report"
+                "status"
               ]
             },
             "stages": {
@@ -189,7 +187,7 @@
               "description": "Revue différentielle : ce qui a changé depuis la soumission précédente de l'étape (submit seulement)."
             },
             "stage": {
-              "description": "Avec une définition : l'étape courante à produire (skills, livrables, contrôles, consignes), sinon null.",
+              "description": "Avec une définition : l'étape courante à produire (niveau, skills, livrables, contrôles, consignes), sinon null.",
               "anyOf": [
                 {
                   "type": "null"
@@ -198,13 +196,27 @@
                   "type": "object"
                 }
               ]
+            },
+            "ask": {
+              "description": "À init avec une définition : ce qu'il faut demander à l'utilisateur avant la première étape (champ ask de la définition), sinon null.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
             }
           }
         }
       },
       "exit_codes": {
         "0": "commande appliquée",
-        "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, message ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
+        "1": "commande ou message refusé (étape inconnue, ordre ou porte de revue non respectés, livrable validé modifié, fichier introuvable, définition ou workflow.json non conforme à son schéma) ; workflow.json inchangé"
       },
       "input": {
         "format": "json",
@@ -410,6 +422,14 @@
                       "label": {
                         "type": "string"
                       },
+                      "level": {
+                        "enum": [
+                          "simple",
+                          "moyen",
+                          "complexe"
+                        ],
+                        "description": "Niveau du travail de l'étape : l'agent la confie à un sous-agent du modèle de ce niveau (shared/models.json) quand il diffère du sien. Sans niveau, l'étape est au niveau de l'agent."
+                      },
                       "skills": {
                         "type": "array",
                         "items": {
@@ -420,7 +440,7 @@
                       },
                       "agent": {
                         "type": "string",
-                        "description": "agent à qui passer la main pour cette étape, s'il y a lieu"
+                        "description": "Agent spécialisé à qui passer la main pour un travail de jugement de l'étape demandé par l'utilisateur ; les commandes des checks restent à l'agent du workflow."
                       },
                       "inputs": {
                         "type": "array",
@@ -457,8 +477,43 @@
                       },
                       "instructions": {
                         "type": "string",
-                        "description": "consignes propres à l'étape, en une ou deux phrases"
+                        "description": "Consignes propres à l'étape, que l'agent du workflow suit : tout ce qui est propre au métier est ici, pas dans l'agent."
                       }
+                    }
+                  }
+                },
+                "ask": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Ce que l'agent demande à l'utilisateur en une seule question avant la première étape, s'il ne le trouve pas (vault, POS du SI...)."
+                },
+                "memory": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Livrables qui donnent les notes métier du vault (vault_sync.py) ; sans ce champ, seulement l'index, le journal et une note par étape avec ses livrables.",
+                  "properties": {
+                    "requirements": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "catalogue d'exigences (requirements-catalog)"
+                    },
+                    "options": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "options d'architecture (architecture-options)"
+                    },
+                    "decision": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "décision de l'utilisateur"
+                    },
+                    "adr": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "ADR en Markdown"
                     }
                   }
                 }
@@ -470,7 +525,7 @@
     },
     {
       "name": "vault_sync.py",
-      "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json, exigences.json, options.json et decision.json ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
+      "role": "Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks, depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu.",
       "usage": "uv run scripts/vault_sync.py DOSSIER [--vault VAULT] [--folder DOSSIER_DU_VAULT] [--data DOSSIER_DES_LIVRABLES]",
       "options": {
         "DOSSIER": "dossier du workflow",
@@ -527,6 +582,20 @@
         "0": "notes écrites, tous les liens résolus",
         "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), ou lien cassé"
       }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "requirements-catalog",
+      "script": "req_build.py",
+      "why": "valider le catalogue d'exigences avant d'en écrire les notes",
+      "optional": true
+    },
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "valider options.json et decision.json avant d'en écrire les notes",
+      "optional": true
     }
   ],
   "handoffs": [

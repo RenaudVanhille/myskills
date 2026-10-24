@@ -1,5 +1,6 @@
 {
   "skill": "excalidraw-diagram",
+  "level": "moyen",
   "inputs": [
     "Décision de diagram-brief",
     "Description JSON du schéma : title, audience, elements"

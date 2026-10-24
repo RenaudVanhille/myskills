@@ -200,6 +200,19 @@ def check_contracts() -> dict:
                     Draft202012Validator.check_schema(script["report"].get("schema", {}))
                 except Exception as error:  # noqa: BLE001 - message du validateur
                     failures.append(f"{name}/{script['name']} : schéma de rapport invalide ({error})")
+        # Dépendances déclarées (requires) et schéma d'entrée repris d'un autre skill (same_as).
+        required = set()
+        for need in contract.get("requires", []):
+            target = skills.get(need["skill"])
+            required.add((need["skill"], need["script"]))
+            if need["skill"] == name or target is None:
+                failures.append(f"{name} : requires vise un skill inconnu ou lui-même « {need['skill']} »")
+            elif need["script"] not in {s["name"] for s in target.get("scripts", [])}:
+                failures.append(f"{name} : requires vise {need['skill']}/{need['script']}, absent de son contrat")
+        for script in contract.get("scripts", []):
+            source = (script.get("input") or {}).get("same_as")
+            if source and tuple(source.split("/", 1)) not in required:
+                failures.append(f"{name}/{script['name']} : input.same_as « {source} » absent de requires")
         for handoff in contract.get("handoffs", []):
             known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
                      "externe": externals}[handoff["kind"]]
@@ -217,8 +230,17 @@ def check_contracts() -> dict:
     # Workflows livrés : conformes au schéma de définition, skills et agents existants.
     journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
     definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
+    from agents_lib import parse_agent as parse, split_list as split
+
+    engine = set(split(parse(ROOT / "src" / "agents" / "architecture-workflow.md")[0].get("skills", "")))
     for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
         definition = json.loads(path.read_text(encoding="utf-8"))
+        for stage in definition.get("stages", []):
+            if not stage.get("level"):
+                failures.append(f"workflows/{path.name} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
+            failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill « {s} » absent des skills "
+                         "de l'agent architecture-workflow" for s in stage.get("skills", [])
+                         if s in skills and s not in engine]
         failures += [f"workflows/{path.name} : {e}" for e in schema_errors(definition, definition_schema)]
         if definition.get("name") != path.stem:
             failures.append(f"workflows/{path.name} : name = {definition.get('name')!r}, attendu {path.stem!r}")
@@ -246,7 +268,8 @@ def check_contracts() -> dict:
     for name, contract in agents.items():
         if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
             stale.append(f"src/agents/{name}.md")
-    for copy, text in {**contracts_lib.generated_libs(), **contracts_lib.plugin_manifests()}.items():
+    for copy, text in {**contracts_lib.agent_enums(), **contracts_lib.shared_inputs(), **contracts_lib.generated_libs(),
+                       **contracts_lib.plugin_manifests()}.items():
         if not copy.exists() or copy.read_text(encoding="utf-8") != text:
             stale.append(copy.relative_to(ROOT).as_posix())
     from agents_lib import parse_agent, source_agents
@@ -292,7 +315,24 @@ def check_rules() -> dict:
         for script in sorted((folder / "scripts").glob("*.py")):
             if not script.read_text(encoding="utf-8").startswith("# /// script"):
                 failures.append(f"{name}/scripts/{script.name} : en-tête PEP 723 (# /// script) manquant")
-    for name, contract in contracts_lib.skill_contracts().items():
+    # Un script n'atteint un autre skill que par skill_paths, et seulement si requires le déclare.
+    contracts, generated = contracts_lib.skill_contracts(), set(contracts_lib.generated_libs())
+    for name, contract in contracts.items():
+        declared = {(need["skill"], need["script"]) for need in contract.get("requires", [])}
+        for path in sorted((ROOT / "skills" / name / "scripts").rglob("*.py")):
+            if path in generated:
+                continue
+            code, where = path.read_text(encoding="utf-8"), f"{name}/{path.relative_to(ROOT / 'skills' / name).as_posix()}"
+            if re.search(r"parents\[[2-9]\]|parent\.parent\.parent", code):
+                failures.append(f"{where} : chemin vers un autre skill, utilisez skill_paths et requires")
+            failures += [f"{where} : chemin vers le skill {other}, utilisez skill_paths et requires"
+                         for other in re.findall(r'"([a-z0-9-]+)"\s*/\s*"scripts"', code)
+                         if other in contracts and other != name]
+            failures += [f"{where} : {call}(\"{skill}\", \"{script}\") absent de requires dans contract.json"
+                         for call, skill, script in re.findall(
+                             r'(find_script|load_module|schema_of)\("([a-z0-9-]+)",\s*"([^"]+)"\)', code)
+                         if (skill, script) not in declared]
+    for name, contract in contracts.items():
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):
                 failures.append(f"{name}/{script['name']} : rapport JSON sans schéma dans le contrat")
@@ -321,6 +361,8 @@ def check_rules() -> dict:
             tools = next((line for line in render_agent(src, flavor).splitlines() if line.startswith("tools:")), "")
             if "web" in tools.lower():
                 failures.append(f"agent {name} : outil web autorisé ({flavor})")
+        if "{{niveaux}}" not in src.read_text(encoding="utf-8"):
+            failures.append(f"agent {name} : marqueur {{{{niveaux}}}} absent (niveaux et modèles de shared/models.json)")
         commands = meta.get("commands", "").lower()
         failures += [f"agent {name} : commande réseau autorisée « {c} »"
                      for c in ("curl", "wget", "invoke-webrequest") if c in commands]

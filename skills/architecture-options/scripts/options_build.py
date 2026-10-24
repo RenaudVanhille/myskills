@@ -19,13 +19,14 @@ Avec `--decision decision.json` (décision de l'utilisateur prise après la
 revue), seul l'ADR est écrit : la comparaison déjà validée ne change pas.
 
 Avec `pos` (POS existant du SI, JSON ou CSV de urbanization-map), chaque
-option dit où elle se place (`placement`) : le script vérifie les noms dans
-le POS, compte créations, évolutions, remplacements, redondances et flux
-entre zones, ajoute le critère « urbanisation » et écrit le POS cible de
-chaque option (`schemas/pos-option-<id>.json`, pour pos_build.py).
+option dit où elle se place (`placement`) : pos_impact.py (skill
+urbanization-map) vérifie les noms dans le POS, compte créations,
+évolutions, remplacements, redondances et flux entre zones et écrit le POS
+cible de chaque option (`schemas/pos-option-<id>.json`, pour pos_build.py) ;
+le script ajoute le critère « urbanisation ».
 
 Chaque option cloud (`provider`) passe la revue Well-Architected des piliers
-(wa_check.py du skill cloud-architecture) : constats par pilier dans
+(wa_check.py du skill well-architected-review) : constats par pilier dans
 `options.md`, détail dans `schemas/option-<id>.wa.md`, constats de l'option
 retenue dans l'ADR. Un écart assumé s'accepte avec sa raison (`wa_accept`).
 
@@ -43,10 +44,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from pos import check_option, placement_lines, read_pos, resolve, target_pos  # noqa: E402
-from pos import index as pos_index  # noqa: E402
+from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
+# Position des options dans le POS du SI (skill urbanization-map), déclaré dans requires.
+POS = load_module("urbanization-map", "pos_impact.py")
 WEIGHTS = {"indispensable": 3, "importante": 2, "souhaitable": 1}
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
                    "conformite": "Conformité", "exploitabilite": "Exploitabilité",
@@ -58,13 +60,9 @@ WA_PILLARS = ("reliability", "security", "operations", "performance", "cost")
 
 
 def load_wa():
-    """wa_check.py du skill cloud-architecture, s'il est installé à côté ; sinon None."""
-    scripts = Path(__file__).resolve().parents[2] / "cloud-architecture" / "scripts"
-    if not (scripts / "wa_check.py").exists():
-        return None
-    sys.path.insert(0, str(scripts))
-    import wa_check
-    return wa_check
+    """wa_check.py du skill well-architected-review (et son cloud_build.py), ou None s'il manque."""
+    module = load_module("well-architected-review", "wa_check.py")
+    return module if module and not module.MISSING else None
 
 
 def cell(text) -> str:
@@ -76,16 +74,17 @@ def nature(req: dict) -> str | None:
     return req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
 
 
-def load_catalog(base: Path, spec: dict, errors: list[str]) -> dict[str, dict]:
+def load_catalog(base: Path, spec: dict, errors: list[str], warnings: list[str]) -> dict[str, dict]:
     path = base / spec.get("requirements", "exigences.json")
     try:
         catalog = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         errors.append(f"requirements : catalogue illisible {path} ({error})")
         return {}
-    # Le catalogue est validé contre le schéma de req_build.py (skill requirements-catalog), s'il est installé.
-    req_build = Path(__file__).resolve().parents[2] / "requirements-catalog" / "scripts" / "req_build.py"
-    schema = input_schema(req_build) if (req_build.parent.parent / "contract.json").exists() else None
+    # Le catalogue est validé contre le schéma de req_build.py (skill requirements-catalog).
+    schema = schema_of("requirements-catalog", "req_build.py")
+    if schema is None:
+        warnings.append(f"{path.name} non vérifié : " + absent("requirements-catalog", "req_build.py"))
     invalid = check(catalog, schema) if schema else []
     if invalid:
         errors += [f"requirements : {path.name} : {e}" for e in invalid[:10]]
@@ -291,7 +290,7 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
             if option.get(key):
                 lines += ["", f"**{label}**", ""] + [f"- {item}" for item in option[key]]
         if idx and option.get("placement"):
-            lines += ["", "**Position dans le SI**", ""] + placement_lines(option, idx)
+            lines += ["", "**Position dans le SI**", ""] + POS.placement_lines(option, idx)
         lines += ["", f"Schéma : page « Option {option['id']} » de `schemas/architectures.drawio`."]
         if idx:
             lines[-1] += f" POS cible : `schemas/pos-option-{option['id'].lower()}.drawio`."
@@ -328,7 +327,7 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict, idx: dict | None 
         lines += ["", f"La recommandation était l'option {spec['recommendation']['option']} : "
                       f"{spec['recommendation']['why']}"]
     if idx and chosen.get("placement"):
-        lines += ["", "## Position dans le SI", ""] + placement_lines(chosen, idx) + \
+        lines += ["", "## Position dans le SI", ""] + POS.placement_lines(chosen, idx) + \
                  ["", f"POS cible : `schemas/pos-option-{dec['option'].lower()}.drawio`."]
     review = next((r for r in reviews or [] if r["option"] == dec["option"]), None)
     if review:
@@ -347,19 +346,15 @@ def render_adr(spec: dict, ranking: list[dict], catalog: dict, idx: dict | None 
 
 def analyse(spec: dict, base: Path) -> dict:
     """Contrôles croisés, POS, revue Well-Architected, scores et classement (partagés avec deck_build.py)."""
-    pos_data = None
     errors: list[str] = []
     warnings: list[str] = []
-    catalog = load_catalog(base, spec, errors)
-    idx = None
-    if spec.get("pos"):
-        pos_path = resolve(base, spec["pos"], errors)
-        pos_data = read_pos(pos_path, errors) if pos_path else {"zones": []}
-        idx = pos_index(pos_data)
-        if not idx["apps"] and not errors:
-            errors.append(f"pos : aucune application dans {spec['pos']}")
-        if errors:  # POS illisible : pas d'erreurs en cascade sur chaque placement
-            idx = {"apps": {}, "places": set(), "unreadable": True}
+    catalog = load_catalog(base, spec, errors, warnings)
+    pos_data, idx, impacts = None, None, []
+    if POS:
+        # Placement de chaque option dans le POS du SI : impacts, redondances, flux entre zones.
+        pos_data, idx, impacts = POS.analyse(spec, base, errors, warnings)
+    elif spec.get("pos"):
+        errors.append("pos : " + absent("urbanization-map", "pos_impact.py"))
     criteria = spec.get("criteria") or default_criteria(catalog)
     if idx and not spec.get("criteria"):
         criteria.append({"id": "urbanisation", "name": "Urbanisation (POS)", "weight": 2, "refs": []})
@@ -374,17 +369,12 @@ def analyse(spec: dict, base: Path) -> dict:
     option_ids = [o["id"] for o in spec["options"]]
     if len(set(option_ids)) != len(option_ids):
         errors.append("options : identifiant en double")
-    ranking, impacts, reviews = [], [], []
+    ranking, reviews = [], []
     wa = load_wa() if any(o.get("provider") for o in spec["options"]) else None
     if wa is None and any(o.get("provider") for o in spec["options"]):
-        warnings.append("revue Well-Architected non faite : skill cloud-architecture (wa_check.py) absent")
+        warnings.append("revue Well-Architected non faite : "
+                        + absent("well-architected-review", "wa_check.py") + " (et cloud-architecture)")
     for index, option in enumerate(spec["options"]):
-        if idx is not None and not idx.get("unreadable"):
-            if not option.get("placement"):
-                warnings.append(f"options/{index} ({option['id']}) : pas de placement dans le POS")
-            impacts.append(check_option(option, idx, errors, warnings))
-        elif option.get("placement") and idx is None:
-            errors.append(f"options/{index} ({option['id']})/placement : POS absent, ajoutez pos à la description")
         where = f"options/{index} ({option['id']})"
         comp_ids = [c["id"] for c in option["components"]]
         if len(set(comp_ids)) != len(comp_ids):
@@ -542,13 +532,7 @@ def main() -> int:
                                      review["clouds"], rules))
         report["outputs"].append(str(target_wa))
     if idx is not None:
-        for option in spec["options"]:
-            target_file = out_dir / "schemas" / f"pos-option-{option['id'].lower()}.json"
-            with open(target_file, "w", encoding="utf-8", newline="\n") as handle:
-                json.dump(target_pos(pos_data, option, f"POS cible, option {option['id']} : {option['name']}"),
-                          handle, ensure_ascii=False, indent=2)
-                handle.write("\n")
-            report["outputs"].append(str(target_file))
+        report["outputs"] += POS.write_targets(pos_data, spec, out_dir / "schemas")
     if decision:
         adr = out_dir / "adr-architecture.md"
         with open(adr, "w", encoding="utf-8", newline="\n") as handle:

@@ -1,0 +1,98 @@
+{
+  "skill": "agent-handoff",
+  "level": "simple",
+  "inputs": [
+    "Dossier de travail, ou dossier d'un workflow (workflow.json)",
+    "Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON"
+  ],
+  "outputs": [
+    "Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md)"
+  ],
+  "scripts": [
+    {
+      "name": "check_message.py",
+      "role": "Valide un message de passage ou un rapport final d'agent contre son schéma, vérifie que chaque fichier cité existe et, dans un dossier de workflow, le note au journal (skill decision-log).",
+      "usage": "uv run scripts/check_message.py handoff|report DOSSIER --json '{...}' | --file MESSAGE.json",
+      "options": {
+        "handoff|report": "message de passage ou rapport final",
+        "DOSSIER": "dossier de travail ; les fichiers cités y sont cherchés s'ils ne sont pas absolus",
+        "--json": "message en JSON sur une ligne",
+        "--file": "message dans un fichier JSON"
+      },
+      "report": {
+        "format": "json",
+        "description": "Type de message, agent, journal et entrée créée s'il y a un workflow, erreurs (schéma, fichiers introuvables).",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "kind",
+            "agent",
+            "workflow",
+            "entry",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "handoff",
+                "report"
+              ]
+            },
+            "agent": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "workflow": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "entry": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "message conforme, fichiers présents (et tracé au journal s'il y a un workflow)",
+        "1": "message illisible, non conforme à son schéma ou fichier cité introuvable"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "decision-log",
+      "script": "journal.py",
+      "why": "noter le message au journal d'un workflow",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "l'outil ne permet pas d'appeler l'agent visé : lui donner le message et l'agent à lancer"
+    }
+  ]
+}

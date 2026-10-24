@@ -1,5 +1,6 @@
 {
   "skill": "c4-architecture",
+  "level": "moyen",
   "inputs": [
     "Décision de diagram-brief",
     "Code, configuration ou description de l'architecture"

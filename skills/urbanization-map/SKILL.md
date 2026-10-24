@@ -13,10 +13,14 @@ page, aux styles de la charte. N'écrivez pas le XML draw.io à la main.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON du plan : title, audience, detail, vocabulary, zones (quartiers, ilots, apps) ; ou inventaire CSV (zone, quartier, ilot, application, statut).
-- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON du plan : title, audience, detail, vocabulary, zones (quartiers, ilots, apps) ; ou inventaire CSV, ou note Markdown avec son tableau (zone, quartier, ilot, application, statut) ; Pour pos_impact.py : le POS existant et des options d'architecture avec leur placement (options.json d'architecture-options).
+- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ou de l'inventaire .csv ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf ; Avec pos_impact.py : schemas/pos-option-<id>.json, le POS cible de chaque option, à construire avec pos_build.py.
 - **`pos_build.py`** : Construit le plan d'occupation des sols en draw.io (mise en page, styles de la charte, titre, légende, pages de zoom), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 plan produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`pos_impact.py`** : Situe des options d'architecture dans le POS existant : vérifie le placement de chaque option (noms connus du POS, zone et quartier d'une nouvelle application), compte créations, évolutions, remplacements, réutilisations, redondances et flux entre zones, puis écrit le POS cible de chaque option pour pos_build.py. Lit le POS en JSON, CSV ou note Markdown, ou dans le vault du workflow (vault:<chemin>). Sert aussi de module à options_build.py. Rapport JSON, codes de sortie : 0 impacts calculés et POS cibles écrits (avertissements possibles : redondance, option sans placement) ; 1 description invalide, POS illisible ou vide, application ou quartier inconnu du POS ; aucun fichier écrit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `drawio-diagram` (`check_drawio.py`, facultatif : sans lui, avertissement) : vérifier le .drawio produit.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 - **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main, ou dessiner les flux entre applications (cartographie applicative).
 
@@ -88,6 +92,9 @@ uv run scripts/pos_build.py SUJET.json [--detail quartier] [--zoom]
 uv run scripts/pos_build.py inventaire.csv --title "POS du SI" --audience "non technique" --zoom
 ```
 
+L'inventaire peut aussi être une note Markdown dont le tableau a les
+colonnes de l'inventaire CSV (zone, quartier, ilot, application, statut).
+
 Produit `SUJET.drawio` et un rapport : nombre de zones, quartiers, îlots et
 applications, erreurs (statut ou type inconnu) et avertissements
 (application rangée dans plusieurs îlots, trop d'applications pour le
@@ -122,3 +129,17 @@ faites une cartographie applicative avec `drawio-diagram`, en reprenant
 les mêmes noms.
 
 draw.io Desktop est requis pour l'export (voir `check-prerequisites`).
+
+## 5. Situer des options d'architecture dans le POS
+
+```bash
+uv run scripts/pos_impact.py options.json [--out-dir schemas/]
+```
+
+Pour chaque option, `placement` dit quelles applications elle crée (avec
+zone, quartier et îlot), fait évoluer, remplace ou réutilise. Le script
+vérifie les noms contre le POS (`pos`, relatif au `.json` ou `vault:<chemin>`),
+compte les impacts, signale les redondances (nouvelle application dans un
+îlot occupé sans `coexists`) et écrit le POS cible `pos-option-<id>.json` de
+chaque option, à construire avec `pos_build.py`. `architecture-options`
+l'appelle elle-même : ne le lancez à part que hors de ce skill.

@@ -9,6 +9,7 @@ description: "Écrit des schémas Mermaid (flux, séquence, états, classes, mod
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
+- **Niveau** : moyen (modèle standard).
 - **Entrées** : Décision de diagram-brief ; Contenu à représenter.
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
 - **Scripts** : aucun ; la validation passe par le skill suivant.
