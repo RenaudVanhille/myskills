@@ -72,7 +72,12 @@ Fichier `options.json`, à côté de `exigences.json` :
 - **Option cloud** : avec `provider` (aws, azure, gcp, k8s) et un `type`
   `cloud_build.py` par composant (`ecs`, `aurora`, `sqs`... ; sinon déduit
   du rôle), le script écrit aussi `schemas/option-<id>.cloud.json`, schéma
-  aux icônes officielles.
+  aux icônes officielles. Contrôlez-la contre le cadre Well-Architected du
+  fournisseur avant de noter : `uv run
+  ../cloud-architecture/scripts/wa_check.py schemas/option-<id>.cloud.json
+  --scope piliers --fail-on aucune`. Chaque constat (pas de supervision,
+  pas de WAF, instance unique...) s'ajoute à l'option comme composant, ou se
+  justifie dans `score_notes` et pèse sur la note.
 - **Recommandation** : l'option et pourquoi, avec les exigences
   déterminantes. Si elle ne suit pas le classement, le script l'avertit :
   la justification doit l'expliquer.
