@@ -73,6 +73,14 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   de main vise un skill ou un agent qui existe **(vérifiée)**. La liste des
   agents de ces schémas est tenue par `build.py` : un nouvel agent n'y
   touche pas.
+- **Vault Obsidian** : toute note écrite dans le vault suit l'ontologie
+  `shared/vault-ontology.json` (types, propriétés, relations typées en
+  wikilinks, tags normalisés `type/<type>` et facettes). Le skill déclare
+  `vault` dans son contrat (`writes` : types écrits, `reads`) ; les types
+  existent et le script vérifie ses notes avec `scripts/lib/vault_ontology.py`
+  avant d'écrire **(vérifiée)**. Un nouveau type ou une nouvelle relation
+  s'ajoute dans l'ontologie, sans code. `vault_check.py`
+  (`markdown-to-obsidian`) vérifie un vault et exporte son graphe typé.
 - **Workflows** : un workflow est une définition JSON
   (`skills/decision-log/workflows/`), seule source des étapes, des skills,
   des livrables, des contrôles, des consignes et de la mémoire du vault.

@@ -1,5 +1,33 @@
 # Journal des versions
 
+## À venir
+
+### Ontologie du vault Obsidian
+
+- `shared/vault-ontology.json` (schéma `shared/schemas/vault-ontology.schema.json`) :
+  14 types de notes (workflow, etape, revue, exigence, terme,
+  option-architecture, decision, adr, document, application,
+  revue-architecture, constat, risque, menace), propriétés et valeurs
+  permises, relations typées écrites en wikilinks dans le frontmatter
+  (`workflow`, `concerne`, `termes`, `ecarts`, `option`, `exigences`,
+  `evalue`, `porte-sur`, `issu-de`, `attenue-par`...), tags normalisés
+  (`type/<type>` et facettes `<propriété>/<valeur>`). Un type s'ajoute sans
+  code.
+- `shared/scripts/vault_ontology.py`, copié par `build.py` dans les skills
+  dont le contrat déclare `vault` (`writes`, `reads`) : construit, écrit et
+  vérifie le frontmatter.
+- `decision-log` : `vault_sync.py` écrit des notes typées (relations et
+  tags normalisés) et n'écrit rien si une note sort de l'ontologie ; listes
+  du frontmatter en blocs, comme Obsidian ; statut de l'ADR `acceptee`.
+- `markdown-to-obsidian` : `obsidianize.py` écrit `type: document` ; la
+  classification Laya va dans `nature` (au lieu de `type`) et `domaine`.
+  Nouveau `vault_check.py` : vérifie un vault ou un dossier contre
+  l'ontologie et exporte le graphe typé (node-link NetworkX, lisible par
+  graphify ou networkx) ; `--ontology [TYPE]` donne l'ontologie résumée.
+- Règles : champ `vault` des contrats, types existants et ontologie
+  cohérente (`contrats`), import de `vault_ontology` par tout skill qui
+  écrit dans le vault (`regles`).
+
 ## 0.4.0 (2026-10-24)
 
 Revue de cohérence des skills et des agents : dépendances déclarées,
