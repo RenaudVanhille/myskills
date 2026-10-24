@@ -1,0 +1,328 @@
+{
+ "directed": false,
+ "multigraph": false,
+ "graph": {
+  "schema_version": 1,
+  "graphify_version": "0.9.95"
+ },
+ "nodes": [
+  {
+   "id": "src_outils_texte_nettoyer",
+   "label": "nettoyer()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 0,
+   "file_type": "code",
+   "norm_label": "nettoyer()",
+   "source_file": "src/outils/texte.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_api_declarations_declarer",
+   "label": "declarer()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 1,
+   "file_type": "code",
+   "norm_label": "declarer()",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L5"
+  },
+  {
+   "id": "src_portail_pages_formulaire",
+   "label": "formulaire()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 1,
+   "file_type": "code",
+   "norm_label": "formulaire()",
+   "source_file": "src/portail/pages.py",
+   "source_location": "L4"
+  },
+  {
+   "id": "src_api_declarations_statut",
+   "label": "statut()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 2,
+   "file_type": "code",
+   "norm_label": "statut()",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L9"
+  },
+  {
+   "id": "src_messagerie_file_publier",
+   "label": "publier()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 2,
+   "file_type": "code",
+   "norm_label": "publier()",
+   "source_file": "src/messagerie/file.py",
+   "source_location": "L4"
+  },
+  {
+   "id": "src_scripts_migration_migrer",
+   "label": "migrer()",
+   "_callable": true,
+   "_origin": "ast",
+   "community": 3,
+   "file_type": "code",
+   "norm_label": "migrer()",
+   "source_file": "src/scripts/migration.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_api_declarations",
+   "label": "declarations.py",
+   "_origin": "ast",
+   "community": 0,
+   "file_type": "code",
+   "norm_label": "declarations.py",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_outils_texte",
+   "label": "texte.py",
+   "_origin": "ast",
+   "community": 0,
+   "file_type": "code",
+   "norm_label": "texte.py",
+   "source_file": "src/outils/texte.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_portail_pages",
+   "label": "pages.py",
+   "_origin": "ast",
+   "community": 1,
+   "file_type": "code",
+   "norm_label": "pages.py",
+   "source_file": "src/portail/pages.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_messagerie_file",
+   "label": "file.py",
+   "_origin": "ast",
+   "community": 2,
+   "file_type": "code",
+   "norm_label": "file.py",
+   "source_file": "src/messagerie/file.py",
+   "source_location": "L1"
+  },
+  {
+   "id": "src_scripts_migration",
+   "label": "migration.py",
+   "_origin": "ast",
+   "community": 3,
+   "file_type": "code",
+   "norm_label": "migration.py",
+   "source_file": "src/scripts/migration.py",
+   "source_location": "L1"
+  }
+ ],
+ "links": [
+  {
+   "source": "src_api_declarations_declarer",
+   "target": "src_messagerie_file_publier",
+   "relation": "calls",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "call",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L6",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations_declarer",
+   "target": "src_outils_texte_nettoyer",
+   "relation": "calls",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "call",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L6",
+   "weight": 1.0
+  },
+  {
+   "source": "src_messagerie_file_publier",
+   "target": "src_api_declarations_statut",
+   "relation": "calls",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "call",
+   "source_file": "src/messagerie/file.py",
+   "source_location": "L5",
+   "weight": 1.0
+  },
+  {
+   "source": "src_portail_pages_formulaire",
+   "target": "src_api_declarations_declarer",
+   "relation": "calls",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "call",
+   "source_file": "src/portail/pages.py",
+   "source_location": "L5",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_messagerie_file_publier",
+   "relation": "imports",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_outils_texte_nettoyer",
+   "relation": "imports",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L2",
+   "weight": 1.0
+  },
+  {
+   "source": "src_messagerie_file",
+   "target": "src_api_declarations_statut",
+   "relation": "imports",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/messagerie/file.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_portail_pages",
+   "target": "src_api_declarations_declarer",
+   "relation": "imports",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/portail/pages.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_messagerie_file",
+   "relation": "imports_from",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_outils_texte",
+   "relation": "imports_from",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/api/declarations.py",
+   "source_location": "L2",
+   "weight": 1.0
+  },
+  {
+   "source": "src_portail_pages",
+   "target": "src_api_declarations",
+   "relation": "imports_from",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "context": "import",
+   "source_file": "src/portail/pages.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_api_declarations_declarer",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/api/declarations.py",
+   "source_location": "L5",
+   "weight": 1.0
+  },
+  {
+   "source": "src_api_declarations",
+   "target": "src_api_declarations_statut",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/api/declarations.py",
+   "source_location": "L9",
+   "weight": 1.0
+  },
+  {
+   "source": "src_messagerie_file",
+   "target": "src_messagerie_file_publier",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/messagerie/file.py",
+   "source_location": "L4",
+   "weight": 1.0
+  },
+  {
+   "source": "src_outils_texte",
+   "target": "src_outils_texte_nettoyer",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/outils/texte.py",
+   "source_location": "L1",
+   "weight": 1.0
+  },
+  {
+   "source": "src_portail_pages",
+   "target": "src_portail_pages_formulaire",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/portail/pages.py",
+   "source_location": "L4",
+   "weight": 1.0
+  },
+  {
+   "source": "src_scripts_migration",
+   "target": "src_scripts_migration_migrer",
+   "relation": "contains",
+   "_origin": "ast",
+   "confidence": "EXTRACTED",
+   "confidence_score": 1.0,
+   "source_file": "src/scripts/migration.py",
+   "source_location": "L1",
+   "weight": 1.0
+  }
+ ],
+ "hyperedges": [],
+ "built_at_commit": "c07b1def9bfa0d32848dec57f3d54605d687fdc3"
+}

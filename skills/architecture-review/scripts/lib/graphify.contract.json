@@ -1,0 +1,66 @@
+{
+  "skill": "graphify",
+  "versions": "0.9",
+  "source": "graphify (Graphify Labs, https://github.com/Graphify-Labs/graphify, licence Apache-2.0), paquet PyPI graphifyy. Installé à part : myskills n'en copie pas le code et ne s'appuie que sur ce contrat. Seule l'extraction du code est utilisée : locale (tree-sitter), sans modèle ni clé d'API.",
+  "install": "uv tool install graphifyy (ou pip install graphifyy) ; la commande s'appelle graphify. Ou donnez son chemin dans la variable GRAPHIFY_BIN",
+  "locate": {
+    "env": "GRAPHIFY_BIN",
+    "command": "graphify"
+  },
+  "command": {
+    "usage": "{entry} extract DOSSIER --code-only --out SORTIE",
+    "version": "--version",
+    "options": {
+      "DOSSIER": "code source à analyser ; .gitignore et .graphifyignore sont respectés",
+      "--code-only": "code seul, analyse locale (tree-sitter) sans modèle ni clé d'API ; obligatoire pour myskills : sans elle, les documents partent vers un modèle",
+      "--out": "dossier de sortie : écrit SORTIE/graphify-out/graph.json (et un cache pour les relances)"
+    }
+  },
+  "inputs": [
+    "Un dossier de code source (Python, TypeScript, JavaScript, Java, C#, Go, Rust, Kotlin, PHP, Ruby, C, C++...)"
+  ],
+  "outputs": [
+    "SORTIE/graphify-out/graph.json : graphe du code au format node-link de NetworkX ; nœuds (id, label, file_type, source_file) et liens (source, target, relation : imports, imports_from, calls, references, contains..., confidence : EXTRACTED, INFERRED, AMBIGUOUS)"
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["nodes"],
+    "properties": {
+      "nodes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["id"],
+          "properties": {
+            "id": {"type": "string"},
+            "label": {"type": "string"},
+            "file_type": {"type": "string"},
+            "source_file": {"type": ["string", "null"]}
+          }
+        }
+      },
+      "links": {"$ref": "#/$defs/links"},
+      "edges": {"$ref": "#/$defs/links"}
+    },
+    "$defs": {
+      "links": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["source", "target"],
+          "properties": {
+            "source": {"type": "string"},
+            "target": {"type": "string"},
+            "relation": {"type": "string"},
+            "confidence": {"type": "string"}
+          }
+        }
+      }
+    }
+  },
+  "exit_codes": {
+    "0": "graphe écrit",
+    "1": "dossier introuvable ou extraction en échec (message sur la sortie d'erreur)"
+  }
+}

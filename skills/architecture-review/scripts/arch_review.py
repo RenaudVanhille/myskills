@@ -1,0 +1,749 @@
+# /// script
+# requires-python = ">=3.10"
+# ///
+"""Revue d'une architecture logicielle ou solution décrite en JSON, à la manière d'ATAM.
+
+Le modèle écrit la description (composants, flux, couches, scénarios de
+qualité évalués, risques, points de sensibilité, compromis, décisions) ou
+reprend une option d'architecture-options (`source`). Le script, et non le
+modèle :
+- vérifie toutes les références (composants, exigences, scénarios, décisions) ;
+- applique des règles mécaniques : structure (cycles synchrones, base
+  partagée, couches, composant pivot, chaîne synchrone longue, dépendance
+  synchrone à un externe, point unique de défaillance), traçabilité des
+  exigences, scénarios, décisions et risques ;
+- avec `cloud`, ajoute les piliers Well-Architected (wa_check.py du skill
+  well-architected-review) ;
+- avec `code`, compare le code à l'architecture à partir du graphe de
+  graphify (skill externe, `graphify extract --code-only` : analyse locale,
+  sans modèle) : dépendances du code absentes des flux, cycles entre
+  composants, fichiers non rattachés ;
+- calcule l'avis (défavorable dès un constat haut ouvert, avec réserves dès
+  un constat moyen ouvert) et écrit <sujet>.revue.md.
+
+Un écart voulu s'accepte dans `accept`, avec sa raison : il reste dans la
+revue mais ne compte plus.
+
+    uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune]
+    uv run scripts/arch_review.py --rules
+"""
+
+import argparse
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import external_skill  # noqa: E402
+from skill_paths import absent, load_module, schema_of  # noqa: E402
+from spec_schema import check, print_schema, validate  # noqa: E402
+
+SEVERITIES = ("haute", "moyenne", "basse")
+AXES = {"structure": "Structure", "code": "Code et architecture", "tracabilite": "Traçabilité des exigences",
+        "qualite": "Scénarios de qualité", "decisions": "Décisions", "risques": "Risques",
+        "well-architected": "Well-Architected (cloud)"}
+ATTRIBUTES = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
+              "conformite": "Conformité", "exploitabilite": "Exploitabilité", "maintenabilite": "Maintenabilité",
+              "evolutivite": "Évolutivité", "interoperabilite": "Interopérabilité", "utilisabilite": "Utilisabilité",
+              "portabilite": "Portabilité", "cout": "Coût", "autre": "Autre"}
+DECIDED = {"proposee": "proposée", "acceptee": "acceptée", "remplacee": "remplacée"}
+STATUS = {"satisfait": "satisfait", "risque": "à risque", "non-satisfait": "non satisfait", "a-verifier": "à vérifier"}
+APPLICATIVE = {"system", "db", "queue"}
+HUB = 6        # voisins à partir desquels un composant est un pivot
+CHAIN = 4      # sauts synchrones au-delà desquels la chaîne est longue
+# Relations de graphify qui sont des dépendances (contains, rationale_for, method... n'en sont pas).
+DEPENDS = {"calls", "imports", "imports_from", "references", "inherits", "implements", "uses"}
+
+ATAM = "ATAM (SEI)"
+# règle -> (axe, gravité, titre, correction, référence)
+RULES = {
+    "STR-01": ("structure", "moyenne", "Cycle de dépendances synchrones",
+               "Casser le cycle : inverser une dépendance, passer un flux en asynchrone ou extraire le code commun.",
+               "Principe des dépendances acycliques (R. C. Martin) ; ISO/IEC 25010 : modularité"),
+    "STR-02": ("structure", "moyenne", "Base de données partagée",
+               "Une base par composant propriétaire ; les autres passent par son API ou ses événements.",
+               "Database per service (microservices.io) ; ISO/IEC 25010 : modularité, modifiabilité"),
+    "STR-03": ("structure", "moyenne", "Dépendance vers une couche supérieure",
+               "Inverser la dépendance (interface dans la couche basse, événement) ou revoir la couche du composant.",
+               "Architecture en couches (POSA) ; arc42 §8"),
+    "STR-04": ("structure", "basse", "Composant pivot",
+               "Découper le composant ou introduire une médiation (événements, passerelle).",
+               f"ISO/IEC 25010 : modularité ; {ATAM} : point de sensibilité"),
+    "STR-05": ("structure", "moyenne", "Chaîne d'appels synchrones longue",
+               "Raccourcir la chaîne (asynchrone, cache, agrégation) ; délai et disjoncteur à chaque saut.",
+               "Release It! (M. Nygard) : chaînes d'intégration, disjoncteur"),
+    "STR-06": ("structure", "moyenne", "Dépendance synchrone à un système externe sur le parcours utilisateur",
+               "Délai, disjoncteur et mode dégradé, ou file asynchrone ; niveau de service du tiers dans les exigences.",
+               "Release It! (M. Nygard) : points d'intégration ; ISO/IEC 25010 : disponibilité"),
+    "STR-07": ("structure", "basse", "Composant sans flux",
+               "Relier le composant ou le retirer de l'architecture.", "arc42 §5 : vue en briques"),
+    "STR-08": ("structure", "moyenne", "Point unique de défaillance",
+               "Redonder le composant (count 2 ou plus), ou accepter l'écart avec sa raison (service managé...).",
+               "ISO/IEC 25010 : disponibilité, tolérance aux pannes"),
+    "CODE-01": ("code", "moyenne", "Dépendance du code absente de l'architecture",
+                "Déclarer le flux s'il est voulu, sinon supprimer la dépendance du code.",
+                "Modèle de réflexion (Murphy, Notkin) : divergence entre code et architecture"),
+    "CODE-02": ("code", "moyenne", "Cycle de dépendances entre composants dans le code",
+                "Casser le cycle : inverser une dépendance (interface, événement) ou déplacer le code commun.",
+                "Principe des dépendances acycliques (R. C. Martin)"),
+    "CODE-03": ("code", "basse", "Code non rattaché à un composant",
+                "Rattacher les fichiers à un composant (code) ou les exclure (.graphifyignore).",
+                "arc42 §5 : correspondance entre briques et code"),
+    "TRA-01": ("tracabilite", "haute", "Exigence indispensable sans support",
+               "Rattacher l'exigence à un composant (refs), une décision ou un scénario, ou la traiter comme écart.",
+               "ISO/IEC/IEEE 42010 : chaque préoccupation est traitée"),
+    "TRA-02": ("tracabilite", "moyenne", "Exigence non fonctionnelle sans scénario de qualité",
+               "Écrire le scénario (stimulus, réponse, mesure) et l'évaluer.",
+               f"{ATAM} : arbre d'utilité ; ISO/IEC 25010"),
+    "TRA-03": ("tracabilite", "basse", "Composant sans exigence ni décision",
+               "Dire quelle exigence ou décision justifie le composant (refs), ou le retirer.",
+               "ISO/IEC/IEEE 42010 : justification de l'architecture"),
+    "QUA-01": ("qualite", "haute", "Scénario non satisfait sans risque noté",
+               "Noter le risque (risks, scenarios) avec sa mesure d'atténuation, ou changer l'architecture.",
+               f"{ATAM} : risques"),
+    "QUA-02": ("qualite", "moyenne", "Scénario à risque sans risque noté",
+               "Noter le risque (risks, scenarios) avec sa mesure d'atténuation.", f"{ATAM} : risques"),
+    "QUA-03": ("qualite", "moyenne", "Scénario sans mesure",
+               "Donner une mesure vérifiable de la réponse (« 95 % en moins de 2 s »).",
+               f"{ATAM} : scénario de qualité (stimulus, environnement, réponse, mesure)"),
+    "QUA-04": ("qualite", "basse", "Scénario à vérifier",
+               "Évaluer le scénario : satisfait, à risque ou non satisfait, avec la raison.", f"{ATAM} : analyse"),
+    "DEC-01": ("decisions", "moyenne", "Aucune décision d'architecture documentée",
+               "Documenter les décisions structurantes (ADR).", "arc42 §9 ; ADR (M. Nygard)"),
+    "DEC-02": ("decisions", "basse", "Décision encore proposée",
+               "Faire accepter la décision ou la remplacer.", "arc42 §9 ; ADR (M. Nygard)"),
+    "DEC-03": ("decisions", "basse", "Compromis sans décision qui l'assume",
+               "Rattacher le compromis à sa décision (decision).", f"{ATAM} : compromis ; arc42 §9"),
+    "RSK-01": ("risques", "haute", "Risque haut sans mesure d'atténuation",
+               "Donner la mesure d'atténuation (mitigation) ou changer l'architecture.", f"arc42 §11 ; {ATAM}"),
+    "RSK-02": ("risques", "basse", "Risque sans responsable", "Nommer le responsable (owner).", "arc42 §11"),
+}
+# Ce que la description ne montre pas : à vérifier avec l'équipe.
+OFF_DESCRIPTION = {
+    "Sécurité applicative": "authentification et droits par rôle, validation des entrées, dépendances vulnérables "
+                            "(OWASP ASVS)",
+    "Données": "propriétaire de chaque donnée, rétention et purge, données personnelles (RGPD)",
+    "Exploitation": "journaux corrélés, métriques et alertes, procédures de reprise testées",
+    "Performance": "tests de charge sur les scénarios de performance retenus",
+    "Évolution": "versionnement des API et des événements, compatibilité ascendante",
+    "Organisation": "équipes et frontières des composants (loi de Conway), compétences à acquérir",
+}
+
+
+def cell(text) -> str:
+    return str(text).replace("|", "/").replace("\n", " ")
+
+
+def count_of(comp: dict) -> int:
+    value = comp.get("count", 1)
+    if isinstance(value, int):
+        return value
+    match = re.match(r"\s*(\d+)", str(value))
+    return int(match.group(1)) if match else 1
+
+
+def load_json(path: Path, label: str, errors: list[str]):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"{label} : illisible {path} ({error})")
+        return None
+
+
+def load_catalog(path: Path | None, errors: list[str], warnings: list[str]) -> dict[str, dict]:
+    if path is None:
+        return {}
+    catalog = load_json(path, "requirements", errors)
+    if catalog is None:
+        return {}
+    # Catalogue validé contre le schéma de req_build.py (skill requirements-catalog).
+    schema = schema_of("requirements-catalog", "req_build.py")
+    if schema is None:
+        warnings.append(f"{path.name} non vérifié : " + absent("requirements-catalog", "req_build.py"))
+    invalid = check(catalog, schema) if schema else []
+    if invalid or not isinstance(catalog, dict) or not isinstance(catalog.get("requirements"), list):
+        errors += [f"requirements : {path.name} : {e}" for e in invalid[:10]] or \
+                  [f"requirements : {path.name} sans liste requirements"]
+        return {}
+    return {r["id"]: r for r in catalog["requirements"] if isinstance(r, dict) and "id" in r}
+
+
+def load_source(base: Path, spec: dict, errors: list[str], warnings: list[str]) -> dict | None:
+    """Option d'architecture-options revue : composants, flux et écarts."""
+    source = spec.get("source")
+    if not source:
+        return None
+    path = base / source["options"]
+    options = load_json(path, "source", errors)
+    if options is None:
+        return None
+    schema = schema_of("architecture-options", "options_build.py")
+    if schema is None:
+        warnings.append(f"{path.name} non vérifié : " + absent("architecture-options", "options_build.py"))
+    invalid = check(options, schema) if schema else []
+    if invalid:
+        errors += [f"source : {path.name} : {e}" for e in invalid[:10]]
+        return None
+    found = next((o for o in options.get("options", []) if o.get("id") == source["option"]), None)
+    if found is None:
+        ids = ", ".join(str(o.get("id")) for o in options.get("options", []))
+        errors.append(f"source/option : option « {source['option']} » absente de {path.name} ({ids})")
+    elif not spec.get("requirements"):
+        # Même catalogue que les options (exigences.json à côté d'options.json par défaut).
+        found["_catalog"] = path.parent / options.get("requirements", "exigences.json")
+    return found
+
+
+def merge(source: dict | None, spec: dict) -> tuple[list[dict], list[dict]]:
+    """Composants et flux de l'option, complétés ou précisés (même id) par ceux de la description."""
+    comps: dict[str, dict] = {c["id"]: dict(c) for c in (source or {}).get("components", [])}
+    for comp in spec.get("components", []):
+        comps[comp["id"]] = {**comps.get(comp["id"], {}), **comp}
+    flows = [dict(f) for f in (source or {}).get("flows", [])] + [dict(f) for f in spec.get("flows", [])]
+    return list(comps.values()), flows
+
+
+def cycles(nodes: list[str], edges: set[tuple[str, str]]) -> list[list[str]]:
+    """Composantes fortement connexes de plus d'un nœud (Tarjan), dans l'ordre des nœuds."""
+    graph = {n: sorted({b for a, b in edges if a == n and b != n}, key=nodes.index) for n in nodes}
+    index, low, stack, on, found, counter = {}, {}, [], set(), [], [0]
+
+    def visit(node):
+        index[node] = low[node] = counter[0]
+        counter[0] += 1
+        stack.append(node)
+        on.add(node)
+        for nxt in graph[node]:
+            if nxt not in index:
+                visit(nxt)
+                low[node] = min(low[node], low[nxt])
+            elif nxt in on:
+                low[node] = min(low[node], index[nxt])
+        if low[node] == index[node]:
+            group = []
+            while True:
+                item = stack.pop()
+                on.discard(item)
+                group.append(item)
+                if item == node:
+                    break
+            if len(group) > 1:
+                found.append(sorted(group, key=nodes.index))
+
+    for node in nodes:
+        if node not in index:
+            visit(node)
+    return sorted(found, key=lambda g: nodes.index(g[0]))
+
+
+def longest_sync(start: str, sync: dict[str, list[str]]) -> list[str]:
+    """Plus long chemin synchrone sans boucle depuis start (graphes de quelques dizaines de composants)."""
+    best = [start]
+
+    def walk(path):
+        nonlocal best
+        if len(path) > len(best):
+            best = list(path)
+        for nxt in sync.get(path[-1], []):
+            if nxt not in path:
+                walk(path + [nxt])
+
+    walk([start])
+    return best
+
+
+def glob_regex(pattern: str) -> re.Pattern:
+    """Motif de fichiers (src/api/**, *.py) ; un chemin sans joker vaut pour le dossier entier."""
+    pattern = pattern.strip("/").removeprefix("./")
+    if not any(c in pattern for c in "*?["):
+        return re.compile(re.escape(pattern) + r"(/.*)?")
+    out, i = "", 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out, i = out + "(.*/)?", i + 3
+        elif pattern.startswith("**", i):
+            out, i = out + ".*", i + 2
+        else:
+            out += {"*": "[^/]*", "?": "[^/]"}.get(pattern[i], re.escape(pattern[i]))
+            i += 1
+    return re.compile(out)
+
+
+def code_graph(base: Path, spec: dict, out_dir: Path, errors: list[str], warnings: list[str]) -> tuple[dict, str] | None:
+    """Graphe du code : graph.json donné, sinon graphify extract --code-only (analyse locale, sans modèle)."""
+    code = spec["code"]
+    root = base / code["root"]
+    contract = external_skill.contract("graphify")
+    if code.get("graph"):
+        path = base / code["graph"]
+    else:
+        contract, entry = external_skill.locate("graphify")
+        if entry is None:
+            errors.append("code : " + external_skill.missing_message(contract))
+            return None
+        if not root.is_dir():
+            errors.append(f"code/root : dossier introuvable {root}")
+            return None
+        _, warning = external_skill.version(contract, entry)
+        if warning:
+            warnings.append(warning)
+        # --code-only toujours : sans elle, graphify enverrait les documents à un modèle.
+        result = subprocess.run([str(entry), "extract", str(root), "--code-only", "--out", str(out_dir)],
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        path = out_dir / "graphify-out" / "graph.json"
+        if result.returncode != 0 or not path.is_file():
+            tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["sans message"]
+            errors.append(f"code : graphify extract en échec (code {result.returncode}) : {tail[0]}")
+            return None
+    graph = load_json(path, "code/graph", errors)
+    if graph is None:
+        return None
+    invalid = check(graph, contract["output_schema"])
+    if not invalid and not isinstance(graph.get("links", graph.get("edges")), list):
+        invalid = ["racine : liste links ou edges attendue"]
+    if invalid:
+        errors += [f"code/graph : {path.name} non conforme au contrat de graphify : {e}" for e in invalid[:5]]
+        return None
+    return graph, str(path)
+
+
+def code_review(graph: dict, comps: list[dict], declared: set[tuple[str, str]], add, errors: list[str]) -> dict:
+    """Dépendances du code ramenées aux composants (motifs code) et comparées aux flux déclarés."""
+    patterns = [(c["id"], glob_regex(p)) for c in comps for p in c.get("code", [])]
+    if not patterns:
+        errors.append("code : aucun composant n'a de motif code (fichiers du composant)")
+        return {}
+    owner: dict[str, str | None] = {}
+    files: dict[str, str | None] = {}
+    for node in graph["nodes"]:
+        source = (node.get("source_file") or "").replace("\\", "/").removeprefix("./")
+        if node.get("file_type", "code") != "code" or not source:
+            continue
+        if source not in files:
+            files[source] = next((cid for cid, rx in patterns if rx.fullmatch(source)), None)
+        owner[node["id"]] = files[source]
+    deps: dict[tuple[str, str], int] = {}
+    for link in graph.get("links", graph.get("edges", [])):
+        if link.get("relation") not in DEPENDS or link.get("confidence", "EXTRACTED") != "EXTRACTED":
+            continue
+        a, b = owner.get(link["source"]), owner.get(link["target"])
+        if a and b and a != b:
+            deps[(a, b)] = deps.get((a, b), 0) + 1
+    # Un flux déclaré, dans un sens ou dans l'autre, couvre la dépendance du code (appel ou réponse).
+    undeclared = [(a, b) for (a, b) in deps if (a, b) not in declared and (b, a) not in declared]
+    for a, b in undeclared:
+        add("CODE-01", f"{a}>{b}", f"{deps[(a, b)]} dépendance(s) de {a} vers {b} dans le code, aucun flux déclaré")
+    ids = [c["id"] for c in comps]
+    for group in cycles(ids, set(deps)):
+        add("CODE-02", ">".join(group + group[:1]), "composants dépendants les uns des autres dans le code")
+    unmapped = sorted(f for f, cid in files.items() if cid is None)
+    if unmapped:
+        shown = ", ".join(unmapped[:5]) + (" ..." if len(unmapped) > 5 else "")
+        add("CODE-03", "code", f"{len(unmapped)} fichier(s) sur {len(files)} : {shown}")
+    return {"files": len(files), "unmapped": len(unmapped), "dependencies": len(deps),
+            "undeclared": [f"{a}>{b}" for a, b in undeclared]}
+
+
+def review(spec: dict, base: Path, out_dir: Path) -> dict:
+    errors: list[str] = []
+    warnings: list[str] = []
+    findings: list[dict] = []
+
+    def add(rule, element, message):
+        axis, severity, title, fix, ref = RULES[rule]
+        findings.append({"rule": rule, "axis": axis, "severity": severity, "element": element,
+                         "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
+
+    source = load_source(base, spec, errors, warnings)
+    path = base / spec["requirements"] if spec.get("requirements") else (source or {}).get("_catalog")
+    catalog = load_catalog(path, errors, warnings)
+    comps, flows = merge(source, spec)
+    if not comps:
+        errors.append("components : aucun composant, ni dans la description ni dans source")
+    byid = {c["id"]: c for c in comps}
+    ids = list(byid)
+    scenarios = {s["id"]: s for s in spec.get("scenarios", [])}
+    risks = spec.get("risks", [])
+    decisions = {d["id"]: d for d in spec.get("decisions", [])}
+    layers = spec.get("layers", [])
+
+    # Références croisées : une erreur, pas un constat.
+    for name, items in (("scenarios", spec.get("scenarios", [])), ("risks", risks),
+                        ("decisions", spec.get("decisions", []))):
+        seen = [i["id"] for i in items]
+        errors += [f"{name} : identifiant en double « {i} »" for i in sorted({i for i in seen if seen.count(i) > 1})]
+
+    def known(where, values, pool, kind):
+        for value in values:
+            if value not in pool:
+                close = [p for p in pool if p.lower() == str(value).lower()]
+                hint = f" ; vouliez-vous « {close[0]} » ?" if close else ""
+                errors.append(f"{where} : {kind} inconnu « {value} »{hint}")
+
+    def known_refs(where, refs):
+        if not catalog:
+            if refs and path is None:
+                warnings.append(f"{where} : exigences citées sans catalogue (requirements) : non vérifiées")
+            return
+        for ref in refs:
+            if ref not in catalog:
+                errors.append(f"{where} : exigence inconnue {ref}")
+            elif catalog[ref].get("status") == "retiree":
+                errors.append(f"{where} : {ref} est retirée du catalogue")
+
+    for i, flow in enumerate(flows):
+        known(f"flows/{i}", [flow["from"], flow["to"]], byid, "composant")
+    for i, comp in enumerate(comps):
+        known_refs(f"components/{i} ({comp['id']})", comp.get("refs", []))
+        if comp.get("layer") is not None and comp["layer"] not in layers:
+            errors.append(f"components/{i} ({comp['id']})/layer : « {comp['layer']} » absente de layers "
+                          f"({', '.join(layers) or 'aucune couche déclarée'})")
+    for i, sc in enumerate(spec.get("scenarios", [])):
+        known(f"scenarios/{i} ({sc['id']})/components", sc.get("components", []), byid, "composant")
+        known_refs(f"scenarios/{i} ({sc['id']})/refs", sc.get("refs", []))
+    for i, risk in enumerate(risks):
+        known(f"risks/{i} ({risk['id']})/scenarios", risk.get("scenarios", []), scenarios, "scénario")
+        known(f"risks/{i} ({risk['id']})/components", risk.get("components", []), byid, "composant")
+        known_refs(f"risks/{i} ({risk['id']})/refs", risk.get("refs", []))
+    for i, dec in enumerate(spec.get("decisions", [])):
+        known(f"decisions/{i} ({dec['id']})/components", dec.get("components", []), byid, "composant")
+        known_refs(f"decisions/{i} ({dec['id']})/refs", dec.get("refs", []))
+    for i, item in enumerate(spec.get("sensitivities", [])):
+        known(f"sensitivities/{i}/components", item.get("components", []), byid, "composant")
+        known(f"sensitivities/{i}/scenarios", item.get("scenarios", []), scenarios, "scénario")
+    for i, item in enumerate(spec.get("tradeoffs", [])):
+        if item.get("decision"):
+            known(f"tradeoffs/{i}/decision", [item["decision"]], decisions, "décision")
+    if errors:
+        return {"errors": errors, "warnings": warnings}
+
+    # Structure.
+    role = {c["id"]: c.get("role", "system") for c in comps}
+    sync_edges = {(f["from"], f["to"]) for f in flows if f.get("style", "sync") == "sync"}
+    all_edges = {(f["from"], f["to"]) for f in flows}
+    inner = [i for i in ids if role[i] != "person"]
+    for group in cycles(inner, {e for e in sync_edges if role[e[0]] != "person"}):
+        add("STR-01", ">".join(group + group[:1]), "appels synchrones en boucle entre composants")
+    for cid in ids:
+        if role[cid] == "db":
+            users = sorted({a for a, b in all_edges if b == cid and role[a] == "system"}, key=ids.index)
+            if len(users) > 1:
+                add("STR-02", cid, f"lue ou écrite par {', '.join(users)}")
+    rank = {name: index for index, name in enumerate(layers)}
+    for a, b in sorted(all_edges, key=lambda e: (ids.index(e[0]), ids.index(e[1]))):
+        la, lb = byid[a].get("layer"), byid[b].get("layer")
+        if la in rank and lb in rank and rank[lb] < rank[la]:
+            add("STR-03", f"{a}>{b}", f"{a} ({la}) appelle {b} ({lb}), couche au-dessus")
+    for cid in inner:
+        neighbours = {b for a, b in all_edges if a == cid} | {a for a, b in all_edges if b == cid}
+        if role[cid] in APPLICATIVE and len(neighbours) >= HUB:
+            add("STR-04", cid, f"relié à {len(neighbours)} composants")
+    sync = {i: sorted({b for a, b in sync_edges if a == i}, key=ids.index) for i in ids}
+    reach: set[str] = set()
+    persons = [i for i in ids if role[i] == "person"]
+    for person in persons:
+        todo = [person]
+        while todo:
+            node = todo.pop()
+            for nxt in sync[node]:
+                if nxt not in reach:
+                    reach.add(nxt)
+                    todo.append(nxt)
+        path = longest_sync(person, sync)
+        if len(path) - 1 > CHAIN:
+            add("STR-05", ">".join(path), f"{len(path) - 1} sauts synchrones depuis {person}")
+    for a, b in sorted(sync_edges, key=lambda e: (ids.index(e[0]), ids.index(e[1]))):
+        if role[b] == "external" and role[a] in APPLICATIVE and a in reach:
+            add("STR-06", f"{a}>{b}", f"le parcours de l'utilisateur attend {b}")
+    for cid in ids:
+        if not any(cid in e for e in all_edges):
+            add("STR-07", cid, "aucun flux n'entre ni ne sort")
+    availability = any(s["attribute"] == "disponibilite" for s in scenarios.values()) or any(
+        r.get("category") == "disponibilite" and r.get("status", "retenue") == "retenue"
+        and r.get("priority") in ("indispensable", "importante") for r in catalog.values())
+    if availability:
+        for cid in ids:
+            if role[cid] in {"system", "db"} and cid in reach and count_of(byid[cid]) < 2:
+                add("STR-08", cid, "une seule instance sur le parcours de l'utilisateur, disponibilité exigée")
+
+    # Traçabilité des exigences.
+    trace = None
+    if catalog:
+        carried: dict[str, dict[str, list[str]]] = {}
+        for kind, items in (("components", comps), ("decisions", decisions.values()),
+                            ("scenarios", scenarios.values())):
+            for item in items:
+                for ref in item.get("refs", []):
+                    carried.setdefault(ref, {}).setdefault(kind, []).append(item["id"])
+        gaps = (source or {}).get("gaps", {})
+        retained = [r for r in catalog.values()
+                    if r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre"]
+        uncarried, without = [], []
+        for req in retained:
+            nature = req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(
+                req["id"].split("-")[0])
+            if req.get("priority") == "indispensable" and (req["id"] not in carried
+                                                           or gaps.get(req["id"], {}).get("level") == "non"):
+                uncarried.append(req["id"])
+                gap = gaps.get(req["id"])
+                add("TRA-01", req["id"], f"{req.get('title', req['id'])}"
+                    + (f" (écart de l'option : {gap['note']})" if gap else " : aucun composant, décision ni scénario"))
+            if nature == "non-fonctionnelle" and req.get("priority") in ("indispensable", "importante") \
+                    and not carried.get(req["id"], {}).get("scenarios"):
+                without.append(req["id"])
+                add("TRA-02", req["id"], f"{req.get('title', req['id'])} ({req.get('priority')})")
+        trace = {"requirements": len(retained), "uncarried": uncarried, "without_scenario": without,
+                 "rows": [(r, carried.get(r["id"], {})) for r in retained]}
+    in_decision = {c for d in decisions.values() for c in d.get("components", [])}
+    if catalog:
+        for comp in comps:
+            if role[comp["id"]] in APPLICATIVE and not comp.get("refs") and comp["id"] not in in_decision:
+                add("TRA-03", comp["id"], comp["label"])
+
+    # Scénarios, décisions, risques.
+    risked = {s for r in risks for s in r.get("scenarios", [])}
+    for sc in scenarios.values():
+        if sc["status"] == "non-satisfait" and sc["id"] not in risked:
+            add("QUA-01", sc["id"], sc["response"])
+        elif sc["status"] == "risque" and sc["id"] not in risked:
+            add("QUA-02", sc["id"], sc["response"])
+        elif sc["status"] == "a-verifier":
+            add("QUA-04", sc["id"], sc["response"])
+        if not sc.get("measure"):
+            add("QUA-03", sc["id"], sc["response"])
+    if not decisions:
+        add("DEC-01", "architecture", "aucune décision dans decisions")
+    for dec in decisions.values():
+        if dec["status"] == "proposee":
+            add("DEC-02", dec["id"], dec["title"])
+    for i, item in enumerate(spec.get("tradeoffs", [])):
+        if not item.get("decision"):
+            add("DEC-03", f"compromis {i + 1}", item["text"])
+    for risk in risks:
+        if risk["severity"] == "haute" and not risk.get("mitigation"):
+            add("RSK-01", risk["id"], risk["text"])
+        if not risk.get("owner"):
+            add("RSK-02", risk["id"], risk["text"])
+
+    rules = len(RULES) - (0 if spec.get("code") else 3)
+    # Piliers Well-Architected de la description cloud (skill well-architected-review).
+    cloud = None
+    if spec.get("cloud"):
+        wa = load_module("well-architected-review", "wa_check.py")
+        if wa is None or wa.MISSING:
+            warnings.append("cloud : revue Well-Architected non faite : "
+                            + absent("well-architected-review", "wa_check.py") + " (et cloud-architecture)")
+        else:
+            path = base / spec["cloud"]
+            described = load_json(path, "cloud", errors)
+            invalid = wa.validate(described, wa.__file__) if described is not None else []
+            errors += [f"cloud : {path.name} : {e}" for e in invalid]
+            if described is not None and not invalid:
+                wa_findings, wa_errors, _ = wa.check(described)
+                errors += [f"cloud : {e}" for e in wa_errors]
+                for f in wa_findings:
+                    if f["pillar"] != "conventions":
+                        findings.append({"rule": f["rule"], "axis": "well-architected", "severity": f["severity"],
+                                         "element": f["element"],
+                                         "message": f"{wa.PILLARS[f['pillar']]} : {f['message']}",
+                                         "fix": f["fix"], "ref": f["ref"], "accepted": None})
+                rules += sum(1 for v in wa.RULES.values() if v[0] != "conventions")
+                cloud = str(path)
+
+    code = None
+    if spec.get("code") and not errors:
+        found = code_graph(base, spec, out_dir, errors, warnings)
+        if found:
+            code = {"graph": found[1], **code_review(found[0], comps, all_edges, add, errors)}
+    return {"findings": findings, "comps": comps, "flows": flows, "scenarios": scenarios, "decisions": decisions,
+            "catalog": catalog, "trace": trace, "code": code, "cloud": cloud, "rules": rules,
+            "errors": errors, "warnings": warnings}
+
+
+def accept(findings: list[dict], accepted: dict, warnings: list[str]) -> None:
+    used = set()
+    for finding in findings:
+        for key in (f"{finding['rule']}@{finding['element']}", finding["rule"]):
+            if key in accepted:
+                finding["accepted"] = accepted[key]
+                used.add(key)
+                break
+    warnings += [f"acceptation « {k} » sans constat correspondant" for k in accepted if k not in used]
+
+
+def verdict_of(open_: list[dict]) -> str:
+    if any(f["severity"] == "haute" for f in open_):
+        return "défavorable"
+    if any(f["severity"] == "moyenne" for f in open_):
+        return "favorable avec réserves"
+    return "favorable"
+
+
+def markdown(spec: dict, found: dict, verdict: str) -> str:
+    findings, scenarios = found["findings"], found["scenarios"]
+    open_ = [f for f in findings if not f["accepted"]]
+    lines = [f"# Revue d'architecture : {spec['title']}", ""]
+    if spec.get("context"):
+        lines += [spec["context"], ""]
+    if spec.get("source"):
+        lines += [f"Option revue : {spec['source']['option']} (`{spec['source']['options']}`).", ""]
+    lines += [f"**Avis : {verdict}** ({sum(f['severity'] == 'haute' for f in open_)} constat(s) haut(s), "
+              f"{sum(f['severity'] == 'moyenne' for f in open_)} moyen(s), "
+              f"{sum(f['severity'] == 'basse' for f in open_)} bas ouverts ; "
+              f"{len(findings) - len(open_)} accepté(s)).", "",
+              f"Contrôle par `arch_review.py` ({found['rules']} règles) de la description écrite pour la revue : "
+              f"{len(found['comps'])} composants, {len(found['flows'])} flux, {len(scenarios)} scénarios de qualité. "
+              "Les points hors de la description sont listés à la fin.", "",
+              "## Synthèse", "", "| Axe | Haute | Moyenne | Basse | Acceptés |", "| --- | --- | --- | --- | --- |"]
+    for key, name in AXES.items():
+        mine = [f for f in findings if f["axis"] == key]
+        if key in ("code", "well-architected") and not mine and not found[{"code": "code", "well-architected": "cloud"}[key]]:
+            continue
+        still = [f for f in mine if not f["accepted"]]
+        lines.append(f"| {name} | " + " | ".join(str(sum(f["severity"] == s for f in still)) for s in SEVERITIES)
+                     + f" | {len(mine) - len(still)} |")
+
+    lines += ["", "## Arbre d'utilité", ""]
+    if not scenarios:
+        lines.append("Aucun scénario de qualité.")
+    for attr, name in ATTRIBUTES.items():
+        mine = [s for s in scenarios.values() if s["attribute"] == attr]
+        if not mine:
+            continue
+        lines += [f"### {name}", "", "| ID | Scénario | Mesure | Importance / difficulté | Exigences | Évaluation |",
+                  "| --- | --- | --- | --- | --- | --- |"]
+        for s in mine:
+            text = s["stimulus"] + (f" ({s['environment']})" if s.get("environment") else "") + f" : {s['response']}"
+            weight = f"{s.get('importance', '-')} / {s.get('difficulty', '-')}"
+            status = STATUS[s["status"]] + (f" : {s['note']}" if s.get("note") else "")
+            lines.append(f"| {s['id']} | {cell(text)} | {cell(s.get('measure', '-'))} | {weight} | "
+                         f"{', '.join(s.get('refs', [])) or '-'} | {cell(status)} |")
+        lines.append("")
+    if lines[-1] == "":
+        lines.pop()
+
+    lines += ["", "## Constats", ""]
+    if not findings:
+        lines.append("Aucun constat.")
+    else:
+        lines += ["| ID | Règle | Axe | Gravité | Élément | Constat | Correction | Référence | Statut |",
+                  "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for index, f in enumerate(findings, 1):
+            status = f"accepté : {f['accepted']}" if f["accepted"] else "à traiter"
+            lines.append(f"| C{index:02d} | {f['rule']} | {AXES[f['axis']]} | {f['severity']} | {cell(f['element'])} | "
+                         f"{cell(f['message'])} | {cell(f['fix'])} | {cell(f['ref'])} | {cell(status)} |")
+
+    lines += ["", "## Risques", ""]
+    if not spec.get("risks"):
+        lines.append("Aucun risque noté.")
+    else:
+        lines += ["| ID | Risque | Gravité | Scénarios | Atténuation | Responsable |", "| --- | --- | --- | --- | --- | --- |"]
+        for r in spec["risks"]:
+            lines.append(f"| {r['id']} | {cell(r['text'])} | {r['severity']} | {', '.join(r.get('scenarios', [])) or '-'} | "
+                         f"{cell(r.get('mitigation', 'à définir'))} | {cell(r.get('owner', 'à désigner'))} |")
+    if spec.get("sensitivities") or spec.get("tradeoffs"):
+        lines += ["", "## Points de sensibilité et compromis", ""]
+        for item in spec.get("sensitivities", []):
+            where = ", ".join(item.get("components", []) + item.get("scenarios", []))
+            lines.append(f"- Sensibilité : {item['text']}" + (f" ({where})" if where else ""))
+        for item in spec.get("tradeoffs", []):
+            names = " contre ".join(ATTRIBUTES[a] for a in item["attributes"])
+            lines.append(f"- Compromis {names} : {item['text']}"
+                         + (f" (décision {item['decision']})" if item.get("decision") else " (sans décision)"))
+    lines += ["", "## Décisions", ""]
+    if not found["decisions"]:
+        lines.append("Aucune décision documentée.")
+    else:
+        lines += ["| ID | Décision | Statut | Exigences | Composants |", "| --- | --- | --- | --- | --- |"]
+        for d in found["decisions"].values():
+            title = d["title"] + (f" (`{d['file']}`)" if d.get("file") else "")
+            lines.append(f"| {d['id']} | {cell(title)} | {DECIDED[d['status']]} | {', '.join(d.get('refs', [])) or '-'} | "
+                         f"{', '.join(d.get('components', [])) or '-'} |")
+    if found["trace"]:
+        lines += ["", "## Traçabilité des exigences", "",
+                  "| Exigence | Titre | Priorité | Composants | Décisions | Scénarios |",
+                  "| --- | --- | --- | --- | --- | --- |"]
+        for req, by in found["trace"]["rows"]:
+            lines.append(f"| {req['id']} | {cell(req.get('title', ''))} | {req.get('priority', '-')} | "
+                         + " | ".join(", ".join(by.get(k, [])) or "-" for k in ("components", "decisions", "scenarios"))
+                         + " |")
+    if found["code"]:
+        code = found["code"]
+        lines += ["", "## Code et architecture", "",
+                  f"Graphe du code par graphify (`--code-only`, analyse locale) : `{code['graph']}`. "
+                  f"{code['files']} fichier(s), dont {code['unmapped']} non rattaché(s) ; "
+                  f"{code['dependencies']} dépendance(s) entre composants, dont {len(code['undeclared'])} "
+                  "absente(s) de l'architecture."]
+    lines += ["", "## À vérifier hors de la description", ""]
+    lines += [f"- **{k}** : {v}." for k, v in OFF_DESCRIPTION.items()]
+    return "\n".join(lines) + "\n"
+
+
+def list_rules() -> str:
+    return "\n".join(f"{rule} {AXES[a]} ({s}) : {title}" for rule, (a, s, title, _, _) in RULES.items())
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("spec", type=Path, nargs="?")
+    parser.add_argument("--out", type=Path, help="fichier Markdown (défaut : <sujet>.revue.md)")
+    parser.add_argument("--fail-on", choices=SEVERITIES + ("aucune",), default="haute",
+                        help="code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute)")
+    parser.add_argument("--rules", action="store_true", help="liste les règles, puis s'arrête")
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    args = parser.parse_args()
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if args.rules:
+        print(list_rules())
+        return 0
+    if not args.spec:
+        parser.error("description JSON attendue")
+    try:
+        spec = json.loads(args.spec.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
+        return 1
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    invalid = validate(spec, __file__)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+        return 1
+    stem = args.spec.name.removesuffix(".json")
+    out = args.out or args.spec.with_name(stem + (".md" if stem.endswith("revue") else ".revue.md"))
+    found = review(spec, args.spec.parent, out.parent)
+    if "findings" not in found:
+        print(json.dumps({"input": str(args.spec), "errors": found["errors"], "warnings": found["warnings"]},
+                         ensure_ascii=False))
+        return 1
+    findings, errors, warnings = found["findings"], found["errors"], found["warnings"]
+    accept(findings, spec.get("accept") or {}, warnings)
+    findings.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["rule"]))
+    open_ = [f for f in findings if not f["accepted"]]
+    counts = {s: sum(f["severity"] == s for f in open_) for s in SEVERITIES}
+    counts["acceptés"] = len(findings) - len(open_)
+    verdict = None if errors else verdict_of(open_)
+    trace = {k: v for k, v in found["trace"].items() if k != "rows"} if found["trace"] else None
+    result = {"input": str(args.spec), "output": None, "verdict": verdict, "components": len(found["comps"]),
+              "flows": len(found["flows"]), "scenarios": len(found["scenarios"]), "risks": len(spec.get("risks", [])),
+              "rules": found["rules"], "counts": counts, "findings": findings, "trace": trace, "code": found["code"],
+              "cloud": found["cloud"], "errors": errors, "warnings": warnings}
+    if not errors:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(markdown(spec, found, verdict))
+        result["output"] = str(out)
+    print(json.dumps(result, ensure_ascii=False))
+    limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1
+    failing = any(SEVERITIES.index(f["severity"]) <= limit for f in open_)
+    return 1 if errors or failing else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

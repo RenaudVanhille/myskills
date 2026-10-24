@@ -1,5 +1,26 @@
 # Journal des versions
 
+## Non publié
+
+### Revue d'architecture
+
+- Skill `architecture-review` (`arch_review.py`) : revue d'une architecture
+  logicielle ou solution à la manière d'ATAM. Le modèle écrit et évalue les
+  scénarios de qualité (arbre d'utilité), les risques, sensibilités,
+  compromis et décisions ; le script contrôle la structure (cycles
+  synchrones, base partagée, couches, pivot, chaîne synchrone longue,
+  dépendance externe synchrone, point unique de défaillance), la
+  traçabilité des exigences, les scénarios, décisions et risques, reprend
+  une option d'`architecture-options` (`source`) sans recopie, ajoute les
+  piliers Well-Architected d'une description cloud et calcule l'avis.
+- Code comparé à l'architecture avec graphify, skill externe appelé par son
+  contrat (`shared/external/graphify.contract.json`), toujours en
+  `--code-only` : analyse locale, sans modèle. Le contrat des skills
+  externes accepte un outil en ligne de commande (`locate.command`) et le
+  schéma de sa sortie (`output_schema`).
+- Agent `architecture-reviewer` : revue d'architecture en plus des menaces
+  et du Well-Architected ; `check-prerequisites` : groupe `revue`.
+
 ## 0.4.0 (2026-10-24)
 
 Revue de cohérence des skills et des agents : dépendances déclarées,

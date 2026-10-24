@@ -22,7 +22,7 @@ FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish"],
              "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
                                   "drawio-diagram"],
-             "external_skill.py": ["check-prerequisites", "markdown-publish"],
+             "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 
 

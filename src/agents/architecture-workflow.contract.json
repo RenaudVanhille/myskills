@@ -51,8 +51,9 @@
     },
     {
       "to": "architecture-reviewer",
-      "when": "un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow",
+      "when": "une revue d'architecture (ATAM, traçabilité, code comparé à l'architecture), un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow",
       "send": [
+        "options.json et l'option retenue, exigences.json et adr-architecture.md pour une revue d'architecture",
         "la description JSON cloud (schemas/option-<id>.cloud.json ou schemas/architecture.json)",
         "le dossier schemas/",
         "la note de l'option dans le vault"

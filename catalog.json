@@ -11,17 +11,20 @@
       "agent": "architecture-reviewer",
       "level": "complexe",
       "receives": [
+        "Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code",
         "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
-        "Ce que l'utilisateur veut : modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
+        "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
         "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
       ],
       "produces": [
+        "<sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code",
         "<sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés",
         "<sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison",
         "Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG"
       ],
       "never": [
         "Accepter un écart (accept) sans la raison donnée par l'utilisateur",
+        "Évaluer un scénario de qualité sans dire pourquoi, ou lancer graphify sans --code-only",
         "Modifier le schéma ou la description d'un autre agent sans le dire",
         "Envoyer une description ou un schéma à un service en ligne"
       ],
@@ -39,7 +42,7 @@
           "to": "architecture-workflow",
           "when": "la revue est faite pour une étape de workflow : rendre la main pour la soumission",
           "send": [
-            "les fichiers .threats.md et .wa.md",
+            "les fichiers .revue.md, .threats.md et .wa.md",
             "les constats de gravité haute restants",
             "le dossier du workflow"
           ]
@@ -48,14 +51,15 @@
           "to": "document-publisher",
           "when": "la revue doit être livrée en Word, HTML ou XWiki",
           "send": [
-            "les fichiers .threats.md et .wa.md",
+            "les fichiers .revue.md, .threats.md et .wa.md",
             "l'outil cible"
           ]
         }
       ],
-      "description": "Revoit la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE (frontières de confiance, flux qui les traversent, mesures) et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.",
+      "description": "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.",
       "skills": [
         "check-prerequisites",
+        "architecture-review",
         "threat-model",
         "well-architected-review",
         "cloud-architecture",
@@ -117,8 +121,9 @@
         },
         {
           "to": "architecture-reviewer",
-          "when": "un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow",
+          "when": "une revue d'architecture (ATAM, traçabilité, code comparé à l'architecture), un modèle de menaces STRIDE ou une revue Well-Architected est demandé, pour l'option retenue ou à l'étape menaces d'un workflow",
           "send": [
+            "options.json et l'option retenue, exigences.json et adr-architecture.md pour une revue d'architecture",
             "la description JSON cloud (schemas/option-<id>.cloud.json ou schemas/architecture.json)",
             "le dossier schemas/",
             "la note de l'option dans le vault"
@@ -1205,6 +1210,856 @@
       "path": "skills/architecture-options"
     },
     {
+      "skill": "architecture-review",
+      "level": "complexe",
+      "inputs": [
+        "Description JSON de la revue (revue.json) : composants, flux, couches, scénarios de qualité, risques, points de sensibilité, compromis, décisions ; ou les composants et flux d'une option d'architecture-options (source)",
+        "Facultatif : le catalogue d'exigences (exigences.json de requirements-catalog), pour la traçabilité",
+        "Facultatif : la description cloud de la même architecture (schemas/option-<id>.cloud.json), pour les piliers Well-Architected",
+        "Facultatif : le code source, ou le graph.json déjà produit par graphify, pour comparer le code à l'architecture",
+        "Facultatif : accept, les écarts acceptés avec leur raison"
+      ],
+      "outputs": [
+        "<sujet>.revue.md : avis, synthèse par axe, arbre d'utilité (scénarios de qualité et leur évaluation), constats, risques, points de sensibilité et compromis, décisions, traçabilité des exigences, conformité du code, points à vérifier hors de la description"
+      ],
+      "scripts": [
+        {
+          "name": "arch_review.py",
+          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe, analyse locale --code-only). Calcule l'avis et écrit <sujet>.revue.md.",
+          "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "options": {
+            "REVUE.json": "description de la revue",
+            "--out": "fichier Markdown (défaut : <sujet>.revue.md)",
+            "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
+            "--rules": "liste les règles (identifiant, axe, gravité), puis s'arrête",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description de la revue, écrite par le modèle : seul le jugement (scénarios, évaluations, risques) lui revient.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "title"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "Catalogue d'exigences (exigences.json de requirements-catalog), relatif à la description."
+                },
+                "source": {
+                  "type": "object",
+                  "required": [
+                    "options",
+                    "option"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "options": {
+                      "type": "string",
+                      "description": "options.json d'architecture-options"
+                    },
+                    "option": {
+                      "type": "string",
+                      "description": "identifiant de l'option revue"
+                    }
+                  }
+                },
+                "cloud": {
+                  "type": "string",
+                  "description": "Description cloud_build.py de la même architecture (schemas/option-<id>.cloud.json) : les piliers Well-Architected entrent dans la revue."
+                },
+                "code": {
+                  "type": "object",
+                  "required": [
+                    "root"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "root": {
+                      "type": "string",
+                      "description": "Dossier du code, relatif à la description."
+                    },
+                    "graph": {
+                      "type": "string",
+                      "description": "graph.json de graphify déjà produit ; sinon le script lance graphify extract --code-only."
+                    }
+                  }
+                },
+                "layers": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Couches de la plus haute à la plus basse : un composant n'appelle pas une couche au-dessus de la sienne."
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/component"
+                  },
+                  "description": "Composants ; avec source, complètent ou précisent (même id) ceux de l'option."
+                },
+                "flows": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/flow"
+                  }
+                },
+                "scenarios": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/scenario"
+                  }
+                },
+                "risks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/risk"
+                  }
+                },
+                "sensitivities": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "text"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "components": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "scenarios": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "tradeoffs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "text",
+                      "attributes"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "attributes": {
+                        "type": "array",
+                        "minItems": 2,
+                        "items": {
+                          "enum": [
+                            "performance",
+                            "disponibilite",
+                            "securite",
+                            "conformite",
+                            "exploitabilite",
+                            "maintenabilite",
+                            "evolutivite",
+                            "interoperabilite",
+                            "utilisabilite",
+                            "portabilite",
+                            "cout",
+                            "autre"
+                          ]
+                        }
+                      },
+                      "decision": {
+                        "type": "string",
+                        "description": "décision qui assume le compromis"
+                      }
+                    }
+                  }
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/decision"
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "constats acceptés : règle (STR-02) ou règle@élément (STR-02@base) -> raison",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[A-Z]+-[0-9]{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              },
+              "$defs": {
+                "component": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "role": {
+                      "enum": [
+                        "person",
+                        "system",
+                        "external",
+                        "db",
+                        "queue"
+                      ]
+                    },
+                    "tech": {
+                      "type": "string"
+                    },
+                    "layer": {
+                      "type": "string",
+                      "description": "Couche du composant, parmi layers."
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      },
+                      "description": "Exigences que ce composant porte."
+                    },
+                    "count": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ],
+                      "description": "Nombre d'instances (2, « 2-10 ») ; au-delà de 1, le composant est redondant."
+                    },
+                    "code": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "Fichiers du code qui forment le composant : motifs relatifs à code.root (src/api/**, app/models/*.py)."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Repris d'une option cloud d'architecture-options ; ignoré par la revue."
+                    }
+                  }
+                },
+                "flow": {
+                  "type": "object",
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "style": {
+                      "enum": [
+                        "sync",
+                        "async"
+                      ]
+                    },
+                    "protocol": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "scenario": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "attribute",
+                    "stimulus",
+                    "response",
+                    "status"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                    },
+                    "attribute": {
+                      "enum": [
+                        "performance",
+                        "disponibilite",
+                        "securite",
+                        "conformite",
+                        "exploitabilite",
+                        "maintenabilite",
+                        "evolutivite",
+                        "interoperabilite",
+                        "utilisabilite",
+                        "portabilite",
+                        "cout",
+                        "autre"
+                      ]
+                    },
+                    "stimulus": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "source et événement : « 10 000 assurés déclarent après une tempête »"
+                    },
+                    "environment": {
+                      "type": "string",
+                      "description": "conditions : pic, panne d'une zone, exploitation normale..."
+                    },
+                    "response": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "measure": {
+                      "type": "string",
+                      "description": "mesure de la réponse : « 95 % en moins de 2 s »"
+                    },
+                    "importance": {
+                      "enum": [
+                        "haute",
+                        "moyenne",
+                        "basse"
+                      ]
+                    },
+                    "difficulty": {
+                      "enum": [
+                        "haute",
+                        "moyenne",
+                        "basse"
+                      ]
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      }
+                    },
+                    "components": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "status": {
+                      "enum": [
+                        "satisfait",
+                        "risque",
+                        "non-satisfait",
+                        "a-verifier"
+                      ]
+                    },
+                    "note": {
+                      "type": "string",
+                      "description": "pourquoi : mécanisme qui satisfait le scénario, ou ce qui manque"
+                    }
+                  }
+                },
+                "risk": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "text",
+                    "severity"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "severity": {
+                      "enum": [
+                        "haute",
+                        "moyenne",
+                        "basse"
+                      ]
+                    },
+                    "scenarios": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      }
+                    },
+                    "components": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "mitigation": {
+                      "type": "string"
+                    },
+                    "owner": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "decision": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "title",
+                    "status"
+                  ],
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^_": {}
+                  },
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "status": {
+                      "enum": [
+                        "proposee",
+                        "acceptee",
+                        "remplacee"
+                      ]
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      }
+                    },
+                    "components": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "file": {
+                      "type": "string",
+                      "description": "ADR correspondant (adr-architecture.md...)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible, seulement input, errors et warnings. findings va du plus grave au moins grave ; un constat accepté garde sa raison dans accepted et ne compte pas dans counts. verdict : défavorable dès un constat haut ouvert, avec réserves dès un constat moyen ouvert, null en cas d'erreur.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input",
+                    "output",
+                    "verdict",
+                    "components",
+                    "flows",
+                    "scenarios",
+                    "risks",
+                    "rules",
+                    "counts",
+                    "findings",
+                    "trace",
+                    "code",
+                    "cloud",
+                    "errors",
+                    "warnings"
+                  ],
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "verdict": {
+                      "enum": [
+                        "favorable",
+                        "favorable avec réserves",
+                        "défavorable",
+                        null
+                      ]
+                    },
+                    "components": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "flows": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "scenarios": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "risks": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "counts": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "haute",
+                        "moyenne",
+                        "basse",
+                        "acceptés"
+                      ],
+                      "properties": {
+                        "haute": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "moyenne": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "basse": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "acceptés": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "findings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "rule",
+                          "axis",
+                          "severity",
+                          "element",
+                          "message",
+                          "fix",
+                          "ref",
+                          "accepted"
+                        ],
+                        "properties": {
+                          "rule": {
+                            "type": "string",
+                            "pattern": "^[A-Z]+-[0-9]{2}$"
+                          },
+                          "axis": {
+                            "enum": [
+                              "structure",
+                              "code",
+                              "tracabilite",
+                              "qualite",
+                              "decisions",
+                              "risques",
+                              "well-architected"
+                            ]
+                          },
+                          "severity": {
+                            "enum": [
+                              "haute",
+                              "moyenne",
+                              "basse"
+                            ]
+                          },
+                          "element": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "fix": {
+                            "type": "string"
+                          },
+                          "ref": {
+                            "type": "string"
+                          },
+                          "accepted": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "trace": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "requirements",
+                            "uncarried",
+                            "without_scenario"
+                          ],
+                          "properties": {
+                            "requirements": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "uncarried": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "without_scenario": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "code": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "graph",
+                            "files",
+                            "unmapped",
+                            "dependencies",
+                            "undeclared"
+                          ],
+                          "properties": {
+                            "graph": {
+                              "type": "string"
+                            },
+                            "files": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "unmapped": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "dependencies": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "undeclared": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "cloud": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input",
+                    "errors",
+                    "warnings"
+                  ],
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "revue écrite, aucun constat non accepté au seuil --fail-on",
+            "1": "description illisible, référence inconnue, graphify manquant ou en échec, ou constat non accepté au seuil --fail-on ; sauf erreur, le rapport et <sujet>.revue.md sont tout de même produits"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "why": "valider exigences.json contre son schéma",
+          "optional": true
+        },
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "why": "valider options.json et en reprendre les composants et les flux de l'option revue",
+          "optional": true
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "why": "piliers Well-Architected de la description cloud (cloud)",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "graphify",
+          "kind": "externe",
+          "when": "comparer le code à l'architecture : le script lance graphify extract --code-only sur code.root (analyse locale) et lit le graphe"
+        },
+        {
+          "to": "architecture-options",
+          "kind": "skill",
+          "when": "un constat demande de changer l'option (composant, flux, écart) : corriger options.json puis relancer"
+        },
+        {
+          "to": "well-architected-review",
+          "kind": "skill",
+          "when": "revue Well-Architected complète d'une architecture cloud, conventions du schéma comprises"
+        },
+        {
+          "to": "threat-model",
+          "kind": "skill",
+          "when": "analyse des menaces STRIDE de l'architecture revue"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "dans un workflow : noter les écarts acceptés et soumettre la revue"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "un écart est voulu : sa raison va dans accept ; un risque attend un responsable"
+        }
+      ],
+      "description": "Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture.",
+      "path": "skills/architecture-review"
+    },
+    {
       "skill": "c4-architecture",
       "level": "moyen",
       "inputs": [
@@ -1235,7 +2090,7 @@
       "skill": "check-prerequisites",
       "level": "simple",
       "inputs": [
-        "Un groupe : extraction, schemas, publication ou tout (défaut)",
+        "Un groupe : extraction, schemas, publication, revue ou tout (défaut)",
         "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"
       ],
       "outputs": [
@@ -1245,7 +2100,7 @@
         {
           "name": "doctor.py",
           "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne.",
-          "usage": "uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]",
+          "usage": "uv run scripts/doctor.py [extraction|schemas|publication|revue|tout] [--prefetch]",
           "report": {
             "format": "json",
             "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
@@ -1281,7 +2136,8 @@
                         "enum": [
                           "extraction",
                           "schemas",
-                          "publication"
+                          "publication",
+                          "revue"
                         ]
                       },
                       "status": {
@@ -1323,7 +2179,7 @@
             "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
           },
           "options": {
-            "GROUPE": "extraction, schemas, publication ou tout (défaut)",
+            "GROUPE": "extraction, schemas, publication, revue ou tout (défaut)",
             "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement"
           }
         }

@@ -10,6 +10,7 @@ d'installation du contrat.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -38,8 +39,13 @@ def candidates(spec: dict) -> list[Path]:
 
 
 def locate(name: str) -> tuple[dict, Path | None]:
-    """(contrat, script d'entrée du skill installé, ou None)."""
+    """(contrat, script d'entrée du skill installé ou commande trouvée, ou None)."""
     spec = contract(name)
+    if spec["locate"].get("command"):
+        # Outil en ligne de commande : variable du contrat, sinon le PATH.
+        given = os.environ.get(spec["locate"]["env"])
+        found = shutil.which(given or spec["locate"]["command"])
+        return spec, Path(found) if found else None
     for folder in candidates(spec):
         entry = folder / spec["locate"]["entry"]
         if entry.is_file():
@@ -48,8 +54,8 @@ def locate(name: str) -> tuple[dict, Path | None]:
 
 
 def missing_message(spec: dict) -> str:
-    return (f"skill {spec['skill']} introuvable (variable {spec['locate']['env']} ou dossiers d'installation "
-            f"habituels) : {spec['install']}")
+    where = "PATH" if spec["locate"].get("command") else "dossiers d'installation habituels"
+    return f"skill {spec['skill']} introuvable (variable {spec['locate']['env']} ou {where}) : {spec['install']}"
 
 
 def version(spec: dict, entry: Path) -> tuple[str | None, str | None]:
@@ -57,7 +63,8 @@ def version(spec: dict, entry: Path) -> tuple[str | None, str | None]:
     option = spec["command"].get("version")
     if not option:
         return None, None
-    result = subprocess.run([sys.executable, str(entry), option], capture_output=True, text=True,
+    command = [str(entry)] if spec["locate"].get("command") else [sys.executable, str(entry)]
+    result = subprocess.run([*command, option], capture_output=True, text=True,
                             encoding="utf-8", errors="replace")
     match = re.search(r"(\d+)\.(\d+)(?:\.\d+)?", result.stdout + result.stderr)
     if not match:

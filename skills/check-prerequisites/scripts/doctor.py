@@ -8,7 +8,7 @@ MarkItDown, Pandoc et Playwright sont fournis par uv aux scripts qui les
 utilisent (dépendances PEP 723), Docling par `uvx` : seul uv est alors
 obligatoire, leur installation à part est facultative.
 
-Usage : uv run scripts/doctor.py [extraction|schemas|publication|tout] [--prefetch]
+Usage : uv run scripts/doctor.py [extraction|schemas|publication|revue|tout] [--prefetch]
 Code de sortie : 0 si tous les outils obligatoires sont présents, 1 sinon
 (ou groupe inconnu, ou préchargement en échec).
 
@@ -57,6 +57,11 @@ GROUPS = {
          lambda: external_skill.locate("markdown-to-pptx")[1] is not None,
          external_skill.contract("markdown-to-pptx")["install"]),
     ],
+    "revue": [
+        UV,
+        ("graphify installé à part (code comparé à l'architecture, analyse locale)", "facultatif",
+         lambda: external_skill.locate("graphify")[1] is not None, external_skill.contract("graphify")["install"]),
+    ],
 }
 
 
@@ -69,7 +74,7 @@ def main() -> int:
     group = args[0] if args else "tout"
     if group != "tout" and group not in GROUPS:
         print(json.dumps({"group": group, "tools": [], "missing": [],
-                          "errors": [f"groupe inconnu « {group} » (extraction, schemas, publication, tout)"],
+                          "errors": [f"groupe inconnu « {group} » (extraction, schemas, publication, revue, tout)"],
                           "warnings": []}, ensure_ascii=False))
         return 1
     errors = []
