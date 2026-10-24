@@ -57,7 +57,7 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
 | --- | --- | --- |
 | `documents` | `sources/*.md` | `doc-to-markdown` |
 | `exigences` | `exigences.json`, `exigences.md`, `exigences.csv` | `requirements-catalog` |
-| `architectures` | `options.json`, `options.md` | `architecture-options` |
+| `architectures` | `options.json`, `options.md` (et `schemas/option-<id>.wa.md` d'une option cloud) | `architecture-options`, `cloud-architecture` |
 | `schemas` | `decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio` et ses PNG (et `schemas/option-<id>.drawio` d'une option cloud, `schemas/pos-option-<id>.drawio` avec un POS) | `drawio-diagram`, `cloud-architecture`, `urbanization-map`, `diagram-export` |
 
 1. **Reprendre** : lance `journal.py status DOSSIER` (skill `decision-log`).
@@ -107,6 +107,10 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      dans le SI, y compris la note du critère `urbanisation`), lance
      `options_build.py`. Une redondance signalée se corrige (remplacer
      l'existant) ou se justifie (`coexists`) ; note ce choix au journal.
+     Pour une option cloud, le rapport `wa` donne les constats
+     Well-Architected des piliers : ajoute le composant manquant, ou
+     accepte l'écart avec sa raison (`wa_accept`), et reporte-le dans la
+     note du critère ; une gravité haute ne reste jamais sans réponse.
    - `schemas` : écris `decision.json` avec le choix fait par
      l'utilisateur à la revue précédente (`option`, `by`, ses mots dans
      `why`, `date`, `refs`), lance `options_build.py options.json
@@ -114,7 +118,8 @@ courant. Les chemins sont relatifs à ce dossier. Pour le workflow
      `options.md` validés ne changent pas ; il met à jour `tracabilite.md`
      pour l'option retenue), puis `drawio_build.py
      schemas/architectures.json`, `cloud_build.py` sur le
-     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe,
+     `schemas/option-<id>.cloud.json` de l'option retenue s'il existe
+     (puis `wa_check.py --scope conventions` sur ce fichier),
      `pos_build.py` sur chaque `schemas/pos-option-<id>.json` (POS cible),
      et `export.py` en PNG ; relis chaque PNG une fois.
 4. **Tracer** : pendant l'étape, note avec `journal.py log` chaque choix

@@ -770,6 +770,30 @@
         {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-pos-vault.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vise le vault, mais"}}
       ],
       "absent": ["options-pos-invalide.md", "schemas"]
+    },
+    {
+      "id": "options-wa",
+      "skill": "architecture-options",
+      "_note": "Revue Well-Architected des piliers à la définition des options : constats par pilier, gravité haute signalée, écart accepté avec sa raison, acceptation sans constat, constats de l'option retenue dans l'ADR.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--out-dir", "{out}"], "exit": 0, "report": {"wa.0.option": "A", "wa.0.counts.haute": 1, "wa.0.counts.acceptés": 1, "errors": []}, "report_contains": {"wa.0.open": "SEC-02@F6", "warnings": "constat(s) Well-Architected de gravité haute à traiter : SEC-02@F6"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--out-dir", "{out}"], "exit": 0, "report_contains": {"warnings": "acceptation « SEC-99 » sans constat correspondant"}},
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--decision", "{fixtures}/workflow/decision.json", "--out-dir", "{out}"], "exit": 0, "report": {"decided": "A"}},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/schemas/option-a.cloud.json", "--out", "{out}/schemas/option-a.drawio"], "exit": 0, "report": {"errors": []}}
+      ],
+      "files": ["options-wa.md", "schemas/option-a.wa.md", "adr-architecture.md", "schemas/option-a.drawio"],
+      "contains": {"options-wa.md": ["## Revue Well-Architected", "| A | 0 | 3 (1 h) | 0 | 0 | 1 | 1 | `schemas/option-a.wa.md` |"],
+                   "schemas/option-a.wa.md": ["# Revue Well-Architected : Option A", "SEC-02"],
+                   "adr-architecture.md": ["## Revue Well-Architected", "OPS-01 Excellence opérationnelle, moyenne", "(accepté : supervision par l'outil central de l'exploitation)"]}
+    },
+    {
+      "id": "options-wa-erreurs",
+      "skill": "architecture-options",
+      "_note": "Type cloud inconnu d'un composant refusé dès la définition des options, sans fichier produit.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "options/0 (A)/components : Option A : Application web dans le cloud européen : élément « Pièces jointes », type inconnu « s4 »"}}
+      ],
+      "absent": ["options-wa-invalide.md", "schemas"]
     }
   ]
 }

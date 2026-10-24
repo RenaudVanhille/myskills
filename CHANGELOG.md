@@ -33,6 +33,13 @@
 - `architecture-workflow` : demande le POS du SI avec le vault, construit
   le POS cible de chaque option à l'étape `schemas` ; note d'option du vault
   avec sa position.
+- `architecture-options` : revue Well-Architected des piliers dès la
+  définition des options (`wa_check.py`) : constats par pilier dans
+  `options.md`, détail dans `schemas/option-<id>.wa.md`, constats de
+  l'option retenue dans l'ADR ; écart accepté avec sa raison
+  (`wa_accept`), gravité haute non traitée signalée ; `count` des
+  composants et `protocol` des flux ; type cloud inconnu refusé dès cette
+  étape. `architecture-workflow` y répond avant la revue.
 - `options_build.py` : rapport conforme au contrat aussi après une erreur
   de référence (`trace` à null).
 

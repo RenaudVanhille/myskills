@@ -13,9 +13,9 @@ calcule scores et rang, met en forme et prépare les schémas.
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
-- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>) ; Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
-- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles) ; schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py.
-- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles. Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
+- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>) ; Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
+- **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles) ; schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture) ; schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py.
+- **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
@@ -73,12 +73,17 @@ Fichier `options.json`, à côté de `exigences.json` :
 - **Option cloud** : avec `provider` (aws, azure, gcp, k8s) et un `type`
   `cloud_build.py` par composant (`ecs`, `aurora`, `sqs`... ; sinon déduit
   du rôle), le script écrit aussi `schemas/option-<id>.cloud.json`, schéma
-  aux icônes officielles. Contrôlez-la contre le cadre Well-Architected du
-  fournisseur avant de noter : `uv run
-  ../cloud-architecture/scripts/wa_check.py schemas/option-<id>.cloud.json
-  --scope piliers --fail-on aucune`. Chaque constat (pas de supervision,
-  pas de WAF, instance unique...) s'ajoute à l'option comme composant, ou se
-  justifie dans `score_notes` et pèse sur la note.
+  aux icônes officielles. Le script la contrôle aussi contre les piliers
+  du cadre Well-Architected du fournisseur (`wa_check.py` du skill
+  `cloud-architecture`) : constats par pilier dans `options.md`, détail
+  dans `schemas/option-<id>.wa.md`, constats de l'option retenue dans
+  l'ADR. Donnez `count` (2, « 2-10 ») aux composants redondés et
+  `protocol` (HTTPS, TLS...) aux flux. Chaque constat ouvert (pas de
+  supervision, pas de WAF, instance unique...) s'ajoute à l'option comme
+  composant, ou s'accepte avec sa raison dans `wa_accept` (clé du champ
+  `open` du rapport, `"SEC-05@F1": "WAF du groupe en amont"`) ; il pèse
+  sur la note du critère concerné. Une gravité haute non traitée est
+  signalée.
 - **Recommandation** : l'option et pourquoi, avec les exigences
   déterminantes. Si elle ne suit pas le classement, le script l'avertit :
   la justification doit l'expliquer.

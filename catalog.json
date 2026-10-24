@@ -208,7 +208,7 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
-        "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, scores, score_notes, pros, cons, risks), recommendation, decision",
+        "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
         "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
       ],
       "outputs": [
@@ -217,12 +217,13 @@
         "adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné",
         "tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée)",
         "schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles)",
+        "schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill cloud-architecture)",
         "schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), à construire avec pos_build.py"
       ],
       "scripts": [
         {
           "name": "options_build.py",
-          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles. Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
+          "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option, en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
           "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
           "options": {
             "options.json": "description des options ; requirements est relatif à ce fichier",
@@ -377,6 +378,13 @@
                               "type": "string",
                               "minLength": 1,
                               "description": "Type cloud_build.py du composant (ecs, aurora, sqs... ; cloud_build.py --types) si l'option a un provider ; sinon déduit du rôle."
+                            },
+                            "count": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ],
+                              "description": "Option cloud : nombre d'instances (2, « 2-10 ») ; au-delà de 1, la revue Well-Architected compte le composant comme redondant."
                             }
                           }
                         }
@@ -405,6 +413,10 @@
                                 "sync",
                                 "async"
                               ]
+                            },
+                            "protocol": {
+                              "type": "string",
+                              "description": "Protocole (HTTPS, TLS, AMQPS...) : la revue Well-Architected contrôle le chiffrement des flux d'une option cloud."
                             }
                           }
                         }
@@ -525,6 +537,14 @@
                             }
                           }
                         }
+                      },
+                      "wa_accept": {
+                        "type": "object",
+                        "description": "Option cloud : constats Well-Architected acceptés, clé « RÈGLE@élément » ou « RÈGLE » (champ open du rapport wa), valeur la raison ; ils restent dans l'ADR mais ne comptent plus.",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
                       }
                     }
                   }
@@ -608,7 +628,8 @@
                     "pos",
                     "errors",
                     "warnings",
-                    "trace"
+                    "trace",
+                    "wa"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -758,6 +779,51 @@
                               "cross_zone": {
                                 "type": "integer",
                                 "minimum": 0
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "wa": {
+                      "description": "Revue Well-Architected des piliers de chaque option cloud (wa_check.py), ou null sans option cloud.",
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "option",
+                              "counts",
+                              "open"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "option": {
+                                "type": "string"
+                              },
+                              "counts": {
+                                "type": "object",
+                                "required": [
+                                  "haute",
+                                  "moyenne",
+                                  "basse",
+                                  "acceptés"
+                                ],
+                                "additionalProperties": {
+                                  "type": "integer",
+                                  "minimum": 0
+                                }
+                              },
+                              "open": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                },
+                                "description": "Constats ouverts, « RÈGLE@élément » : clés possibles de wa_accept."
                               }
                             }
                           }
