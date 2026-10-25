@@ -95,7 +95,12 @@
         "synthese.md",
         "dossier-architecture.md"
       ],
+      "optional": [
+        "plan-actions.md",
+        "plan-actions.csv"
+      ],
       "checks": [
+        "architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)",
         "architecture-dossier : dossier_build.py . --template avis --strict (liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-architecture.md à document-publisher"
       ],

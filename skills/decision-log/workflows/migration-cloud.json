@@ -168,7 +168,12 @@
         "synthese.md",
         "dossier-migration.md"
       ],
+      "optional": [
+        "plan-actions.md",
+        "plan-actions.csv"
+      ],
       "checks": [
+        "architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)",
         "architecture-dossier : dossier_build.py . --template migration --out dossier-migration.md --strict",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-migration.md à document-publisher"
       ],

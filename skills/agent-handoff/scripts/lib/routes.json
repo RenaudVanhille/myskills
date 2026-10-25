@@ -187,7 +187,8 @@
    "inputs": [
     "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
     "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
-    "Facultatif : un gabarit de sections (JSON) propre à l'organisation"
+    "Facultatif : un gabarit de sections (JSON) propre à l'organisation",
+    "Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON"
    ],
    "match": "Assemble le dossier d'architecture technique (DAT) d'un projet à partir des livrables validés d'un workflow : synthèse, exigences, options, décision (ADR), schémas, revue d'architecture, menaces, Well-Architected, chiffrage et journal, selon un gabarit de sections. Signale les pièces manquantes et vérifie les liens. À utiliser pour préparer un comité d'architecture ou livrer le dossier d'un projet."
   },

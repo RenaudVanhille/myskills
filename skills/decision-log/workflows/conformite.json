@@ -130,11 +130,15 @@
         "plan-actions.md",
         "dossier-conformite.md"
       ],
+      "optional": [
+        "plan-actions.csv"
+      ],
       "checks": [
+        "architecture-dossier : actions.py . (plan-actions.md et plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)",
         "architecture-dossier : dossier_build.py . --template conformite --out dossier-conformite.md --strict (sections obligatoires présentes, liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-conformite.md à document-publisher"
       ],
-      "instructions": "Écrire plan-actions.md à partir des seuls rapports des étapes précédentes : un tableau action, origine (menace, constat, risque RGPD), priorité, responsable, échéance ; d'abord les gravités hautes et les risques résiduels élevés. synthese.md tient en une page : périmètre, hébergement, AIPD requise ou non, risques ouverts, décisions attendues. Le reste est assemblé par le script."
+      "instructions": "plan-actions.md se construit avec actions.py, sans relire les revues : une action par règle ou mesure, priorité tirée de la gravité ; seuls responsables et échéances donnés par l'utilisateur vont dans --assign. Les menaces encore sans mesure retenue se règlent à l'étape menaces, pas ici. synthese.md tient en une page : périmètre, hébergement, AIPD requise ou non, risques ouverts, décisions attendues. Le reste est assemblé par le script."
     }
   ]
 }
