@@ -94,3 +94,9 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-25T13:10:22,correctifs-cas,9b6be55,publier-pptx,document-publisher,agent,True,11,0.0096,20,21197,255697,4918,0,33
 2026-10-25T13:11:33,diag,9b6be55,importer-obsidian,document-extractor,agent,False,9,0.1106,17,16920,218449,2086,0,43
 2026-10-25T13:12:24,correctifs-cas,9b6be55,importer-obsidian,document-extractor,agent,True,7,0.105,13,18159,165965,1541,0,22
+2026-10-25T13:13:55,qualite-opus,23c1432,revue-menaces,architecture-reviewer,opus,True,12,0.7863,23,45511,450113,16584,0,159
+2026-10-25T13:13:55,qualite-opus,23c1432,chiffrage,solution-estimator,opus,True,9,0.4519,13,30536,210279,8259,0,78
+2026-10-25T13:13:55,qualite-opus,23c1432,revue-architecture,architecture-reviewer,opus,True,8,0.4876,11,34987,188446,8494,0,82
+2026-10-25T13:19:20,qualite-sonnet,23c1432,revue-menaces,architecture-reviewer,sonnet,True,10,0.3226,19,39152,345887,13102,0,112
+2026-10-25T13:19:20,qualite-sonnet,23c1432,chiffrage,solution-estimator,sonnet,True,11,0.2308,15,30828,243668,8271,0,65
+2026-10-25T13:19:20,qualite-sonnet,23c1432,revue-architecture,architecture-reviewer,sonnet,True,6,0.2055,11,30350,168631,6706,0,57

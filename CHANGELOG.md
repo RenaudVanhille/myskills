@@ -6,6 +6,11 @@
 
 - Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet
   (`costs.csv`, libellés `v0.5-agent` et `v0.5-sonnet`).
+- Niveau complexe gardé en Opus : sur revue-menaces, chiffrage et
+  revue-architecture (`qualite-opus`, `qualite-sonnet`), Sonnet coûte
+  2,3 fois moins mais oublie des postes (réseau, test d'intrusion,
+  hors production) et juge satisfait un scénario de pic qu'Opus classe à
+  risque.
 - `importer-obsidian` : le cas fournit un vault (`.obsidian/app.json`) et
   demande la racine du vault ; `publier-pptx` : le prompt dit que la
   doublure de markdown-to-pptx est voulue (l'agent la refusait, à raison,
