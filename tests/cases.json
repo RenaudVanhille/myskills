@@ -14,6 +14,7 @@
       "contains": {".kiro/agents/schema-designer.md": ["skill://.kiro/skills/agent-handoff/SKILL.md", "capability: shell"],
                    ".opencode/agents/document-extractor.md": ["webfetch: deny", "\"uv run *\": allow"]}
     },
+    {"id": "installation-modeles", "skill": "tous", "_note": "install.py --models : modèles de l'abonnement par outil et par niveau, prioritaires sur shared/models.json ; Copilot reçoit une liste de replis.", "steps": [{"script": "{root}/scripts/install.py", "args": ["--project", "{out}", "--tools", "opencode,kiro", "--models", "{fixtures}/modeles.json"], "exit": 0}], "files": [".opencode/agents/document-publisher.md", ".kiro/agents/schema-designer.md"], "contains": {".opencode/agents/document-publisher.md": ["model: anthropic/claude-haiku-4-5"], ".opencode/agents/solution-estimator.md": ["model: anthropic/claude-opus-4-5"], ".kiro/agents/schema-designer.md": ["model: claude-sonnet-4.6"]}},
     {
       "id": "docx",
       "skill": "doc-to-markdown",

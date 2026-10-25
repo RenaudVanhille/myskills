@@ -1,20 +1,44 @@
 {
-  "_doc": "Classe de modèle de chaque niveau de travail (simple, moyen, complexe), par outil. scripts/build.py et scripts/install.py en tirent le champ model des agents générés et la consigne « Niveaux et modèles » de chaque agent ; null : l'outil garde le modèle de la session (ou son mode automatique). Changer un modèle ici, puis uv run scripts/build.py.",
+  "_doc": "Classe de modèle de chaque niveau de travail (simple, moyen, complexe), par outil. scripts/build.py et scripts/install.py en tirent le champ model des agents générés et la consigne « Niveaux et modèles » de chaque agent ; null : l'outil garde le modèle de la session (ou son mode automatique). Une liste donne des modèles de repli dans l'ordre (Copilot prend le premier disponible). OpenCode (fournisseur/modèle) et Kiro (identifiant de son service, sans repli : un modèle absent fait échouer l'agent) dépendent de l'abonnement : laissés à null ici, ils se donnent à l'installation (install.py --models FICHIER). Changer un modèle ici, puis uv run scripts/build.py.",
   "levels": {
     "simple": {
       "class": "léger",
       "use": "commandes, conversions, constructions et exports par script, rangement",
-      "models": {"claude": "haiku", "copilot": null, "opencode": null, "kiro": null}
+      "models": {
+        "claude": "haiku",
+        "copilot": [
+          "Claude Haiku 4.5",
+          "GPT-5 mini"
+        ],
+        "opencode": null,
+        "kiro": null
+      }
     },
     "moyen": {
       "class": "standard",
       "use": "rédiger une description JSON, corriger une erreur de script, intégrer un retour",
-      "models": {"claude": "sonnet", "copilot": null, "opencode": null, "kiro": null}
+      "models": {
+        "claude": "sonnet",
+        "copilot": [
+          "Claude Sonnet 4.5",
+          "GPT-5"
+        ],
+        "opencode": null,
+        "kiro": null
+      }
     },
     "complexe": {
       "class": "puissant",
       "use": "concevoir et noter des architectures, analyser des menaces, trancher une ambiguïté, relire un rendu",
-      "models": {"claude": "opus", "copilot": null, "opencode": null, "kiro": null}
+      "models": {
+        "claude": "opus",
+        "copilot": [
+          "Claude Opus 4.5",
+          "Claude Sonnet 4.5"
+        ],
+        "opencode": null,
+        "kiro": null
+      }
     }
   }
 }

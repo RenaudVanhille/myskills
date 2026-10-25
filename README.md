@@ -133,17 +133,21 @@ description JSON, corriger une erreur, intégrer un retour) ou **complexe**
 rendu). [`shared/models.json`](shared/models.json) donne le modèle de
 chaque niveau par outil :
 
-| Niveau | Classe | Claude Code | Copilot, OpenCode, Kiro, Hermes |
-| --- | --- | --- | --- |
-| simple | léger | `haiku` | modèle de la session |
-| moyen | standard | `sonnet` | modèle de la session |
-| complexe | puissant | `opus` | modèle de la session |
+| Niveau | Classe | Claude Code | Copilot (repli dans l'ordre) | OpenCode, Kiro | Hermes |
+| --- | --- | --- | --- | --- | --- |
+| simple | léger | `haiku` | Claude Haiku 4.5, GPT-5 mini | `install.py --models` | session |
+| moyen | standard | `sonnet` | Claude Sonnet 4.5, GPT-5 | `install.py --models` | session |
+| complexe | puissant | `opus` | Claude Opus 4.5, Claude Sonnet 4.5 | `install.py --models` | session |
 
-`scripts/build.py` en tire le `model` des agents Claude Code et leur
-consigne : chaque agent travaille à son niveau, monte d'un niveau si une
+`scripts/build.py` en tire le `model` des agents Claude Code et Copilot et
+leur consigne : chaque agent travaille à son niveau, monte d'un niveau si une
 action échoue, et ne confie à un sous-agent qu'un lot ou une étape d'un
 autre niveau, avec le modèle de ce niveau. Changer de modèle : modifier
-`shared/models.json`, puis `uv run scripts/build.py`. `tests/cost.py`
+`shared/models.json`, puis `uv run scripts/build.py`. Les identifiants
+d'OpenCode (`fournisseur/modèle`) et de Kiro dépendent de l'abonnement : ils
+se donnent à l'installation, `uv run scripts/install.py --models
+mes-modeles.json` (`{"opencode": {"simple": "anthropic/claude-haiku-4-5",
+...}}`) ; sans eux, l'outil garde le modèle de la session. `tests/cost.py`
 mesure le coût réel de chaque cas d'agent.
 
 ## Ajouter un skill, un agent ou un workflow
