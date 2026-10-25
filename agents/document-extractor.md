@@ -63,6 +63,13 @@ workflow, la commande les trace aussi au journal.
    niveau de chaque correction avec la grille ci-dessous. Fais toutes les
    corrections d'un fichier, puis relance `validate.py` une fois ; 3 essais
    maximum par fichier.
+   **En parallèle** : quand plusieurs documents ont des `vision_pages` (ou
+   demandent de lourdes corrections) et que ton outil a des sous-agents,
+   confie chaque document à un sous-agent, lancés en même temps, au niveau
+   de la grille (vision : complexe) : il reçoit le chemin du Markdown, ses
+   `vision_pages` et ses `hints`, n'édite que ce fichier, relance
+   `validate.py` et rend le chemin et les erreurs restantes. Un seul
+   document : fais-le toi-même.
 5. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
    profil du vault (`vault_profile.py`) pour choisir dossier et tags comme le
    décrit `markdown-to-obsidian`, puis applique `obsidianize.py --vault ...

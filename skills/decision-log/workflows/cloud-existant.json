@@ -53,6 +53,9 @@
       "id": "menaces",
       "label": "Modèle de menaces STRIDE et revue Well-Architected",
       "level": "complexe",
+      "after": [
+        "description"
+      ],
       "skills": [
         "threat-model",
         "well-architected-review"

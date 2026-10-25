@@ -53,7 +53,15 @@ workflow, la commande les trace aussi au journal.
 1. Si une commande est introuvable ou qu'un script signale un outil
    manquant, applique `check-prerequisites`. Ne le lance pas par
    précaution.
-2. Revue d'architecture (skill `architecture-review`), quand elle est
+2. **Plusieurs analyses demandées** (revue d'architecture, menaces,
+   Well-Architected, AIPD) et un outil de sous-agent : confie chacune à un
+   sous-agent du niveau complexe, lancés en même temps, avec ses seules
+   entrées (chemins), son étape ci-dessous et le dossier de sortie ; l'AIPD
+   attend les menaces quand les deux sont demandées. Chaque sous-agent rend
+   ses chemins, ses compteurs et ses points à trancher, pas de contenu.
+   Toi, tu gardes les étapes 8 et 9. Une seule analyse, ou pas de
+   sous-agent : fais les étapes toi-même, dans l'ordre.
+3. Revue d'architecture (skill `architecture-review`), quand elle est
    demandée : écris `revue.json` (`arch_review.py --schema`), avec `source`
    pour une option d'`architecture-options` plutôt que de recopier ses
    composants. Écris un scénario de qualité par exigence non fonctionnelle
@@ -64,23 +72,23 @@ workflow, la commande les trace aussi au journal.
    au niveau simple). Avec une description cloud, donne `cloud`.
    Lance `arch_review.py revue.json` et lis le rapport ; dans un
    workflow à vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
-   est demandée, passe à l'étape 6.
-3. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
+   est demandée, passe à l'étape 8.
+4. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
    forme). Pour une option d'architecture, c'est
    `schemas/option-<id>.cloud.json` ; pour du code d'infrastructure,
    `iac_import.py` (skill `cloud-architecture`) l'écrit d'abord.
-4. Menaces : `stride.py SUJET.json` (skill `threat-model`). Lis le rapport,
+5. Menaces : `stride.py SUJET.json` (skill `threat-model`). Lis le rapport,
    puis le tableau une fois : garde les menaces pertinentes, précise-les
    pour le contexte, propose une mesure retenue et un statut. Avec un
    schéma demandé, `cloud_build.py SUJET.json --view threats` puis export
    PNG : mêmes numéros de flux.
-5. Well-Architected : `wa_check.py SUJET.json` (skill
+6. Well-Architected : `wa_check.py SUJET.json` (skill
    `well-architected-review`), `--scope piliers` pour une option sans
    groupes réseau, `--scope conventions` pour un schéma seul. Pour chaque
    constat de gravité haute ou moyenne : correction de la description, ou
    écart à faire accepter. Un écart ne va dans `accept` qu'avec la raison
    donnée par l'utilisateur ; sinon, il reste ouvert.
-6. Protection des données (skill `data-protection`), quand elle est
+7. Protection des données (skill `data-protection`), quand elle est
    demandée : écris `aipd.json` (`dpia_build.py --schema`) avec
    l'hébergeur de la description, `requirements` et `threats` plutôt que
    de recopier exigences et menaces. Coche les critères du CEPD, cote
@@ -88,11 +96,11 @@ workflow, la commande les trace aussi au journal.
    chaque mesure à une exigence ou une menace. Lance `dpia_build.py
    aipd.json` (avec `--vault` et `--folder` dans un workflow à vault) et
    corrige jusqu'à zéro erreur ; un risque résiduel élevé reste ouvert.
-7. Dans un dossier de workflow, note au journal (`journal.py log`, skill
+8. Dans un dossier de workflow, note au journal (`journal.py log`, skill
    `decision-log`) chaque menace écartée et chaque écart accepté, avec sa
    raison, et chaque risque résiduel élevé de l'AIPD ; une décision qui revient à l'utilisateur se note `--kind
    question`.
-8. Livre les chemins, l'avis, les compteurs (menaces, constats ouverts par gravité)
+9. Livre les chemins, l'avis, les compteurs (menaces, constats ouverts par gravité)
    et la seule question qui reste, puis le rapport final JSON de la section
    Contrat. Si la description doit changer, passe la main à
    `schema-designer` ; dans un workflow, rends la main à

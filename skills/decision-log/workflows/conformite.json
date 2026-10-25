@@ -41,6 +41,7 @@
       "id": "description",
       "label": "Description cloud",
       "level": "moyen",
+      "after": [],
       "skills": [
         "cloud-architecture",
         "diagram-export"
@@ -66,6 +67,10 @@
       "id": "menaces",
       "label": "Menaces STRIDE et qualification de l'hébergement",
       "level": "complexe",
+      "after": [
+        "exigences",
+        "description"
+      ],
       "skills": [
         "threat-model",
         "well-architected-review"

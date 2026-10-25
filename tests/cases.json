@@ -103,6 +103,15 @@
       "files": ["schema-flux.md", "attachments/schema-flux.png"]
     },
     {
+      "id": "lot-parallele",
+      "skill": "doc-to-markdown",
+      "_note": "Un lot de documents converti en parallèle (--jobs) : rapport dans l'ordre des documents, un Markdown et une validation par document.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py", "args": ["{samples}/architecture.docx", "{samples}/presentation.pptx", "{samples}/rapport-texte.pdf", "{samples}/schema-flux.png", "--out", "{out}", "--jobs", "4"], "exit": 0, "report": {"errors": [], "results.0.engine": "markitdown", "results.1.engine": "markitdown", "results.2.type": "pdf", "results.3.type": "image", "results.0.validation.ok": true}}
+      ],
+      "files": ["architecture.md", "presentation.md", "rapport-texte.md", "schema-flux.md"]
+    },
+    {
       "id": "classify-regles",
       "skill": "doc-to-markdown",
       "slow": true,
@@ -525,7 +534,7 @@
       "_note": "Portes de revue : ordre des étapes imposé, soumission, validation par l'utilisateur, retour qui invalide les étapes suivantes.",
       "steps": [
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--stages", "exigences,architectures,schemas"], "exit": 0, "report": {"current": "exigences"}},
-        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "architectures"], "exit": 1, "report_contains": {"errors": "étape(s) non validée(s) avant elle : exigences"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "architectures"], "exit": 1, "report_contains": {"errors": "étape(s) dont elle dépend non validée(s) : exigences"}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "exigences"], "exit": 0},
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}/w"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["log", "{out}/w", "exigences", "--kind", "choix", "--text", "Arrêt de l'ancienne application écarté", "--why", "autre projet", "--refs", "ENF-005"], "exit": 0, "report": {"entry": "D-001"}},
@@ -542,7 +551,7 @@
       "files": ["w/workflow.json", "w/journal.md"],
       "contains": {"w/journal.md": ["| D-001 |", "Arrêt de l'ancienne application écarté", "Catalogue validé", "Invalidation", "à reprendre après le retour D-005 sur exigences"]}
     },
-    {"id": "workflow-facultative", "skill": "decision-log", "_note": "Étape facultative d'une définition : proposée à l'utilisateur, sautée avec ses mots (skip) ; une étape obligatoire ne se saute pas ; la suivante démarre après le saut ; un retour antérieur ne remet pas l'étape sautée à reprendre.", "steps": [{"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "{fixtures}/workflow/definition-facultative.json"], "exit": 0, "report": {"current": "note"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "note", "--text", "pas besoin"], "exit": 1, "report_contains": {"errors": "note n'est pas facultative"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "note"], "exit": 0}, {"copy": ["{fixtures}/workflow/pos-si.md", "{out}/w/note.md"]}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "note"], "exit": 0}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture", "--text", "pas de relecture"], "exit": 1, "report_contains": {"errors": "étape(s) non validée(s) avant elle : note"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "note", "--decision", "valide", "--text", "OK"], "exit": 0, "report_contains": {"next": "étape facultative relecture"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture"], "exit": 1, "report_contains": {"errors": "skip : --text"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture", "--text", "Pas de relecture cette fois"], "exit": 0, "report": {"stages.1.status": "sautee", "current": "publication"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "publication"], "exit": 0}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "note", "--decision", "retour", "--text", "Reprendre le titre"], "exit": 0, "report": {"stages.1.status": "sautee", "stages.2.status": "a-reprendre"}}], "files": ["w/journal.md"], "contains": {"w/journal.md": ["| relecture | sautée |", "Étape sautée", "Pas de relecture cette fois"]}},
+    {"id": "workflow-facultative", "skill": "decision-log", "_note": "Étape facultative d'une définition : proposée à l'utilisateur, sautée avec ses mots (skip) ; une étape obligatoire ne se saute pas ; la suivante démarre après le saut ; un retour antérieur ne remet pas l'étape sautée à reprendre.", "steps": [{"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "{fixtures}/workflow/definition-facultative.json"], "exit": 0, "report": {"current": "note"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "note", "--text", "pas besoin"], "exit": 1, "report_contains": {"errors": "note n'est pas facultative"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "note"], "exit": 0}, {"copy": ["{fixtures}/workflow/pos-si.md", "{out}/w/note.md"]}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "note"], "exit": 0}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture", "--text", "pas de relecture"], "exit": 1, "report_contains": {"errors": "étape(s) dont elle dépend non validée(s) : note"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "note", "--decision", "valide", "--text", "OK"], "exit": 0, "report_contains": {"next": "étape facultative relecture"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture"], "exit": 1, "report_contains": {"errors": "skip : --text"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/w", "relecture", "--text", "Pas de relecture cette fois"], "exit": 0, "report": {"stages.1.status": "sautee", "current": "publication"}}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "publication"], "exit": 0}, {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "note", "--decision", "retour", "--text", "Reprendre le titre"], "exit": 0, "report": {"stages.1.status": "sautee", "stages.2.status": "a-reprendre"}}], "files": ["w/journal.md"], "contains": {"w/journal.md": ["| relecture | sautée |", "Étape sautée", "Pas de relecture cette fois"]}},
     {
       "id": "workflow-definition",
       "skill": "decision-log",
@@ -974,6 +983,31 @@
       "files": ["vault/Workflows/Boutique/Étapes/Description tirée du code.md", "vault/Workflows/Boutique/Fichiers/schemas/architecture.drawio.png", "vault/Notes/autre.md"],
       "contains": {"vault/Workflows/Boutique/Étapes/Description tirée du code.md": ["type: \"etape\"", "![[Workflows/Boutique/Fichiers/schemas/architecture.drawio.png]]", "`schemas/architecture.json`"],
                    "vault/Workflows/Boutique/Boutique.md": ["## Livrables par étape", "[[Workflows/Boutique/Étapes/Description tirée du code|Description tirée du code]]"]}
+    },
+    {
+      "id": "workflow-parallele",
+      "skill": "decision-log",
+      "_note": "Étapes en graphe (after) : après la description, schémas et menaces sont prêtes ensemble et se mènent en parallèle ; un retour sur les schémas ne remet pas les menaces à reprendre ; une définition dont after vise une étape placée après est refusée.",
+      "steps": [
+        {"copy": ["{fixtures}/diagrams/cloud-aws-web.json", "{out}/w/schemas/architecture.json"]},
+        {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/w/schemas/architecture.drawio.png"]},
+        {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/w/schemas/architecture.drawio"]},
+        {"copy": ["{fixtures}/workflow/sources/cahier-des-charges.md", "{out}/w/schemas/architecture.threats.md"]},
+        {"copy": ["{fixtures}/workflow/sources/cahier-des-charges.md", "{out}/w/schemas/architecture.wa.md"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "cloud-existant"], "exit": 0, "report": {"ready": ["description"]}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "description"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "description", "--decision", "valide", "--text", "ok"], "exit": 0, "report": {"ready": ["schemas", "menaces"]}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "schemas"], "exit": 0, "report": {"stage.id": "schemas", "ready": ["menaces"]}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "menaces"], "exit": 0, "report": {"stage.id": "menaces", "ready": []}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "menaces"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas"], "exit": 0},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "schemas", "--decision", "retour", "--text", "les flux sont à revoir"], "exit": 0, "report": {"stages.1.status": "a-reprendre", "stages.2.status": "en-revue"}},
+        {"copy": ["{fixtures}/workflow/definition-after-invalide.json", "{out}/def.json"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w2", "--definition", "{out}/def.json"], "exit": 1, "report_contains": {"errors": "« b » n'est pas une étape placée avant a"}}
+      ],
+      "files": ["w/workflow.json", "w/journal.md"],
+      "contains": {"w/journal.md": ["| schemas | à reprendre |"]}
     }
   ]
 }

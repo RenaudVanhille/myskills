@@ -91,7 +91,7 @@
         "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
       ],
       "never": [
-        "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur (ou son renoncement à une étape facultative)",
+        "Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative)",
         "Valider une étape à la place de l'utilisateur",
         "Modifier les documents d'origine de documents/",
         "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
@@ -3999,7 +3999,7 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -4030,7 +4030,8 @@
                 "warnings",
                 "changes",
                 "stage",
-                "ask"
+                "ask",
+                "ready"
               ],
               "additionalProperties": false,
               "properties": {
@@ -4198,6 +4199,13 @@
                       }
                     }
                   ]
+                },
+                "ready": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Étapes qui peuvent démarrer maintenant (toutes celles dont elles dépendent sont franchies) ; plusieurs : à mener en parallèle."
                 }
               }
             }
@@ -4472,6 +4480,15 @@
                           "facultative": {
                             "type": "boolean",
                             "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
+                          },
+                          "after": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                            },
+                            "uniqueItems": true,
+                            "description": "Étapes dont celle-ci dépend, toutes placées avant elle (défaut : l'étape précédente ; [] : aucune). Des étapes prêtes en même temps se mènent en parallèle, chacune avec sa revue."
                           }
                         }
                       }
@@ -4616,7 +4633,7 @@
           "when": "choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault"
         }
       ],
-      "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
+      "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation de celles dont elle dépend, et des étapes indépendantes se mènent en parallèle ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
       "path": "skills/decision-log"
     },
     {
@@ -5000,7 +5017,7 @@
         {
           "name": "convert.py",
           "role": "Convertit les documents en Markdown, en local.",
-          "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
+          "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]",
           "options": {
             "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md",
             "--out": "dossier de sortie (défaut : dossier courant)",
@@ -5008,7 +5025,8 @@
             "--classify": "classe d'abord avec classify.py (Laya)",
             "--domains": "avec --classify : domaines possibles",
             "--no-clean": "ne pas nettoyer le texte des PDF",
-            "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)"
+            "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)",
+            "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)"
           },
           "report": {
             "format": "json",

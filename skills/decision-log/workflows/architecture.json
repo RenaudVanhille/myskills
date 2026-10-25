@@ -126,6 +126,9 @@
       "id": "revue",
       "label": "Revue d'architecture",
       "level": "complexe",
+      "after": [
+        "schemas"
+      ],
       "facultative": true,
       "skills": [
         "architecture-review",
@@ -158,6 +161,9 @@
       "id": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
+      "after": [
+        "schemas"
+      ],
       "facultative": true,
       "skills": [
         "solution-estimate"
@@ -184,6 +190,10 @@
       "id": "dossier",
       "label": "Dossier d'architecture technique",
       "level": "simple",
+      "after": [
+        "revue",
+        "chiffrage"
+      ],
       "facultative": true,
       "skills": [
         "architecture-dossier"

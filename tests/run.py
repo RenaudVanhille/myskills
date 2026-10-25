@@ -11,13 +11,16 @@ tests/expected/. Chaque rapport JSON est validé contre le JSON Schema déclaré
 dans le contract.json du skill, et le cas `contrats` vérifie les contrats
 eux-mêmes et les fichiers qui en sont générés ; le cas `regles` vérifie les
 règles mécaniques d'AGENTS.md. Les cas marqués `slow` (gros téléchargements au premier
-lancement) ne tournent qu'avec --slow.
+lancement) ne tournent qu'avec --slow. Les cas tournent en parallèle, chacun
+dans son dossier temporaire (--jobs, par défaut le nombre de cœurs) ; le
+bilan garde l'ordre de cases.json.
 
 Usage :
-    uv run tests/run.py [--only ID[,ID]] [--slow] [--keep] [--json]
+    uv run tests/run.py [--only ID[,ID]] [--slow] [--keep] [--json] [--jobs N]
 """
 
 import argparse
+import concurrent.futures
 import difflib
 import json
 import os
@@ -262,7 +265,12 @@ def check_contracts() -> dict:
         failures += [f"workflows/{path.name} : {e}" for e in schema_errors(definition, definition_schema)]
         if definition.get("name") != path.stem:
             failures.append(f"workflows/{path.name} : name = {definition.get('name')!r}, attendu {path.stem!r}")
+        seen: list = []
         for stage in definition.get("stages", []):
+            # after : des étapes placées avant (pas de cycle possible).
+            failures += [f"workflows/{path.name} : étape {stage.get('id')}, after vise « {a} », pas une étape "
+                         "placée avant" for a in stage.get("after", []) if a not in seen]
+            seen.append(stage.get("id"))
             failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill inconnu « {s} »"
                          for s in stage.get("skills", []) if s not in skills]
             if stage.get("agent") and stage["agent"] not in agents:
@@ -458,6 +466,8 @@ def main() -> int:
     parser.add_argument("--slow", action="store_true", help="lancer aussi les cas lents")
     parser.add_argument("--keep", action="store_true", help="garder les dossiers de sortie")
     parser.add_argument("--json", action="store_true", help="rapport JSON au lieu du bilan")
+    parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1,
+                        help="cas lancés en même temps (1 : un par un)")
     args = parser.parse_args()
 
     cases = json.loads((TESTS / "cases.json").read_text(encoding="utf-8"))["cases"]
@@ -471,20 +481,27 @@ def main() -> int:
             print(f"{'OK  ' if results[-1]['ok'] else 'ÉCHEC'} {case_id} (tous)", flush=True)
             for failure in results[-1]["failures"]:
                 print(f"      - {failure}")
+    selected = []
     for case in cases:
         if only and case["id"] not in only:
             continue
         if case.get("slow") and not args.slow and not only:
             skipped.append(case["id"])
             continue
-        results.append(run_case(case, args.keep))
-        if not args.json:
-            mark = "OK  " if results[-1]["ok"] else "ÉCHEC"
-            print(f"{mark} {case['id']} ({case['skill']})", flush=True)
-            for failure in results[-1]["failures"]:
-                print(f"      - {failure}")
-            if results[-1]["out"]:
-                print(f"      sortie : {results[-1]['out']}")
+        selected.append(case)
+    # Les cas sont indépendants (dossier temporaire chacun) : on les lance en
+    # parallèle et on affiche les résultats dans l'ordre de cases.json.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        futures = [pool.submit(run_case, case, args.keep) for case in selected]
+        for case, future in zip(selected, futures):
+            results.append(future.result())
+            if not args.json:
+                mark = "OK  " if results[-1]["ok"] else "ÉCHEC"
+                print(f"{mark} {case['id']} ({case['skill']})", flush=True)
+                for failure in results[-1]["failures"]:
+                    print(f"      - {failure}")
+                if results[-1]["out"]:
+                    print(f"      sortie : {results[-1]['out']}")
 
     passed = sum(r["ok"] for r in results)
     if args.json:

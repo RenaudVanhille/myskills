@@ -120,6 +120,9 @@
       "id": "feuille-de-route",
       "label": "Feuille de route de transition",
       "level": "moyen",
+      "after": [
+        "evaluation"
+      ],
       "skills": [
         "transition-roadmap",
         "diagram-export"
@@ -146,6 +149,10 @@
       "id": "dossier",
       "label": "Dossier de migration",
       "level": "simple",
+      "after": [
+        "chiffrage",
+        "feuille-de-route"
+      ],
       "facultative": true,
       "skills": [
         "architecture-dossier"

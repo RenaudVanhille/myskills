@@ -11,12 +11,17 @@ exigences ou options qu'elle concerne. `journal.md` en est la version
 lisible, réécrite à chaque commande.
 
 Règles appliquées par le script, pas par le modèle :
-- une étape ne démarre que si toutes les précédentes sont validées (ou,
-  facultatives dans la définition, sautées à la demande de l'utilisateur) ;
+- une étape ne démarre que si toutes celles dont elle dépend sont validées
+  (ou, facultatives dans la définition, sautées à la demande de
+  l'utilisateur) : par défaut l'étape précédente, sinon celles de son champ
+  `after` dans la définition ; des étapes prêtes en même temps (`ready`)
+  peuvent se faire en parallèle ;
 - seule une étape en revue peut être validée, et seulement si ses fichiers
   n'ont pas changé depuis la soumission ;
-- un retour sur une étape remet à reprendre cette étape et toutes les
-  suivantes déjà commencées ;
+- un retour sur une étape remet à reprendre cette étape et toutes celles qui
+  en dépendent, déjà commencées ;
+- les commandes d'un même dossier passent l'une après l'autre (verrou
+  workflow.lock), pour que des étapes menées en parallèle ne perdent rien ;
 - une étape ne démarre pas si un livrable déjà validé a changé depuis ;
 - une validation ou un retour est toujours attribué à l'utilisateur ;
 - à une nouvelle soumission, les exigences, options et fichiers ajoutés,
@@ -50,12 +55,15 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
 """
 
 import argparse
+import contextlib
 import datetime
 import difflib
 import fnmatch
 import hashlib
 import json
+import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -70,7 +78,37 @@ DONE = ("validee", "sautee")
 # Valeurs de la propriété `revue` d'une note de revue dans le vault.
 VAULT_DECISIONS = {"validée": "valide", "validee": "valide", "valide": "valide", "ok": "valide",
                    "retour": "retour", "à reprendre": "retour", "a reprendre": "retour"}
-STATE, JOURNAL = "workflow.json", "journal.md"
+STATE, JOURNAL, LOCK = "workflow.json", "journal.md", "workflow.lock"
+# Attente maximale du verrou, et âge au-delà duquel un verrou est abandonné (commande interrompue).
+LOCK_WAIT, LOCK_STALE = 30, 120
+
+
+@contextlib.contextmanager
+def locked(folder: Path):
+    """Verrou du dossier du workflow : une commande à la fois, même lancée par des agents en parallèle."""
+    if not folder.is_dir():
+        yield
+        return
+    lock, deadline = folder / LOCK, time.monotonic() + LOCK_WAIT
+    while True:
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            break
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > LOCK_STALE:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                continue
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"{lock} : verrou tenu depuis plus de {LOCK_WAIT} s ; s'il ne reste aucune "
+                                   "commande en cours, supprimez-le")
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        lock.unlink(missing_ok=True)
 
 
 def now() -> str:
@@ -167,6 +205,11 @@ def load_definition(value: str, errors: list[str]) -> dict | None:
     invalid = check(definition, schema["$defs"]["definition"], schema)
     ids = [s.get("id") for s in definition.get("stages", []) if isinstance(s, dict)]
     invalid += [f"stages : étape « {i} » en double" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    for index, stage in enumerate(s for s in definition.get("stages", []) if isinstance(s, dict)):
+        for need in stage.get("after", []) if isinstance(stage.get("after"), list) else []:
+            if need not in ids[:index]:
+                invalid.append(f"stages/{index}/after : « {need} » n'est pas une étape placée avant "
+                               f"{stage.get('id')} ({', '.join(map(str, ids[:index])) or 'aucune'})")
     errors += [f"{path.name} : {e}" for e in invalid]
     return None if invalid else {k: v for k, v in definition.items() if not k.startswith("_")}
 
@@ -176,6 +219,39 @@ def stage_definition(state: dict, name: str | None) -> dict | None:
         if stage["id"] == name:
             return {k: v for k, v in stage.items() if not k.startswith("_")}
     return None
+
+
+def requires(state: dict, name: str) -> list[str]:
+    """Étapes dont dépend directement une étape : son champ `after`, sinon l'étape précédente."""
+    definition = stage_definition(state, name)
+    if definition is not None and "after" in definition:
+        return list(definition["after"])
+    ids = [s["id"] for s in state["stages"]]
+    index = ids.index(name)
+    return ids[index - 1:index]
+
+
+def ancestors(state: dict, name: str) -> list[str]:
+    """Toutes les étapes dont une étape dépend, directement ou non, dans l'ordre du workflow."""
+    found, todo = set(), requires(state, name)
+    while todo:
+        current = todo.pop()
+        if current not in found:
+            found.add(current)
+            todo += requires(state, current)
+    return [s["id"] for s in state["stages"] if s["id"] in found]
+
+
+def dependents(state: dict, name: str) -> list[str]:
+    """Étapes qui dépendent, directement ou non, d'une étape."""
+    return [s["id"] for s in state["stages"] if name in ancestors(state, s["id"])]
+
+
+def ready(state: dict) -> list[str]:
+    """Étapes qui peuvent démarrer maintenant : toutes celles dont elles dépendent sont franchies."""
+    status = {s["id"]: s["status"] for s in state["stages"]}
+    return [s["id"] for s in state["stages"] if s["status"] in ("a-faire", "a-reprendre")
+            and all(status[a] in DONE for a in ancestors(state, s["id"]))]
 
 
 def deliverables(folder: Path, definition: dict, errors: list[str]) -> list[str]:
@@ -292,10 +368,21 @@ def trace(folder: Path, kind: str, message: dict) -> dict:
     les avertissements."""
     errors: list[str] = []
     warnings: list[str] = []
+    with locked(folder):
+        return _trace(folder, kind, message, errors, warnings)
+
+
+def _trace(folder: Path, kind: str, message: dict, errors: list[str], warnings: list[str]) -> dict:
     state = load_state(folder, errors)
     if state is None:
         return {"entry": None, "errors": errors, "warnings": warnings}
-    current = next_action(state)[0] or state["stages"][-1]["id"]
+    # Avec des étapes en parallèle, le message va à l'étape en cours dont il cite un livrable, sinon à la
+    # première étape en cours ou à l'étape courante.
+    running = [s["id"] for s in state["stages"] if s["status"] == "en-cours"]
+    named = [s for s in running if any(fnmatch.fnmatch(f, pattern) for f in message.get("files", [])
+                                       for pattern in (lambda d: d["deliverables"] + d.get("optional", []))(
+                                           stage_definition(state, s) or {"deliverables": []}))]
+    current = (named or running or [next_action(state)[0] or state["stages"][-1]["id"]])[0]
     if kind == "handoff":
         text = f"vers {message['agent']} : {message['objective']}"
     else:
@@ -353,14 +440,14 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
     stage = stage_of(state, args.stage, errors)
     if not stage:
         return None, None
-    index = state["stages"].index(stage)
+    before = [s for s in state["stages"] if s["id"] in ancestors(state, stage["id"])]
     entry = None
     if args.command in ("start", "skip"):
-        blocking = [s["id"] for s in state["stages"][:index] if s["status"] not in DONE]
-        stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in state["stages"][:index]
+        blocking = [s["id"] for s in before if s["status"] not in DONE]
+        stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in before
                  if s["status"] == "validee" and changed_files(folder, s)]
         if blocking:
-            errors.append(f"{stage['id']} ne peut pas démarrer : étape(s) non validée(s) avant elle : "
+            errors.append(f"{stage['id']} ne peut pas démarrer : étape(s) dont elle dépend non validée(s) : "
                           f"{', '.join(blocking)}")
         elif stale:
             errors.append(f"{stage['id']} ne peut pas démarrer : livrable(s) validé(s) modifié(s) depuis : "
@@ -462,7 +549,7 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                 stage["status"] = "a-reprendre"
                 entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs),
                                   via=via)
-                for later in state["stages"][index + 1:]:
+                for later in (s for s in state["stages"] if s["id"] in dependents(state, stage["id"])):
                     # Une étape sautée le reste : l'utilisateur y a renoncé, le retour n'y change rien.
                     if later["status"] not in ("a-faire", "sautee"):
                         later["status"] = "a-reprendre"
@@ -516,18 +603,32 @@ def main() -> int:
 
     errors: list[str] = []
     warnings: list[str] = []
-    state, entry = run(args, errors, warnings)
-    if state and not errors and args.command != "status":
-        save(args.folder, state)
-    memory = synchronize(args.folder, state, warnings) if state and not errors else None
+    try:
+        with locked(args.folder):
+            state, entry = run(args, errors, warnings)
+            if state and not errors and args.command != "status":
+                save(args.folder, state)
+            memory = synchronize(args.folder, state, warnings) if state and not errors else None
+    except TimeoutError as error:
+        state, entry, memory = None, None, None
+        errors.append(str(error))
     current, action = next_action(state) if state else (None, "corriger l'erreur")
-    # L'étape à produire, seulement quand l'agent en a besoin : au démarrage ou à la reprise.
-    todo = state and current and args.command in ("init", "start", "status") and \
-        next(s for s in state["stages"] if s["id"] == current)["status"] != "en-revue"
+    startable = ready(state) if state and not errors else []
+    others = [s for s in startable if s != current]
+    if others:
+        action += f" ; en parallèle, étape(s) prête(s) : {', '.join(others)}"
+    # L'étape à produire, seulement quand l'agent en a besoin : au démarrage (celle démarrée) ou à la reprise.
+    if args.command == "start" and not errors:
+        current_stage = args.stage
+    else:
+        current_stage = current if state and current and args.command in ("init", "status") and \
+            next(s for s in state["stages"] if s["id"] == current)["status"] != "en-revue" else None
+    todo = bool(current_stage)
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
               "current": current, "next": action, "entry": entry, "changes": getattr(args, "changes", None),
-              "stage": stage_definition(state, current) if todo else None,
+              "ready": startable,
+              "stage": stage_definition(state, current_stage) if todo else None,
               "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
               "memory": memory,

@@ -17,7 +17,7 @@
     "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
   ],
   "never": [
-    "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur (ou son renoncement à une étape facultative)",
+    "Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative)",
     "Valider une étape à la place de l'utilisateur",
     "Modifier les documents d'origine de documents/",
     "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
