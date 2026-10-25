@@ -3,17 +3,329 @@
   "level": "moyen",
   "inputs": [
     "Décision de diagram-brief",
-    "Contenu à représenter"
+    "Contenu à représenter",
+    "Description JSON d'un flowchart ou d'une séquence (mermaid_build.py --schema), ou options.json d'architecture-options et l'option retenue"
   ],
   "outputs": [
     "Bloc ```mermaid dans un Markdown, ou fichier .mmd"
   ],
-  "scripts": [],
+  "scripts": [
+    {
+      "name": "mermaid_build.py",
+      "role": "Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds.",
+      "usage": "uv run scripts/mermaid_build.py SCHEMA.json [--out SCHEMA.md|.mmd] | --from-options options.json --option ID [--out F] | --schema",
+      "options": {
+        "SCHEMA.json": "description : title, type (flowchart : nodes, groups, edges ; sequence : participants, messages)",
+        "--from-options": "options.json d'architecture-options, au lieu de SCHEMA.json (flowchart de l'option)",
+        "--option": "identifiant de l'option, avec --from-options",
+        "--out": "fichier .md (bloc mermaid avec titre) ou .mmd (défaut : <nom>.md à côté de l'entrée)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "diagramme écrit (rendu à vérifier avec diagram-export --check)",
+        "1": "description invalide ou référence inconnue ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Description d'un flowchart (nœuds, groupes, liens) ou d'une séquence (participants, messages, notes, blocs alt/opt/loop).",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "type"
+          ],
+          "$defs": {
+            "step": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "properties": {
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "call",
+                        "reply",
+                        "async"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "note",
+                    "over"
+                  ],
+                  "properties": {
+                    "note": {
+                      "type": "string"
+                    },
+                    "over": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "block",
+                    "branches"
+                  ],
+                  "properties": {
+                    "block": {
+                      "enum": [
+                        "alt",
+                        "opt",
+                        "loop"
+                      ]
+                    },
+                    "branches": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "messages"
+                        ],
+                        "properties": {
+                          "when": {
+                            "type": "string"
+                          },
+                          "messages": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/$defs/step"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "flowchart",
+                "sequence"
+              ]
+            },
+            "direction": {
+              "enum": [
+                "LR",
+                "TD",
+                "RL",
+                "BT"
+              ]
+            },
+            "nodes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "person",
+                      "system",
+                      "external",
+                      "db",
+                      "queue",
+                      "alert"
+                    ]
+                  }
+                }
+              }
+            },
+            "groups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "nodes"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "nodes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "async": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "participants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "actor": {
+                    "type": "boolean"
+                  },
+                  "box": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "messages": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/step"
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet, toujours avec errors et warnings.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "output",
+            "type",
+            "nodes",
+            "links",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "enum": [
+                "flowchart",
+                "sequence",
+                null
+              ]
+            },
+            "nodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "links": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "handoffs": [
     {
       "to": "diagram-export",
       "kind": "skill",
       "when": "vérifier le rendu (--check) ou exporter en PNG ou SVG"
+    }
+  ],
+  "requires": [
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+      "optional": true
     }
   ]
 }

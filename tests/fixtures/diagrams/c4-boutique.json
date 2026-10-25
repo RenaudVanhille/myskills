@@ -1,0 +1,27 @@
+{
+  "title": "Boutique en ligne",
+  "elements": [
+    {"id": "client", "kind": "person", "label": "Client", "description": "Achète en ligne"},
+    {"id": "shop", "kind": "system", "label": "Boutique", "elements": [
+      {"id": "web", "kind": "container", "label": "Site web", "tech": "React"},
+      {"id": "api", "kind": "container", "label": "API commandes", "tech": "Java", "elements": [
+        {"id": "paiement", "kind": "component", "label": "Module paiement"}
+      ]},
+      {"id": "db", "kind": "database", "label": "Commandes", "tech": "PostgreSQL"},
+      {"id": "bus", "kind": "queue", "label": "Évènements"}
+    ]},
+    {"id": "bank", "kind": "external", "label": "Banque"}
+  ],
+  "relations": [
+    {"from": "client", "to": "web", "label": "commande"},
+    {"from": "web", "to": "api", "label": "appelle", "tech": "HTTPS"},
+    {"from": "api", "to": "db", "label": "enregistre"},
+    {"from": "api", "to": "bus", "label": "publie", "async": true},
+    {"from": "paiement", "to": "bank", "label": "débite"}
+  ],
+  "views": [
+    {"id": "index", "title": "Boutique : contexte"},
+    {"id": "shop", "title": "Boutique : conteneurs", "of": "shop"},
+    {"id": "api", "title": "API commandes : composants", "of": "api"}
+  ]
+}

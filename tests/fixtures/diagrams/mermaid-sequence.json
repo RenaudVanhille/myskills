@@ -1,0 +1,24 @@
+{
+  "title": "Passage d'une commande",
+  "type": "sequence",
+  "participants": [
+    {"id": "client", "label": "Client", "actor": true},
+    {"id": "gw", "label": "API Gateway", "box": "Exposition"},
+    {"id": "api", "label": "API commandes", "box": "Services"},
+    {"id": "end", "label": "Base commandes", "box": "Services"},
+    {"id": "bus", "label": "File d'évènements", "box": "Services"}
+  ],
+  "messages": [
+    {"from": "client", "to": "gw", "label": "POST /commandes (HTTPS, jeton OIDC)"},
+    {"from": "gw", "to": "api", "label": "transmet (mTLS)"},
+    {"from": "api", "to": "end", "label": "INSERT commande"},
+    {"block": "alt", "branches": [
+      {"when": "stock insuffisant", "messages": [{"from": "api", "to": "client", "label": "409 Conflit", "kind": "reply"}]},
+      {"when": "stock disponible", "messages": [
+        {"from": "api", "to": "bus", "label": "CommandeCréée", "kind": "async"},
+        {"from": "api", "to": "client", "label": "201 Créé", "kind": "reply"}
+      ]}
+    ]},
+    {"note": "délai max 300 ms", "over": ["api", "end"]}
+  ]
+}

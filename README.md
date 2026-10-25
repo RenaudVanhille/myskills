@@ -79,9 +79,9 @@ lire par un autre agent ou outil qui appelle myskills.
 | `diagram-brief` | Choix du format de schéma : décision courte en JSON validée, format, skill et livraison selon le public et la destination (`brief.py`) |
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
-| `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
+| `c4-architecture` | Modèle C4 en LikeC4 écrit par script depuis un JSON court ou une option d'architecture |
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte, un inventaire CSV ou une note Markdown ; options d'architecture situées dans le POS (impacts, redondances, POS cible, `pos_impact.py`) |
-| `mermaid-diagram` | Schémas Mermaid dans le Markdown |
+| `mermaid-diagram` | Schémas Mermaid dans le Markdown (flux et séquence écrits par script) |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
 | `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (avec `urbanization-map`), revue Well-Architected des piliers de chaque option cloud (avec `well-architected-review`) |
 | `solution-estimate` | Chiffrage d'une option d'architecture : charge par lot, phase et profil (estimation à trois points, fourchette P10-P90), pilotage et provision, infrastructure par hébergeur (dont OVHcloud, Cloud Temple, Outscale, S3NS) avec contrôle des qualifications exigées (SecNumCloud, HDS), maintenance et exploitation, coût total sur plusieurs années, budget, exigences et composants non chiffrés signalés, CSV pour un tableur (`estimate_build.py`) |

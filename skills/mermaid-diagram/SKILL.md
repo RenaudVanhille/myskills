@@ -10,9 +10,11 @@ description: "Écrit des schémas Mermaid (flux, séquence, états, classes, mod
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief ; Contenu à représenter.
+- **Entrées** : Décision de diagram-brief ; Contenu à représenter ; Description JSON d'un flowchart ou d'une séquence (mermaid_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
-- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **`mermaid_build.py`** : Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds. Rapport JSON, codes de sortie : 0 diagramme écrit (rendu à vérifier avec diagram-export --check) ; 1 description invalide ou référence inconnue ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Passe la main** au skill `diagram-export` : vérifier le rendu (--check) ou exporter en PNG ou SVG.
 
 ## 1. Choisir le type
@@ -26,67 +28,60 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 | Modèle de données | `erDiagram` |
 | Planning | `gantt` |
 
-## 2. Écrire
+## 2. Flux et séquence : décrire en JSON
 
-- Un titre dans l'en-tête :
-  ```text
-  ---
-  title: Traitement d'un paiement
-  ---
-  flowchart LR
-  ```
-- Identifiants courts sans accents (`api`, `db`), libellés lisibles entre
-  crochets : `api[API paiement]`. Libellés avec des caractères spéciaux
-  (`(`, `:`, `/`) entre guillemets : `api["API (v2)"]`.
-- Formes de la charte : `client([Client])`, `api[API]`, `db[(Base)]`,
-  `bus[/Bus/]`. Flèche synchrone `-->`, asynchrone `-.->`, libellé
-  `-->|appelle|`.
-- Couleurs : ajoutez les `classDef` de `references/style.md` utiles, puis
-  `class api,web system`. Pas de couleur en dur ailleurs.
-- `subgraph` pour une zone (équipe, réseau, système).
-- 15 à 20 nœuds maximum ; au-delà, faites deux schémas.
+Pour un `flowchart` ou un `sequenceDiagram`, décrivez le contenu en JSON ;
+`scripts/mermaid_build.py` écrit la syntaxe (identifiants sûrs, libellés
+protégés, formes et `classDef` de la charte, `autonumber`) et vérifie les
+références. `uv run scripts/mermaid_build.py --schema` donne la forme.
 
-### Séquence cloud
-
-Pour les appels entre services sur un parcours (requête API, traitement
-asynchrone, authentification) :
-
-```text
----
-title: Passage d'une commande
----
-sequenceDiagram
-  autonumber
-  actor client as Client
-  box Exposition
-    participant gw as API Gateway
-  end
-  box Services
-    participant api as API commandes
-    participant db as Base commandes
-    participant bus as File SQS
-  end
-  client->>gw: POST /commandes (HTTPS, jeton OIDC)
-  gw->>api: transmet (mTLS)
-  api->>db: INSERT commande
-  alt stock insuffisant
-    api-->>client: 409 Conflit
-  else stock disponible
-    api-)bus: CommandeCréée
-    api-->>client: 201 Créé
-  end
-  Note over api,db: délai max 300 ms
+```json
+{"title": "Traitement d'un paiement", "type": "flowchart", "direction": "LR",
+ "nodes": [{"id": "client", "label": "Client", "kind": "person"},
+           {"id": "api", "label": "API (v2)", "kind": "system"},
+           {"id": "db", "label": "Paiements", "kind": "db"}],
+ "groups": [{"label": "Boutique", "nodes": ["api", "db"]}],
+ "edges": [{"from": "client", "to": "api", "label": "paie"},
+           {"from": "api", "to": "db", "label": "enregistre", "async": false}]}
 ```
 
-- `autonumber` numérote les messages ; `box` regroupe les participants par
-  zone (exposition, services, données, tiers).
-- `->>` appel synchrone, `-->>` réponse, `-)` message asynchrone.
-- `alt` / `else` pour les cas d'erreur, `opt` pour une étape facultative,
-  `loop` pour une relance ; `Note over` pour un délai, un timeout ou un
-  protocole.
-- Mêmes noms de services que le schéma de déploiement (`cloud-architecture`).
+```json
+{"title": "Passage d'une commande", "type": "sequence",
+ "participants": [{"id": "client", "label": "Client", "actor": true},
+                  {"id": "api", "label": "API commandes", "box": "Services"}],
+ "messages": [{"from": "client", "to": "api", "label": "POST /commandes (HTTPS)"},
+              {"block": "alt", "branches": [
+                {"when": "stock insuffisant", "messages": [{"from": "api", "to": "client", "label": "409", "kind": "reply"}]},
+                {"when": "stock disponible", "messages": [{"from": "api", "to": "client", "label": "201", "kind": "reply"}]}]},
+              {"note": "délai max 300 ms", "over": ["api"]}]}
+```
 
-## 3. Vérifier le rendu
+```bash
+uv run scripts/mermaid_build.py SCHEMA.json [--out SCHEMA.md|.mmd]
+uv run scripts/mermaid_build.py --from-options options.json --option A [--out F]
+```
+
+- Nœuds : `kind` `person`, `system`, `external`, `db`, `queue`, `alert` ;
+  `groups` donne les `subgraph` (équipe, réseau, système). 15 à 20 nœuds
+  au plus ; au-delà, faites deux schémas.
+- Liens : un verbe par lien (`label`) ; `async` pour un évènement.
+- Séquence : `kind` `call` (défaut), `reply`, `async` ; `box` regroupe les
+  participants par zone (exposition, services, données, tiers) ; blocs
+  `alt`, `opt`, `loop` ; `note` sur un ou plusieurs participants. Mêmes
+  noms de services que le schéma de déploiement (`cloud-architecture`).
+- `--from-options` donne le flowchart d'une option d'`architecture-options`.
+
+## 3. Autres types : écrire à la main
+
+États, classes, modèle de données et planning s'écrivent directement :
+
+- Un titre dans l'en-tête (`---`, `title: ...`, `---`).
+- Identifiants courts sans accents (`api`, `db`), libellés avec des
+  caractères spéciaux (`(`, `:`, `/`) entre guillemets : `api["API (v2)"]`.
+- Couleurs : les `classDef` de `references/style.md` utiles, puis
+  `class api,web system`. Pas de couleur en dur ailleurs.
+
+## 4. Vérifier le rendu
 
 ```bash
 uv run ../diagram-export/scripts/export.py FICHIER.md --check
@@ -99,11 +94,11 @@ un navigateur local piloté par Playwright (Edge ou Chrome s'ils sont
 installés) ; la bibliothèque est téléchargée une fois depuis npm puis gardée
 en cache.
 
-Erreurs fréquentes : parenthèse ou deux-points non protégés dans un
-libellé, mot réservé `end` utilisé comme identifiant, flèche `->` au lieu de
-`-->` dans un `flowchart`.
+Erreurs fréquentes à la main : parenthèse ou deux-points non protégés dans
+un libellé, mot réservé `end` utilisé comme identifiant, flèche `->` au lieu
+de `-->` dans un `flowchart`.
 
-## 4. Livrer
+## 5. Livrer
 
 - Dépôt et Obsidian : laissez le bloc dans le Markdown, ils le rendent.
 - Word, PowerPoint, Confluence : exportez avec `diagram-export`

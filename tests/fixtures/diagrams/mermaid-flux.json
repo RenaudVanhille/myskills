@@ -1,0 +1,19 @@
+{
+  "title": "Traitement d'un paiement",
+  "type": "flowchart",
+  "direction": "LR",
+  "nodes": [
+    {"id": "client", "label": "Client", "kind": "person"},
+    {"id": "api", "label": "API (v2) : paiement", "kind": "system"},
+    {"id": "db", "label": "Paiements", "kind": "db"},
+    {"id": "bus", "label": "Évènements", "kind": "queue"},
+    {"id": "bank", "label": "Banque", "kind": "external"}
+  ],
+  "groups": [{"label": "Boutique", "nodes": ["api", "db", "bus"]}],
+  "edges": [
+    {"from": "client", "to": "api", "label": "paie"},
+    {"from": "api", "to": "db", "label": "enregistre"},
+    {"from": "api", "to": "bus", "label": "publie", "async": true},
+    {"from": "api", "to": "bank"}
+  ]
+}

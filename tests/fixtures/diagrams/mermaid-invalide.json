@@ -1,0 +1,6 @@
+{
+  "title": "Flux fautif",
+  "type": "flowchart",
+  "nodes": [{"id": "api", "label": "API", "kind": "sytem"}],
+  "edges": [{"from": "api", "to": "dbb", "label": "lit"}]
+}

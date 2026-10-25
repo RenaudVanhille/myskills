@@ -213,9 +213,11 @@ Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs,
 Résumé de [`contract.json`](skills/c4-architecture/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture.
+- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture ; Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Dossier LikeC4 : specification.c4 et model.c4 ; Un PNG par vue (après export).
-- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé. Rapport JSON, codes de sortie : 0 modèle écrit et vérifié (avertissements possibles) ; 1 description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
 
@@ -383,9 +385,11 @@ Résumé de [`contract.json`](skills/markdown-to-obsidian/contract.json), qui fa
 Résumé de [`contract.json`](skills/mermaid-diagram/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief ; Contenu à représenter.
+- **Entrées** : Décision de diagram-brief ; Contenu à représenter ; Description JSON d'un flowchart ou d'une séquence (mermaid_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
-- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **`mermaid_build.py`** : Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds. Rapport JSON, codes de sortie : 0 diagramme écrit (rendu à vérifier avec diagram-export --check) ; 1 description invalide ou référence inconnue ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Passe la main** au skill `diagram-export` : vérifier le rendu (--check) ou exporter en PNG ou SVG.
 
 ### `requirements-catalog`

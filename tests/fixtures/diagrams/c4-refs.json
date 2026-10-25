@@ -1,0 +1,8 @@
+{
+  "title": "Références fautives",
+  "elements": [
+    {"id": "client", "kind": "person", "label": "Client"},
+    {"id": "api", "kind": "container", "label": "API hors système"}
+  ],
+  "relations": [{"from": "client", "to": "apii", "label": "appelle"}]
+}
