@@ -1,6 +1,67 @@
 # Journal des versions
 
-## À venir
+## 0.5.0 (2026-10-25)
+
+Ontologie du vault, revue d'architecture et chiffrage, puis revue v0.4.0 :
+hébergeurs souverains communs aux skills cloud, étapes facultatives du
+workflow, mémoire partagée complète et diagrammes C4 et Mermaid écrits par
+script.
+
+### Hébergeurs souverains
+
+- `shared/providers.json` (déplacé de `solution-estimate`) : catalogue
+  commun des hébergeurs (AWS, Azure, Google Cloud, OVHcloud, Cloud Temple,
+  Outscale, S3NS, Bleu, NumSpot, Scaleway, sur site), juridiction,
+  qualifications (SecNumCloud, HDS) et vocabulaire de schéma ; copié par
+  `build.py` dans `cloud-architecture`, `well-architected-review`,
+  `architecture-options` et `solution-estimate`.
+- `cloud-architecture` : `provider` accepte ces hébergeurs (services
+  génériques aux formes de la charte, groupes projet, région, zone, réseau,
+  sous-réseau), `qualifications` exigées ; `--types ovh` liste le
+  vocabulaire.
+- `well-architected-review` : services des hébergeurs lus par leur rôle ;
+  règle SEC-08 (hébergeur sans la qualification exigée).
+- `architecture-options` : `hosting` (qualifications et exigences qui les
+  portent) ; une option chez un hébergeur non qualifié reçoit un écart
+  bloquant sur ces exigences ; la description cloud de l'option garde les
+  qualifications.
+
+### Workflow et mémoire partagée
+
+- `decision-log` : étape `facultative` d'une définition, sous-commande
+  `journal.py skip --text` (statut `sautee`, décision `saut` au journal).
+  Le workflow `architecture` gagne les étapes facultatives `revue`
+  (architecture-reviewer) et `chiffrage` (solution-estimator).
+- `--vault --folder` sur `wa_check.py`, `stride.py` et
+  `estimate_build.py` : notes `revue-well-architected`, `modele-menaces`,
+  `chiffrage` et `lot` (nouveaux types de l'ontologie), constats reliés à
+  l'option et aux exigences. `vault_ontology.Notes` mutualise l'écriture
+  (relations vers des notes existantes, notes périmées retirées), reprise
+  par `arch_review.py`.
+
+### Diagrammes écrits par script
+
+- `c4-architecture` : `c4_build.py` écrit `model.c4` et `specification.c4`
+  depuis une description JSON courte ou une option
+  (`--from-options options.json --option A`) et vérifie références,
+  imbrication C4 et taille des vues ; `likec4 validate` s'il est installé.
+- `mermaid-diagram` : `mermaid_build.py` écrit flowchart et séquence
+  (identifiants sûrs, libellés protégés, charte, blocs alt/opt/loop),
+  aussi depuis une option.
+
+### Modèles
+
+- `shared/models.json` : modèles Copilot avec repli (liste) ;
+  `install.py --models FICHIER` remplace les modèles par niveau à
+  l'installation (OpenCode, Kiro, Hermes, Copilot).
+
+### Tests
+
+- Contrôle des fournisseurs des contrats contre le catalogue commun ; un
+  `SKILL.md` ne cite un autre skill par `../` que s'il lui passe la main.
+- Cas `cloud-souverain`, `options-souverain`, `workflow-facultative`,
+  `vault-revues`, `installation-modeles`, `c4-modele`, `c4-erreurs`,
+  `mermaid-script`.
 
 ### Ontologie du vault Obsidian
 
