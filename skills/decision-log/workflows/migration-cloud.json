@@ -84,9 +84,8 @@
         "schemas/cible.wa.md"
       ],
       "checks": [
-        "cloud-architecture : cloud_build.py schemas/cible.json --matrix",
-        "well-architected-review : wa_check.py schemas/cible.json --fail-on moyenne, avec --vault <vault> --folder <dossier> si le workflow a un vault",
-        "diagram-export : export.py schemas/cible.drawio, puis relire l'image une fois"
+        "cloud-architecture : cloud_build.py schemas/cible.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois",
+        "well-architected-review : wa_check.py schemas/cible.json --fail-on moyenne, avec --vault <vault> --folder <dossier> si le workflow a un vault"
       ],
       "instructions": "Décrire la cible des applications migrées avec l'hébergeur de migration.json : services cibles (target_service), réseau, identité, sauvegardes. Un constat Well-Architected de gravité haute se corrige ou s'accepte avec la raison de l'utilisateur."
     },

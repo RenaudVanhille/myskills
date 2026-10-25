@@ -8,7 +8,10 @@ Sortie : un fichier `.excalidraw` complet (couleurs de la charte, textes centré
 flèches attachées aux formes, légende), que l'on ouvre dans Excalidraw ou
 Obsidian. Affiche un rapport JSON avec les erreurs et avertissements.
 
-    uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw]
+    uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] [--export png|svg]
+
+Avec --export, la scène est aussi exportée (skill diagram-export) dans le même
+appel ; le rapport donne l'image dans `export`.
 """
 
 import argparse
@@ -18,6 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+from skill_paths import export_image  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 ROLES = {
@@ -223,6 +227,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .excalidraw (défaut : même nom)")
+    parser.add_argument("--export", choices=["png", "svg"],
+                        help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -247,9 +253,12 @@ def main() -> int:
     if not errors:
         with open(out, "w", encoding="utf-8", newline="\n") as handle:
             json.dump(document, handle, ensure_ascii=False, indent=2)
-    print(json.dumps({"input": str(args.spec), "output": None if errors else str(out),
-                      "elements": len(document["elements"]), "errors": errors,
-                      "warnings": warnings}, ensure_ascii=False))
+    report = {"input": str(args.spec), "output": None if errors else str(out),
+              "elements": len(document["elements"]), "errors": errors, "warnings": warnings}
+    if args.export and not errors:
+        report["export"], failed = export_image(out, args.export)
+        errors += failed
+    print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
 
 

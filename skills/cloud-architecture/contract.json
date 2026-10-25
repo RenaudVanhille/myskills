@@ -14,14 +14,15 @@
     {
       "name": "cloud_build.py",
       "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-      "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic] | --schema",
+      "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] [--export png|svg] | --types [aws|azure|gcp|k8s|generic] | --schema",
       "options": {
         "SUJET.json": "description de l'architecture",
         "--out": "fichier .drawio (défaut : même nom)",
         "--view": "vue, prioritaire sur celle de la description",
         "--matrix": "écrit aussi <sujet>.flows.md (toujours en vue network)",
         "--types": "liste les types de services et de groupes connus, puis s'arrête",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
       },
       "input": {
         "format": "json",
@@ -434,6 +435,29 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "export": {
+                  "type": "object",
+                  "required": [
+                    "outputs",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             },
@@ -581,6 +605,12 @@
       "skill": "drawio-diagram",
       "script": "check_drawio.py",
       "why": "vérifier le .drawio produit",
+      "optional": true
+    },
+    {
+      "skill": "diagram-export",
+      "script": "export.py",
+      "why": "--export : rendre l'image dans le même appel que la construction",
       "optional": true
     }
   ],

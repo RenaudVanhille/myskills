@@ -16,7 +16,10 @@ Avec `--from-options options.json --option A`, la description vient de
 l'option d'architecture-options : personnes et externes autour d'un système,
 composants en conteneurs, flux en relations ; rien à réécrire.
 
-    uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] | --from-options options.json --option ID [--out-dir DOSSIER] | --schema
+    uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | --schema
+
+Avec --export, les vues sont aussi exportées (skill diagram-export, LikeC4)
+dans le même appel ; le rapport donne les images dans `export`.
 """
 
 import argparse
@@ -29,7 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, schema_of  # noqa: E402
+from skill_paths import absent, export_image, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -201,6 +204,8 @@ def main() -> int:
     parser.add_argument("--from-options", type=Path, help="options.json d'architecture-options, au lieu de MODELE.json")
     parser.add_argument("--option", help="identifiant de l'option, avec --from-options")
     parser.add_argument("--out-dir", type=Path, help="dossier LikeC4 (défaut : <nom>-c4 à côté de l'entrée)")
+    parser.add_argument("--export", choices=["png", "svg"],
+                        help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -241,6 +246,9 @@ def main() -> int:
             handle.write(text)
         report["output"] = str(folder)
         errors += likec4_validate(folder, warnings)
+        if args.export and not errors:
+            report["export"], failed = export_image(folder, args.export)
+            errors += failed
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
 

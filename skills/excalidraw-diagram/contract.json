@@ -13,11 +13,12 @@
     {
       "name": "excalidraw_build.py",
       "role": "Construit la scène Excalidraw à partir de la description JSON.",
-      "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] | --schema",
+      "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] [--export png|svg] | --schema",
       "options": {
         "SCHEMA.json": "description du schéma",
         "--out": "fichier produit (défaut : même nom)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
       },
       "input": {
         "format": "json",
@@ -195,6 +196,29 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "export": {
+                  "type": "object",
+                  "required": [
+                    "outputs",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             },
@@ -231,6 +255,14 @@
         "0": "scène produite sans erreur",
         "1": "description illisible ou erreur"
       }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "diagram-export",
+      "script": "export.py",
+      "why": "--export : rendre l'image dans le même appel que la construction",
+      "optional": true
     }
   ],
   "handoffs": [

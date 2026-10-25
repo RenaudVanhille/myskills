@@ -2602,13 +2602,14 @@
         {
           "name": "c4_build.py",
           "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé.",
-          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] | --from-options options.json --option ID [--out-dir DOSSIER] | --schema",
+          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | --schema",
           "options": {
             "MODELE.json": "description du modèle : title, elements (imbriqués), relations, views",
             "--from-options": "options.json d'architecture-options, au lieu de MODELE.json",
             "--option": "identifiant de l'option, avec --from-options",
             "--out-dir": "dossier LikeC4 (défaut : <nom>-c4 ou option-<id>-c4 à côté de l'entrée)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "exit_codes": {
             "0": "modèle écrit et vérifié (avertissements possibles)",
@@ -2781,6 +2782,29 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "export": {
+                  "type": "object",
+                  "required": [
+                    "outputs",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2804,6 +2828,12 @@
           "skill": "architecture-options",
           "script": "options_build.py",
           "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+          "optional": true
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
           "optional": true
         }
       ],
@@ -2934,14 +2964,15 @@
         {
           "name": "cloud_build.py",
           "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-          "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic] | --schema",
+          "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] [--export png|svg] | --types [aws|azure|gcp|k8s|generic] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture",
             "--out": "fichier .drawio (défaut : même nom)",
             "--view": "vue, prioritaire sur celle de la description",
             "--matrix": "écrit aussi <sujet>.flows.md (toujours en vue network)",
             "--types": "liste les types de services et de groupes connus, puis s'arrête",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -3354,6 +3385,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -3501,6 +3555,12 @@
           "skill": "drawio-diagram",
           "script": "check_drawio.py",
           "why": "vérifier le .drawio produit",
+          "optional": true
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
           "optional": true
         }
       ],
@@ -5500,11 +5560,12 @@
         {
           "name": "drawio_build.py",
           "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
-          "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] | --schema",
+          "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] [--export png|svg] | --schema",
           "options": {
             "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
             "--out": "fichier .drawio (défaut : même nom)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -5711,6 +5772,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -5827,6 +5911,14 @@
           }
         }
       ],
+      "requires": [
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
+          "optional": true
+        }
+      ],
       "handoffs": [
         {
           "to": "diagram-export",
@@ -5852,11 +5944,12 @@
         {
           "name": "excalidraw_build.py",
           "role": "Construit la scène Excalidraw à partir de la description JSON.",
-          "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] | --schema",
+          "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] [--export png|svg] | --schema",
           "options": {
             "SCHEMA.json": "description du schéma",
             "--out": "fichier produit (défaut : même nom)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -6034,6 +6127,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -6070,6 +6186,14 @@
             "0": "scène produite sans erreur",
             "1": "description illisible ou erreur"
           }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
+          "optional": true
         }
       ],
       "handoffs": [

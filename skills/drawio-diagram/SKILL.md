@@ -19,6 +19,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
 ## 1. Décrire le schéma
@@ -94,6 +95,9 @@ reconstruire.
 ```bash
 uv run ../diagram-export/scripts/export.py SUJET.drawio --format png
 ```
+
+Ou en un seul appel avec la construction : `drawio_build.py SUJET.json
+--export png` ; l'image est dans `export` du rapport.
 
 Le PNG `SUJET.drawio.png` garde le XML : il se rouvre dans draw.io. Ouvrez
 l'image et vérifiez la lisibilité (libellés coupés, flèches qui se croisent

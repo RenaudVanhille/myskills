@@ -58,8 +58,7 @@
       ],
       "checks": [
         "cloud-architecture : iac_import.py <sources> --out schemas/architecture.json (seulement sans description fournie)",
-        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
-        "diagram-export : export.py schemas/architecture.drawio, puis relire l'image une fois"
+        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois"
       ],
       "instructions": "Reprendre la description fournie, ou celle tirée du code, et la compléter : hébergeur (provider, y compris souverain), données personnelles portées par chaque flux dans son libellé, flux vers des tiers et leur pays. Chaque flux ajouté sans source se note au journal comme hypothèse."
     },

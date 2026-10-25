@@ -417,9 +417,11 @@
       "steps": [
         {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py", "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/paiement.excalidraw"], "exit": 0},
         {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "{out}/paiement.excalidraw", "--out", "{out}"],
-         "exit": 0, "report": {"errors": [], "results.0.warnings": [], "results.1.warnings": []}}
+         "exit": 0, "report": {"errors": [], "results.0.warnings": [], "results.1.warnings": []}},
+        {"script": "{skills}/excalidraw-diagram/scripts/excalidraw_build.py", "args": ["{fixtures}/diagrams/paiement-simple.json", "--out", "{out}/direct.excalidraw", "--export", "png"],
+         "exit": 0, "report": {"errors": [], "export.warnings": []}}
       ],
-      "files": ["flux.png", "paiement.excalidraw.png"]
+      "files": ["flux.png", "paiement.excalidraw.png", "direct.excalidraw.png"]
     },
     {
       "id": "excalidraw",

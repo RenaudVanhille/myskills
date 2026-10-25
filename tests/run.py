@@ -377,8 +377,10 @@ def check_rules() -> dict:
                          if other in contracts and other != name]
             failures += [f"{where} : {call}(\"{skill}\", \"{script}\") absent de requires dans contract.json"
                          for call, skill, script in re.findall(
-                             r'(find_script|load_module|schema_of)\("([a-z0-9-]+)",\s*"([^"]+)"\)', code)
+                             r'(find_script|load_module|schema_of|run_script)\("([a-z0-9-]+)",\s*"([^"]+)"[,)]', code)
                          if (skill, script) not in declared]
+            if re.search(r"\bexport_image\(", code) and ("diagram-export", "export.py") not in declared:
+                failures.append(f"{where} : export_image (diagram-export/export.py) absent de requires dans contract.json")
     # Un script qui touche au vault passe par l'ontologie : import de vault_ontology et champ vault du contrat.
     for name, contract in contracts.items():
         for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):

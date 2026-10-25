@@ -466,6 +466,464 @@
         "La revue relève la dépendance synchrone à l'annuaire des assurés sur le parcours de l'assuré.",
         "Les composants et flux viennent de l'option A sans être recopiés dans la description (source)."
       ]
+    },
+    {
+      "id": "migration-evaluation",
+      "agent": "architecture-workflow",
+      "prompt": "J'ai validé les exigences. Continue le workflow de migration : l'inventaire est documents/inventaire.csv, l'hébergeur cible est AWS (région de Paris).",
+      "inputs": [
+        {
+          "from": "fixtures/migration/inventaire.csv",
+          "to": "documents/inventaire.csv"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--definition",
+            "migration-cloud",
+            "--title",
+            "Sortie du datacenter"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok pour les exigences"
+          ]
+        }
+      ],
+      "output": "migration.md",
+      "rubric": [
+        "migration.json a une entrée par application de l'inventaire (8), sans application inventée.",
+        "Chaque application a une stratégie 6R avec sa raison en une phrase, un effort et un risque.",
+        "L'ancien extranet courtiers (APP-03) est retiré ou sa conservation est justifiée.",
+        "L'étape evaluation est soumise à la revue, et la cible et la feuille de route restent à faire."
+      ]
+    },
+    {
+      "id": "migration-feuille-de-route",
+      "agent": "architecture-workflow",
+      "prompt": "Je valide l'évaluation 6R. Fais maintenant la feuille de route ; la cible viendra après.",
+      "inputs": [
+        {
+          "from": "fixtures/migration/inventaire.csv",
+          "to": "documents/inventaire.csv"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/migration/migration-workflow.json",
+          "to": "migration.json"
+        },
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--definition",
+            "migration-cloud",
+            "--title",
+            "Sortie du datacenter"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok pour les exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "evaluation"
+          ]
+        },
+        {
+          "script": "migration-assessment/scripts/assess_build.py",
+          "args": [
+            "{work}/migration.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "evaluation"
+          ]
+        }
+      ],
+      "output": "feuille-de-route.md",
+      "rubric": [
+        "La validation de l'évaluation est notée au journal avec les mots de l'utilisateur.",
+        "La feuille de route reprend les vagues de migration.waves.json et ajoute des chantiers transverses (socle, sécurité, décommissionnement).",
+        "Le chemin critique est donné, et chaque durée prise sans source est notée au journal comme hypothèse.",
+        "L'étape cible n'est pas démarrée : seule la feuille de route est soumise à la revue."
+      ]
+    },
+    {
+      "id": "dossier-architecture",
+      "agent": "architecture-workflow",
+      "prompt": "Je veux le dossier d'architecture technique pour le comité.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "options.json"
+        },
+        {
+          "from": "fixtures/workflow/decision.json",
+          "to": "decision.json"
+        },
+        {
+          "from": "fixtures/samples/schema-flux.png",
+          "to": "schemas/option-a.png"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--definition",
+            "architecture",
+            "--title",
+            "Portail sinistres"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "documents",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "architectures"
+          ]
+        },
+        {
+          "script": "architecture-options/scripts/options_build.py",
+          "args": [
+            "{work}/options.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "architectures"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "architectures",
+            "--decision",
+            "valide",
+            "--text",
+            "je retiens l'option A"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "schemas"
+          ]
+        },
+        {
+          "script": "architecture-options/scripts/options_build.py",
+          "args": [
+            "{work}/options.json",
+            "--decision",
+            "{work}/decision.json"
+          ]
+        },
+        {
+          "script": "drawio-diagram/scripts/drawio_build.py",
+          "args": [
+            "{work}/schemas/architectures.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "schemas"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "schemas",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "skip",
+            "{work}",
+            "revue",
+            "--text",
+            "pas de revue pour ce projet"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "skip",
+            "{work}",
+            "chiffrage",
+            "--text",
+            "le chiffrage est fait à part"
+          ]
+        }
+      ],
+      "output": "dossier-architecture.md",
+      "rubric": [
+        "synthese.md tient en une page : objet, option retenue et pourquoi, points ouverts, sans revue ni chiffrage inventés.",
+        "dossier-architecture.md est assemblé par dossier_build.py avec les exigences, les options, l'ADR et le schéma.",
+        "L'étape dossier est soumise à la revue et n'est pas validée par l'agent."
+      ]
+    },
+    {
+      "id": "bout-en-bout-cloud-existant",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow cloud-existant sur le Terraform de infra/, sans vault Obsidian.",
+      "rounds": {
+        "next": "Je valide, sans autre retour. Continue avec toutes les étapes prêtes.",
+        "max": 5
+      },
+      "inputs": [
+        {
+          "from": "fixtures/iac/terraform/main.tf",
+          "to": "infra/main.tf"
+        }
+      ],
+      "output": "schemas/architecture.threats.md",
+      "max_cost_usd": 3.0,
+      "rubric": [
+        "Les trois étapes sont validées, chacune avec les mots de l'utilisateur au journal.",
+        "Schémas et menaces ont été menés ensemble après la description.",
+        "Le modèle de menaces et la revue Well-Architected sont livrés."
+      ]
+    },
+    {
+      "id": "bout-en-bout-architecture",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md, compte-rendu-atelier.md et exigences-securite.md, sans vault Obsidian ni POS.",
+      "rounds": {
+        "next": "Je valide, sans autre retour. Pour le choix d'option, je retiens celle que tu recommandes. Je veux toutes les étapes facultatives ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
+        "max": 10
+      },
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "exigences-securite.md"
+        }
+      ],
+      "output": "dossier-architecture.md",
+      "max_cost_usd": 10.0,
+      "rubric": [
+        "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur.",
+        "Revue et chiffrage ont été menés ensemble après les schémas.",
+        "dossier-architecture.md rassemble exigences, options, ADR, schémas, revue et chiffrage."
+      ]
     }
   ]
 }

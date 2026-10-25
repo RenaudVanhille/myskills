@@ -257,6 +257,7 @@ Résumé de [`contract.json`](skills/c4-architecture/contract.json), qui fait fo
 - **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé. Rapport JSON, codes de sortie : 0 modèle écrit et vérifié (avertissements possibles) ; 1 description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
 
@@ -285,6 +286,7 @@ Résumé de [`contract.json`](skills/cloud-architecture/contract.json), qui fait
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
 - **Dépend de** `drawio-diagram` (`check_drawio.py`, facultatif : sans lui, avertissement) : vérifier le .drawio produit.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 - **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main.
 - **Passe la main** au skill `mermaid-diagram` : diagramme de séquence des appels entre services pour un parcours.
@@ -384,6 +386,7 @@ Résumé de [`contract.json`](skills/drawio-diagram/contract.json), qui fait foi
 - **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
 ### `excalidraw-diagram`
@@ -397,6 +400,7 @@ Résumé de [`contract.json`](skills/excalidraw-diagram/contract.json), qui fait
 - **Sorties** : <sujet>.excalidraw, à côté de sa description <sujet>.json ; Après export : <sujet>.excalidraw.png ou .svg.
 - **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON. Rapport JSON, codes de sortie : 0 scène produite sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : rendre et relire l'image.
 
 ### `markdown-publish`
