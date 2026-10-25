@@ -8,8 +8,10 @@
   ],
   "produces": [
     "chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py",
-    "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, détail, coût total, couverture, hypothèses)",
-    "chiffrage.csv : lignes détaillées pour un tableur, relu par le script"
+    "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, couverture, hypothèses)",
+    "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
+    "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
+    "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers"
   ],
   "never": [
     "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",

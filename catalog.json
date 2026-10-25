@@ -393,8 +393,10 @@
       ],
       "produces": [
         "chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py",
-        "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, détail, coût total, couverture, hypothèses)",
-        "chiffrage.csv : lignes détaillées pour un tableur, relu par le script"
+        "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, couverture, hypothèses)",
+        "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
+        "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
+        "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers"
       ],
       "never": [
         "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
@@ -7922,17 +7924,20 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
-        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions",
-        "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
+        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions",
+        "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
+        "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script"
       ],
       "outputs": [
-        "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
-        "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script"
+        "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
+        "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script",
+        "<nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script",
+        "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates"
       ],
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
@@ -7943,12 +7948,11 @@
           },
           "input": {
             "format": "json",
-            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, phase ou période inconnue, estimation qui n'a pas trois valeurs donnent une erreur, de même qu'un hébergeur absent du catalogue (valeur proche proposée) ou un catalogue mal formé avec son chemin ; les clés qui commencent par _ sont des commentaires.",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste, phase ou période inconnue, estimation qui n'a pas trois valeurs donnent une erreur, de même qu'un hébergeur absent du catalogue (valeur proche proposée) ou un catalogue mal formé avec son chemin ; les clés qui commencent par _ sont des commentaires. Les hypothèses de production (scenarios, ai par lot) sont validées de même, ainsi que references/hypotheses-ia.json.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
               "required": [
-                "rates",
                 "work"
               ],
               "additionalProperties": false,
@@ -8024,11 +8028,17 @@
                 },
                 "rates": {
                   "type": "object",
-                  "description": "Taux journalier de chaque profil (chef-de-projet, architecte, developpeur...).",
+                  "description": "Taux journalier de chaque profil (chef-de-projet, architecte, developpeur...). Sans ce champ : charges seules (jours, heures), sans montant.",
                   "additionalProperties": {
                     "type": "number",
                     "minimum": 1
                   }
+                },
+                "hours_per_day": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 24,
+                  "description": "Heures par jour pour convertir les charges (défaut : 7)."
                 },
                 "work": {
                   "type": "array",
@@ -8096,9 +8106,35 @@
                           }
                         }
                       },
+                      "complexity": {
+                        "enum": [
+                          "faible",
+                          "moyenne",
+                          "elevee",
+                          "tres-elevee"
+                        ],
+                        "description": "Complexité de la tâche (défaut : déduite de sa charge espérée)."
+                      },
                       "note": {
                         "type": "string",
                         "description": "Hypothèse propre au lot."
+                      },
+                      "ai": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "description": "Facteur propre au lot, qui remplace celui de sa phase (code ancien, sujet réglementé...) ; la raison va dans note.",
+                        "properties": {
+                          "avec-ia": {
+                            "type": "number",
+                            "minimum": 0.05,
+                            "maximum": 3
+                          },
+                          "ia-natif": {
+                            "type": "number",
+                            "minimum": 0.05,
+                            "maximum": 3
+                          }
+                        }
                       }
                     }
                   }
@@ -8246,6 +8282,19 @@
                     }
                   }
                 },
+                "scenarios": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Hypothèses de production comparées à la charge saisie (sans IA) : valeurs qui remplacent celles de references/hypotheses-ia.json, avec leur base.",
+                  "properties": {
+                    "avec-ia": {
+                      "$ref": "#/$defs/scenario"
+                    },
+                    "ia-natif": {
+                      "$ref": "#/$defs/scenario"
+                    }
+                  }
+                },
                 "budget": {
                   "type": "object",
                   "additionalProperties": false,
@@ -8360,13 +8409,159 @@
                       "description": "vocabulaire de schéma des hébergeurs sans icônes (cloud_build.py)"
                     }
                   }
+                },
+                "scenario": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "factors": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Facteur appliqué à la charge sans IA, par phase (0,75 : 25 % de charge en moins).",
+                      "properties": {
+                        "cadrage": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "conception": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "realisation": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "integration": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "tests": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "deploiement": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "migration": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "conduite-changement": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        },
+                        "pilotage": {
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 3
+                        }
+                      }
+                    },
+                    "gain_uncertainty": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 2,
+                      "description": "Incertitude relative sur le gain (écart type : 0,5 pour un gain de 25 % donne ± 12,5 points), commune à tous les lots : elle élargit la fourchette."
+                    },
+                    "setup_percent": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 50,
+                      "description": "Adoption (outillage, garde-fous, formation), en % de la charge des lots sans IA."
+                    },
+                    "setup_profile": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Profil de l'adoption (défaut : taux moyen des lots)."
+                    },
+                    "tooling_per_day": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "Licences et jetons par jour de travail des lots, de l'adoption et du run en jours."
+                    },
+                    "run_factor": {
+                      "type": "number",
+                      "minimum": 0.05,
+                      "maximum": 3,
+                      "description": "Facteur appliqué au run (maintenance et exploitation)."
+                    },
+                    "contingency": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "description": "Provision propre à l'hypothèse (défaut : contingency)."
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "D'où viennent les valeurs : mesure de l'équipe, lot pilote, offre, hypothèse."
+                    }
+                  }
+                },
+                "scenarios": {
+                  "type": "object",
+                  "required": [
+                    "scenarios"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "checked": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scenarios": {
+                      "type": "object",
+                      "required": [
+                        "sans-ia",
+                        "avec-ia",
+                        "ia-natif"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "sans-ia": {
+                          "$ref": "#/$defs/scenario"
+                        },
+                        "avec-ia": {
+                          "$ref": "#/$defs/scenario"
+                        },
+                        "ia-natif": {
+                          "$ref": "#/$defs/scenario"
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
           },
           "report": {
             "format": "json",
-            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, budget dépassé, exigences et composants non chiffrés, estimations incertaines, fichiers produits, erreurs et avertissements.",
+            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -8386,11 +8581,14 @@
                     "tco",
                     "budget",
                     "hosting",
+                    "scenarios",
                     "unestimated",
                     "uncovered",
                     "uncertain",
                     "errors",
-                    "warnings"
+                    "warnings",
+                    "mode",
+                    "charges"
                   ],
                   "properties": {
                     "input": {
@@ -8618,6 +8816,147 @@
                         }
                       ]
                     },
+                    "scenarios": {
+                      "type": "array",
+                      "description": "Hypothèses sans IA, avec IA et IA natif : réalisation (dont adoption et outillage IA), run, fonctionnement, coût total, écart avec sans IA en %, budget dépassé.",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "name",
+                          "build",
+                          "run",
+                          "operate",
+                          "tco",
+                          "delta",
+                          "budget_over"
+                        ],
+                        "properties": {
+                          "id": {
+                            "enum": [
+                              "sans-ia",
+                              "avec-ia",
+                              "ia-natif"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "build": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "days",
+                              "days_low",
+                              "days_high",
+                              "cost",
+                              "cost_low",
+                              "cost_high",
+                              "contingency",
+                              "setup",
+                              "tooling"
+                            ],
+                            "properties": {
+                              "days": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_low": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_high": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "cost": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "cost_low": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "cost_high": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "contingency": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "setup": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "tooling": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          "run": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "annual",
+                              "tooling"
+                            ],
+                            "properties": {
+                              "annual": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "tooling": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          "operate": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "monthly"
+                            ],
+                            "properties": {
+                              "monthly": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          "tco": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "total"
+                            ],
+                            "properties": {
+                              "total": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          },
+                          "delta": {
+                            "type": "number",
+                            "description": "Écart du coût total avec sans IA, en %."
+                          },
+                          "budget_over": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "build",
+                                "monthly",
+                                "tco"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
                     "unestimated": {
                       "type": "array",
                       "items": {
@@ -8682,6 +9021,312 @@
                             }
                           }
                         }
+                      ]
+                    },
+                    "mode": {
+                      "enum": [
+                        "chiffrage"
+                      ]
+                    },
+                    "charges": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "hours_per_day",
+                        "tasks",
+                        "by_complexity",
+                        "run_days_per_year",
+                        "scenarios"
+                      ],
+                      "description": "Charges sans montant : heures par jour, nombre de tâches par complexité, run en jours par an, jours et heures de chaque hypothèse de production.",
+                      "properties": {
+                        "hours_per_day": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "tasks": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "by_complexity": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "faible",
+                            "moyenne",
+                            "elevee",
+                            "tres-elevee"
+                          ],
+                          "properties": {
+                            "faible": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "moyenne": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "elevee": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "tres-elevee": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "run_days_per_year": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "scenarios": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "name",
+                              "days",
+                              "days_low",
+                              "days_high",
+                              "hours"
+                            ],
+                            "properties": {
+                              "id": {
+                                "enum": [
+                                  "sans-ia",
+                                  "avec-ia",
+                                  "ia-natif"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "days": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_low": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_high": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "hours": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input",
+                    "outputs",
+                    "mode",
+                    "option",
+                    "lots",
+                    "charges",
+                    "unestimated",
+                    "uncovered",
+                    "uncertain",
+                    "errors",
+                    "warnings"
+                  ],
+                  "description": "Sans rates : charges seules.",
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "option": {
+                      "type": "string"
+                    },
+                    "lots": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "charges": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "hours_per_day",
+                        "tasks",
+                        "by_complexity",
+                        "run_days_per_year",
+                        "scenarios"
+                      ],
+                      "description": "Charges sans montant : heures par jour, nombre de tâches par complexité, run en jours par an, jours et heures de chaque hypothèse de production.",
+                      "properties": {
+                        "hours_per_day": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "tasks": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "by_complexity": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "faible",
+                            "moyenne",
+                            "elevee",
+                            "tres-elevee"
+                          ],
+                          "properties": {
+                            "faible": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "moyenne": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "elevee": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "tres-elevee": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        },
+                        "run_days_per_year": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "scenarios": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "name",
+                              "days",
+                              "days_low",
+                              "days_high",
+                              "hours"
+                            ],
+                            "properties": {
+                              "id": {
+                                "enum": [
+                                  "sans-ia",
+                                  "avec-ia",
+                                  "ia-natif"
+                                ]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "days": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_low": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "days_high": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "hours": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "unestimated": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Exigences retenues qu'aucun lot ni composant chiffré ne porte."
+                    },
+                    "uncovered": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Composants de l'option (system, db, queue) sans lot ni ligne d'infrastructure."
+                    },
+                    "uncertain": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Lots dont l'écart mini-maxi dépasse la charge probable."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "mode": {
+                      "enum": [
+                        "charges"
                       ]
                     }
                   }
@@ -8808,7 +9453,7 @@
         ],
         "reads": true
       },
-      "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure ou un coût total de possession.",
+      "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA.",
       "path": "skills/solution-estimate"
     },
     {

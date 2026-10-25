@@ -1,6 +1,6 @@
 ---
 name: solution-estimate
-description: "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure ou un coût total de possession."
+description: "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA."
 ---
 
 # solution-estimate
@@ -14,9 +14,9 @@ références, fait tous les calculs, met en forme et relit son CSV.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : complexe (modèle puissant).
-- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions ; Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet.
-- **Sorties** : <nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions) ; <nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script.
-- **`estimate_build.py`** : Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux. Rapport JSON, codes de sortie : 0 chiffrage produit et CSV vérifié (avertissements possibles) ; 1 description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas.
+- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions ; Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet ; Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script.
+- **Sorties** : <nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions) ; <nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script ; <nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script ; <nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates.
+- **`estimate_build.py`** : Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux. Rapport JSON, codes de sortie : 0 chiffrage produit et CSV vérifié (avertissements possibles) ; 1 description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json contre son schéma.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
@@ -68,6 +68,13 @@ donne sa forme) :
   conduite-changement, pilotage. `component` reprend l'identifiant du
   composant dans `options.json` ; `refs` ajoute les exigences que le lot
   porte en plus de celles du composant.
+- **Taux** : `rates` est facultatif. Sans lui, seules les charges sont
+  produites (jours et heures, sans montant) : la valorisation reste au
+  chef de projet. `hours_per_day` (défaut 7) convertit les jours en heures.
+- **Complexité** : `complexity` par lot (faible, moyenne, elevee,
+  tres-elevee) quand elle tient à autre chose que la taille (technologie
+  nouvelle, dépendance externe, sujet réglementé) ; sans elle, le script
+  la déduit de la charge espérée et le signale.
 - **Charge** : jours par profil, un nombre si la charge est sûre, sinon
   `[mini, probable, maxi]`. Le script calcule l'espérance (mini + 4
   probable + maxi) / 6 et la fourchette P10-P90 : ne les écrivez pas. Un
@@ -99,6 +106,21 @@ donne sa forme) :
 - **Budget** : plafonds `build`, `monthly` (infrastructure et run par
   mois), `tco`, avec les exigences qui les fixent (`refs`). Un dépassement
   est signalé.
+- **Hypothèses de production** : la charge saisie est celle d'une équipe
+  sans IA ; le script la recalcule toujours pour trois hypothèses, sans
+  IA, avec IA (développement assisté) et dev IA natif (agents qui écrivent
+  code et tests, l'équipe spécifie et valide). Pour chacune : facteur de
+  charge par phase, incertitude sur le gain (commune à tous les lots, elle
+  élargit la fourchette), adoption (outillage, garde-fous, formation, en %
+  de la charge), licences et jetons par jour travaillé, facteur du run.
+  Les valeurs par défaut et leurs sources sont dans
+  `references/hypotheses-ia.json` (ne le chargez pas, le script le lit).
+  Ne les changez que sur une base : mesure de l'équipe, lot pilote, offre
+  d'un éditeur, par exemple
+  `"scenarios": {"avec-ia": {"factors": {"realisation": 0.65}, "basis": "mesure de l'équipe, 2026"}}`.
+  Un lot où l'IA aide peu ou beaucoup (code ancien, progiciel peu
+  documenté, sujet réglementé) prend son propre facteur,
+  `"ai": {"avec-ia": 0.95, "ia-natif": 0.9}`, avec la raison dans `note`.
 - **Hypothèses et exclusions** : chacune en une phrase ; elles vont dans
   le chiffrage et, dans un workflow, au journal.
 
@@ -112,11 +134,16 @@ Dans un workflow avec un vault Obsidian, ajoutez `--vault VAULT --folder
 DOSSIER` : une note `chiffrage` (évalue l'option) et une note `lot` par lot
 (porte sur ses exigences) rejoignent la mémoire partagée.
 
-Produit `chiffrage.md` (revue) et `chiffrage.csv` (lignes détaillées,
-ouvrable dans un tableur). Corrigez jusqu'à zéro erreur, puis traitez les
+Produit `chiffrage.md` (revue, avec la comparaison des trois hypothèses),
+`chiffrage.csv` (lignes détaillées, ouvrable dans un tableur) et
+`chiffrage.hypotheses.csv` (lignes de chaque hypothèse), plus le plan de
+charge sans montant `chiffrage.charges.md` et `chiffrage.charges.csv`
+(chaque tâche avec sa complexité, ses jours et ses heures dans les trois
+hypothèses ; par phase et par profil). Sans `rates`, seul ce plan de
+charge est produit. Corrigez jusqu'à zéro erreur, puis traitez les
 avertissements : exigence qu'aucun lot ne porte (ajouter un lot ou des
 `refs`, ou l'exclure avec sa raison), composant sans chiffrage, estimation
-incertaine, budget dépassé. Livrez les chiffres du rapport, sans relire
+incertaine, budget dépassé, valeurs d'hypothèse sans base. Livrez les chiffres du rapport, sans relire
 les fichiers.
 
 Si le coût obtenu contredit la note du critère `cout` d'une option dans
