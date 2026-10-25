@@ -18,6 +18,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Sorties** : <sujet>.excalidraw, à côté de sa description <sujet>.json ; Après export : <sujet>.excalidraw.png ou .svg.
 - **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON. Rapport JSON, codes de sortie : 0 scène produite sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : rendre et relire l'image.
 
 ## 1. Décrire le schéma
@@ -72,6 +73,9 @@ zéro avertissement.
 ```bash
 uv run ../diagram-export/scripts/export.py SUJET.excalidraw --format png
 ```
+
+Ou en un seul appel avec la construction : `excalidraw_build.py SUJET.json
+--export png` ; l'image est dans `export` du rapport.
 
 Produit `SUJET.excalidraw.png` (ou `.svg`), qui embarque la scène : on peut le
 rouvrir dans excalidraw.com. Ouvrez l'image et vérifiez : textes qui

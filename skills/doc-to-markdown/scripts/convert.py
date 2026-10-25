@@ -12,7 +12,7 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]] [--no-clean] [--skip-existing]
+        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
@@ -36,18 +36,25 @@ seules ces images sont à ouvrir.
 Avec --skip-existing, un document dont le Markdown existe déjà et est plus
 récent que lui n'est pas reconverti : les corrections faites dessus restent.
 
+Les documents d'un lot se convertissent en parallèle (--jobs, par défaut
+jusqu'à 4) ; Docling, qui occupe déjà tous les cœurs, garde un document à la
+fois. Le rapport suit l'ordre des documents.
+
 Chaque Markdown produit est vérifié comme par validate.py : le résultat est
 dans `validation` du rapport, inutile de lancer validate.py juste après.
 """
 
 import argparse
 import base64
+import concurrent.futures
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 from validate import check
@@ -212,6 +219,10 @@ def docling_command() -> list[str] | None:
     return None
 
 
+# Docling prend déjà tous les cœurs et beaucoup de mémoire : un document à la fois.
+DOCLING_SLOT = threading.Semaphore(1)
+
+
 def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
     command = docling_command()
     if command is None:
@@ -326,7 +337,8 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
 
         if engine == "docling":
             try:
-                markdown, report["images"] = run_docling(path, attachments, stem)
+                with DOCLING_SLOT:
+                    markdown, report["images"] = run_docling(path, attachments, stem)
             except (RuntimeError, subprocess.CalledProcessError) as error:
                 detail = (getattr(error, "stderr", "") or str(error)).strip().splitlines()
                 last = detail[-1] if detail else "erreur inconnue"
@@ -369,6 +381,8 @@ def main() -> int:
                         help="ne pas reconvertir un document dont le Markdown est plus récent")
     parser.add_argument("--no-clean", action="store_true",
                         help="ne pas nettoyer le texte des PDF (paragraphes, césures, en-têtes)")
+    parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
+                        help="documents convertis en même temps (défaut : jusqu'à 4 ; 1 : un par un)")
     args = parser.parse_args()
 
     reports, failed = [], False
@@ -380,23 +394,26 @@ def main() -> int:
                     if path.is_file() and path.suffix.lower() not in IMAGES]
         if existing:
             classifications, classify_warning = run_classifier(existing, args.domains)
-    for path in files:
+    def one(path: Path) -> tuple[dict, bool]:
+        """Rapport d'un document et s'il a échoué."""
         if not path.is_file():
-            reports.append({"input": str(path), "error": "Fichier introuvable"})
-            failed = True
-            continue
+            return {"input": str(path), "error": "Fichier introuvable"}, True
         target = args.out.resolve() / f"{stems[path]}.md"
         if args.skip_existing and target.is_file() and target.stat().st_mtime >= path.stat().st_mtime:
-            reports.append({"input": str(path), "output": str(target), "skipped": True})
-            continue
+            return {"input": str(path), "output": str(target), "skipped": True}, False
         try:
-            reports.append(convert(path.resolve(), args.out.resolve(), args.engine,
-                                   classifications.get(path.resolve()), not args.no_clean, stems[path]))
+            report = convert(path.resolve(), args.out.resolve(), args.engine,
+                             classifications.get(path.resolve()), not args.no_clean, stems[path])
             if stems[path] != path.stem:
-                reports[-1]["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
+                report["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
+            return report, False
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
-            reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
-            failed = True
+            return {"input": str(path), "error": f"{type(error).__name__}: {error}"}, True
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        for report, error in pool.map(one, files):
+            reports.append(report)
+            failed = failed or error
     print_report(reports, warnings=[classify_warning] if classify_warning else [])
     return 1 if failed else 0
 

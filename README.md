@@ -89,9 +89,10 @@ lire par un autre agent ou outil qui appelle myskills.
 | `data-protection` | Protection des données (RGPD) : registre des traitements (art. 30) et analyse d'impact (AIPD) depuis une description courte ; critères du CEPD, transferts hors EEE, hébergeur extraterritorial, risques cotés et reliés aux exigences et aux menaces, notes du vault (`dpia_build.py`) |
 | `migration-assessment` | Évaluation 6R d'un portefeuille d'applications (réhéberger, replateformer, refondre, racheter, retirer, conserver) : dépendances, retraits, obsolescence et hébergeur cible contrôlés, vagues de migration calculées (`assess_build.py`) |
 | `transition-roadmap` | Feuille de route de transition : chantiers, jalons et vagues de migration, dates, marges et chemin critique calculés, échéance contrôlée, diagramme de Gantt Mermaid (`roadmap_build.py`) |
-| `architecture-dossier` | Dossier d'architecture technique (DAT) ou avis d'architecture assemblé par script depuis les livrables validés d'un workflow, selon un gabarit de sections ; pièces manquantes signalées, liens et images vérifiés (`dossier_build.py`) |
+| `architecture-dossier` | Dossier d'architecture technique (DAT) ou avis d'architecture assemblé par script depuis les livrables validés d'un workflow, selon un gabarit de sections ; pièces manquantes signalées, liens et images vérifiés (`dossier_build.py`) ; plan d'actions unique, dédoublonné et priorisé, tiré des revues, CSV importable dans Jira ou Azure DevOps (`actions.py`) |
+| `api-contract` | Contrats d'interface OpenAPI 3.1 et AsyncAPI 3.0 écrits par script depuis une description courte : doublons, types, exigences et composants de l'option contrôlés, exigence sans interface signalée, YAML relu (`api_build.py`) |
 | `architecture-deck` | Présentation du dossier d'architecture assemblée depuis les fichiers validés du workflow, à rendre en PowerPoint par `markdown-publish` |
-| `decision-log` | État d'un workflow à portes de revue (ordre des étapes, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, et mémoire partagée dans un vault Obsidian pilotée par la définition (une note par exigence, terme, option, décision et étape, schémas intégrés) |
+| `decision-log` | État d'un workflow à portes de revue (étapes en graphe : les étapes indépendantes se mènent en parallèle, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, et mémoire partagée dans un vault Obsidian pilotée par la définition (une note par exigence, terme, option, décision et étape, schémas intégrés) |
 | `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow ; liste compacte des agents et workflows classés pour une demande (`route.py`) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, vue des menaces ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie |
@@ -153,7 +154,16 @@ d'OpenCode (`fournisseur/modèle`) et de Kiro dépendent de l'abonnement : ils
 se donnent à l'installation, `uv run scripts/install.py --models
 mes-modeles.json` (`{"opencode": {"simple": "anthropic/claude-haiku-4-5",
 ...}}`) ; sans eux, l'outil garde le modèle de la session. `tests/cost.py`
-mesure le coût réel de chaque cas d'agent.
+mesure le coût réel de chaque cas d'agent : `--repeat 3` retient la médiane
+(une seule exécution varie de ±30 %), `--jobs` lance les cas en même temps,
+`max_cost_usd` plafonne un cas, `--workflow` joue un workflow de bout en
+bout avec un coût par étape, et `--summary` résume `costs.csv` sans rien
+lancer.
+
+Les étapes indépendantes d'un workflow (`after` dans sa définition : revue
+et chiffrage après les schémas, par exemple) et les analyses d'une même
+revue (menaces, Well-Architected, ATAM, AIPD) se mènent en parallèle, chacune
+dans un sous-agent du niveau de son travail, avec un contexte court.
 
 ## Ajouter un skill, un agent ou un workflow
 

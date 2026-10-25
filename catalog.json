@@ -91,7 +91,7 @@
         "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
       ],
       "never": [
-        "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur (ou son renoncement à une étape facultative)",
+        "Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative)",
         "Valider une étape à la place de l'utilisateur",
         "Modifier les documents d'origine de documents/",
         "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
@@ -165,7 +165,8 @@
         "architecture-dossier",
         "data-protection",
         "migration-assessment",
-        "transition-roadmap"
+        "transition-roadmap",
+        "api-contract"
       ]
     },
     {
@@ -642,6 +643,377 @@
       "path": "skills/agent-handoff"
     },
     {
+      "skill": "api-contract",
+      "level": "moyen",
+      "inputs": [
+        "Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements",
+        "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)"
+      ],
+      "outputs": [
+        "<nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST",
+        "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
+        "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences"
+      ],
+      "scripts": [
+        {
+          "name": "api_build.py",
+          "role": "Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref.",
+          "usage": "uv run scripts/api_build.py API.json [--out-dir DOSSIER] | --schema",
+          "options": {
+            "API.json": "description des interfaces",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée)",
+            "1": "description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description des interfaces.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "resources"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "security": {
+                  "enum": [
+                    "oauth2",
+                    "oidc",
+                    "bearer",
+                    "apikey",
+                    "none"
+                  ],
+                  "description": "schéma de sécurité de toute l'API (défaut : none)"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+                },
+                "source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "options",
+                    "option"
+                  ],
+                  "description": "option d'architecture dont les composants portent les interfaces",
+                  "properties": {
+                    "options": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "option": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "resources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "fields"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                      },
+                      "required": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "enums": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "method",
+                      "path",
+                      "summary"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][A-Za-z0-9]*$"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "request": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "response": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 400,
+                          "maximum": 599
+                        }
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "component": {
+                        "type": "string",
+                        "description": "composant de l'option qui porte l'opération"
+                      },
+                      "public": {
+                        "type": "boolean",
+                        "description": "sans authentification, par choix"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "channel",
+                      "payload"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "channel": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "payload": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "action": {
+                        "enum": [
+                          "send",
+                          "receive"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Au moins une opération (operations) ou un événement (events)."
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, compteurs, couverture des exigences.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "operations",
+                "events",
+                "resources",
+                "covered",
+                "uncovered",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "operations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "events": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "resources": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "covered": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "exigences portées par au moins une interface"
+                },
+                "uncovered": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "exigences fonctionnelles indispensables sans interface"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "why": "valider exigences.json contre son schéma",
+          "optional": true
+        },
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "why": "valider options.json et reprendre les composants de l'option",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "architecture-review",
+          "kind": "skill",
+          "when": "les interfaces doivent être revues avec l'architecture (traçabilité, dépendances synchrones)"
+        },
+        {
+          "to": "document-publisher",
+          "kind": "agent",
+          "when": "les contrats doivent être livrés dans un dossier Word, HTML ou XWiki"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une exigence fonctionnelle indispensable n'a pas d'interface : l'ajouter ou dire qu'elle est hors API"
+        }
+      ],
+      "description": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences. Le script écrit le YAML, contrôle doublons, types, ressources, exigences et composants de l'option d'architecture, et relit chaque contrat. À utiliser pour concevoir ou documenter une API, un contrat d'interface, des échanges par événements ou les interfaces de l'option retenue.",
+      "path": "skills/api-contract"
+    },
+    {
       "skill": "architecture-deck",
       "level": "simple",
       "inputs": [
@@ -743,10 +1115,12 @@
       "inputs": [
         "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
         "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
-        "Facultatif : un gabarit de sections (JSON) propre à l'organisation"
+        "Facultatif : un gabarit de sections (JSON) propre à l'organisation",
+        "Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON"
       ],
       "outputs": [
-        "dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés"
+        "dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés",
+        "plan-actions.md et plan-actions.csv : plan d'actions unique, dédoublonné et priorisé, tiré des revues (CSV importable dans Jira ou Azure DevOps)"
       ],
       "scripts": [
         {
@@ -885,6 +1259,135 @@
                 "images": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "actions.py",
+          "role": "Rassemble les points ouverts des revues d'un dossier (constats Well-Architected et de revue d'architecture, risques de la revue, menaces à mesure retenue, risques de l'AIPD à mesure prévue ou résiduel élevé) en un plan d'actions unique : une action par règle ou par mesure (éléments regroupés), priorité P1 à P3 tirée de la gravité, responsable et échéance par défaut ou par clé ; relit le CSV produit.",
+          "usage": "uv run scripts/actions.py DOSSIER [--assign AFFECTATION.json] [--out plan-actions] [--title TITRE] | --schema",
+          "options": {
+            "DOSSIER": "dossier du workflow (revues cherchées dans ses sous-dossiers)",
+            "--assign": "responsable et échéance par défaut (owner, due), ou par clé d'action (actions)",
+            "--out": "nom des fichiers produits sans extension (défaut : DOSSIER/plan-actions)",
+            "--title": "titre (défaut : titre du workflow, sinon nom du dossier)",
+            "--schema": "affiche le schéma JSON de l'affectation sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "plan écrit (menaces encore à analyser et clés inconnues en avertissements)",
+            "1": "dossier introuvable ou affectation invalide ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Affectation facultative des actions.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "responsable par défaut"
+                },
+                "due": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "échéance par défaut (AAAA-MM-JJ)"
+                },
+                "actions": {
+                  "type": "object",
+                  "description": "par clé d'action (colonne Clé du CSV : regle:SEC-03, risque:R-01, aipd:R-01...)",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "owner": {
+                        "type": "string"
+                      },
+                      "due": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                      },
+                      "priority": {
+                        "enum": [
+                          "P1",
+                          "P2",
+                          "P3"
+                        ]
+                      },
+                      "status": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Nombre d'actions par priorité et par fichier source, menaces encore à analyser.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "actions",
+                "priorities",
+                "sources",
+                "to_analyze",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "actions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "priorities": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "sources": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "description": "actions nouvelles par fichier de revue lu"
+                },
+                "to_analyze": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "menaces sans mesure retenue"
                 },
                 "errors": {
                   "type": "array",
@@ -2604,13 +3107,14 @@
         {
           "name": "c4_build.py",
           "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé.",
-          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] | --from-options options.json --option ID [--out-dir DOSSIER] | --schema",
+          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | --schema",
           "options": {
             "MODELE.json": "description du modèle : title, elements (imbriqués), relations, views",
             "--from-options": "options.json d'architecture-options, au lieu de MODELE.json",
             "--option": "identifiant de l'option, avec --from-options",
             "--out-dir": "dossier LikeC4 (défaut : <nom>-c4 ou option-<id>-c4 à côté de l'entrée)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "exit_codes": {
             "0": "modèle écrit et vérifié (avertissements possibles)",
@@ -2783,6 +3287,29 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "export": {
+                  "type": "object",
+                  "required": [
+                    "outputs",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -2806,6 +3333,12 @@
           "skill": "architecture-options",
           "script": "options_build.py",
           "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+          "optional": true
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
           "optional": true
         }
       ],
@@ -2936,14 +3469,15 @@
         {
           "name": "cloud_build.py",
           "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
-          "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] | --types [aws|azure|gcp|k8s|generic] | --schema",
+          "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] [--export png|svg] | --types [aws|azure|gcp|k8s|generic] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture",
             "--out": "fichier .drawio (défaut : même nom)",
             "--view": "vue, prioritaire sur celle de la description",
             "--matrix": "écrit aussi <sujet>.flows.md (toujours en vue network)",
             "--types": "liste les types de services et de groupes connus, puis s'arrête",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -3356,6 +3890,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -3503,6 +4060,12 @@
           "skill": "drawio-diagram",
           "script": "check_drawio.py",
           "why": "vérifier le .drawio produit",
+          "optional": true
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
           "optional": true
         }
       ],
@@ -4001,7 +4564,7 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -4032,7 +4595,8 @@
                 "warnings",
                 "changes",
                 "stage",
-                "ask"
+                "ask",
+                "ready"
               ],
               "additionalProperties": false,
               "properties": {
@@ -4200,6 +4764,13 @@
                       }
                     }
                   ]
+                },
+                "ready": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Étapes qui peuvent démarrer maintenant (toutes celles dont elles dépendent sont franchies) ; plusieurs : à mener en parallèle."
                 }
               }
             }
@@ -4474,6 +5045,15 @@
                           "facultative": {
                             "type": "boolean",
                             "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
+                          },
+                          "after": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                            },
+                            "uniqueItems": true,
+                            "description": "Étapes dont celle-ci dépend, toutes placées avant elle (défaut : l'étape précédente ; [] : aucune). Des étapes prêtes en même temps se mènent en parallèle, chacune avec sa revue."
                           }
                         }
                       }
@@ -4618,7 +5198,7 @@
           "when": "choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault"
         }
       ],
-      "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
+      "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation de celles dont elle dépend, et des étapes indépendantes se mènent en parallèle ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
       "path": "skills/decision-log"
     },
     {
@@ -5002,7 +5582,7 @@
         {
           "name": "convert.py",
           "role": "Convertit les documents en Markdown, en local.",
-          "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
+          "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]",
           "options": {
             "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md",
             "--out": "dossier de sortie (défaut : dossier courant)",
@@ -5010,7 +5590,8 @@
             "--classify": "classe d'abord avec classify.py (Laya)",
             "--domains": "avec --classify : domaines possibles",
             "--no-clean": "ne pas nettoyer le texte des PDF",
-            "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)"
+            "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)",
+            "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)"
           },
           "report": {
             "format": "json",
@@ -5484,11 +6065,12 @@
         {
           "name": "drawio_build.py",
           "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
-          "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] | --schema",
+          "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] [--export png|svg] | --schema",
           "options": {
             "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
             "--out": "fichier .drawio (défaut : même nom)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -5695,6 +6277,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -5811,6 +6416,14 @@
           }
         }
       ],
+      "requires": [
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
+          "optional": true
+        }
+      ],
       "handoffs": [
         {
           "to": "diagram-export",
@@ -5836,11 +6449,12 @@
         {
           "name": "excalidraw_build.py",
           "role": "Construit la scène Excalidraw à partir de la description JSON.",
-          "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] | --schema",
+          "usage": "uv run scripts/excalidraw_build.py SCHEMA.json [--out SCHEMA.excalidraw] [--export png|svg] | --schema",
           "options": {
             "SCHEMA.json": "description du schéma",
             "--out": "fichier produit (défaut : même nom)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
           },
           "input": {
             "format": "json",
@@ -6018,6 +6632,29 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -6054,6 +6691,14 @@
             "0": "scène produite sans erreur",
             "1": "description illisible ou erreur"
           }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "--export : rendre l'image dans le même appel que la construction",
+          "optional": true
         }
       ],
       "handoffs": [

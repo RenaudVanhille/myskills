@@ -15,7 +15,7 @@
     {
       "name": "convert.py",
       "role": "Convertit les documents en Markdown, en local.",
-      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing]",
+      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]",
       "options": {
         "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md",
         "--out": "dossier de sortie (défaut : dossier courant)",
@@ -23,7 +23,8 @@
         "--classify": "classe d'abord avec classify.py (Laya)",
         "--domains": "avec --classify : domaines possibles",
         "--no-clean": "ne pas nettoyer le texte des PDF",
-        "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)"
+        "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)",
+        "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)"
       },
       "report": {
         "format": "json",

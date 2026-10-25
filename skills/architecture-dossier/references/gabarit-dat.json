@@ -22,6 +22,8 @@
      "help": "well-architected-review : wa_check.py"},
     {"id": "chiffrage", "title": "Chiffrage", "sources": ["chiffrage.md"],
      "help": "solution-estimate : estimate_build.py chiffrage.json"},
+    {"id": "plan", "title": "Plan d'actions", "sources": ["plan-actions.md"],
+     "help": "architecture-dossier : actions.py . (points ouverts des revues, dédoublonnés et priorisés)"},
     {"id": "sources", "title": "Annexe : pièces sources", "kind": "files",
      "sources": ["schemas/*.drawio", "*.csv", "schemas/*.json", "*.json"]},
     {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}

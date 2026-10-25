@@ -45,14 +45,16 @@
         "schemas/architecture.flows.md"
       ],
       "checks": [
-        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
-        "diagram-export : export.py schemas/architecture.drawio, puis relire l'image une fois"
+        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois"
       ]
     },
     {
       "id": "menaces",
       "label": "Modèle de menaces STRIDE et revue Well-Architected",
       "level": "complexe",
+      "after": [
+        "description"
+      ],
       "skills": [
         "threat-model",
         "well-architected-review"

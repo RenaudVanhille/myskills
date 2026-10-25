@@ -8,6 +8,8 @@ dans les contrats, CATALOG.md et catalog.json, jamais cachées dans un chemin.
     find_script("drawio-diagram", "check_drawio.py")   -> Path ou None
     load_module("drawio-diagram", "check_drawio.py")   -> module ou None
     schema_of("requirements-catalog", "req_build.py")  -> schéma d'entrée ou None
+    run_script("diagram-export", "export.py", [args])  -> rapport JSON du script
+    export_image(Path("x.drawio"), "png")              -> résumé de l'export (diagram-export)
     absent("drawio-diagram", "check_drawio.py")        -> message à mettre dans le rapport
 
 Source : shared/scripts/skill_paths.py, copiée dans scripts/lib/ des skills
@@ -16,6 +18,8 @@ qui ont un champ `requires` par scripts/build.py. Ne modifiez pas les copies.
 
 import importlib.util
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -61,3 +65,29 @@ def schema_of(skill: str, script: str) -> dict | None:
 def absent(skill: str, script: str) -> str:
     """Message court pour le rapport quand le skill requis n'est pas installé."""
     return f"{script} introuvable : installez aussi le skill {skill} (myskills)"
+
+
+def run_script(skill: str, script: str, args: list) -> dict:
+    """Lance le script d'un autre skill (avec uv s'il est là) et rend son rapport JSON ;
+    errors explique un skill absent ou un rapport illisible."""
+    path = find_script(skill, script)
+    if path is None:
+        return {"errors": [absent(skill, script)], "warnings": []}
+    runner = ["uv", "run", "--quiet"] if shutil.which("uv") else [sys.executable]
+    result = subprocess.run(runner + [str(path)] + [str(a) for a in args], capture_output=True,
+                            text=True, encoding="utf-8")
+    try:
+        return json.loads(result.stdout)
+    except ValueError:
+        tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["sans sortie"]
+        return {"errors": [f"{script} : rapport illisible ({tail[0][:200]})"], "warnings": []}
+
+
+def export_image(source: Path, fmt: str) -> tuple[dict, list[str]]:
+    """Exporte un schéma juste construit avec diagram-export (--export d'un script de construction) :
+    rend le résumé pour le rapport (outputs, warnings) et les erreurs."""
+    report = run_script("diagram-export", "export.py", [source, "--format", fmt])
+    results = report.get("results", [])
+    summary = {"outputs": [o for r in results for o in r.get("outputs", [])],
+               "warnings": [w for r in results for w in r.get("warnings", [])] + report.get("warnings", [])}
+    return summary, [f"export : {e}" for e in report.get("errors", [])]

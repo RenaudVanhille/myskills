@@ -17,7 +17,7 @@ kubernetes, dr (régions active et passive, RPO/RTO), pipeline (étapes de
 gauche à droite), threats (frontières de confiance, flux numérotés comme dans
 stride.py, en rouge quand ils traversent une frontière).
 
-    uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view VUE] [--matrix]
+    uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view VUE] [--matrix] [--export png|svg]
     uv run scripts/cloud_build.py --types [aws|azure|gcp|k8s|ovh|...|generic]
 
 Les hébergeurs sans jeu d'icônes dans draw.io (OVHcloud, Scaleway, Outscale,
@@ -37,7 +37,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import (edge as new_edge, html, new_file, new_page, text_lines, text_width, vertex,  # noqa: E402
                         waypoints, write)
-from skill_paths import absent, load_module  # noqa: E402
+from skill_paths import absent, export_image, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -595,6 +595,8 @@ def main() -> int:
     parser.add_argument("spec", type=Path, nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
     parser.add_argument("--view", choices=VIEWS, help="vue, prioritaire sur celle de la description")
+    parser.add_argument("--export", choices=["png", "svg"],
+                        help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
     parser.add_argument("--matrix", action="store_true", help="écrit aussi <sujet>.flows.md, la matrice des flux (toujours en vue network)")
     parser.add_argument("--types", nargs="?", const="", metavar="FOURNISSEUR",
                         help="liste les types connus (aws, azure, gcp, k8s, hébergeurs souverains, generic) et s'arrête")
@@ -640,6 +642,9 @@ def main() -> int:
             report["warnings"] += checked["warnings"]
         else:
             report["warnings"].append("fichier non vérifié : " + absent("drawio-diagram", "check_drawio.py"))
+    if args.export and not report["errors"]:
+        report["export"], failed = export_image(out, args.export)
+        report["errors"] += failed
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

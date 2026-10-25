@@ -78,7 +78,10 @@ workflow, la commande les trace aussi au journal.
    corrige les constats de gravité haute ou moyenne, ou ajoute-les à
    `accept` avec la raison donnée par l'utilisateur. Un modèle de menaces
    ou une revue des piliers passe à `architecture-reviewer`.
-6. Exporte en image avec `diagram-export` et ouvre-la pour la relire :
+6. Exporte en image avec `diagram-export` et ouvre-la pour la relire ;
+   pour draw.io, Excalidraw, C4 et un schéma cloud, ajoute plutôt
+   `--export png` à la construction de l'étape 5 : un seul appel construit,
+   vérifie et exporte, et le rapport donne l'image (`export`). Relis :
    lisibilité, chevauchements, titre et légende, niveau de détail adapté au
    public. L'export vaut validation du rendu : n'ajoute pas `--check` avant.
    Si son rapport signale une image vide ou trop petite, corrige avant de

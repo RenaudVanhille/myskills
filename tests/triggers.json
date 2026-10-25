@@ -2,6 +2,8 @@
   "_doc": "Demandes d'utilisateur et skill qui doit se déclencher. tests/judge.py triggers vérifie que les descriptions des SKILL.md suffisent à choisir le bon skill.",
   "cases": [
     {"prompt": "Convertis ce PDF en Markdown.", "skill": "doc-to-markdown"},
+    {"prompt": "Écris le contrat OpenAPI des services de l'option retenue, et le AsyncAPI des événements vers l'outil de gestion.", "skill": "api-contract"},
+    {"prompt": "Fais-moi le plan d'actions de toutes les revues du dossier, importable dans Jira.", "skill": "architecture-dossier"},
     {"prompt": "Prépare le dossier d'architecture technique pour le comité avec tout ce que le workflow a produit.", "skill": "architecture-dossier"},
     {"prompt": "Fais l'analyse d'impact RGPD de notre portail et le registre des traitements.", "skill": "data-protection"},
     {"prompt": "Classe nos 40 applications en 6R pour la sortie du datacenter.", "skill": "migration-assessment"},

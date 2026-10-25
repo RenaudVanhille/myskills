@@ -13,7 +13,10 @@ avertissements.
 Une description peut aussi contenir `pages` : une liste de descriptions
 (`name`, `title`, `elements`), une page draw.io par vue.
 
-    uv run scripts/drawio_build.py SCHEMA.json [--out SCHEMA.drawio]
+    uv run scripts/drawio_build.py SCHEMA.json [--out SCHEMA.drawio] [--export png|svg]
+
+Avec --export, le schéma est aussi exporté (skill diagram-export) dans le même
+appel ; le rapport donne l'image dans `export`.
 """
 
 import argparse
@@ -26,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import br, edge, new_file, new_page, text_size, vertex, write  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 from check_drawio import check  # noqa: E402
+from skill_paths import export_image  # noqa: E402
 
 TEXT, ARROW = "#1f2937", "#374151"
 BASE = "whiteSpace=wrap;html=1;fontColor=#1f2937;fontSize=14;"
@@ -140,6 +144,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?")
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
+    parser.add_argument("--export", choices=["png", "svg"],
+                        help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -169,6 +175,9 @@ def main() -> int:
         report.update(output=str(out), shapes=checked["shapes"])
         report["errors"] += checked["errors"]
         report["warnings"] += checked["warnings"]
+    if args.export and not report["errors"]:
+        report["export"], failed = export_image(out, args.export)
+        report["errors"] += failed
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

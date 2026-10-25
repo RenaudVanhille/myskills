@@ -1,0 +1,20 @@
+{
+  "name": "invalide",
+  "stages": [
+    {
+      "id": "a",
+      "after": [
+        "b"
+      ],
+      "deliverables": [
+        "a.md"
+      ]
+    },
+    {
+      "id": "b",
+      "deliverables": [
+        "b.md"
+      ]
+    }
+  ]
+}

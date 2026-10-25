@@ -19,6 +19,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé. Rapport JSON, codes de sortie : 0 modèle écrit et vérifié (avertissements possibles) ; 1 description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
 
@@ -96,6 +97,9 @@ relancez. Si `likec4` est installé, le script lance `likec4 validate`.
 ```bash
 uv run ../diagram-export/scripts/export.py DOSSIER_DU_MODELE
 ```
+
+Ou en un seul appel avec la construction : `c4_build.py MODELE.json
+--export png` ; les images sont dans `export` du rapport.
 
 `export.py` lance `likec4 validate` (références inconnues, erreurs de syntaxe)
 puis exporte une image PNG par vue (`index.png`, `shop.png`) dans le dossier.

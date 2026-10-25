@@ -14,7 +14,7 @@
   "scripts": [
     {
       "name": "journal.py",
-      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
+      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
       "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -45,7 +45,8 @@
             "warnings",
             "changes",
             "stage",
-            "ask"
+            "ask",
+            "ready"
           ],
           "additionalProperties": false,
           "properties": {
@@ -213,6 +214,13 @@
                   }
                 }
               ]
+            },
+            "ready": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Étapes qui peuvent démarrer maintenant (toutes celles dont elles dépendent sont franchies) ; plusieurs : à mener en parallèle."
             }
           }
         }
@@ -487,6 +495,15 @@
                       "facultative": {
                         "type": "boolean",
                         "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
+                      },
+                      "after": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                        },
+                        "uniqueItems": true,
+                        "description": "Étapes dont celle-ci dépend, toutes placées avant elle (défaut : l'étape précédente ; [] : aucune). Des étapes prêtes en même temps se mènent en parallèle, chacune avec sa revue."
                       }
                     }
                   }

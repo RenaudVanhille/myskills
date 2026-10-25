@@ -10,6 +10,8 @@
     {"id": "schemas", "title": "Schémas", "kind": "images", "sources": ["schemas/*.png"]},
     {"id": "menaces", "title": "Modèle de menaces", "sources": ["*.threats.md", "schemas/*.threats.md"]},
     {"id": "well-architected", "title": "Revue Well-Architected", "sources": ["*.wa.md", "schemas/*.wa.md"]},
+    {"id": "plan", "title": "Plan d'actions", "sources": ["plan-actions.md"],
+     "help": "architecture-dossier : actions.py . (points ouverts des revues, dédoublonnés et priorisés)"},
     {"id": "sources", "title": "Annexe : documents reçus", "kind": "files", "sources": ["documents/*", "sources/*.md"]},
     {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
   ]

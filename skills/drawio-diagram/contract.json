@@ -13,11 +13,12 @@
     {
       "name": "drawio_build.py",
       "role": "Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py.",
-      "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] | --schema",
+      "usage": "uv run scripts/drawio_build.py SUJET.json [--out SUJET.drawio] [--export png|svg] | --schema",
       "options": {
         "SUJET.json": "description du schéma (même format que excalidraw_build.py, plus pages)",
         "--out": "fichier .drawio (défaut : même nom)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
       },
       "input": {
         "format": "json",
@@ -224,6 +225,29 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "export": {
+                  "type": "object",
+                  "required": [
+                    "outputs",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Avec --export : images écrites par diagram-export et ses avertissements (image vide ou trop petite).",
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
                 }
               }
             },
@@ -338,6 +362,14 @@
         "0": "aucune erreur",
         "1": "au moins un fichier a une erreur"
       }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "diagram-export",
+      "script": "export.py",
+      "why": "--export : rendre l'image dans le même appel que la construction",
+      "optional": true
     }
   ],
   "handoffs": [

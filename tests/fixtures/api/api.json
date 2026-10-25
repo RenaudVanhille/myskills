@@ -1,0 +1,29 @@
+{
+  "title": "API du portail de sinistres",
+  "version": "1.0.0",
+  "description": "Déclaration et suivi des sinistres par les assurés, transmission à l'outil de gestion.",
+  "servers": ["https://api.sinistres.example/v1"],
+  "security": "oidc",
+  "requirements": "../workflow/exigences.json",
+  "source": {"options": "../workflow/options.json", "option": "A"},
+  "resources": [
+    {"name": "Declaration", "description": "Déclaration de sinistre saisie par l'assuré.",
+     "fields": {"nature": "string", "date": "date", "description": "string", "pieces": "Piece[]"},
+     "required": ["nature", "date"], "enums": {"nature": ["auto", "habitation"]}},
+    {"name": "Piece", "fields": {"nom": "string", "contenu": "binary"}, "required": ["nom", "contenu"]},
+    {"name": "Dossier", "fields": {"id": "uuid", "statut": "string", "declaration": "Declaration", "mis_a_jour": "date-time"},
+     "required": ["id", "statut"], "enums": {"statut": ["recu", "en-instruction", "clos"]}}
+  ],
+  "operations": [
+    {"id": "declarerSinistre", "method": "POST", "path": "/dossiers", "summary": "Déclarer un sinistre",
+     "request": "Declaration", "response": "Dossier", "errors": [400, 401, 422], "component": "api", "refs": ["EF-001"]},
+    {"id": "suivreDossier", "method": "GET", "path": "/dossiers/{id}", "summary": "Suivre un dossier",
+     "response": "Dossier", "errors": [401, 404], "component": "api", "refs": ["EF-002"]},
+    {"id": "listerDossiers", "method": "GET", "path": "/dossiers", "summary": "Lister ses dossiers",
+     "query": {"statut": "string"}, "response": "Dossier[]", "component": "api", "refs": ["EF-002"]}
+  ],
+  "events": [
+    {"name": "SinistreDeclare", "channel": "sinistres.declares", "action": "send", "payload": "Dossier",
+     "summary": "Une déclaration est prête pour l'outil de gestion.", "component": "file", "refs": ["EF-003"]}
+  ]
+}

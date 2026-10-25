@@ -21,6 +21,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
 - **Dépend de** `drawio-diagram` (`check_drawio.py`, facultatif : sans lui, avertissement) : vérifier le .drawio produit.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 - **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main.
 - **Passe la main** au skill `mermaid-diagram` : diagramme de séquence des appels entre services pour un parcours.
@@ -147,6 +148,9 @@ conventions de schéma des fournisseurs). Après un dessin, lancez au moins
 ```bash
 uv run ../diagram-export/scripts/export.py SUJET.drawio --format png
 ```
+
+Ou en un seul appel avec la construction : `cloud_build.py SUJET.json
+--export png` ; l'image est dans `export` du rapport.
 
 Ouvrez l'image : flèche qui traverse une icône ou un libellé, libellés qui
 se chevauchent, groupe trop large. Changez l'ordre des services, `layout`

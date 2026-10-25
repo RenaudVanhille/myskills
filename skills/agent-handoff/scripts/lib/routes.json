@@ -88,7 +88,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate Dossier d'architecture technique architecture-dossier"
+   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate Dossier d'architecture technique architecture-dossier"
   },
   {
    "name": "cloud-existant",
@@ -172,6 +172,16 @@
    "match": "Valide un message de passage entre agents ou le rapport final d'un agent (JSON Schema, fichiers cités présents) et le note au journal d'un workflow ; donne la liste compacte des agents et workflows classés pour une demande. À utiliser par tout agent avant de passer la main à un autre ou de rendre son rapport final, et pour choisir par où commencer."
   },
   {
+   "name": "api-contract",
+   "level": "moyen",
+   "description": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences.",
+   "inputs": [
+    "Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements",
+    "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)"
+   ],
+   "match": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences. Le script écrit le YAML, contrôle doublons, types, ressources, exigences et composants de l'option d'architecture, et relit chaque contrat. À utiliser pour concevoir ou documenter une API, un contrat d'interface, des échanges par événements ou les interfaces de l'option retenue."
+  },
+  {
    "name": "architecture-deck",
    "level": "simple",
    "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx.",
@@ -187,7 +197,8 @@
    "inputs": [
     "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
     "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
-    "Facultatif : un gabarit de sections (JSON) propre à l'organisation"
+    "Facultatif : un gabarit de sections (JSON) propre à l'organisation",
+    "Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON"
    ],
    "match": "Assemble le dossier d'architecture technique (DAT) d'un projet à partir des livrables validés d'un workflow : synthèse, exigences, options, décision (ADR), schémas, revue d'architecture, menaces, Well-Architected, chiffrage et journal, selon un gabarit de sections. Signale les pièces manquantes et vérifie les liens. À utiliser pour préparer un comité d'architecture ou livrer le dossier d'un projet."
   },
@@ -266,7 +277,7 @@
     "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
     "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
    ],
-   "match": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation des précédentes ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées."
+   "match": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation de celles dont elle dépend, et des étapes indépendantes se mènent en parallèle ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées."
   },
   {
    "name": "diagram-brief",

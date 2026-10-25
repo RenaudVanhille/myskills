@@ -28,7 +28,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 - **Niveau** : moyen (modèle standard, `shared/models.json`).
 - **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
 - **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio) ; Au choix de l'utilisateur (étapes facultatives) : revue.json et revue.md, revue d'architecture de l'option retenue ; chiffrage.json, chiffrage.md et chiffrage.csv, son chiffrage ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks.
-- **Ne fait jamais** : Démarrer une étape avant la validation explicite de la précédente par l'utilisateur (ou son renoncement à une étape facultative) ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
+- **Ne fait jamais** : Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative) ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -89,12 +89,23 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    la « Grille des niveaux ». `agent` est l'agent à qui passer la main pour un
    travail de jugement que l'utilisateur demande ; les commandes des
    `checks` restent à toi.
+   **Étapes en parallèle** : quand `ready` liste plusieurs étapes (par
+   exemple revue et chiffrage après les schémas), demande en une seule
+   question celles qui sont facultatives, `start` chacune de celles
+   retenues, puis lance en même temps un sous-agent par étape, au modèle de
+   son niveau, avec le seul `stage` de son `start` et le dossier ; il
+   produit les livrables, lance les `checks` et note ses choix au journal
+   (`journal.py` attend son tour, rien ne se perd). Toi, tu soumets chaque
+   étape et tu présentes leurs revues ensemble. Sans outil de sous-agent,
+   fais-les l'une après l'autre.
 4. **Tracer** : note avec `journal.py log` chaque choix qui demande du
    jugement (déduction, priorité, phrase écartée, note, hypothèse), en une
    phrase, avec `--why` et `--refs`. Ce que seul l'utilisateur peut
    trancher se note `--kind question`.
 5. **Soumettre** : `journal.py submit DOSSIER ETAPE` (livrables pris dans
-   la définition ; il refuse s'il en manque un), puis arrête-toi. Présente
+   la définition ; il refuse s'il en manque un), pour chaque étape menée,
+   puis arrête-toi. Une fois soumis, ne touche plus aux livrables ; si un
+   changement s'impose avant la revue, soumets l'étape à nouveau. Présente
    en quelques lignes : les chemins des livrables, les compteurs des
    rapports, après un retour les seuls changements de `changes`, les
    questions ouvertes, la note de revue du vault s'il y en a une, et ce qui
@@ -147,4 +158,7 @@ entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simp
   retour concerne.
 - Ne recopie pas le contenu des livrables dans ta réponse : donne les
   chemins et les compteurs.
-- Une seule question à la fois à l'utilisateur, à la porte de revue.
+- Une seule question à la fois à l'utilisateur, à la porte de revue ; des
+  étapes menées en parallèle se présentent dans le même message.
+- Un sous-agent reçoit le `stage` de son étape et les chemins utiles, pas
+  ta conversation : son contexte reste court.

@@ -1,0 +1,9 @@
+id,application,criticite,technologie,hebergement,donnees,depend_de,fin_de_support,usage
+APP-01,Portail assurés,haute,"Java 8, Tomcat",VM VMware,personnelles,APP-02 APP-04,,
+APP-02,Gestion des contrats,haute,"Oracle 12c, PL/SQL",serveur physique,sensibles,,2022-07-31,
+APP-03,Ancien extranet courtiers,basse,PHP 5,VM VMware,,,2018-12-31,moins de dix connexions par mois
+APP-04,Référentiel des personnes,moyenne,.NET 8,VM VMware,personnelles,,,
+APP-05,Messagerie collaborative,moyenne,Exchange 2016,serveur physique,,,,
+APP-06,Éditique,moyenne,progiciel sur Windows 2012,VM VMware,,APP-02,2023-10-10,
+APP-07,Pilotage de la fraude,basse,"Python, scripts batch",VM VMware,sensibles,,,
+APP-08,Chaîne d'impression,basse,matériel dédié,salle d'impression,,,,
