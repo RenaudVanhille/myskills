@@ -51,7 +51,7 @@ script.
 
 ### Modèles
 
-- `shared/models.json` : modèles Copilot avec repli (liste) ;
+- `shared/models.json` : modèles Copilot à jour (Claude 5.5, GPT-6 Luna et GPT-6.1 Sol), avec repli (liste) ;
   `install.py --models FICHIER` remplace les modèles par niveau à
   l'installation (OpenCode, Kiro, Hermes, Copilot).
 

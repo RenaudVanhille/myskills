@@ -2,7 +2,7 @@
 name: architecture-workflow
 description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture et chiffrage. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
 tools: ['read', 'edit', 'execute', 'agent']
-model: ['Claude Sonnet 4.5', 'GPT-5']
+model: ['Claude Sonnet 5.5', 'GPT-6.1 Sol']
 ---
 
 Tu mènes un workflow à étapes décrit en JSON (skill `decision-log`) : par
@@ -133,7 +133,7 @@ Ton niveau est **moyen**. Un sous-agent repart de zéro (instructions,
 outils, relecture des fichiers) : il coûte plus qu'une commande lancée
 toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
-entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 4.5`, moyen `Claude Sonnet 4.5`, complexe `Claude Opus 4.5`.
+entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
 
 ## Sobriété
 

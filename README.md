@@ -135,9 +135,9 @@ chaque niveau par outil :
 
 | Niveau | Classe | Claude Code | Copilot (repli dans l'ordre) | OpenCode, Kiro | Hermes |
 | --- | --- | --- | --- | --- | --- |
-| simple | léger | `haiku` | Claude Haiku 4.5, GPT-5 mini | `install.py --models` | session |
-| moyen | standard | `sonnet` | Claude Sonnet 4.5, GPT-5 | `install.py --models` | session |
-| complexe | puissant | `opus` | Claude Opus 4.5, Claude Sonnet 4.5 | `install.py --models` | session |
+| simple | léger | `haiku` | Claude Haiku 5.5, GPT-6 Luna | `install.py --models` | session |
+| moyen | standard | `sonnet` | Claude Sonnet 5.5, GPT-6.1 Sol | `install.py --models` | session |
+| complexe | puissant | `opus` | Claude Opus 5.5, GPT-6.1 Sol | `install.py --models` | session |
 
 `scripts/build.py` en tire le `model` des agents Claude Code et Copilot et
 leur consigne : chaque agent travaille à son niveau, monte d'un niveau si une

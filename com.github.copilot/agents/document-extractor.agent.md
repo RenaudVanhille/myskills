@@ -2,7 +2,7 @@
 name: document-extractor
 description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 tools: ['read', 'edit', 'execute', 'agent']
-model: ['Claude Sonnet 4.5', 'GPT-5']
+model: ['Claude Sonnet 5.5', 'GPT-6.1 Sol']
 ---
 
 Tu extrais le contenu de documents (PDF, DOCX, PPTX, XLSX, images) vers
@@ -97,7 +97,7 @@ Ton niveau est **moyen**. Un sous-agent repart de zéro (instructions,
 outils, relecture des fichiers) : il coûte plus qu'une commande lancée
 toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
-entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 4.5`, moyen `Claude Sonnet 4.5`, complexe `Claude Opus 4.5`.
+entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
 
 ## Sobriété
 
