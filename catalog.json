@@ -542,7 +542,7 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
-        "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
+        "Description JSON des options : title, context, audience, requirements, pos, hosting (qualifications, refs), criteria, options (id, name, summary, provider, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
         "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
       ],
       "outputs": [
@@ -822,9 +822,17 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ],
-                        "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
+                        "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles, ou formes de la charte pour un hébergeur souverain)."
                       },
                       "placement": {
                         "type": "array",
@@ -936,6 +944,30 @@
                       "items": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      }
+                    }
+                  }
+                },
+                "hosting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "qualifications"
+                  ],
+                  "description": "qualifications exigées de l'hébergeur et exigences qui les portent : une option chez un hébergeur sans la qualification (catalogue shared/providers.json) ne couvre pas ces exigences",
+                  "properties": {
+                    "qualifications": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      }
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
                       }
                     }
                   }
@@ -1256,6 +1288,11 @@
           "to": "solution-estimator",
           "kind": "agent",
           "when": "la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total)"
+        },
+        {
+          "to": "cloud-architecture",
+          "kind": "skill",
+          "when": "construire le schéma aux icônes du fournisseur d'une option cloud (schemas/option-<id>.cloud.json)"
         }
       ],
       "description": "Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exigences : écarts de couverture, notes par critère justifiées, score pondéré et rang calculés par script, recommandation, puis ADR de la décision et un schéma draw.io par option. À utiliser pour proposer des architectures, comparer des scénarios ou documenter un choix d'architecture.",
@@ -2304,10 +2341,10 @@
       "level": "moyen",
       "inputs": [
         "Décision de diagram-brief : public et destination",
-        "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
+        "Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
       ],
       "outputs": [
-        "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
+        "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes (formes génériques de la charte pour les hébergeurs souverains), à côté de sa description <sujet>.json",
         "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
         "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
       ],
@@ -2343,7 +2380,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -2418,7 +2463,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -2491,6 +2544,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -6225,7 +6286,7 @@
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
         "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions",
-        "Catalogue des hébergeurs (references/providers.json : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
+        "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
       ],
       "outputs": [
         "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
@@ -6320,7 +6381,7 @@
                 "providers": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète references/providers.json du skill."
+                  "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète le catalogue commun (shared/providers.json)."
                 },
                 "rates": {
                   "type": "object",
@@ -6598,7 +6659,7 @@
                   "patternProperties": {
                     "^_": {}
                   },
-                  "description": "Catalogue des hébergeurs (references/providers.json ou fichier du champ providers).",
+                  "description": "Catalogue des hébergeurs (shared/providers.json ou fichier du champ providers).",
                   "properties": {
                     "checked": {
                       "type": "string",
@@ -6646,10 +6707,18 @@
                             },
                             "note": {
                               "type": "string"
+                            },
+                            "diagram": {
+                              "type": "object",
+                              "description": "hébergeur dessinable avec les formes génériques ; labels : noms de ses services"
                             }
                           }
                         }
                       }
+                    },
+                    "diagram": {
+                      "type": "object",
+                      "description": "vocabulaire de schéma des hébergeurs sans icônes (cloud_build.py)"
                     }
                   }
                 }
@@ -7071,7 +7140,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -7146,7 +7223,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -7219,6 +7304,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -8078,7 +8171,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -8153,7 +8254,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -8226,6 +8335,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -8406,7 +8523,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       }
                     },

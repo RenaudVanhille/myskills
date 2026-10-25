@@ -300,6 +300,23 @@ def check_contracts() -> dict:
             stale.append(file)
     if stale:
         failures.append(f"pas à jour, lancez uv run scripts/build.py : {', '.join(stale)}")
+    # Fournisseurs des descriptions cloud : les quatre à icônes officielles et les hébergeurs dessinables du
+    # catalogue commun (shared/providers.json), partout les mêmes.
+    catalog = json.loads((ROOT / "shared" / "providers.json").read_text(encoding="utf-8"))
+    expected = ["aws", "azure", "gcp", "k8s"] + [k for k, v in catalog["providers"].items() if "diagram" in v]
+
+    def provider_enums(node, where):
+        if isinstance(node, dict):
+            if isinstance(node.get("enum"), list) and {"aws", "azure"} <= set(node["enum"]) and None not in node["enum"] \
+                    and node["enum"] != expected:
+                failures.append(f"{where} : fournisseurs {node['enum']}, attendu {expected} (shared/providers.json)")
+            for value in node.values():
+                provider_enums(value, where)
+        elif isinstance(node, list):
+            for value in node:
+                provider_enums(value, where)
+    for name, contract in skills.items():
+        provider_enums(contract, f"skills/{name}/contract.json")
     return {"id": "contrats", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 
@@ -380,6 +397,19 @@ def check_rules() -> dict:
                 failures.append(f"{name}/{script['name']} : lit {first} sans schéma d'entrée (input) dans le contrat")
             if script.get("input") and "--schema" not in script["usage"]:
                 failures.append(f"{name}/{script['name']} : option --schema absente du usage")
+
+    # Commande d'un SKILL.md vers le script d'un skill voisin (../<skill>/scripts/<script>) : le script existe et
+    # le skill est déclaré dans le contrat (requires ou passage de main).
+    for name, contract in contracts.items():
+        text = (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+        linked = {need["skill"] for need in contract.get("requires", [])} | \
+                 {hand["to"] for hand in contract.get("handoffs", [])}
+        for other, script in sorted(set(re.findall(r"\.\./([a-z0-9-]+)/scripts/([\w.-]+\.py)", text))):
+            if not (ROOT / "skills" / other / "scripts" / script).exists():
+                failures.append(f"{name}/SKILL.md : ../{other}/scripts/{script} introuvable")
+            elif other not in linked:
+                failures.append(f"{name}/SKILL.md : appelle ../{other}/scripts/{script} sans déclarer {other} "
+                                "dans requires ou handoffs du contrat")
 
     for src in source_agents():
         meta = parse_agent(src)[0]

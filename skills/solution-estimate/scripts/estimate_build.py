@@ -49,7 +49,8 @@ PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réa
           "pilotage": "Pilotage"}
 PERIODS = {"mois": 12, "an": 1, "unique": 0}
 UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper ou hypothèse à lever
-PROVIDERS = Path(__file__).resolve().parents[1] / "references" / "providers.json"
+# Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
+PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
 STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier
 QUALIFIED_KINDS = ("cloud", "service")  # lignes soumises aux qualifications exigées
 

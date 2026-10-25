@@ -4,7 +4,7 @@
   "inputs": [
     "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
     "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
-    "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
+    "Description JSON des options : title, context, audience, requirements, pos, hosting (qualifications, refs), criteria, options (id, name, summary, provider, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
     "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
   ],
   "outputs": [
@@ -284,9 +284,17 @@
                       "aws",
                       "azure",
                       "gcp",
-                      "k8s"
+                      "k8s",
+                      "ovh",
+                      "cloud-temple",
+                      "outscale",
+                      "s3ns",
+                      "bleu",
+                      "numspot",
+                      "scaleway",
+                      "sur-site"
                     ],
-                    "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
+                    "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles, ou formes de la charte pour un hébergeur souverain)."
                   },
                   "placement": {
                     "type": "array",
@@ -398,6 +406,30 @@
                   "items": {
                     "type": "string",
                     "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                  }
+                }
+              }
+            },
+            "hosting": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "qualifications"
+              ],
+              "description": "qualifications exigées de l'hébergeur et exigences qui les portent : une option chez un hébergeur sans la qualification (catalogue shared/providers.json) ne couvre pas ces exigences",
+              "properties": {
+                "qualifications": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  }
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
                   }
                 }
               }
@@ -718,6 +750,11 @@
       "to": "solution-estimator",
       "kind": "agent",
       "when": "la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total)"
+    },
+    {
+      "to": "cloud-architecture",
+      "kind": "skill",
+      "when": "construire le schéma aux icônes du fournisseur d'une option cloud (schemas/option-<id>.cloud.json)"
     }
   ]
 }

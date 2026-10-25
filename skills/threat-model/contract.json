@@ -39,7 +39,15 @@
                 "aws",
                 "azure",
                 "gcp",
-                "k8s"
+                "k8s",
+                "ovh",
+                "cloud-temple",
+                "outscale",
+                "s3ns",
+                "bleu",
+                "numspot",
+                "scaleway",
+                "sur-site"
               ]
             },
             "view": {
@@ -114,7 +122,15 @@
                       "aws",
                       "azure",
                       "gcp",
-                      "k8s"
+                      "k8s",
+                      "ovh",
+                      "cloud-temple",
+                      "outscale",
+                      "s3ns",
+                      "bleu",
+                      "numspot",
+                      "scaleway",
+                      "sur-site"
                     ]
                   },
                   "view": {
@@ -187,6 +203,14 @@
                   "minLength": 1
                 }
               }
+            },
+            "qualifications": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]+$"
+              },
+              "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
             }
           },
           "$defs": {

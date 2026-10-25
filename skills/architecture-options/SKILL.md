@@ -14,7 +14,7 @@ calcule scores et rang, met en forme et prépare les schémas.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : complexe (modèle puissant).
-- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>) ; Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
+- **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>) ; Description JSON des options : title, context, audience, requirements, pos, hosting (qualifications, refs), criteria, options (id, name, summary, provider, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision ; Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs).
 - **Sorties** : <nom>.md : comparaison pour la revue (synthèse et rang, critères et notes, écarts aux exigences, détail des options, recommandation, décision) ; schemas/architectures.json : description draw.io, une page par option, à construire avec drawio_build.py ; adr-architecture.md : décision d'architecture, quand decision est renseignée ou --decision donné ; tracabilite.md, tracabilite.csv : matrice exigence, couverture par option, composants de l'option retenue (ou recommandée) ; schemas/option-<id>.cloud.json : description cloud_build.py d'une option qui a un provider (icônes officielles) ; schemas/option-<id>.wa.md : revue Well-Architected des piliers d'une option cloud (wa_check.py du skill well-architected-review) ; schemas/pos-option-<id>.json : POS cible de chaque option (statuts des applications touchées), écrit par pos_impact.py (urbanization-map), à construire avec pos_build.py.
 - **`options_build.py`** : Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (wa_check.py de well-architected-review) (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option (pos_impact.py d'urbanization-map), en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible. Rapport JSON, codes de sortie : 0 comparaison produite sans erreur (avertissements possibles) ; 1 description invalide, exigence ou composant inconnu, note manquante ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
@@ -28,6 +28,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Passe la main** au skill `urbanization-map` : construire le POS cible de chaque option avec pos_build.py.
 - **Passe la main** au skill `architecture-deck` : la décision est prise et les schémas exportés : assembler la présentation du dossier.
 - **Passe la main** à l'agent `solution-estimator` : la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total).
+- **Passe la main** au skill `cloud-architecture` : construire le schéma aux icônes du fournisseur d'une option cloud (schemas/option-<id>.cloud.json).
 
 ## 1. Concevoir les options
 
@@ -76,7 +77,9 @@ Fichier `options.json`, à côté de `exigences.json` :
   schéma de l'option. `refs` d'un composant liste les exigences qu'il
   porte : la matrice de traçabilité les reprend, et le script avertit d'une
   exigence couverte qu'aucun composant de l'option retenue ne porte.
-- **Option cloud** : avec `provider` (aws, azure, gcp, k8s) et un `type`
+- **Option cloud** : avec `provider` (aws, azure, gcp, k8s, ou un hébergeur
+  souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot,
+  sur-site) et un `type`
   `cloud_build.py` par composant (`ecs`, `aurora`, `sqs`... ; sinon déduit
   du rôle), le script écrit aussi `schemas/option-<id>.cloud.json`, schéma
   aux icônes officielles. Le script la contrôle aussi contre les piliers
@@ -90,6 +93,12 @@ Fichier `options.json`, à côté de `exigences.json` :
   `open` du rapport, `"SEC-05@F1": "WAF du groupe en amont"`) ; il pèse
   sur la note du critère concerné. Une gravité haute non traitée est
   signalée.
+- **Qualification d'hébergement** : si une exigence impose SecNumCloud ou
+  HDS, écrivez `"hosting": {"qualifications": ["secnumcloud"], "refs":
+  ["ENF-003"]}`. Le script compare l'hébergeur de chaque option au catalogue
+  commun des hébergeurs : sans la qualification, l'écart « non » est ajouté
+  sur ces exigences (option éliminée si l'une est indispensable) et la
+  revue Well-Architected porte le constat SEC-08.
 - **Recommandation** : l'option et pourquoi, avec les exigences
   déterminantes. Si elle ne suit pas le classement, le script l'avertit :
   la justification doit l'expliquer.

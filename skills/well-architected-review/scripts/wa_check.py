@@ -8,7 +8,12 @@ mécaniques tirées de l'AWS Well-Architected Framework, de l'Azure
 Well-Architected Framework et du Google Cloud Well-Architected Framework
 (fiabilité, sécurité, excellence opérationnelle, performances, coûts,
 durabilité), puis les conventions de schéma des fournisseurs (imbrication
-des groupes région, VPC/VNet, zone, sous-réseau ; icônes officielles). Chaque
+des groupes région, VPC/VNet, zone, sous-réseau ; icônes officielles). Les
+hébergeurs souverains du catalogue commun (shared/providers.json : OVHcloud,
+Outscale, Cloud Temple...) passent les mêmes règles, par les rôles de leurs
+services, avec les repères AWS faute de cadre propre ; la règle SEC-08
+compare leurs qualifications à celles qu'exige la description
+(`qualifications` : secnumcloud, hds). Chaque
 constat donne la règle, le pilier, la gravité, l'élément, la correction et
 la référence du cadre. Un constat accepté (clé `accept` de la description,
 avec sa raison) reste dans le rapport mais ne compte plus. Le script écrit
@@ -33,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
+HERE = Path(__file__).resolve().parent
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
 CLOUD = load_module("cloud-architecture", "cloud_build.py")
 MISSING = None if CLOUD else absent("cloud-architecture", "cloud_build.py")
@@ -174,7 +180,56 @@ RULES = {
                 "Faire un groupe par fournisseur.", CONVENTION_REF),
     "CONV-06": ("conventions", "basse", "Icône générique chez un fournisseur",
                 "Utiliser le type officiel du fournisseur (--types de cloud_build.py).", CONVENTION_REF),
+    "SEC-08": ("security", "haute", "Hébergeur sans la qualification exigée",
+               "Choisir un hébergeur et une offre qualifiés (shared/providers.json), ou accepter l'écart avec sa raison.",
+               {}),
 }
+
+# Hébergeurs souverains (catalogue commun shared/providers.json, copié dans lib/) : rôles de leurs services et
+# de leurs groupes, pour appliquer les mêmes règles ; repères AWS faute de cadre Well-Architected propre.
+CATALOG = json.loads((HERE / "lib" / "providers.json").read_text(encoding="utf-8"))
+HOSTS = {k: v for k, v in CATALOG["providers"].items() if "diagram" in v}
+_SERVICES = {k: v for k, v in CATALOG["diagram"]["services"].items() if not k.startswith("_")}
+_GROUPS = {k: v for k, v in CATALOG["diagram"]["groups"].items() if not k.startswith("_")}
+
+
+def host_types(role: str, host: str | None = None) -> set[str]:
+    return {f"{h}:{s}" for h in ([host] if host else HOSTS) for s, v in _SERVICES.items() if role in v["roles"]}
+
+
+def host_groups(kind: str) -> set[str]:
+    return {f"{h}:{g}" for h in HOSTS for g, v in _GROUPS.items() if v["as"] == kind}
+
+
+VM |= host_types("vm")
+SERVERLESS |= host_types("serverless")
+DATABASES |= host_types("database")
+ENTRY |= host_types("entry")
+OUTSIDE_SUBNET |= host_types("managed")
+for _role, _by_cloud in ROLES.items():
+    _by_cloud.update({h: host_types(_role, h) for h in HOSTS})
+REGIONS |= host_groups("region")
+ZONES |= host_groups("zone")
+NETWORKS |= host_groups("network")
+SUBNETS |= host_groups("subnet")
+_HOST_RANK = {"project": 0, "region": 1, "network": 2, "zone": 3, "subnet": 4}
+for _host in HOSTS:
+    for _g, _v in _GROUPS.items():
+        RANK[f"{_host}:{_g}"] = _HOST_RANK[_v["as"]]
+        if _v["as"] == "subnet":
+            REQUIRED[f"{_host}:{_g}"] = host_groups("network")
+        elif _v["as"] == "zone":
+            REQUIRED[f"{_host}:{_g}"] = host_groups("region") | host_groups("network")
+    FRAMEWORKS[_host] = f"{HOSTS[_host]['name']} (repères AWS Well-Architected, pas de cadre propre) :"
+    CONVENTION_REF[_host] = ("pas de jeu d'icônes officiel : formes de la charte ; "
+                             "projet > région > réseau privé > zone, sous-réseau")
+CLOUDS = CLOUDS + tuple(HOSTS)
+for _rule, (_pillar, _, _, _, _refs) in RULES.items():
+    if _rule == "SEC-08":
+        _refs.update({c: "qualification exigée par les exigences (SecNumCloud : référentiel de l'ANSSI ; "
+                         "HDS : hébergement de données de santé)" for c in (*CLOUDS, "k8s")})
+    elif _pillar != "conventions" and "aws" in _refs:
+        _refs.update({h: _refs["aws"] for h in HOSTS})
 # Ce qui ne se voit pas sur un schéma : à demander en revue.
 OFF_DIAGRAM = {
     "operations": "infrastructure en code, déploiements automatisés et réversibles, procédures d'exploitation",
@@ -218,11 +273,14 @@ def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
         seen.add(key)
         pillar, severity, title, fix, refs = RULES[rule]
         # Conventions : le guide d'icônes du fournisseur ; piliers : le cadre Well-Architected et la question.
-        named = (lambda c: refs[c]) if pillar == "conventions" else (lambda c: f"{FRAMEWORKS[c]} {refs[c]}")
+        plain = pillar == "conventions" or rule == "SEC-08"
+        named = (lambda c: refs[c]) if plain else (lambda c: f"{FRAMEWORKS[c]} {refs[c]}")
         if where in refs:
             ref = named(where)
         else:
-            ref = " ; ".join(named(c) for c in CLOUDS if c in refs and (c in clouds or not clouds & set(CLOUDS)))
+            # Sans fournisseur connu : les repères des trois grands cadres.
+            ref = " ; ".join(named(c) for c in CLOUDS if c in refs and (
+                c in clouds or (not clouds & set(CLOUDS) and c in ("aws", "azure", "gcp"))))
         findings.append({"rule": rule, "pillar": pillar, "severity": severity, "element": element,
                          "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
 
@@ -356,7 +414,30 @@ def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
             add("SEC-07", cloud, "aucun journal d'audit ni détection", cloud)
         if mine & (VM | SERVERLESS) and (mine | types_all) & DATABASES and not mine & ROLES["secrets"][cloud]:
             add("SEC-06", cloud, "calcul et base sans coffre à secrets", cloud)
+    # Qualifications exigées de chaque hébergeur décrit (catalogue commun des hébergeurs).
+    required = list(dict.fromkeys(spec.get("qualifications") or []))
+    for cloud in sorted(c for c in clouds if c in CATALOG["providers"]) if required else ():
+        info = CATALOG["providers"][cloud]
+        missing = [q for q in required if q not in info["qualifications"]]
+        if missing:
+            pending = [q for q in missing if q in info.get("pending", [])]
+            add("SEC-08", cloud, f"{info['name']} sans {', '.join(missing)}"
+                + (f" (qualification en cours : {', '.join(pending)})" if pending else ""), cloud)
     return findings, errors, clouds
+
+
+def hosting_notes(spec: dict, clouds: set[str]) -> list[str]:
+    """Avertissements sur les qualifications exigées : offre à vérifier, hébergeur hors catalogue."""
+    required = spec.get("qualifications") or []
+    if not required:
+        return []
+    known = CATALOG["providers"]
+    notes = [f"{known[c]['name']} : {known[c]['note']}" for c in sorted(clouds)
+             if c in known and known[c].get("note") and set(required) <= set(known[c]["qualifications"])]
+    unknown = sorted(c for c in clouds if c not in known and c != "k8s")
+    if unknown:
+        notes.append(f"qualifications non vérifiées pour {', '.join(unknown)} (absent du catalogue des hébergeurs)")
+    return notes
 
 
 def accept(findings: list[dict], accepted: dict, warnings: list[str]) -> None:
@@ -375,7 +456,8 @@ def cell(text) -> str:
 
 
 def markdown(title: str, findings: list[dict], clouds: set[str], rules: int) -> str:
-    frameworks = ", ".join(FRAMEWORKS[c] for c in ("aws", "azure", "gcp", "k8s") if c in clouds) or "aucun fournisseur"
+    frameworks = ", ".join(FRAMEWORKS[c].removesuffix(" :") for c in ("aws", "azure", "gcp", "k8s", *HOSTS)
+                           if c in clouds) or "aucun fournisseur"
     lines = [f"# Revue Well-Architected : {title}", "",
              f"Contrôle automatique du schéma par `wa_check.py` ({rules} règles ; cadres : {frameworks}). "
              "Ce n'est pas une revue complète : les points hors du schéma sont listés à la fin.", "",
@@ -449,6 +531,7 @@ def main() -> int:
     if args.scope != "tout":
         findings = [f for f in findings if (f["pillar"] == "conventions") == (args.scope == "conventions")]
     rules = {r for r, v in RULES.items() if args.scope == "tout" or (v[0] == "conventions") == (args.scope == "conventions")}
+    warnings += hosting_notes(spec, clouds)
     accept(findings, spec.get("accept") or {}, warnings)
     findings.sort(key=lambda f: (SEVERITIES.index(f["severity"]), f["rule"]))
     open_ = [f for f in findings if not f["accepted"]]

@@ -3,10 +3,10 @@
   "level": "moyen",
   "inputs": [
     "Décision de diagram-brief : public et destination",
-    "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
+    "Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
   ],
   "outputs": [
-    "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
+    "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes (formes génériques de la charte pour les hébergeurs souverains), à côté de sa description <sujet>.json",
     "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
     "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
   ],
@@ -42,7 +42,15 @@
                 "aws",
                 "azure",
                 "gcp",
-                "k8s"
+                "k8s",
+                "ovh",
+                "cloud-temple",
+                "outscale",
+                "s3ns",
+                "bleu",
+                "numspot",
+                "scaleway",
+                "sur-site"
               ]
             },
             "view": {
@@ -117,7 +125,15 @@
                       "aws",
                       "azure",
                       "gcp",
-                      "k8s"
+                      "k8s",
+                      "ovh",
+                      "cloud-temple",
+                      "outscale",
+                      "s3ns",
+                      "bleu",
+                      "numspot",
+                      "scaleway",
+                      "sur-site"
                     ]
                   },
                   "view": {
@@ -190,6 +206,14 @@
                   "minLength": 1
                 }
               }
+            },
+            "qualifications": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]+$"
+              },
+              "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
             }
           },
           "$defs": {
