@@ -1,0 +1,1 @@
+{"title": "API", "operations": [{"id": "x", "methode": "GET", "path": "/x", "summary": "x"}], "security": "oauth"}

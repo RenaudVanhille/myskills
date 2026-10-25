@@ -1,0 +1,12 @@
+{
+  "title": "API invalide",
+  "requirements": "../workflow/exigences.json",
+  "source": {"options": "../workflow/options.json", "option": "A"},
+  "resources": [
+    {"name": "Dossier", "fields": {"id": "uuid", "montant": "decimal"}, "required": ["id", "statut"]}
+  ],
+  "operations": [
+    {"id": "lire", "method": "GET", "path": "/dossiers/{id}", "summary": "Lire", "request": "Dossier", "response": "Dosier", "component": "apii", "refs": ["EF-009"]},
+    {"id": "lire", "method": "GET", "path": "/dossiers/{id}", "summary": "Lire encore", "response": "Dossier"}
+  ]
+}

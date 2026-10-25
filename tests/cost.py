@@ -150,6 +150,8 @@ def run_case(case: dict, model: str, keep: bool) -> list[dict]:
     rows = []
     if "rounds" not in case:
         data = claude(case["prompt"], case, model, work)
+        if keep:
+            (work / "claude-result.txt").write_text(str(data.get("result", "")), encoding="utf-8")
         rows.append(row_of(case["id"], case, model, data, (work / case["output"]).exists()))
     else:
         prompt = case["prompt"]

@@ -86,7 +86,10 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   des livrables, des contrôles, des consignes et de la mémoire du vault.
   L'agent `architecture-workflow` est un moteur générique qui la suit : un
   nouveau workflow ne demande qu'une définition. Chaque étape livrée a un
-  `level`, et ses skills figurent dans ceux de l'agent **(vérifiée)**.
+  `level`, et ses skills figurent dans ceux de l'agent **(vérifiée)**. Une
+  étape qui ne dépend pas de la précédente le dit dans `after`, qui ne cite
+  que des étapes placées avant elle **(vérifiée)** : les étapes prêtes en
+  même temps se mènent en parallèle.
 
 ## 3. Sobriété en tokens
 
@@ -101,7 +104,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 - Une seule question à l'utilisateur, et seulement si la réponse change le
   résultat ; sinon, choisir et dire pourquoi.
 - Toute modification d'un skill ou d'un agent qui peut changer le coût se
-  mesure avec `tests/cost.py` (avant, après).
+  mesure avec `tests/cost.py` (avant, après), en médiane de plusieurs
+  exécutions (`--repeat 3`) : une seule exécution varie trop pour conclure.
+- Le coût suit surtout le nombre de tours : un script qui enchaîne
+  construction, contrôle et export (`--export`) vaut mieux qu'une consigne
+  plus courte. Un travail indépendant d'un autre (étapes, analyses,
+  documents) va à un sous-agent lancé en parallèle, avec un contexte court.
 
 ## 4. Agents
 

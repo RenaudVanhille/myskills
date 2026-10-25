@@ -88,7 +88,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate Dossier d'architecture technique architecture-dossier"
+   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate Dossier d'architecture technique architecture-dossier"
   },
   {
    "name": "cloud-existant",
@@ -170,6 +170,16 @@
     "Pour le routage : la demande de l'utilisateur et les fichiers fournis (route.py)"
    ],
    "match": "Valide un message de passage entre agents ou le rapport final d'un agent (JSON Schema, fichiers cités présents) et le note au journal d'un workflow ; donne la liste compacte des agents et workflows classés pour une demande. À utiliser par tout agent avant de passer la main à un autre ou de rendre son rapport final, et pour choisir par où commencer."
+  },
+  {
+   "name": "api-contract",
+   "level": "moyen",
+   "description": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences.",
+   "inputs": [
+    "Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements",
+    "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)"
+   ],
+   "match": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences. Le script écrit le YAML, contrôle doublons, types, ressources, exigences et composants de l'option d'architecture, et relit chaque contrat. À utiliser pour concevoir ou documenter une API, un contrat d'interface, des échanges par événements ou les interfaces de l'option retenue."
   },
   {
    "name": "architecture-deck",

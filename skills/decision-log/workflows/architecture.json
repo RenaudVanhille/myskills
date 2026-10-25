@@ -92,7 +92,8 @@
         "well-architected-review",
         "urbanization-map",
         "diagram-export",
-        "architecture-deck"
+        "architecture-deck",
+        "api-contract"
       ],
       "agent": "schema-designer",
       "inputs": [
@@ -110,7 +111,8 @@
         "tracabilite.csv",
         "schemas/option-*.drawio",
         "schemas/pos-option-*.drawio",
-        "presentation.md"
+        "presentation.md",
+        "api/*"
       ],
       "checks": [
         "architecture-options : options_build.py options.json --decision decision.json",
@@ -118,6 +120,7 @@
         "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json --export png (option cloud retenue), puis well-architected-review : wa_check.py --scope conventions sur ce fichier",
         "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
         "diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois",
+        "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../exigences.json, source ../options.json et l'option)",
         "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
       ],
       "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas."

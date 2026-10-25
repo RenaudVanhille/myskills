@@ -1,7 +1,7 @@
 ---
 name: architecture-workflow
 description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
-skills: check-prerequisites, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, architecture-dossier, data-protection, migration-assessment, transition-roadmap
+skills: check-prerequisites, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, architecture-dossier, data-protection, migration-assessment, transition-roadmap, api-contract
 commands: uv run *, uvx *, python *, python3 *, py *
 ---
 

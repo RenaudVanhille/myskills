@@ -1,6 +1,52 @@
 # Journal des versions
 
-## À venir
+## 0.6.0 (2026-10-25)
+
+### Parallélisation
+
+- Workflows en graphe : champ `after` des étapes (défaut : l'étape
+  précédente) ; `journal.py` donne les étapes prêtes (`ready`), refuse une
+  étape dont une dépendance n'est pas franchie, et un retour ne remet à
+  reprendre que les étapes qui en dépendent. Verrou `workflow.lock` : des
+  sous-agents peuvent appeler `journal.py` en même temps. `architecture` :
+  revue et chiffrage en parallèle après les schémas ; `cloud-existant` :
+  schémas et menaces ; `conformite` : exigences et description ;
+  `migration-cloud` : cible (puis chiffrage) et feuille de route. Le cas
+  `regles` vérifie `after`.
+- `architecture-workflow` lance les étapes prêtes chacune dans un
+  sous-agent du niveau de l'étape ; `architecture-reviewer` fait de même
+  pour menaces, Well-Architected, ATAM et AIPD demandés ensemble ;
+  `document-extractor` pour plusieurs documents à transcrire.
+- `convert.py --jobs` (jusqu'à 4 documents en même temps, Docling un à la
+  fois) ; `run.py --jobs` (par défaut le nombre de cœurs : 69 s à 34 s sur
+  4 cœurs).
+
+### Coût
+
+- `cost.py` : `--repeat N` (médiane), `--jobs N`, `max_cost_usd` par cas,
+  `--summary` (dernières médianes et écart, sans rien lancer), cas de
+  workflow de bout en bout (`rounds`, `--workflow`) avec une ligne par
+  étape.
+- Cas d'agents du lot D : `migration-evaluation`,
+  `migration-feuille-de-route`, `dossier-architecture`,
+  `bout-en-bout-cloud-existant`, `bout-en-bout-architecture`.
+- `--export png|svg` sur `drawio_build.py`, `cloud_build.py`,
+  `excalidraw_build.py` et `c4_build.py` : construire, vérifier et exporter
+  en un appel (`skill_paths.run_script` et `export_image`) ; les workflows
+  s'en servent.
+
+### Ajouts
+
+- `architecture-dossier` : `actions.py`, plan d'actions unique tiré des
+  revues (constats Well-Architected et de revue, risques, menaces à mesure
+  retenue, risques de l'AIPD), une action par règle ou mesure, priorités
+  P1 à P3, affectation `--assign`, CSV pour Jira ou Azure DevOps ; repris
+  par les gabarits et l'étape `plan` de `conformite`.
+- Skill `api-contract` (niveau moyen) : `api_build.py` écrit OpenAPI 3.1 et
+  AsyncAPI 3.0 depuis une description courte, contrôle doublons, types,
+  exigences et composants de l'option, signale les exigences sans
+  interface et relit chaque YAML ; étape `schemas` du workflow
+  `architecture`, sur demande.
 
 ### Par où commencer
 

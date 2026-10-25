@@ -121,7 +121,7 @@
     {
       "id": "schema-excalidraw",
       "agent": "schema-designer",
-      "prompt": "Explique le traitement d'un paiement à des commerciaux avec un schéma Excalidraw, d'après contexte-paiement.md, dans schemas/.",
+      "prompt": "Explique le traitement d'un paiement à des commerciaux avec un schéma Excalidraw, d'après contexte-paiement.md, dans schemas/paiement.excalidraw.",
       "inputs": [
         "fixtures/diagrams/contexte-paiement.md"
       ],
