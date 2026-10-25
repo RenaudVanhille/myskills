@@ -102,3 +102,5 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-25T13:19:20,qualite-sonnet,23c1432,revue-architecture,architecture-reviewer,sonnet,True,6,0.2055,11,30350,168631,6706,0,57
 2026-10-25T13:37:58,orientation,81f5725,orienter,orientation,agent,True,7,0.0086,11,24453,138226,4169,0,23
 2026-10-25T16:58:45,v0.6-aipd,705fc48,aipd,architecture-reviewer,agent,True,13,0.8551,21,57743,397099,15670,0,150
+2026-10-25T18:16:40,hypotheses-ia,3561f7d,chiffrage,solution-estimator,sonnet,True,12,0.2855,19,43921,323513,7716,0,63
+2026-10-25T18:17:53,hypotheses-ia-2,3561f7d,chiffrage,solution-estimator,sonnet,True,12,0.2638,19,34294,342558,9203,0,75
