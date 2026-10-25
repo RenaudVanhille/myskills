@@ -1,7 +1,7 @@
 {
   "name": "architecture",
   "title": "Des documents du projet aux schémas d'architecture",
-  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas ; puis, au choix de l'utilisateur, revue d'architecture et chiffrage de l'option retenue.",
+  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas ; puis, au choix de l'utilisateur, revue d'architecture et chiffrage de l'option retenue, puis le dossier d'architecture technique (DAT) qui rassemble le tout.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
@@ -179,6 +179,33 @@
         "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
       ],
       "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
+    },
+    {
+      "id": "dossier",
+      "label": "Dossier d'architecture technique",
+      "level": "simple",
+      "facultative": true,
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "exigences.md",
+        "options.md",
+        "adr-architecture.md",
+        "schemas/*.png",
+        "revue.md",
+        "chiffrage.md",
+        "journal.md"
+      ],
+      "deliverables": [
+        "synthese.md",
+        "dossier-architecture.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --strict (sections obligatoires présentes, liens et images vérifiés)",
+        "si l'utilisateur veut un Word ou un PDF : passer dossier-architecture.md à document-publisher"
+      ],
+      "instructions": "Étape facultative, proposée en dernier : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Écrire synthese.md (une page : objet, option retenue et pourquoi, avis de la revue, coût, points ouverts) à partir des rapports des étapes précédentes, sans relire les livrables ; le reste est assemblé par le script."
     }
   ]
 }

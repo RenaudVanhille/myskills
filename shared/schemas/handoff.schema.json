@@ -7,7 +7,7 @@
   "required": ["agent", "objective", "files", "audience", "destination", "output"],
   "additionalProperties": false,
   "properties": {
-    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator"],
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator", "orientation"],
               "description": "Agent qui reçoit la demande."},
     "objective": {"type": "string", "minLength": 1, "description": "Ce qu'il faut produire, en une phrase."},
     "files": {"type": "array", "items": {"type": "string"}, "minItems": 1,

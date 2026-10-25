@@ -1,0 +1,21 @@
+{
+  "title": "Dossier de conformité",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "périmètre, hébergement, AIPD requise ou non, risques ouverts, décisions attendues"},
+    {"id": "plan", "title": "Plan d'actions", "sources": ["plan-actions.md"], "required": true,
+     "help": "tableau des actions tirées des menaces, des constats et des risques RGPD"},
+    {"id": "exigences", "title": "Exigences", "sources": ["exigences.md"], "required": true,
+     "help": "requirements-catalog : req_build.py exigences.json"},
+    {"id": "schemas", "title": "Architecture", "kind": "images", "sources": ["schemas/*.png"]},
+    {"id": "menaces", "title": "Modèle de menaces", "sources": ["*.threats.md", "schemas/*.threats.md"], "required": true,
+     "help": "threat-model : stride.py schemas/architecture.json"},
+    {"id": "well-architected", "title": "Revue Well-Architected et hébergement", "sources": ["*.wa.md", "schemas/*.wa.md"],
+     "required": true, "help": "well-architected-review : wa_check.py schemas/architecture.json"},
+    {"id": "registre", "title": "Registre des traitements", "sources": ["*.registre.md"], "required": true,
+     "help": "data-protection : dpia_build.py aipd.json"},
+    {"id": "aipd", "title": "Analyse d'impact (AIPD)", "sources": ["*.aipd.md"], "required": true,
+     "help": "data-protection : dpia_build.py aipd.json"},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}

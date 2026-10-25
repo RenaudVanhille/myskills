@@ -25,7 +25,8 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
-DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options",
+DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
+                                 "migration-assessment",
                                  "solution-estimate"]}
 
 
@@ -305,6 +306,36 @@ def build_catalog_json(agents_meta: dict[str, dict]) -> str:
                    for name, contract in skill_contracts().items()],
     }
     return json.dumps(data, ensure_ascii=False, indent=2) + "\n"
+
+
+def build_routes(agents_meta: dict[str, dict]) -> str:
+    """Catalogue réduit au routage (agents, workflows, skills : nom, niveau, description, entrées), pour
+    route.py (agent-handoff) : l'agent orientation choisit sans lire catalog.json en entier."""
+    def short(text: str) -> str:
+        text = text.strip('"')
+        return text.split(". ")[0].rstrip(".") + "."
+    workflows = []
+    for path in sorted((REPO / "skills" / "decision-log" / "workflows").glob("*.json")):
+        definition = load(path)
+        workflows.append({"name": definition["name"], "agent": "architecture-workflow", "title": definition["title"],
+                          "description": definition["description"],
+                          "stages": [s["id"] + (" (facultative)" if s.get("facultative") else "")
+                                     for s in definition["stages"]],
+                          "inputs": definition["stages"][0].get("inputs", []),
+                          "match": " ".join(s["label"] + " " + " ".join(s["skills"]) for s in definition["stages"])})
+    data = {
+        "_doc": "Fichier généré par scripts/build.py depuis les contrats, les agents et les workflows : ne pas modifier.",
+        "agents": [{"name": name, "level": contract["level"], "description": short(agents_meta[name]["description"]),
+                    "receives": contract["receives"],
+                    # Texte de classement seulement (route.py ne le rend pas) : la description entière.
+                    "match": agents_meta[name]["description"].strip('"')}
+                   for name, contract in agent_contracts().items() if name != "orientation"],
+        "workflows": workflows,
+        "skills": [{"name": name, "level": contract["level"], "description": short(skill_description(name)),
+                    "inputs": contract["inputs"], "match": skill_description(name)}
+                   for name, contract in skill_contracts().items()],
+    }
+    return json.dumps(data, ensure_ascii=False, indent=1) + "\n"
 
 
 def build_catalog_md(agents_meta: dict[str, dict]) -> str:

@@ -1,0 +1,52 @@
+{
+  "title": "Sortie du datacenter de la mutuelle",
+  "source": "migration.json",
+  "waves": [
+    {
+      "id": "V1",
+      "applications": [
+        {
+          "id": "APP-07",
+          "name": "Pilotage de la fraude",
+          "strategy": "refactor",
+          "effort": "S"
+        },
+        {
+          "id": "APP-04",
+          "name": "Référentiel des personnes",
+          "strategy": "rehost",
+          "effort": "S"
+        },
+        {
+          "id": "APP-05",
+          "name": "Messagerie collaborative",
+          "strategy": "repurchase",
+          "effort": "M"
+        },
+        {
+          "id": "APP-02",
+          "name": "Gestion des contrats",
+          "strategy": "refactor",
+          "effort": "XL"
+        }
+      ]
+    },
+    {
+      "id": "V2",
+      "applications": [
+        {
+          "id": "APP-06",
+          "name": "Éditique",
+          "strategy": "rehost",
+          "effort": "S"
+        },
+        {
+          "id": "APP-01",
+          "name": "Portail assurés",
+          "strategy": "replatform",
+          "effort": "M"
+        }
+      ]
+    }
+  ]
+}

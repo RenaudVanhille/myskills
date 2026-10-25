@@ -2,6 +2,11 @@
   "_doc": "Demandes d'utilisateur et skill qui doit se déclencher. tests/judge.py triggers vérifie que les descriptions des SKILL.md suffisent à choisir le bon skill.",
   "cases": [
     {"prompt": "Convertis ce PDF en Markdown.", "skill": "doc-to-markdown"},
+    {"prompt": "Prépare le dossier d'architecture technique pour le comité avec tout ce que le workflow a produit.", "skill": "architecture-dossier"},
+    {"prompt": "Fais l'analyse d'impact RGPD de notre portail et le registre des traitements.", "skill": "data-protection"},
+    {"prompt": "Classe nos 40 applications en 6R pour la sortie du datacenter.", "skill": "migration-assessment"},
+    {"prompt": "Fais le planning de transition avec le chemin critique et un Gantt.", "skill": "transition-roadmap"},
+    {"prompt": "Je ne sais pas quel agent lancer pour ma demande, lequel choisir ?", "skill": "agent-handoff"},
     {"prompt": "Récupère le texte et les tableaux de ce fichier Word.", "skill": "doc-to-markdown"},
     {"prompt": "J'ai un scan de contrat, transforme-le en texte Markdown.", "skill": "doc-to-markdown"},
     {"prompt": "Mets cette note au format Obsidian avec des wikilinks.", "skill": "markdown-to-obsidian"},

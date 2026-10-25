@@ -1,0 +1,125 @@
+# /// script
+# requires-python = ">=3.10"
+# ///
+"""Liste les agents et workflows qui peuvent répondre à une demande, classés, depuis le catalogue de routage.
+
+Le catalogue (`lib/routes.json`, généré par scripts/build.py depuis les
+contrats, les agents et les workflows) donne pour chaque agent, workflow et
+skill son niveau, sa description en une phrase et ses entrées : quelques
+lignes au lieu de catalog.json. Avec --query, les candidats sont classés
+par les mots qu'ils partagent avec la demande (accents et mots vides
+ignorés, racines de 5 lettres, mots rares pesant plus) et par les
+extensions des fichiers fournis. Le score n'est qu'un indice : l'agent
+orientation choisit en lisant les descriptions.
+
+    uv run scripts/route.py --query "TEXTE" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N]
+    uv run scripts/route.py --list [--kind ...]
+"""
+
+import argparse
+import json
+import math
+import re
+import sys
+import unicodedata
+from pathlib import Path
+
+ROUTES = Path(__file__).resolve().parent / "lib" / "routes.json"
+STOP = set("""a au aux avec ce ces cette d dans de des du elle en et est il je la le les leur lui ma mais me
+mes mon ne nos notre nous on ou par pas pour qu que qui sa se ses son sur ta te tes ton tu un une vos votre
+vous l j m n s t y fais faire faut peux veux voudrais besoin aide aider moi ici sont avoir etre tout tous plus
+quoi comment""".split())
+# Extension d'un fichier fourni -> mots qui la rapprochent des bons candidats.
+EXTENSIONS = {".pdf": "pdf document convertit", ".docx": "word document convertit",
+              ".pptx": "powerpoint presentation document", ".xlsx": "excel document",
+              ".png": "image schema", ".jpg": "image", ".md": "markdown documentation",
+              ".drawio": "schema drawio", ".tf": "terraform infrastructure code", ".yaml": "kubernetes infrastructure",
+              ".yml": "docker compose infrastructure", ".csv": "inventaire applications", ".json": "description"}
+KINDS = ("agents", "workflows", "skills")
+# Familles de mots de même sens, ramenées à un seul mot avant comparaison.
+SYNONYMS = {"coute": "chiff", "budge": "chiff", "prix": "chiff",
+            "estim": "chiff", "combi": "chiff", "diagr": "schem", "dessi": "schem", "conve": "conve",
+            "impor": "conve", "extra": "conve", "trans": "conve", "secur": "menac", "risqu": "menac", "strid": "menac",
+            "exige": "exige", "besoi": "exige", "cahie": "exige", "spec": "exige", "speci": "exige",
+            "publi": "publi", "expor": "publi", "infra": "infra", "terra": "infra", "kuber": "infra"}
+
+
+def words(text: str) -> set[str]:
+    plain = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+    roots = {w[:5] for w in re.findall(r"[a-z0-9]+", plain) if w not in STOP and len(w) > 1}
+    return {SYNONYMS.get(r, r) for r in roots}
+
+
+def entry_text(kind: str, entry: dict) -> str:
+    parts = [entry["name"].replace("-", " "), entry.get("title", ""), entry["description"], entry.get("match", ""),
+             " ".join(entry.get("receives", []) or entry.get("inputs", [])), " ".join(entry.get("stages", []))]
+    return " ".join(parts)
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--query", help="la demande de l'utilisateur, telle quelle")
+    parser.add_argument("--files", nargs="*", default=[], help="fichiers fournis avec la demande")
+    parser.add_argument("--kind", choices=KINDS + ("all",), default=None,
+                        help="candidats à classer (défaut : agents et workflows ; all : avec les skills)")
+    parser.add_argument("--top", type=int, default=0,
+                        help="nombre de candidats rendus (défaut : tous, classés ; le score n'est qu'un indice)")
+    parser.add_argument("--list", action="store_true", help="tous les candidats, sans classement")
+    args = parser.parse_args()
+    errors: list[str] = []
+    warnings: list[str] = []
+    report = {"query": args.query, "candidates": [], "errors": errors, "warnings": warnings}
+    if not args.query and not args.list:
+        errors.append("--query TEXTE (la demande) ou --list")
+    try:
+        routes = json.loads(ROUTES.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"catalogue de routage illisible ({ROUTES.name}) : {error} ; lancez uv run scripts/build.py")
+    if errors:
+        print(json.dumps(report, ensure_ascii=False))
+        return 1
+    kinds = KINDS if args.kind == "all" else (args.kind,) if args.kind else ("agents", "workflows")
+    wanted = words(args.query or "")
+    for name in args.files:
+        wanted |= words(EXTENSIONS.get(Path(name).suffix.lower(), ""))
+    entries = [(kind, entry, words(entry_text(kind, entry))) for kind in kinds for entry in routes[kind]]
+    # Poids d'un mot : rare parmi les candidats, il départage ; présent partout (architecture), il ne compte guère.
+    frequency = {}
+    for _, _, vocabulary in entries:
+        for word in vocabulary:
+            frequency[word] = frequency.get(word, 0) + 1
+    scored = []
+    for kind, entry, vocabulary in entries:
+        # Un mot court de la demande (doc, appli) vaut pour les mots qui le prolongent (documents, application).
+        common = sorted(w for w in wanted if w in vocabulary or len(w) >= 3 and any(v.startswith(w) for v in vocabulary))
+        item = {"kind": kind[:-1], "name": entry["name"], "level": entry.get("level"),
+                "description": entry["description"]}
+        if kind == "workflows":
+            item.update(agent=entry["agent"], stages=entry["stages"])
+        if not args.list:
+            # Un mot du nom même du candidat (schema-designer pour « schéma ») pèse un point de plus.
+            named = words(entry["name"].replace("-", " "))
+            item["score"] = round(sum(math.log((len(entries) + 1) / frequency.get(w, 1)) + (w in named)
+                                      for w in common), 2)
+            item["matched"] = common
+        scored.append(item)
+    if args.list:
+        report["candidates"] = scored
+    else:
+        # Un workflow enchaîne plusieurs agents : à score égal, il passe avant un agent seul.
+        scored.sort(key=lambda c: (-c["score"], c["kind"] != "workflow", c["name"]))
+        report["candidates"] = scored[:args.top] if args.top else scored
+        if not report["candidates"] or report["candidates"][0]["score"] == 0:
+            warnings.append("aucun candidat ne partage de mot avec la demande : posez la question à l'utilisateur, "
+                            "ou relancez avec --list")
+        elif len(report["candidates"]) > 1 and report["candidates"][0]["score"] == report["candidates"][1]["score"]:
+            warnings.append(f"{report['candidates'][0]['name']} et {report['candidates'][1]['name']} à égalité : "
+                            "départagez par la description, ou posez une question")
+    print(json.dumps(report, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

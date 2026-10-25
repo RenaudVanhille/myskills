@@ -1,0 +1,184 @@
+{
+  "skill": "architecture-dossier",
+  "level": "simple",
+  "inputs": [
+    "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
+    "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
+    "Facultatif : un gabarit de sections (JSON) propre à l'organisation"
+  ],
+  "outputs": [
+    "dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés"
+  ],
+  "scripts": [
+    {
+      "name": "dossier_build.py",
+      "role": "Assemble le DAT d'un dossier de workflow selon un gabarit de sections : pièces Markdown reprises (frontmatter et titre retirés, titres décalés, liens recalés), images intégrées, fichiers listés en annexe ; signale chaque section obligatoire sans pièce avec la commande qui la produit ; relit le dossier produit et vérifie chaque lien et chaque image.",
+      "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--strict] | --schema",
+      "options": {
+        "DOSSIER": "dossier du workflow",
+        "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration)",
+        "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
+        "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
+        "--strict": "section obligatoire sans pièce : erreur, aucun fichier produit",
+        "--schema": "affiche le schéma JSON du gabarit sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "dossier produit (sections manquantes et liens cassés en avertissements)",
+        "1": "dossier introuvable, gabarit invalide, ou section obligatoire manquante avec --strict ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Gabarit des sections du dossier.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sections"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "sections": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "title",
+                  "sources"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*$"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "markdown",
+                      "images",
+                      "files"
+                    ],
+                    "description": "markdown (défaut) : pièces reprises ; images : intégrées ; files : listées en annexe"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "motifs relatifs au dossier du workflow, dans l'ordre"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  },
+                  "intro": {
+                    "type": "string"
+                  },
+                  "help": {
+                    "type": "string",
+                    "description": "commande qui produit la pièce, rappelée si elle manque"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Sections reprises et manquantes, pièces et images, erreurs.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "template",
+            "output",
+            "sections",
+            "included",
+            "missing",
+            "pieces",
+            "images",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "template": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sections": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "included": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pieces": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "images": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "document-publisher",
+      "kind": "agent",
+      "when": "le dossier doit être livré en Word, PDF, HTML ou XWiki"
+    },
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "le dossier est un livrable d'étape : le soumettre à la revue (journal.py submit)"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "une section obligatoire manque : produire la pièce, ou l'écarter du gabarit avec sa raison"
+    }
+  ]
+}

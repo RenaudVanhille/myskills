@@ -7,7 +7,7 @@
     "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
   ],
   "outputs": [
-    "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+    "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
     "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)"
   ],
@@ -17,7 +17,7 @@
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
       "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
       "options": {
-        "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+        "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
         "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
         "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",

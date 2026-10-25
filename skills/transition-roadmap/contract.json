@@ -1,0 +1,228 @@
+{
+  "skill": "transition-roadmap",
+  "level": "moyen",
+  "inputs": [
+    "Description JSON des chantiers et jalons de la transition (roadmap_build.py --schema)",
+    "Facultatif : les vagues de migration (<nom>.waves.json de migration-assessment)"
+  ],
+  "outputs": [
+    "<nom>.md : synthèse (dates, durée, chemin critique), tableau des chantiers avec marges, diagramme de Gantt Mermaid",
+    "<nom>.csv : une ligne par chantier (dates, durée, lot, responsable, critique)"
+  ],
+  "scripts": [
+    {
+      "name": "roadmap_build.py",
+      "role": "Reprend les vagues de migration comme chantiers, contrôle les prédécesseurs (connus, sans cycle), calcule les dates au plus tôt, les marges, le chemin critique et la fin du programme, signale l'échéance dépassée et les chantiers trop longs, écrit le tableau et le diagramme de Gantt Mermaid.",
+      "usage": "uv run scripts/roadmap_build.py FEUILLE.json [--out-dir DOSSIER] | --schema",
+      "options": {
+        "FEUILLE.json": "description des chantiers et jalons",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "feuille de route écrite (avertissements possibles : échéance dépassée, chantier à découper)",
+        "1": "description invalide, prédécesseur inconnu ou en cycle, fichier des vagues illisible, aucun chantier ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Chantiers, jalons et vagues de migration à planifier.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "start"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "début du programme"
+            },
+            "deadline": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "waves": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file"
+              ],
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "<nom>.waves.json de migration-assessment, relatif à la description"
+                },
+                "weeks": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "description": "semaines par effort (défaut S 2, M 4, L 8, XL 16)"
+                },
+                "lot": {
+                  "type": "string"
+                },
+                "after": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "chantiers à finir avant la première vague"
+                }
+              }
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "weeks"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lot": {
+                    "type": "string"
+                  },
+                  "weeks": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "durée en semaines ; 0 pour un jalon"
+                  },
+                  "after": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "chantiers ou vagues (V1...) à finir avant"
+                  },
+                  "start": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "description": "date au plus tôt imposée"
+                  },
+                  "owner": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Dates, durée, chemin critique et retard sur l'échéance.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "items",
+            "start",
+            "end",
+            "weeks",
+            "critical_path",
+            "late_weeks",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "start": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "end": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "weeks": {
+              "type": "number",
+              "minimum": 0
+            },
+            "critical_path": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "late_weeks": {
+              "type": "number",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "migration-assessment",
+      "kind": "skill",
+      "when": "les vagues de migration ne sont pas encore calculées"
+    },
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "le diagramme de Gantt doit être rendu en image (export.py <nom>.md)"
+    },
+    {
+      "to": "document-publisher",
+      "kind": "agent",
+      "when": "la feuille de route doit être livrée en Word, PowerPoint ou HTML"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "arbitrer une échéance dépassée : raccourcir le chemin critique, ajouter des moyens ou décaler"
+    }
+  ]
+}

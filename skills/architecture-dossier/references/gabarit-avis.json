@@ -1,0 +1,16 @@
+{
+  "title": "Avis d'architecture",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse et avis", "sources": ["synthese.md"], "required": true,
+     "help": "objet du dossier reçu, avis de la revue et ses réserves, décisions attendues du comité"},
+    {"id": "exigences", "title": "Exigences", "sources": ["exigences.md"], "required": true,
+     "help": "requirements-catalog : req_build.py exigences.json"},
+    {"id": "revue", "title": "Revue d'architecture", "sources": ["revue.md", "*.revue.md"], "required": true,
+     "help": "architecture-review : arch_review.py revue.json"},
+    {"id": "schemas", "title": "Schémas", "kind": "images", "sources": ["schemas/*.png"]},
+    {"id": "menaces", "title": "Modèle de menaces", "sources": ["*.threats.md", "schemas/*.threats.md"]},
+    {"id": "well-architected", "title": "Revue Well-Architected", "sources": ["*.wa.md", "schemas/*.wa.md"]},
+    {"id": "sources", "title": "Annexe : documents reçus", "kind": "files", "sources": ["documents/*", "sources/*.md"]},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}

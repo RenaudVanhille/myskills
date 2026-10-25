@@ -2,6 +2,55 @@
 
 ## À venir
 
+### Par où commencer
+
+- Agent `orientation` (niveau simple) : lit la demande et les noms des
+  fichiers fournis, choisit l'agent ou le workflow, écrit `passage.json`
+  validé par `check_message.py` ; aucun travail métier, une question au
+  plus.
+- `agent-handoff` : `route.py` liste les agents et les workflows (et les
+  skills sur demande) classés pour une demande, depuis
+  `scripts/lib/routes.json`, catalogue réduit généré par `build.py`.
+
+### Dossier d'architecture
+
+- Skill `architecture-dossier` (niveau simple) : `dossier_build.py`
+  assemble le DAT d'un dossier de workflow selon un gabarit de sections
+  (`dat` par défaut, `avis` pour un dossier reçu, ou celui de
+  l'organisation) ; seule la synthèse est écrite par le modèle ; sections
+  obligatoires manquantes signalées (`--strict`), liens et images vérifiés.
+- Workflow `architecture` : étape facultative `dossier`. Nouveau workflow
+  `revue-dossier` : documents, exigences, revue d'architecture, avis.
+
+### Conformité
+
+- Skill `data-protection` (niveau complexe) : `dpia_build.py` écrit le
+  registre des traitements et l'AIPD depuis une description courte ;
+  AIPD requise à partir de deux critères du CEPD, base légale et exception
+  de l'article 9 contrôlées, transfert hors EEE sans garantie refusé,
+  hébergeur soumis à des lois extraterritoriales signalé, mesures reliées
+  aux exigences et aux menaces STRIDE, risque résiduel élevé signalé
+  (consultation de la CNIL) ; notes `traitement` (nouveau type de
+  l'ontologie) et `risque` dans le vault.
+- Workflow `conformite` : exigences, description cloud, menaces et
+  qualification de l'hébergeur, registre et AIPD, plan d'actions et
+  dossier de conformité (`dossier_build.py --template conformite`).
+- Agent `architecture-reviewer` : AIPD avec `data-protection`.
+
+### Migration
+
+- Skill `migration-assessment` (niveau complexe) : `assess_build.py`
+  contrôle l'évaluation 6R d'un portefeuille (dépendances inconnues ou en
+  cycle, application retirée encore utilisée, socle hors support
+  réhébergé, données sensibles chez un hébergeur extraterritorial) et
+  calcule les vagues de migration selon les dépendances.
+- Skill `transition-roadmap` (niveau moyen) : `roadmap_build.py` reprend
+  les vagues, calcule dates, marges et chemin critique, contrôle
+  l'échéance et écrit un diagramme de Gantt Mermaid.
+- Workflow `migration-cloud` : exigences, évaluation 6R, architecture
+  cible, chiffrage (facultatif), feuille de route, dossier de migration
+  (facultatif, `dossier_build.py --template migration`).
+
 ### Tests
 
 - Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet

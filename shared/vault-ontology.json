@@ -188,6 +188,19 @@
       },
       "facets": ["fournisseur"]
     },
+    "traitement": {
+      "label": "Traitement de données personnelles",
+      "description": "Fiche du registre des traitements (RGPD, article 30) et son analyse d'impact (data-protection).",
+      "folder": "Traitements",
+      "required": ["id", "base-legale"],
+      "properties": {
+        "base-legale": {"enum": ["consentement", "contrat", "obligation-legale", "interet-vital", "mission-publique", "interet-legitime"]},
+        "sensibles": {"enum": ["oui", "non"], "description": "Données de l'article 9 (santé, opinions...) ou de l'article 10 (infractions)."},
+        "aipd": {"enum": ["requise", "non-requise"]},
+        "transferts": {"enum": ["aucun", "encadres", "non-encadres"]}
+      },
+      "facets": ["base-legale", "aipd"]
+    },
     "chiffrage": {
       "label": "Chiffrage",
       "description": "Chiffrage d'une option (solution-estimate) : charge, fourchette, coût total, budget, hébergeur.",
@@ -226,7 +239,7 @@
     "exigences": {"label": "répond aux exigences", "from": ["adr"], "to": ["exigence"], "many": true},
     "extrait-de": {"label": "extrait du document", "from": ["exigence", "terme"], "to": ["document"], "many": true},
     "evalue": {"label": "évalue", "from": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "to": ["option-architecture", "adr"], "many": true},
-    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot"], "to": ["exigence", "option-architecture", "application", "adr"], "many": true},
+    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot", "traitement"], "to": ["exigence", "option-architecture", "application", "adr", "traitement"], "many": true},
     "issu-de": {"label": "issu de", "from": ["constat", "risque", "menace", "lot"], "to": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "many": false},
     "attenue-par": {"label": "atténué par", "from": ["risque", "menace"], "to": ["decision", "adr"], "many": true},
     "remplace": {"label": "remplace", "from": ["adr", "application"], "to": ["adr", "application"], "many": true, "same_type": true}

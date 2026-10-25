@@ -294,7 +294,8 @@ def check_contracts() -> dict:
 
     meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     for file, expected in (("CATALOG.md", contracts_lib.build_catalog_md(meta)),
-                           ("catalog.json", contracts_lib.build_catalog_json(meta))):
+                           ("catalog.json", contracts_lib.build_catalog_json(meta)),
+                           ("skills/agent-handoff/scripts/lib/routes.json", contracts_lib.build_routes(meta))):
         target = ROOT / file
         if not target.exists() or target.read_text(encoding="utf-8") != expected:
             stale.append(file)

@@ -1,0 +1,14 @@
+{
+  "title": "Sortie du datacenter de la mutuelle",
+  "start": "2027-01-04",
+  "deadline": "2027-09-30",
+  "waves": {"file": "../migration/migration.waves.json", "lot": "Migration", "after": ["SOC"]},
+  "items": [
+    {"id": "CAD", "name": "Cadrage et contrat d'hébergement", "lot": "Programme", "weeks": 6, "owner": "DSI"},
+    {"id": "SOC", "name": "Socle : comptes, réseau, identité, sauvegardes", "lot": "Socle", "weeks": 8, "after": ["CAD"]},
+    {"id": "AIPD", "name": "Analyse d'impact RGPD validée", "lot": "Programme", "weeks": 0, "after": ["CAD"], "start": "2027-03-01"},
+    {"id": "FOR", "name": "Formation des équipes d'exploitation", "lot": "Programme", "weeks": 4, "after": ["SOC"]},
+    {"id": "DEC", "name": "Décommissionnement du datacenter", "lot": "Programme", "weeks": 6, "after": ["V2"]},
+    {"id": "FIN", "name": "Datacenter fermé", "lot": "Programme", "weeks": 0, "after": ["DEC"]}
+  ]
+}

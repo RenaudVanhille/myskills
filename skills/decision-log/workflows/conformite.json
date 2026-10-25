@@ -1,0 +1,136 @@
+{
+  "name": "conformite",
+  "title": "Conformité d'une architecture : sécurité, RGPD et hébergement",
+  "description": "Des exigences et de la description cloud d'une solution (existante ou retenue) au dossier de conformité : modèle de menaces STRIDE, revue Well-Architected avec la qualification de l'hébergeur (SecNumCloud), registre des traitements et analyse d'impact (AIPD) RGPD, puis le plan d'actions qui en découle.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "la description cloud (schemas/architecture.json) ou le dossier du code d'infrastructure, s'il n'est pas dans infra/",
+    "le responsable du traitement et le délégué à la protection des données (sans réponse : à compléter au registre)"
+  ],
+  "memory": {
+    "requirements": "exigences.json"
+  },
+  "stages": [
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "doc-to-markdown",
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "documents/*",
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md"
+      ],
+      "optional": [
+        "sources/*.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
+        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+      ],
+      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
+    },
+    {
+      "id": "description",
+      "label": "Description cloud",
+      "level": "moyen",
+      "skills": [
+        "cloud-architecture",
+        "diagram-export"
+      ],
+      "inputs": [
+        "schemas/architecture.json",
+        "infra/**/*",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "schemas/architecture.json",
+        "schemas/architecture.drawio",
+        "schemas/*.png"
+      ],
+      "checks": [
+        "cloud-architecture : iac_import.py <sources> --out schemas/architecture.json (seulement sans description fournie)",
+        "cloud-architecture : cloud_build.py schemas/architecture.json --matrix",
+        "diagram-export : export.py schemas/architecture.drawio, puis relire l'image une fois"
+      ],
+      "instructions": "Reprendre la description fournie, ou celle tirée du code, et la compléter : hébergeur (provider, y compris souverain), données personnelles portées par chaque flux dans son libellé, flux vers des tiers et leur pays. Chaque flux ajouté sans source se note au journal comme hypothèse."
+    },
+    {
+      "id": "menaces",
+      "label": "Menaces STRIDE et qualification de l'hébergement",
+      "level": "complexe",
+      "skills": [
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "schemas/architecture.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "schemas/architecture.threats.md",
+        "schemas/architecture.wa.md"
+      ],
+      "checks": [
+        "threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault",
+        "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (dont SEC-08 : qualification SecNumCloud exigée et absente chez l'hébergeur), avec --vault <vault> --folder <dossier> si le workflow a un vault"
+      ],
+      "instructions": "Garder les menaces pertinentes et leur mesure ; une qualification exigée que l'hébergeur n'a pas ne s'accepte qu'avec la raison de l'utilisateur, notée au journal. Les numéros des menaces (M001...) servent de références aux mesures de l'AIPD."
+    },
+    {
+      "id": "rgpd",
+      "label": "Registre des traitements et AIPD",
+      "level": "complexe",
+      "skills": [
+        "data-protection"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "exigences.json",
+        "schemas/architecture.json",
+        "schemas/architecture.threats.md"
+      ],
+      "deliverables": [
+        "aipd.json",
+        "aipd.registre.md",
+        "aipd.aipd.md"
+      ],
+      "checks": [
+        "data-protection : dpia_build.py aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)"
+      ],
+      "instructions": "aipd.json reprend l'hébergeur de la description, requirements (exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL)."
+    },
+    {
+      "id": "plan",
+      "label": "Plan d'actions et dossier de conformité",
+      "level": "moyen",
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "schemas/architecture.threats.md",
+        "schemas/architecture.wa.md",
+        "aipd.aipd.md",
+        "journal.md"
+      ],
+      "deliverables": [
+        "synthese.md",
+        "plan-actions.md",
+        "dossier-conformite.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --template conformite --out dossier-conformite.md --strict (sections obligatoires présentes, liens et images vérifiés)",
+        "si l'utilisateur veut un Word ou un PDF : passer dossier-conformite.md à document-publisher"
+      ],
+      "instructions": "Écrire plan-actions.md à partir des seuls rapports des étapes précédentes : un tableau action, origine (menace, constat, risque RGPD), priorité, responsable, échéance ; d'abord les gravités hautes et les risques résiduels élevés. synthese.md tient en une page : périmètre, hébergement, AIPD requise ou non, risques ouverts, décisions attendues. Le reste est assemblé par le script."
+    }
+  ]
+}

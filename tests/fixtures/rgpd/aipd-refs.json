@@ -1,0 +1,14 @@
+{
+  "title": "AIPD incohérente",
+  "controller": "Mutuelle exemple",
+  "requirements": "../workflow/exigences.json",
+  "hosting": {"provider": "ovhcloud"},
+  "treatments": [
+    {"id": "T-01", "name": "Déclaration", "purpose": "Déclarer", "legal_basis": "contrat", "subjects": ["assurés"],
+     "retention": " ", "data": [{"category": "identité"}], "transfers": [{"country": "Inde"}]}
+  ],
+  "risks": [
+    {"id": "R-01", "treatment": "T-1", "event": "disparition", "gravity": 2, "likelihood": 2,
+     "measures": [{"text": "sauvegardes", "refs": ["ENF-999"]}], "residual": {"gravity": 3, "likelihood": 1}}
+  ]
+}
