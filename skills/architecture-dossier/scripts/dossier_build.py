@@ -46,6 +46,14 @@ def matches(folder: Path, patterns: list[str], out: Path) -> list[Path]:
     return found
 
 
+def relative(target: Path, out_dir: Path) -> str:
+    """Chemin de la cible vu du dossier produit ; absolu si elle est sur un autre lecteur (Windows)."""
+    try:
+        return Path(os.path.relpath(target, out_dir)).as_posix()
+    except ValueError:
+        return Path(target).resolve().as_posix()
+
+
 def relink(text: str, source: Path, out_dir: Path) -> str:
     """Recale les liens et images relatifs d'une pièce sur l'emplacement du dossier produit."""
     def fix(match: re.Match) -> str:
@@ -53,7 +61,7 @@ def relink(text: str, source: Path, out_dir: Path) -> str:
         if re.match(r"^([a-z]+:|#|/)", target):
             return match.group(0)
         path, _, anchor = target.partition("#")
-        moved = Path(os.path.relpath(source.parent / path, out_dir)).as_posix()
+        moved = relative(source.parent / path, out_dir)
         return f"{match.group(1)}({moved}{'#' + anchor if anchor else ''}{match.group(3) or ''})"
     return LINK.sub(fix, text)
 
@@ -80,7 +88,7 @@ def check_links(text: str, out_dir: Path) -> list[str]:
     missing = []
     for match in LINK.finditer(text):
         target = match.group(2).partition("#")[0]
-        if target and not re.match(r"^([a-z]+:|/)", target) and not (out_dir / target).exists():
+        if target and not re.match(r"^[a-z][a-z0-9+.-]+:", target) and not (out_dir / target).exists():
             missing.append(target)
     return sorted(set(missing))
 
@@ -166,7 +174,7 @@ def main() -> int:
         report["included"].append(section["id"])
         report["pieces"] += len(pieces)
         for piece in pieces:
-            rel = Path(os.path.relpath(piece.resolve(), out_dir)).as_posix()
+            rel = relative(piece.resolve(), out_dir)
             if kind == "images":
                 report["images"] += 1
                 body += [f"![{piece.stem}]({rel})", "", f"*{piece.stem}*", ""]
