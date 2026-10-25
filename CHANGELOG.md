@@ -1,5 +1,16 @@
 # Journal des versions
 
+## À venir
+
+### Tests
+
+- Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet
+  (`costs.csv`, libellés `v0.5-agent` et `v0.5-sonnet`).
+- `importer-obsidian` : le cas fournit un vault (`.obsidian/app.json`) et
+  demande la racine du vault ; `publier-pptx` : le prompt dit que la
+  doublure de markdown-to-pptx est voulue (l'agent la refusait, à raison,
+  devant un comité).
+
 ## 0.5.0 (2026-10-25)
 
 Ontologie du vault, revue d'architecture et chiffrage, puis revue v0.4.0 :

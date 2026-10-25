@@ -62,8 +62,9 @@
     {
       "id": "importer-obsidian",
       "agent": "document-extractor",
-      "prompt": "Importe presentation.pptx dans mon vault Obsidian vault/, avec ses images.",
+      "prompt": "Importe presentation.pptx à la racine de mon vault Obsidian vault/, avec ses images.",
       "inputs": [
+        {"from": "fixtures/vault-vide/app.json", "to": "vault/.obsidian/app.json"},
         "fixtures/samples/presentation.pptx"
       ],
       "output": "vault/presentation.md",
@@ -131,7 +132,7 @@
     {
       "id": "publier-pptx",
       "agent": "document-publisher",
-      "prompt": "Fais une présentation PowerPoint de dossier.md pour le comité de direction, avec le gabarit par défaut.",
+      "prompt": "Fais une présentation PowerPoint de dossier.md pour le comité de direction, avec le gabarit par défaut. Environnement de test : MD2PPTX_SKILL désigne volontairement la doublure du skill markdown-to-pptx, utilise-la.",
       "env": {"MD2PPTX_SKILL": "{tests}/fixtures/md2pptx-stub"},
       "inputs": [
         {
