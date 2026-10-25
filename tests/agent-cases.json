@@ -2,6 +2,21 @@
   "_doc": "Cas de test des agents, à jouer dans chaque outil (Claude Code, Copilot, OpenCode, Kiro, Hermes). Donnez le prompt à l'agent dans un dossier de travail contenant les fichiers 'inputs', puis notez le résultat avec tests/judge.py outputs DOSSIER. 'output' est le fichier que l'agent doit produire (relatif au dossier de travail) ; 'expected' le résultat attendu dans tests/expected/ ; 'rubric' les affirmations que le juge doit trouver vraies.",
   "cases": [
     {
+      "id": "orienter",
+      "agent": "orientation",
+      "prompt": "Je ne sais pas par où commencer. J'ai le cahier des charges du portail de sinistres et le compte rendu d'atelier ; je voudrais arriver à des propositions d'architecture à présenter.",
+      "inputs": [
+        "fixtures/workflow/sources/cahier-des-charges.md",
+        "fixtures/workflow/sources/compte-rendu-atelier.md"
+      ],
+      "output": "passage.json",
+      "rubric": [
+        "passage.json est un message de passage vers architecture-workflow, avec le workflow architecture dans constraints.",
+        "Les deux documents fournis figurent dans files.",
+        "L'agent n'a ni converti les documents, ni écrit d'exigences ou d'options."
+      ]
+    },
+    {
       "id": "extraire-docx",
       "agent": "document-extractor",
       "prompt": "Convertis architecture.docx en Markdown dans le dossier sortie/.",

@@ -18,6 +18,7 @@ le résultat : les outils installent le plugin depuis le dépôt.
     skills/drawio-diagram/scripts/lib/charter.json  couleurs de la charte (shared/references/style.md)
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
+    skills/agent-handoff/scripts/lib/routes.json  catalogue réduit au routage (route.py, agent orientation)
     .claude-plugin/*.json                 manifestes Claude Code, depuis plugin.json (version comprise)
 
 Usage : uv run scripts/build.py   (ou : python scripts/build.py)
@@ -27,7 +28,8 @@ import re
 import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
-from contracts_lib import (agent_contracts, agent_enums, build_catalog_json, build_catalog_md, generated_libs,
+from contracts_lib import (agent_contracts, agent_enums, build_catalog_json, build_catalog_md, build_routes,
+                           generated_libs,
                            plugin_manifests, render_agent as render_agent_contract, render_skill, replace_section,
                            shared_inputs, skill_contracts)
 
@@ -83,6 +85,7 @@ def main() -> None:
     agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))
     write_text(REPO / "catalog.json", build_catalog_json(agents_meta))
+    write_text(REPO / "skills" / "agent-handoff" / "scripts" / "lib" / "routes.json", build_routes(agents_meta))
 
     print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, .claude-plugin/, CATALOG.md et catalog.json.")
 

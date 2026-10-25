@@ -1,0 +1,7 @@
+{
+  "title": "Gabarit fautif",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "kind": "markdwon"},
+    {"id": "synthese", "title": "Encore", "sources": ["x.md"], "requierd": true}
+  ]
+}

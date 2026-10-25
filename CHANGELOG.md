@@ -2,6 +2,26 @@
 
 ## À venir
 
+### Par où commencer
+
+- Agent `orientation` (niveau simple) : lit la demande et les noms des
+  fichiers fournis, choisit l'agent ou le workflow, écrit `passage.json`
+  validé par `check_message.py` ; aucun travail métier, une question au
+  plus.
+- `agent-handoff` : `route.py` liste les agents et les workflows (et les
+  skills sur demande) classés pour une demande, depuis
+  `scripts/lib/routes.json`, catalogue réduit généré par `build.py`.
+
+### Dossier d'architecture
+
+- Skill `architecture-dossier` (niveau simple) : `dossier_build.py`
+  assemble le DAT d'un dossier de workflow selon un gabarit de sections
+  (`dat` par défaut, `avis` pour un dossier reçu, ou celui de
+  l'organisation) ; seule la synthèse est écrite par le modèle ; sections
+  obligatoires manquantes signalées (`--strict`), liens et images vérifiés.
+- Workflow `architecture` : étape facultative `dossier`. Nouveau workflow
+  `revue-dossier` : documents, exigences, revue d'architecture, avis.
+
 ### Tests
 
 - Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet

@@ -1,0 +1,105 @@
+{
+  "name": "revue-dossier",
+  "title": "Instruction d'un dossier d'architecture reçu",
+  "description": "Pour un comité d'architecture : documents du dossier reçu d'un projet en Markdown, catalogue des exigences, revue d'architecture (scénarios de qualité, risques, compromis, traçabilité) avec avis calculé, puis l'avis d'architecture assemblé ; sans concevoir d'options.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le dossier du code du projet, si la revue doit comparer le code à l'architecture"
+  ],
+  "memory": {
+    "requirements": "exigences.json"
+  },
+  "stages": [
+    {
+      "id": "documents",
+      "label": "Documents en Markdown",
+      "level": "simple",
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "agent": "document-extractor",
+      "inputs": [
+        "documents/*"
+      ],
+      "deliverables": [
+        "sources/*.md"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources"
+      ],
+      "instructions": "Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Les pages de vision_pages sont transcrites par la vision ; à partir de 5 documents à transcrire, passer la main à document-extractor. Un document écarté se note au journal avec sa raison."
+    },
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+      ],
+      "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal."
+    },
+    {
+      "id": "revue",
+      "label": "Revue d'architecture",
+      "level": "complexe",
+      "skills": [
+        "architecture-review",
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "sources/*.md",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "revue.json",
+        "revue.md"
+      ],
+      "optional": [
+        "schemas/*.json",
+        "schemas/*.threats.md",
+        "schemas/*.wa.md"
+      ],
+      "checks": [
+        "architecture-review : arch_review.py revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
+        "si le dossier décrit une architecture cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/architecture.json"
+      ],
+      "instructions": "Le dossier reçu décrit déjà l'architecture : revue.json reprend ses composants, couches et flux tels que les documents les donnent (chaque déduction se note au journal comme hypothèse), les exigences d'exigences.json et les décisions du dossier. Les scénarios de qualité, risques, sensibilités et compromis passent à architecture-reviewer. Aucune option nouvelle n'est conçue : un manque devient un risque ou une réserve de l'avis."
+    },
+    {
+      "id": "avis",
+      "label": "Avis d'architecture",
+      "level": "simple",
+      "facultative": true,
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "exigences.md",
+        "revue.md",
+        "journal.md"
+      ],
+      "deliverables": [
+        "synthese.md",
+        "dossier-architecture.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --template avis --strict (liens et images vérifiés)",
+        "si l'utilisateur veut un Word ou un PDF : passer dossier-architecture.md à document-publisher"
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). synthese.md donne l'objet du dossier, l'avis calculé et ses réserves, et les décisions attendues du comité, à partir du rapport d'arch_review.py."
+    }
+  ]
+}

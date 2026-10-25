@@ -1,0 +1,29 @@
+{
+  "title": "Dossier d'architecture technique",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "objet, décision prise, avis de la revue, coût, points ouverts : une page au plus, écrite pour le comité"},
+    {"id": "contexte", "title": "Contexte et périmètre", "sources": ["contexte.md"],
+     "help": "enjeux, périmètre, hors périmètre, parties prenantes"},
+    {"id": "exigences", "title": "Exigences", "sources": ["exigences.md"], "required": true,
+     "help": "requirements-catalog : req_build.py exigences.json"},
+    {"id": "options", "title": "Options étudiées", "sources": ["options.md"], "required": true,
+     "help": "architecture-options : options_build.py options.json"},
+    {"id": "decision", "title": "Décision d'architecture", "sources": ["adr-*.md"], "required": true,
+     "help": "architecture-options : options_build.py options.json --decision decision.json"},
+    {"id": "schemas", "title": "Schémas", "kind": "images", "sources": ["schemas/*.png"], "required": true,
+     "help": "diagram-export : export.py des schémas en PNG"},
+    {"id": "tracabilite", "title": "Traçabilité des exigences", "sources": ["tracabilite.md"]},
+    {"id": "revue", "title": "Revue d'architecture", "sources": ["revue.md", "*.revue.md"],
+     "help": "architecture-review : arch_review.py revue.json"},
+    {"id": "menaces", "title": "Modèle de menaces", "sources": ["*.threats.md", "schemas/*.threats.md"],
+     "help": "threat-model : stride.py"},
+    {"id": "well-architected", "title": "Revue Well-Architected", "sources": ["*.wa.md", "schemas/*.wa.md"],
+     "help": "well-architected-review : wa_check.py"},
+    {"id": "chiffrage", "title": "Chiffrage", "sources": ["chiffrage.md"],
+     "help": "solution-estimate : estimate_build.py chiffrage.json"},
+    {"id": "sources", "title": "Annexe : pièces sources", "kind": "files",
+     "sources": ["schemas/*.drawio", "*.csv", "schemas/*.json", "*.json"]},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}

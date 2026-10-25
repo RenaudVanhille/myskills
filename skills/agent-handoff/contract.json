@@ -3,7 +3,8 @@
   "level": "simple",
   "inputs": [
     "Dossier de travail, ou dossier d'un workflow (workflow.json)",
-    "Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON"
+    "Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON",
+    "Pour le routage : la demande de l'utilisateur et les fichiers fournis (route.py)"
   ],
   "outputs": [
     "Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md)"
@@ -77,6 +78,112 @@
       "exit_codes": {
         "0": "message conforme, fichiers présents (et tracé au journal s'il y a un workflow)",
         "1": "message illisible, non conforme à son schéma ou fichier cité introuvable"
+      }
+    },
+    {
+      "name": "route.py",
+      "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
+      "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] | --list [--kind ...]",
+      "options": {
+        "--query": "la demande de l'utilisateur, telle quelle",
+        "--files": "fichiers fournis avec la demande (leurs extensions orientent le classement)",
+        "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
+        "--top": "nombre de candidats rendus (défaut : tous)",
+        "--list": "tous les candidats, sans classement"
+      },
+      "exit_codes": {
+        "0": "liste rendue (avertissement si aucun mot commun ou égalité en tête)",
+        "1": "ni --query ni --list, ou catalogue de routage illisible"
+      },
+      "report": {
+        "format": "json",
+        "description": "Candidats classés, avec leur score et les mots communs.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "query",
+            "candidates",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "query": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "name",
+                  "level",
+                  "description"
+                ],
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "agent",
+                      "workflow",
+                      "skill"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "level": {
+                    "enum": [
+                      "simple",
+                      "moyen",
+                      "complexe",
+                      null
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "agent": {
+                    "type": "string"
+                  },
+                  "stages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "score": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "matched": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     }
   ],

@@ -140,7 +140,7 @@
           ]
         }
       ],
-      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture et chiffrage. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
+      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
       "skills": [
         "check-prerequisites",
         "decision-log",
@@ -157,7 +157,8 @@
         "architecture-deck",
         "threat-model",
         "architecture-review",
-        "solution-estimate"
+        "solution-estimate",
+        "architecture-dossier"
       ]
     },
     {
@@ -242,6 +243,78 @@
         "check-prerequisites",
         "markdown-publish",
         "diagram-export",
+        "agent-handoff"
+      ]
+    },
+    {
+      "agent": "orientation",
+      "level": "simple",
+      "receives": [
+        "La demande de l'utilisateur, telle quelle, quand il ne sait pas quel agent ou quel workflow lancer",
+        "Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences)"
+      ],
+      "produces": [
+        "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
+        "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
+      ],
+      "never": [
+        "Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier)",
+        "Poser plus d'une question à l'utilisateur",
+        "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats"
+      ],
+      "handoffs": [
+        {
+          "to": "architecture-workflow",
+          "when": "la demande enchaîne plusieurs étapes d'un workflow livré (des documents à l'architecture, une infrastructure existante à ses menaces, un dossier à revoir...)",
+          "send": [
+            "le nom du workflow dans constraints (workflow : <nom>)",
+            "les fichiers fournis",
+            "l'objectif dans les mots de l'utilisateur"
+          ]
+        },
+        {
+          "to": "document-extractor",
+          "when": "il faut seulement convertir ou importer des documents (PDF, Office, images) en Markdown ou dans Obsidian",
+          "send": [
+            "les documents",
+            "la destination (dossier ou vault)"
+          ]
+        },
+        {
+          "to": "schema-designer",
+          "when": "il faut seulement un schéma (flux, séquence, C4, cloud, POS, draw.io, Excalidraw)",
+          "send": [
+            "le contenu ou les fichiers à représenter",
+            "le public et la destination"
+          ]
+        },
+        {
+          "to": "architecture-reviewer",
+          "when": "il faut revoir une architecture existante, ses menaces ou sa conformité Well-Architected",
+          "send": [
+            "l'architecture (options, description cloud, code)",
+            "ce qui est demandé : revue, menaces, Well-Architected"
+          ]
+        },
+        {
+          "to": "solution-estimator",
+          "when": "il faut chiffrer une solution déjà décrite (exigences et option retenue)",
+          "send": [
+            "exigences.json et options.json",
+            "taux, horizon et budget s'ils sont donnés"
+          ]
+        },
+        {
+          "to": "document-publisher",
+          "when": "il faut seulement publier une documentation Markdown en Word, PowerPoint, HTML ou XWiki",
+          "send": [
+            "les fichiers Markdown",
+            "l'outil cible"
+          ]
+        }
+      ],
+      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question.",
+      "skills": [
         "agent-handoff"
       ]
     },
@@ -357,7 +430,8 @@
       "level": "simple",
       "inputs": [
         "Dossier de travail, ou dossier d'un workflow (workflow.json)",
-        "Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON"
+        "Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON",
+        "Pour le routage : la demande de l'utilisateur et les fichiers fournis (route.py)"
       ],
       "outputs": [
         "Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md)"
@@ -432,6 +506,112 @@
             "0": "message conforme, fichiers présents (et tracé au journal s'il y a un workflow)",
             "1": "message illisible, non conforme à son schéma ou fichier cité introuvable"
           }
+        },
+        {
+          "name": "route.py",
+          "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
+          "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] | --list [--kind ...]",
+          "options": {
+            "--query": "la demande de l'utilisateur, telle quelle",
+            "--files": "fichiers fournis avec la demande (leurs extensions orientent le classement)",
+            "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
+            "--top": "nombre de candidats rendus (défaut : tous)",
+            "--list": "tous les candidats, sans classement"
+          },
+          "exit_codes": {
+            "0": "liste rendue (avertissement si aucun mot commun ou égalité en tête)",
+            "1": "ni --query ni --list, ou catalogue de routage illisible"
+          },
+          "report": {
+            "format": "json",
+            "description": "Candidats classés, avec leur score et les mots communs.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "query",
+                "candidates",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "query": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "kind",
+                      "name",
+                      "level",
+                      "description"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "agent",
+                          "workflow",
+                          "skill"
+                        ]
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "level": {
+                        "enum": [
+                          "simple",
+                          "moyen",
+                          "complexe",
+                          null
+                        ]
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "agent": {
+                        "type": "string"
+                      },
+                      "stages": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "score": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "matched": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
         }
       ],
       "requires": [
@@ -449,7 +629,7 @@
           "when": "l'outil ne permet pas d'appeler l'agent visé : lui donner le message et l'agent à lancer"
         }
       ],
-      "description": "Valide un message de passage entre agents ou le rapport final d'un agent (JSON Schema, fichiers cités présents) et le note au journal d'un workflow. À utiliser par tout agent avant de passer la main à un autre ou de rendre son rapport final.",
+      "description": "Valide un message de passage entre agents ou le rapport final d'un agent (JSON Schema, fichiers cités présents) et le note au journal d'un workflow ; donne la liste compacte des agents et workflows classés pour une demande. À utiliser par tout agent avant de passer la main à un autre ou de rendre son rapport final, et pour choisir par où commencer.",
       "path": "skills/agent-handoff"
     },
     {
@@ -547,6 +727,192 @@
       ],
       "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité.",
       "path": "skills/architecture-deck"
+    },
+    {
+      "skill": "architecture-dossier",
+      "level": "simple",
+      "inputs": [
+        "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
+        "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
+        "Facultatif : un gabarit de sections (JSON) propre à l'organisation"
+      ],
+      "outputs": [
+        "dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés"
+      ],
+      "scripts": [
+        {
+          "name": "dossier_build.py",
+          "role": "Assemble le DAT d'un dossier de workflow selon un gabarit de sections : pièces Markdown reprises (frontmatter et titre retirés, titres décalés, liens recalés), images intégrées, fichiers listés en annexe ; signale chaque section obligatoire sans pièce avec la commande qui la produit ; relit le dossier produit et vérifie chaque lien et chaque image.",
+          "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--strict] | --schema",
+          "options": {
+            "DOSSIER": "dossier du workflow",
+            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu)",
+            "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
+            "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
+            "--strict": "section obligatoire sans pièce : erreur, aucun fichier produit",
+            "--schema": "affiche le schéma JSON du gabarit sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "dossier produit (sections manquantes et liens cassés en avertissements)",
+            "1": "dossier introuvable, gabarit invalide, ou section obligatoire manquante avec --strict ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Gabarit des sections du dossier.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "sections"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "sections": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title",
+                      "sources"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "markdown",
+                          "images",
+                          "files"
+                        ],
+                        "description": "markdown (défaut) : pièces reprises ; images : intégrées ; files : listées en annexe"
+                      },
+                      "sources": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "motifs relatifs au dossier du workflow, dans l'ordre"
+                      },
+                      "required": {
+                        "type": "boolean"
+                      },
+                      "intro": {
+                        "type": "string"
+                      },
+                      "help": {
+                        "type": "string",
+                        "description": "commande qui produit la pièce, rappelée si elle manque"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Sections reprises et manquantes, pièces et images, erreurs.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "template",
+                "output",
+                "sections",
+                "included",
+                "missing",
+                "pieces",
+                "images",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "template": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "sections": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "included": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "missing": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "pieces": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "images": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "document-publisher",
+          "kind": "agent",
+          "when": "le dossier doit être livré en Word, PDF, HTML ou XWiki"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "le dossier est un livrable d'étape : le soumettre à la revue (journal.py submit)"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une section obligatoire manque : produire la pièce, ou l'écarter du gabarit avec sa raison"
+        }
+      ],
+      "description": "Assemble le dossier d'architecture technique (DAT) d'un projet à partir des livrables validés d'un workflow : synthèse, exigences, options, décision (ADR), schémas, revue d'architecture, menaces, Well-Architected, chiffrage et journal, selon un gabarit de sections. Signale les pièces manquantes et vérifie les liens. À utiliser pour préparer un comité d'architecture ou livrer le dossier d'un projet.",
+      "path": "skills/architecture-dossier"
     },
     {
       "skill": "architecture-options",
@@ -3170,7 +3536,7 @@
         "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
-        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, workflows/cloud-existant.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
         "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)"
       ],
@@ -3180,7 +3546,7 @@
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
-            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
             "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
