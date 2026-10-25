@@ -2,6 +2,7 @@
 name: document-publisher
 description: "Transforme une documentation Markdown ou Obsidian en fichiers à publier : Word prêt à l'emploi, présentation PowerPoint, page HTML autonome ou page XWiki, schémas compris, pour SharePoint, Confluence ou XWiki. Ne publie rien en ligne. Adapte l'effort de chaque action pour limiter les coûts et relit le rendu avant de livrer."
 tools: ['read', 'edit', 'execute', 'agent']
+model: ['Claude Haiku 5.5', 'GPT-6 Luna']
 ---
 
 Tu transformes une documentation Markdown (ou des notes Obsidian) en fichiers
@@ -98,7 +99,7 @@ Ton niveau est **simple**. Un sous-agent repart de zéro (instructions,
 outils, relecture des fichiers) : il coûte plus qu'une commande lancée
 toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
-entière d'un autre niveau que le tien ; l'outil lui donne le modèle de la session (ou son mode automatique).
+entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
 
 ## Sobriété
 

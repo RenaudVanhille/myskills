@@ -14,6 +14,12 @@ avec une mesure type et une colonne Statut à compléter. Les numéros de flux
 (F1, F2...) sont ceux du schéma `cloud_build.py --view threats`.
 
     uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows]
+                             [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]]
+
+Avec `--vault`, une note modele-menaces (compteurs, flux à risque ; relation
+evalue vers la note de l'option `--option`) va dans le vault Obsidian du
+workflow, vérifiée contre son ontologie. Les menaces restent dans le
+.threats.md jusqu'à leur analyse.
 """
 
 import argparse
@@ -24,6 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+import vault_ontology  # noqa: E402
 
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
 CLOUD = load_module("cloud-architecture", "cloud_build.py")
@@ -117,6 +124,7 @@ def model(spec: dict, all_flows: bool) -> tuple[str, dict]:
                 for category in APPLIES["flow"]:
                     rows.append((-1 if f["crosses"] else 2, f"F{f['n']} {label[f['from']]} → {label[f['to']]}",
                                  "flow", category))
+    counts["by_stride"] = {c: sum(r[3] == c for r in rows) for c in CATEGORIES}
     rows.sort(key=lambda r: r[0])
     lines += ["## Menaces", "", "| ID | Élément | STRIDE | Menace | Mesure type | Mesure retenue | Statut |",
               "| --- | --- | --- | --- | --- | --- | --- |"]
@@ -128,6 +136,26 @@ def model(spec: dict, all_flows: bool) -> tuple[str, dict]:
     return "\n".join(lines) + "\n", {**counts, "errors": errors, "warnings": warnings}
 
 
+def write_vault(vault: Path, folder: str, spec: dict, report: dict, out: Path, option: str | None,
+                errors: list[str]) -> dict | None:
+    """Note modele-menaces du vault : compteurs et lien vers le .threats.md, évalue l'option."""
+    notes = vault_ontology.Notes(vault, "threat-model")
+    base = vault_ontology.safe_folder(folder)
+    title = vault_ontology.safe_name(spec.get("title", "architecture"), "menaces")
+    option_rel = f"{base}/Options/Option {option}" if option else None
+    body = [f"# Modèle de menaces : {spec.get('title', 'architecture')}", "",
+            f"{report['threats']} menaces à analyser sur {report['elements']} éléments, "
+            f"{report['crossing']} flux traversant une frontière de confiance ({report['boundaries']} frontières).",
+            "", "| STRIDE | Menaces |", "| --- | --- |"]
+    body += [f"| {c} : {CATEGORIES[c]} | {n} |" for c, n in report["by_stride"].items() if n]
+    body += ["", f"Détail, mesures retenues et statuts : `{out.name}`."]
+    notes.add(f"{base}/Modèles de menaces/{title}", "modele-menaces",
+              {"menaces": report["threats"], "flux-a-risque": report["crossing"]},
+              {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["securite"])
+    result = notes.write(errors)
+    return {**result, "folder": base} if result else None
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -136,6 +164,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="fichier Markdown (défaut : <sujet>.threats.md)")
     parser.add_argument("--all-flows", action="store_true",
                         help="analyser aussi les flux internes (par défaut : ceux qui traversent une frontière)")
+    parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire la note du modèle de menaces")
+    parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
+    parser.add_argument("--option", help="identifiant de l'option évaluée (note Options/Option <id> du vault)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -144,6 +175,12 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if bool(args.vault) != bool(args.folder):
+        parser.error("--vault et --folder vont ensemble")
+    if args.vault and not args.vault.is_dir():
+        print(json.dumps({"input": str(args.spec), "errors": [f"--vault : dossier introuvable {args.vault}"],
+                          "warnings": []}, ensure_ascii=False))
+        return 1
     if MISSING:
         print(json.dumps({"input": str(args.spec), "errors": [MISSING], "warnings": []}, ensure_ascii=False))
         return 1
@@ -159,10 +196,13 @@ def main() -> int:
         return 1
     text, report = model(spec, args.all_flows)
     out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json") + ".threats.md")
-    result = {"input": str(args.spec), "output": None, **report}
+    result = {"input": str(args.spec), "output": None, **{k: v for k, v in report.items() if k != "by_stride"},
+              "vault": None}
     if not report["errors"]:
         out.write_text(text, encoding="utf-8")
         result["output"] = str(out)
+        if args.vault:
+            result["vault"] = write_vault(args.vault, args.folder, spec, report, out, args.option, report["errors"])
     print(json.dumps(result, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

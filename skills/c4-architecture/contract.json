@@ -3,13 +3,202 @@
   "level": "moyen",
   "inputs": [
     "Décision de diagram-brief",
-    "Code, configuration ou description de l'architecture"
+    "Code, configuration ou description de l'architecture",
+    "Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue"
   ],
   "outputs": [
     "Dossier LikeC4 : specification.c4 et model.c4",
     "Un PNG par vue (après export)"
   ],
-  "scripts": [],
+  "scripts": [
+    {
+      "name": "c4_build.py",
+      "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé.",
+      "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] | --from-options options.json --option ID [--out-dir DOSSIER] | --schema",
+      "options": {
+        "MODELE.json": "description du modèle : title, elements (imbriqués), relations, views",
+        "--from-options": "options.json d'architecture-options, au lieu de MODELE.json",
+        "--option": "identifiant de l'option, avec --from-options",
+        "--out-dir": "dossier LikeC4 (défaut : <nom>-c4 ou option-<id>-c4 à côté de l'entrée)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "modèle écrit et vérifié (avertissements possibles)",
+        "1": "description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas"
+      },
+      "input": {
+        "format": "json",
+        "description": "Description du modèle C4 : éléments imbriqués (personne, système, conteneur, composant, base, file, externe), relations, vues.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "elements"
+          ],
+          "$defs": {
+            "element": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "kind",
+                "label"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+                },
+                "kind": {
+                  "enum": [
+                    "person",
+                    "system",
+                    "external",
+                    "container",
+                    "component",
+                    "database",
+                    "queue"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "tech": {
+                  "type": "string"
+                },
+                "elements": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/element"
+                  }
+                }
+              }
+            }
+          },
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "elements": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/element"
+              }
+            },
+            "relations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "tech": {
+                    "type": "string"
+                  },
+                  "async": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            },
+            "views": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "of": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Un objet, toujours avec errors et warnings.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "output",
+            "elements",
+            "relations",
+            "views",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "elements": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "relations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "views": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "handoffs": [
     {
       "to": "diagram-export",
@@ -20,6 +209,14 @@
       "to": "excalidraw-diagram",
       "kind": "skill",
       "when": "une vue est destinée à un public non technique"
+    }
+  ],
+  "requires": [
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+      "optional": true
     }
   ]
 }

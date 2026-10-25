@@ -15,8 +15,8 @@ téléchargé). N'écrivez pas le XML draw.io à la main.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
-- **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
+- **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes (formes génériques de la charte pour les hébergeurs souverains), à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
 - **`cloud_build.py`** : Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
@@ -80,6 +80,16 @@ Fichier `<sujet>.json` :
   `region`, `vnet`, `subnet`, `zone` (Azure) ; `project`, `region`,
   `zone`, `vpc`, `subnet` (GCP) ; `cluster`, `namespace`, `node` (`k8s:`) ;
   génériques `zone`, `onprem`, `internet`, `stage`, `env`, `boundary`.
+- **Hébergeur souverain** (`provider` : `ovh`, `outscale`, `cloud-temple`,
+  `scaleway`, `s3ns`, `bleu`, `numspot`, `sur-site`) : pas d'icônes
+  officielles, formes de la charte et vocabulaire commun : services
+  `instance`, `bare-metal`, `kubernetes`, `container`, `database`,
+  `postgresql`, `object-storage`, `load-balancer`, `waf`, `secrets`,
+  `monitoring`, `logs`, `backup`... ; groupes `project`, `region`, `zone`,
+  `network`, `subnet`. Le nom de l'hébergeur s'affiche (`ovh:network` :
+  vRack). Liste : `--types ovh`. `"qualifications": ["secnumcloud"]`
+  déclare ce qu'exigent les exigences ; `wa_check.py` signale un hébergeur
+  qui ne l'a pas.
 - **Disposition** : les enfants d'un groupe sont en ligne (`"layout":
   "column"` pour les empiler, `"wrap": 3` pour une grille). Régions et
   zones de disponibilité s'empilent par défaut. Rangez les services dans

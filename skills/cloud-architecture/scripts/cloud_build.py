@@ -18,7 +18,12 @@ gauche à droite), threats (frontières de confiance, flux numérotés comme dan
 stride.py, en rouge quand ils traversent une frontière).
 
     uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view VUE] [--matrix]
-    uv run scripts/cloud_build.py --types [aws|azure|gcp|k8s|generic]
+    uv run scripts/cloud_build.py --types [aws|azure|gcp|k8s|ovh|...|generic]
+
+Les hébergeurs sans jeu d'icônes dans draw.io (OVHcloud, Scaleway, Outscale,
+Cloud Temple, S3NS, Bleu, NumSpot, hébergement interne) ont un vocabulaire
+commun (`ovh:kubernetes`, `outscale:network`...), dessiné avec les formes de
+la charte : catalogue commun shared/providers.json, copié dans lib/.
 """
 
 import argparse
@@ -39,7 +44,17 @@ HERE = Path(__file__).resolve().parent
 ICONS = {k: v for k, v in json.loads((HERE / "icons.json").read_text(encoding="utf-8")).items()
          if not k.startswith("_")}
 VIEWS = ("deployment", "network", "kubernetes", "dr", "pipeline", "threats")
-PROVIDERS = ("aws", "azure", "gcp", "k8s")
+# Catalogue commun des hébergeurs (shared/providers.json) : ceux qui ont un champ diagram se dessinent
+# avec les formes génériques de la charte et le vocabulaire commun de services et de groupes.
+CATALOG = json.loads((HERE / "lib" / "providers.json").read_text(encoding="utf-8"))
+HOSTS = {k: v for k, v in CATALOG["providers"].items() if "diagram" in v}
+HOST_SERVICES = {k: v for k, v in CATALOG["diagram"]["services"].items() if not k.startswith("_")}
+HOST_GROUPS = {k: v for k, v in CATALOG["diagram"]["groups"].items() if not k.startswith("_")}
+PROVIDERS = ("aws", "azure", "gcp", "k8s") + tuple(HOSTS)
+
+
+def host_label(host: str, short: str, default: str) -> str:
+    return HOSTS[host]["diagram"].get("labels", {}).get(short, default)
 
 BASE = "whiteSpace=wrap;html=1;fontColor=#1f2937;fontSize=13;"
 # Types génériques, aux styles de la charte : type -> (style, kind STRIDE, libellé par défaut).
@@ -103,15 +118,30 @@ GROUPS = {
     "boundary": GROUP + "rounded=1;arcSize=4;dashed=1;dashPattern=8 4;strokeWidth=2;fillColor=none;"
                         "strokeColor=#b91c1c;fontColor=#b91c1c;",
 }
+# Groupes des hébergeurs sans icônes : rôle commun (projet, région, zone, réseau, sous-réseau) -> style de la charte.
+HOST_GROUP_STYLES = {
+    "project": GROUP + "rounded=0;fillColor=#f9fafb;strokeColor=#6b7280;fontColor=#374151;",
+    "region": GROUP + "rounded=1;arcSize=4;dashed=1;fillColor=none;strokeColor=#9ca3af;fontColor=#6b7280;",
+    "zone": GROUP + "rounded=1;arcSize=4;dashed=1;fillColor=none;strokeColor=#9ca3af;fontColor=#6b7280;",
+    "network": GROUP + "rounded=1;arcSize=4;fillColor=none;strokeColor=#1d4ed8;fontColor=#1d4ed8;",
+    "subnet": GROUP + "rounded=1;arcSize=4;dashed=1;fillColor=none;strokeColor=#1d4ed8;fontColor=#1d4ed8;",
+}
+GROUP_LABELS: dict[str, str] = {}
+for _host in HOSTS:
+    for _short, _group in HOST_GROUPS.items():
+        GROUPS[f"{_host}:{_short}"] = HOST_GROUP_STYLES[_group["as"]]
+        GROUP_LABELS[f"{_host}:{_short}"] = host_label(_host, _short, _group["label"])
 GROUP_ALIASES = {"subnet-public": "public-subnet", "subnet-private": "private-subnet", "sg": "security-group",
                  "ns": "namespace", "rg": "resource-group", "datacenter": "onprem", "trust": "boundary",
                  "environment": "env", "step": "stage"}
 # Groupes qui sont des frontières de confiance par défaut (modèle de menaces).
 BOUNDARIES = {"aws:account", "aws:vpc", "aws:public-subnet", "aws:private-subnet", "aws:security-group",
               "aws:datacenter", "azure:subscription", "azure:vnet", "azure:subnet", "gcp:project", "gcp:vpc",
-              "gcp:subnet", "k8s:cluster", "k8s:namespace", "onprem", "internet", "boundary"}
+              "gcp:subnet", "k8s:cluster", "k8s:namespace", "onprem", "internet", "boundary"} | \
+             {f"{h}:{g}" for h in HOSTS for g, v in HOST_GROUPS.items() if v["as"] in ("project", "network", "subnet")}
 # Disposition par défaut des enfants d'un groupe.
-COLUMN = {"aws:az", "azure:zone", "gcp:zone", "aws:region", "azure:region", "gcp:region"}
+COLUMN = {"aws:az", "azure:zone", "gcp:zone", "aws:region", "azure:region", "gcp:region"} | \
+         {f"{h}:{g}" for h in HOSTS for g, v in HOST_GROUPS.items() if v["as"] in ("region", "zone")}
 
 EDGE = ("edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;fontSize=11;labelBackgroundColor=#ffffff;"
         "fontColor=#1f2937;")
@@ -151,6 +181,12 @@ class Builder:
         if ":" not in name and self.provider:
             candidates.insert(0, f"{self.provider}:{name}")
         for candidate in candidates:
+            host, _, short = candidate.partition(":")
+            if host in HOSTS and short in HOST_SERVICES:
+                service = HOST_SERVICES[short]
+                style, kind, _ = GENERIC[service["as"]]
+                return candidate, {"style": style, "kind": kind, "icon": False,
+                                   "label": host_label(host, short, service["label"])}
             if candidate in ICONS:
                 icon = ICONS[candidate]
                 return candidate, {"style": icon["style"], "kind": icon["kind"], "label": icon["label"],
@@ -159,9 +195,10 @@ class Builder:
             if generic in GENERIC:
                 style, kind, label = GENERIC[generic]
                 return generic, {"style": style, "kind": kind, "label": label, "icon": False}
-        close = difflib.get_close_matches(name, list(ICONS) + list(GENERIC), n=3, cutoff=0.6)
+        known = list(ICONS) + list(GENERIC) + [f"{h}:{s}" for h in HOSTS for s in HOST_SERVICES]
+        close = difflib.get_close_matches(name, known, n=3, cutoff=0.6)
         if not close and ":" not in name:
-            close = [k for k in ICONS if k.endswith(":" + name)][:3]
+            close = [k for k in known if k.endswith(":" + name)][:3]
         hint = f" (proche : {', '.join(close)})" if close else " (liste : --types)"
         self.errors.append(f"{self.page} : {where}, type inconnu « {raw} »{hint}")
         style, kind, label = GENERIC["service"]
@@ -202,7 +239,7 @@ class Builder:
         if "items" in item:
             gtype = self.resolve_group(item.get("type"), f"groupe « {item.get('label', '?')} »")
             gid = self.new_id(item, gtype.split(":")[-1])
-            label = str(item.get("label", ""))
+            label = str(item.get("label", "")) or GROUP_LABELS.get(gtype, "")
             state = item.get("state")
             if state in ("active", "passive"):
                 label += " (actif)" if state == "active" else " (passif)"
@@ -388,7 +425,10 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
     # Disposition du premier niveau : comme un groupe, sans cadre.
     y0 = 60.0
     objectives = spec.get("objectives") or {}
-    if objectives:
+    notes = [f"{k.upper()} {v}" for k, v in objectives.items()]
+    if spec.get("provider") in HOSTS:
+        notes.insert(0, f"Hébergeur : {HOSTS[spec['provider']]['name']}")
+    if notes:
         y0 += 50
     x = 0.0
     if top["layout"] == "column":
@@ -410,8 +450,8 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
         vertex(root, "title", html(str(title)), TITLE, 0, 0, max(400, len(str(title)) * 12), 30)
     else:
         warnings.append(f"{name} : pas de titre")
-    if objectives:
-        text = " · ".join(f"{k.upper()} {v}" for k, v in objectives.items())
+    if notes:
+        text = " · ".join(notes)
         vertex(root, "objectives", html(text), NOTE, 0, 45, max(220, text_width(text, 13) + 30), 34)
     for bx in boxes:
         b.place(bx)
@@ -537,6 +577,9 @@ def list_types(which: str | None) -> str:
         if provider == "generic":
             nodes = sorted(GENERIC) + [f"{a}={b}" for a, b in sorted(ALIASES.items())]
             groups = sorted(g for g in GROUPS if ":" not in g)
+        elif provider in HOSTS:
+            nodes = [f"{s} ({host_label(provider, s, v['label'])})" for s, v in HOST_SERVICES.items()]
+            groups = [f"{g} ({host_label(provider, g, v['label'])})" for g, v in HOST_GROUPS.items()]
         else:
             nodes = sorted(k.split(":", 1)[1] for k in ICONS if k.startswith(provider + ":"))
             groups = sorted(g.split(":", 1)[1] for g in GROUPS if g.startswith(provider + ":"))
@@ -554,7 +597,7 @@ def main() -> int:
     parser.add_argument("--view", choices=VIEWS, help="vue, prioritaire sur celle de la description")
     parser.add_argument("--matrix", action="store_true", help="écrit aussi <sujet>.flows.md, la matrice des flux (toujours en vue network)")
     parser.add_argument("--types", nargs="?", const="", metavar="FOURNISSEUR",
-                        help="liste les types connus (aws, azure, gcp, k8s, generic) et s'arrête")
+                        help="liste les types connus (aws, azure, gcp, k8s, hébergeurs souverains, generic) et s'arrête")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()

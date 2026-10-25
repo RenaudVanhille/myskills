@@ -79,9 +79,9 @@ lire par un autre agent ou outil qui appelle myskills.
 | `diagram-brief` | Choix du format de schéma : décision courte en JSON validée, format, skill et livraison selon le public et la destination (`brief.py`) |
 | `drawio-diagram` | Schémas draw.io et exports |
 | `excalidraw-diagram` | Schémas Excalidraw pour publics non techniques |
-| `c4-architecture` | Modèle C4 en LikeC4 ou Mermaid |
+| `c4-architecture` | Modèle C4 en LikeC4 écrit par script depuis un JSON court ou une option d'architecture |
 | `urbanization-map` | Plan d'occupation des sols du SI (zones, quartiers, îlots, applications) en draw.io, depuis une description courte, un inventaire CSV ou une note Markdown ; options d'architecture situées dans le POS (impacts, redondances, POS cible, `pos_impact.py`) |
-| `mermaid-diagram` | Schémas Mermaid dans le Markdown |
+| `mermaid-diagram` | Schémas Mermaid dans le Markdown (flux et séquence écrits par script) |
 | `requirements-catalog` | Catalogue des exigences fonctionnelles et non fonctionnelles, citations des sources vérifiées, phrases normatives oubliées signalées, glossaire relié aux exigences, export Markdown et CSV |
 | `architecture-options` | 2 ou 3 options d'architecture : écarts aux exigences, score pondéré et rang calculés, recommandation, ADR, matrice de traçabilité, un schéma draw.io par option (et sa description cloud), position de chaque option dans le POS du SI (avec `urbanization-map`), revue Well-Architected des piliers de chaque option cloud (avec `well-architected-review`) |
 | `solution-estimate` | Chiffrage d'une option d'architecture : charge par lot, phase et profil (estimation à trois points, fourchette P10-P90), pilotage et provision, infrastructure par hébergeur (dont OVHcloud, Cloud Temple, Outscale, S3NS) avec contrôle des qualifications exigées (SecNumCloud, HDS), maintenance et exploitation, coût total sur plusieurs années, budget, exigences et composants non chiffrés signalés, CSV pour un tableur (`estimate_build.py`) |
@@ -133,17 +133,21 @@ description JSON, corriger une erreur, intégrer un retour) ou **complexe**
 rendu). [`shared/models.json`](shared/models.json) donne le modèle de
 chaque niveau par outil :
 
-| Niveau | Classe | Claude Code | Copilot, OpenCode, Kiro, Hermes |
-| --- | --- | --- | --- |
-| simple | léger | `haiku` | modèle de la session |
-| moyen | standard | `sonnet` | modèle de la session |
-| complexe | puissant | `opus` | modèle de la session |
+| Niveau | Classe | Claude Code | Copilot (repli dans l'ordre) | OpenCode, Kiro | Hermes |
+| --- | --- | --- | --- | --- | --- |
+| simple | léger | `haiku` | Claude Haiku 5.5, GPT-6 Luna | `install.py --models` | session |
+| moyen | standard | `sonnet` | Claude Sonnet 5.5, GPT-6.1 Sol | `install.py --models` | session |
+| complexe | puissant | `opus` | Claude Opus 5.5, GPT-6.1 Sol | `install.py --models` | session |
 
-`scripts/build.py` en tire le `model` des agents Claude Code et leur
-consigne : chaque agent travaille à son niveau, monte d'un niveau si une
+`scripts/build.py` en tire le `model` des agents Claude Code et Copilot et
+leur consigne : chaque agent travaille à son niveau, monte d'un niveau si une
 action échoue, et ne confie à un sous-agent qu'un lot ou une étape d'un
 autre niveau, avec le modèle de ce niveau. Changer de modèle : modifier
-`shared/models.json`, puis `uv run scripts/build.py`. `tests/cost.py`
+`shared/models.json`, puis `uv run scripts/build.py`. Les identifiants
+d'OpenCode (`fournisseur/modèle`) et de Kiro dépendent de l'abonnement : ils
+se donnent à l'installation, `uv run scripts/install.py --models
+mes-modeles.json` (`{"opencode": {"simple": "anthropic/claude-haiku-4-5",
+...}}`) ; sans eux, l'outil garde le modèle de la session. `tests/cost.py`
 mesure le coût réel de chaque cas d'agent.
 
 ## Ajouter un skill, un agent ou un workflow

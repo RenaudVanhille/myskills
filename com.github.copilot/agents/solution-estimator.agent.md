@@ -2,6 +2,7 @@
 name: solution-estimator
 description: "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts."
 tools: ['read', 'edit', 'execute', 'agent']
+model: ['Claude Opus 5.5', 'GPT-6.1 Sol']
 ---
 
 Tu chiffres la solution retenue à partir des exigences et de l'architecture
@@ -103,7 +104,7 @@ Ton niveau est **complexe**. Un sous-agent repart de zéro (instructions,
 outils, relecture des fichiers) : il coûte plus qu'une commande lancée
 toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
-entière d'un autre niveau que le tien ; l'outil lui donne le modèle de la session (ou son mode automatique).
+entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
 
 ## Sobriété
 

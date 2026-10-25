@@ -82,11 +82,12 @@
         "exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées",
         "options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur",
         "schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio)",
+        "Au choix de l'utilisateur (étapes facultatives) : revue.json et revue.md, revue d'architecture de l'option retenue ; chiffrage.json, chiffrage.md et chiffrage.csv, son chiffrage",
         "workflow.json et journal.md : état des étapes, choix, questions, retours et validations",
         "Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks"
       ],
       "never": [
-        "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur",
+        "Démarrer une étape avant la validation explicite de la précédente par l'utilisateur (ou son renoncement à une étape facultative)",
         "Valider une étape à la place de l'utilisateur",
         "Modifier les documents d'origine de documents/",
         "Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main"
@@ -128,9 +129,18 @@
             "le dossier schemas/",
             "la note de l'option dans le vault"
           ]
+        },
+        {
+          "to": "solution-estimator",
+          "when": "l'utilisateur veut le chiffrage de l'option retenue (étape chiffrage)",
+          "send": [
+            "exigences.json, options.json et decision.json",
+            "les taux, l'horizon et le budget donnés par l'utilisateur, ou les hypothèses notées au journal",
+            "la note de l'option dans le vault"
+          ]
         }
       ],
-      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
+      "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture et chiffrage. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
       "skills": [
         "check-prerequisites",
         "decision-log",
@@ -145,7 +155,9 @@
         "cloud-architecture",
         "diagram-export",
         "architecture-deck",
-        "threat-model"
+        "threat-model",
+        "architecture-review",
+        "solution-estimate"
       ]
     },
     {
@@ -542,7 +554,7 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Facultatif : le POS existant du SI (JSON ou CSV de urbanization-map, ou note Markdown avec tableau), dans le dossier ou dans le vault Obsidian du workflow (vault:<chemin>)",
-        "Description JSON des options : title, context, audience, requirements, pos, criteria, options (id, name, summary, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
+        "Description JSON des options : title, context, audience, requirements, pos, hosting (qualifications, refs), criteria, options (id, name, summary, provider, components, flows, gaps, placement, wa_accept, scores, score_notes, pros, cons, risks), recommendation, decision",
         "Après la revue : decision.json, le choix de l'utilisateur (option, by, why, date, refs)"
       ],
       "outputs": [
@@ -822,9 +834,17 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ],
-                        "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles)."
+                        "description": "Option hébergée chez ce fournisseur : options_build écrit aussi schemas/option-<id>.cloud.json pour cloud_build.py (icônes officielles, ou formes de la charte pour un hébergeur souverain)."
                       },
                       "placement": {
                         "type": "array",
@@ -936,6 +956,30 @@
                       "items": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      }
+                    }
+                  }
+                },
+                "hosting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "qualifications"
+                  ],
+                  "description": "qualifications exigées de l'hébergeur et exigences qui les portent : une option chez un hébergeur sans la qualification (catalogue shared/providers.json) ne couvre pas ces exigences",
+                  "properties": {
+                    "qualifications": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$"
+                      }
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
                       }
                     }
                   }
@@ -1256,6 +1300,11 @@
           "to": "solution-estimator",
           "kind": "agent",
           "when": "la décision est prise : chiffrer l'option retenue (charge, infrastructure, run, coût total)"
+        },
+        {
+          "to": "cloud-architecture",
+          "kind": "skill",
+          "when": "construire le schéma aux icônes du fournisseur d'une option cloud (schemas/option-<id>.cloud.json)"
         }
       ],
       "description": "Propose et compare 2 ou 3 options d'architecture à partir d'un catalogue d'exigences : écarts de couverture, notes par critère justifiées, score pondéré et rang calculés par script, recommandation, puis ADR de la décision et un schéma draw.io par option. À utiliser pour proposer des architectures, comparer des scénarios ou documenter un choix d'architecture.",
@@ -2169,13 +2218,202 @@
       "level": "moyen",
       "inputs": [
         "Décision de diagram-brief",
-        "Code, configuration ou description de l'architecture"
+        "Code, configuration ou description de l'architecture",
+        "Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue"
       ],
       "outputs": [
         "Dossier LikeC4 : specification.c4 et model.c4",
         "Un PNG par vue (après export)"
       ],
-      "scripts": [],
+      "scripts": [
+        {
+          "name": "c4_build.py",
+          "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé.",
+          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] | --from-options options.json --option ID [--out-dir DOSSIER] | --schema",
+          "options": {
+            "MODELE.json": "description du modèle : title, elements (imbriqués), relations, views",
+            "--from-options": "options.json d'architecture-options, au lieu de MODELE.json",
+            "--option": "identifiant de l'option, avec --from-options",
+            "--out-dir": "dossier LikeC4 (défaut : <nom>-c4 ou option-<id>-c4 à côté de l'entrée)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "modèle écrit et vérifié (avertissements possibles)",
+            "1": "description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description du modèle C4 : éléments imbriqués (personne, système, conteneur, composant, base, file, externe), relations, vues.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "elements"
+              ],
+              "$defs": {
+                "element": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "kind",
+                    "label"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+                    },
+                    "kind": {
+                      "enum": [
+                        "person",
+                        "system",
+                        "external",
+                        "container",
+                        "component",
+                        "database",
+                        "queue"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "tech": {
+                      "type": "string"
+                    },
+                    "elements": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/element"
+                      }
+                    }
+                  }
+                }
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "elements": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/element"
+                  }
+                },
+                "relations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "from",
+                      "to"
+                    ],
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "tech": {
+                        "type": "string"
+                      },
+                      "async": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "views": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "of": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet, toujours avec errors et warnings.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "output",
+                "elements",
+                "relations",
+                "views",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "elements": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "relations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "views": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
       "handoffs": [
         {
           "to": "diagram-export",
@@ -2186,6 +2424,14 @@
           "to": "excalidraw-diagram",
           "kind": "skill",
           "when": "une vue est destinée à un public non technique"
+        }
+      ],
+      "requires": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+          "optional": true
         }
       ],
       "description": "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue. À utiliser pour les schémas d'architecture.",
@@ -2304,10 +2550,10 @@
       "level": "moyen",
       "inputs": [
         "Décision de diagram-brief : public et destination",
-        "Description JSON de l'architecture : title, provider, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
+        "Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description"
       ],
       "outputs": [
-        "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes, à côté de sa description <sujet>.json",
+        "<sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes (formes génériques de la charte pour les hébergeurs souverains), à côté de sa description <sujet>.json",
         "Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux",
         "Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf"
       ],
@@ -2343,7 +2589,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -2418,7 +2672,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -2491,6 +2753,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -2908,7 +3178,7 @@
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
+          "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -2916,7 +3186,8 @@
             "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
             "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
-            "--schema": "affiche le schéma de workflow.json sur une ligne"
+            "--schema": "affiche le schéma de workflow.json sur une ligne",
+            "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer"
           },
           "report": {
             "format": "json",
@@ -2948,6 +3219,7 @@
                   "enum": [
                     "init",
                     "start",
+                    "skip",
                     "log",
                     "submit",
                     "review",
@@ -2973,7 +3245,8 @@
                           "en-cours",
                           "en-revue",
                           "validee",
-                          "a-reprendre"
+                          "a-reprendre",
+                          "sautee"
                         ]
                       }
                     }
@@ -3171,7 +3444,8 @@
                           "en-cours",
                           "en-revue",
                           "validee",
-                          "a-reprendre"
+                          "a-reprendre",
+                          "sautee"
                         ]
                       },
                       "files": {
@@ -3229,7 +3503,8 @@
                           "validation",
                           "invalidation",
                           "passage",
-                          "rapport"
+                          "rapport",
+                          "saut"
                         ]
                       },
                       "by": {
@@ -3371,6 +3646,10 @@
                           "instructions": {
                             "type": "string",
                             "description": "Consignes propres à l'étape, que l'agent du workflow suit : tout ce qui est propre au métier est ici, pas dans l'agent."
+                          },
+                          "facultative": {
+                            "type": "boolean",
+                            "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
                           }
                         }
                       }
@@ -5818,17 +6097,329 @@
       "level": "moyen",
       "inputs": [
         "Décision de diagram-brief",
-        "Contenu à représenter"
+        "Contenu à représenter",
+        "Description JSON d'un flowchart ou d'une séquence (mermaid_build.py --schema), ou options.json d'architecture-options et l'option retenue"
       ],
       "outputs": [
         "Bloc ```mermaid dans un Markdown, ou fichier .mmd"
       ],
-      "scripts": [],
+      "scripts": [
+        {
+          "name": "mermaid_build.py",
+          "role": "Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds.",
+          "usage": "uv run scripts/mermaid_build.py SCHEMA.json [--out SCHEMA.md|.mmd] | --from-options options.json --option ID [--out F] | --schema",
+          "options": {
+            "SCHEMA.json": "description : title, type (flowchart : nodes, groups, edges ; sequence : participants, messages)",
+            "--from-options": "options.json d'architecture-options, au lieu de SCHEMA.json (flowchart de l'option)",
+            "--option": "identifiant de l'option, avec --from-options",
+            "--out": "fichier .md (bloc mermaid avec titre) ou .mmd (défaut : <nom>.md à côté de l'entrée)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "diagramme écrit (rendu à vérifier avec diagram-export --check)",
+            "1": "description invalide ou référence inconnue ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description d'un flowchart (nœuds, groupes, liens) ou d'une séquence (participants, messages, notes, blocs alt/opt/loop).",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "type"
+              ],
+              "$defs": {
+                "step": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "properties": {
+                        "from": {
+                          "type": "string"
+                        },
+                        "to": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "enum": [
+                            "call",
+                            "reply",
+                            "async"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "note",
+                        "over"
+                      ],
+                      "properties": {
+                        "note": {
+                          "type": "string"
+                        },
+                        "over": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "block",
+                        "branches"
+                      ],
+                      "properties": {
+                        "block": {
+                          "enum": [
+                            "alt",
+                            "opt",
+                            "loop"
+                          ]
+                        },
+                        "branches": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "messages"
+                            ],
+                            "properties": {
+                              "when": {
+                                "type": "string"
+                              },
+                              "messages": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/$defs/step"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "flowchart",
+                    "sequence"
+                  ]
+                },
+                "direction": {
+                  "enum": [
+                    "LR",
+                    "TD",
+                    "RL",
+                    "BT"
+                  ]
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "enum": [
+                          "person",
+                          "system",
+                          "external",
+                          "db",
+                          "queue",
+                          "alert"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label",
+                      "nodes"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string"
+                      },
+                      "nodes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "edges": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "from",
+                      "to"
+                    ],
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "async": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                },
+                "participants": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "label"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "actor": {
+                        "type": "boolean"
+                      },
+                      "box": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "messages": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/step"
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet, toujours avec errors et warnings.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "output",
+                "type",
+                "nodes",
+                "links",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "type": {
+                  "enum": [
+                    "flowchart",
+                    "sequence",
+                    null
+                  ]
+                },
+                "nodes": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "links": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
       "handoffs": [
         {
           "to": "diagram-export",
           "kind": "skill",
           "when": "vérifier le rendu (--check) ou exporter en PNG ou SVG"
+        }
+      ],
+      "requires": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "why": "--from-options : valider options.json contre son schéma et reprendre une option",
+          "optional": true
         }
       ],
       "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian.",
@@ -6225,7 +6816,7 @@
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
         "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions",
-        "Catalogue des hébergeurs (references/providers.json : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
+        "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
       ],
       "outputs": [
         "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
@@ -6235,11 +6826,13 @@
         {
           "name": "estimate_build.py",
           "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
-          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema",
+          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
           },
           "input": {
             "format": "json",
@@ -6320,7 +6913,7 @@
                 "providers": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète references/providers.json du skill."
+                  "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète le catalogue commun (shared/providers.json)."
                 },
                 "rates": {
                   "type": "object",
@@ -6598,7 +7191,7 @@
                   "patternProperties": {
                     "^_": {}
                   },
-                  "description": "Catalogue des hébergeurs (references/providers.json ou fichier du champ providers).",
+                  "description": "Catalogue des hébergeurs (shared/providers.json ou fichier du champ providers).",
                   "properties": {
                     "checked": {
                       "type": "string",
@@ -6646,10 +7239,18 @@
                             },
                             "note": {
                               "type": "string"
+                            },
+                            "diagram": {
+                              "type": "object",
+                              "description": "hébergeur dessinable avec les formes génériques ; labels : noms de ses services"
                             }
                           }
                         }
                       }
+                    },
+                    "diagram": {
+                      "type": "object",
+                      "description": "vocabulaire de schéma des hébergeurs sans icônes (cloud_build.py)"
                     }
                   }
                 }
@@ -6942,6 +7543,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -6984,6 +7618,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 }
@@ -7027,6 +7694,13 @@
           "when": "le coût chiffré contredit la note du critère coût d'une option : revoir sa note"
         }
       ],
+      "vault": {
+        "writes": [
+          "chiffrage",
+          "lot"
+        ],
+        "reads": true
+      },
       "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure ou un coût total de possession.",
       "path": "skills/solution-estimate"
     },
@@ -7044,12 +7718,15 @@
         {
           "name": "stride.py",
           "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
-          "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] | --schema",
+          "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
             "--out": "fichier Markdown (défaut : <sujet>.threats.md)",
             "--all-flows": "analyser aussi les flux internes (défaut : ceux qui traversent une frontière)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi la note modele-menaces (compteurs, flux à risque), selon son ontologie",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+            "--option": "identifiant de l'option évaluée : relation evalue vers sa note Options/Option <id> du vault"
           },
           "input": {
             "format": "json",
@@ -7071,7 +7748,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -7146,7 +7831,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -7219,6 +7912,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -7423,6 +8124,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -7485,6 +8219,12 @@
           "when": "compléter avec lui les mesures retenues et les statuts des menaces"
         }
       ],
+      "vault": {
+        "writes": [
+          "modele-menaces"
+        ],
+        "reads": true
+      },
       "description": "Prépare le modèle de menaces STRIDE d'une architecture décrite en JSON (celle des schémas cloud) : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable avec sa mesure et son statut à compléter. À utiliser pour une analyse de sécurité d'une architecture cloud, d'une option d'architecture ou d'une infrastructure existante.",
       "path": "skills/threat-model"
     },
@@ -8049,14 +8789,17 @@
         {
           "name": "wa_check.py",
           "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
-          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --rules | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
             "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
             "--scope": "règles appliquées : piliers à la définition de l'architecture (description d'une option, avant tout schéma), conventions au dessin, tout (défaut) pour un schéma terminé",
             "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
             "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi la revue, selon son ontologie : une note revue-well-architected et une note par constat, reliées à la note de l'option",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+            "--option": "identifiant de l'option évaluée : relation evalue vers sa note Options/Option <id> du vault"
           },
           "input": {
             "format": "json",
@@ -8078,7 +8821,15 @@
                     "aws",
                     "azure",
                     "gcp",
-                    "k8s"
+                    "k8s",
+                    "ovh",
+                    "cloud-temple",
+                    "outscale",
+                    "s3ns",
+                    "bleu",
+                    "numspot",
+                    "scaleway",
+                    "sur-site"
                   ]
                 },
                 "view": {
@@ -8153,7 +8904,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       },
                       "view": {
@@ -8226,6 +8985,14 @@
                       "minLength": 1
                     }
                   }
+                },
+                "qualifications": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "description": "qualifications exigées de l'hébergeur (secnumcloud, hds) : wa_check.py signale un hébergeur qui ne les a pas (catalogue shared/providers.json)"
                 }
               },
               "$defs": {
@@ -8406,7 +9173,15 @@
                           "aws",
                           "azure",
                           "gcp",
-                          "k8s"
+                          "k8s",
+                          "ovh",
+                          "cloud-temple",
+                          "outscale",
+                          "s3ns",
+                          "bleu",
+                          "numspot",
+                          "scaleway",
+                          "sur-site"
                         ]
                       }
                     },
@@ -8519,6 +9294,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -8581,6 +9389,13 @@
           "when": "un écart est voulu : sa raison va dans accept"
         }
       ],
+      "vault": {
+        "writes": [
+          "revue-well-architected",
+          "constat"
+        ],
+        "reads": true
+      },
       "description": "Contrôle une architecture cloud décrite en JSON contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, opérations, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs. À utiliser dès la définition d'une architecture (piliers) puis sur le schéma (conventions).",
       "path": "skills/well-architected-review"
     }

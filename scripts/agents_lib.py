@@ -15,6 +15,10 @@ LEVELS = ("simple", "moyen", "complexe")
 MARKER = "{{niveaux}}"
 
 
+# Modèles donnés à l'installation (install.py --models), par outil puis par niveau : priment sur shared/models.json.
+OVERRIDES: dict[str, dict[str, str | list[str] | None]] = {}
+
+
 def models() -> dict:
     return json.loads(MODELS.read_text(encoding="utf-8"))["levels"]
 
@@ -25,13 +29,24 @@ def agent_level(name: str) -> str:
     return contract["level"]
 
 
-def model_for(level: str, flavor: str) -> str | None:
+def model_for(level: str, flavor: str) -> str | list[str] | None:
+    """Modèle du niveau pour l'outil : un nom, une liste de replis dans l'ordre, ou None (modèle de la session)."""
+    if level in OVERRIDES.get(flavor, {}):
+        return OVERRIDES[flavor][level]
     return models()[level]["models"].get(flavor)
+
+
+def model_name(model: str | list[str] | None) -> str | None:
+    return model[0] if isinstance(model, list) else model
+
+
+def model_yaml(model: str | list[str]) -> str:
+    return "[" + ", ".join(f"'{m}'" for m in model) + "]" if isinstance(model, list) else model
 
 
 def levels_text(level: str, flavor: str) -> str:
     """Consigne commune des niveaux, avec les modèles de l'outil (shared/models.json)."""
-    names = {lvl: model_for(lvl, flavor) for lvl in LEVELS}
+    names = {lvl: model_name(model_for(lvl, flavor)) for lvl in LEVELS}
     if all(names.values()):
         choice = ("avec le modèle du niveau du lot : "
                   + ", ".join(f"{lvl} `{names[lvl]}`" for lvl in LEVELS) + ".")
@@ -109,7 +124,8 @@ def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> s
     else:
         raise ValueError(f"Format inconnu : {flavor}")
     if model and flavor != "hermes":
-        lines.append(f"model: {model}")
+        # Liste de replis : Copilot la lit telle quelle ; les autres outils prennent le premier modèle.
+        lines.append(f"model: {model_yaml(model) if flavor == 'copilot' else model_name(model)}")
     lines.append("---")
     return "\n".join(lines) + "\n" + body
 

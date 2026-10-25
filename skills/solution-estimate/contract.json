@@ -5,7 +5,7 @@
     "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
     "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
     "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates, work (id, name, phase, component, refs, effort), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, budget, assumptions, exclusions",
-    "Catalogue des hébergeurs (references/providers.json : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
+    "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet"
   ],
   "outputs": [
     "<nom>.md : chiffrage pour la revue (synthèse, budget, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
@@ -15,11 +15,13 @@
     {
       "name": "estimate_build.py",
       "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
-      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema",
+      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
       "options": {
         "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
+        "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
       },
       "input": {
         "format": "json",
@@ -100,7 +102,7 @@
             "providers": {
               "type": "string",
               "minLength": 1,
-              "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète references/providers.json du skill."
+              "description": "Catalogue des hébergeurs propre au projet, relatif au .json : complète le catalogue commun (shared/providers.json)."
             },
             "rates": {
               "type": "object",
@@ -378,7 +380,7 @@
               "patternProperties": {
                 "^_": {}
               },
-              "description": "Catalogue des hébergeurs (references/providers.json ou fichier du champ providers).",
+              "description": "Catalogue des hébergeurs (shared/providers.json ou fichier du champ providers).",
               "properties": {
                 "checked": {
                   "type": "string",
@@ -426,10 +428,18 @@
                         },
                         "note": {
                           "type": "string"
+                        },
+                        "diagram": {
+                          "type": "object",
+                          "description": "hébergeur dessinable avec les formes génériques ; labels : noms de ses services"
                         }
                       }
                     }
                   }
+                },
+                "diagram": {
+                  "type": "object",
+                  "description": "vocabulaire de schéma des hébergeurs sans icônes (cloud_build.py)"
                 }
               }
             }
@@ -722,6 +732,39 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "vault": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "vault",
+                        "folder",
+                        "notes",
+                        "removed"
+                      ],
+                      "properties": {
+                        "vault": {
+                          "type": "string"
+                        },
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "removed": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -764,6 +807,39 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "vault": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "vault",
+                        "folder",
+                        "notes",
+                        "removed"
+                      ],
+                      "properties": {
+                        "vault": {
+                          "type": "string"
+                        },
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "removed": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -806,5 +882,12 @@
       "kind": "skill",
       "when": "le coût chiffré contredit la note du critère coût d'une option : revoir sa note"
     }
-  ]
+  ],
+  "vault": {
+    "writes": [
+      "chiffrage",
+      "lot"
+    ],
+    "reads": true
+  }
 }

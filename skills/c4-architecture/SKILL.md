@@ -14,9 +14,11 @@ une fois, chaque vue en montre une partie.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture.
+- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture ; Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Dossier LikeC4 : specification.c4 et model.c4 ; Un PNG par vue (après export).
-- **Scripts** : aucun ; la validation passe par le skill suivant.
+- **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé. Rapport JSON, codes de sortie : 0 modèle écrit et vérifié (avertissements possibles) ; 1 description invalide, référence inconnue, imbrication interdite ou erreur de likec4 validate ; aucun fichier sauf dans ce dernier cas.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
 
@@ -32,57 +34,62 @@ Le niveau 4 (code) ne se dessine pas : le code suffit. Un public non technique
 ne voit que le niveau 1 ; s'il faut aller plus loin pour lui, passez par
 `excalidraw-diagram`.
 
-## 2. Écrire le modèle
+## 2. Décrire le modèle
 
-Dans un dossier dédié (par exemple `docs/architecture/`) :
+Vous décrivez les éléments en JSON ; `scripts/c4_build.py` écrit
+`model.c4`, copie `specification.c4` (types aux couleurs de la charte,
+relation `async`) et vérifie le modèle. N'écrivez pas le `.c4` à la main.
+`uv run scripts/c4_build.py --schema` donne la forme de `MODELE.json` :
 
-1. Copiez `references/specification.c4` : il définit les types d'éléments
-   (`person`, `system`, `external`, `container`, `component`, `database`,
-   `queue`) aux couleurs de la charte, et la relation `async`.
-2. Écrivez `model.c4` :
-
-```text
-model {
-  client = person 'Client' 'Achète en ligne'
-  shop = system 'Boutique' {
-    web = container 'Site web' {
-      technology 'React'
-    }
-    api = container 'API paiement' {
-      technology 'Java'
-    }
-    db = database 'Paiements' 'PostgreSQL'
-    bus = queue 'Évènements'
-  }
-  bank = external 'Banque'
-
-  client -> shop.web 'commande'
-  shop.web -> shop.api 'appelle'
-  shop.api -> shop.db 'enregistre'
-  shop.api -[async]-> shop.bus 'publie'
-  shop.api -> bank 'débite'
-}
-
-views {
-  view index {
-    title 'Boutique : contexte'
-    include *
-  }
-  view shop of shop {
-    title 'Boutique : conteneurs'
-    include *
-  }
+```json
+{
+  "title": "Boutique en ligne",
+  "elements": [
+    {"id": "client", "kind": "person", "label": "Client", "description": "Achète en ligne"},
+    {"id": "shop", "kind": "system", "label": "Boutique", "elements": [
+      {"id": "web", "kind": "container", "label": "Site web", "tech": "React"},
+      {"id": "api", "kind": "container", "label": "API paiement", "tech": "Java"},
+      {"id": "db", "kind": "database", "label": "Paiements", "tech": "PostgreSQL"},
+      {"id": "bus", "kind": "queue", "label": "Évènements"}
+    ]},
+    {"id": "bank", "kind": "external", "label": "Banque"}
+  ],
+  "relations": [
+    {"from": "client", "to": "web", "label": "commande"},
+    {"from": "api", "to": "bus", "label": "publie", "async": true},
+    {"from": "api", "to": "bank", "label": "débite", "tech": "HTTPS"}
+  ],
+  "views": [
+    {"id": "index", "title": "Boutique : contexte"},
+    {"id": "shop", "title": "Boutique : conteneurs", "of": "shop"}
+  ]
 }
 ```
 
-- Identifiants courts sans accents ; libellés entre apostrophes droites.
-- Chaque relation porte un verbe. `-[async]->` pour un message ou un évènement.
-- `view <nom> of <élément>` montre l'intérieur d'un élément : une vue par
-  niveau utile, pas plus.
+```bash
+uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER]
+uv run scripts/c4_build.py --from-options options.json --option A [--out-dir DOSSIER]
+```
+
+- `kind` : `person`, `system`, `external`, `container`, `component`,
+  `database`, `queue` ; `elements` imbrique (composant dans un conteneur,
+  conteneur dans un système). Les relations citent les identifiants seuls,
+  le script écrit les chemins pointés.
+- Chaque relation porte un verbe (`label`) ; `async` pour un message ou un
+  évènement.
+- Sans `views` : une vue de contexte et une vue de conteneurs par système.
+  Une vue par niveau utile, pas plus.
+- `--from-options` reprend une option d'`architecture-options` : personnes
+  et externes autour d'un système `solution`, composants en conteneurs,
+  flux en relations.
 - À partir du code : lisez les points d'entrée, la configuration (Docker
   Compose, manifestes Kubernetes, fichiers d'environnement) et les clients
   HTTP ou de messagerie pour trouver conteneurs et relations. Notez dans la
   réponse ce qui est déduit et ce qui reste à confirmer.
+
+Le rapport donne les erreurs avec leur chemin (élément inconnu avec la
+valeur proche, imbrication interdite) ; corrigez la description et
+relancez. Si `likec4` est installé, le script lance `likec4 validate`.
 
 ## 3. Valider et exporter
 
@@ -90,7 +97,7 @@ views {
 uv run ../diagram-export/scripts/export.py DOSSIER_DU_MODELE
 ```
 
-Le script lance `likec4 validate` (références inconnues, erreurs de syntaxe)
+`export.py` lance `likec4 validate` (références inconnues, erreurs de syntaxe)
 puis exporte une image PNG par vue (`index.png`, `shop.png`) dans le dossier.
 Avec `--check`, il valide et rend sans rien écrire. Il utilise `likec4` s'il
 est installé, sinon `npx likec4` (Node.js requis).

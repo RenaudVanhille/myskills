@@ -577,63 +577,46 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
             "errors": errors, "warnings": warnings}
 
 
-# Caractères interdits dans un nom de fichier sous Windows, ou qui cassent un wikilink Obsidian.
-FORBIDDEN = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]')
-GENERATED = "---\ngenere: architecture-review\n"
 VERDICTS = {"favorable": "favorable", "favorable avec réserves": "reserves", "défavorable": "defavorable"}
-
-
-def safe_name(text: str) -> str:
-    """Nom de note valable sous Windows, macOS et Linux et dans un wikilink (comme vault_sync.py)."""
-    return re.sub(r"\s+", " ", FORBIDDEN.sub("-", str(text))).strip().rstrip(". ") or "revue"
 
 
 def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str, out: Path,
                 errors: list[str]) -> dict | None:
     """Notes typées de la revue dans le vault : revue-architecture, constats et risques, liés aux
     notes d'exigence, d'option et d'ADR déjà écrites par decision-log (vault_sync.py)."""
-    onto = vault_ontology.load()
-    base = "/".join(safe_name(p) for p in re.split(r"[\\/]+", folder) if p.strip())
-    title = safe_name(spec["title"])
+    notes = vault_ontology.Notes(vault, "architecture-review")
+    base = vault_ontology.safe_folder(folder)
+    title = vault_ontology.safe_name(spec["title"], "revue")
     review_rel = f"{base}/Revues d'architecture/{title}"
-    exists = lambda rel: (vault / f"{rel}.md").is_file()  # noqa: E731
     option = spec.get("source", {}).get("option")
     option_rel = f"{base}/Options/Option {option}" if option else None
-    adr_rel = f"{base}/ADR architecture"
     catalog = found["catalog"]
 
     def about(ids) -> list[tuple[str, str]]:
-        rels = [(f"{base}/Exigences/{i}", i) for i in ids if i in catalog and exists(f"{base}/Exigences/{i}")]
-        return rels or ([(option_rel, f"Option {option}")] if option_rel and exists(option_rel) else [])
-
-    metas: dict[str, dict] = {}
-    notes: dict[str, str] = {}
-
-    def typed(rel, kind, props, relations, body):
-        metas[rel] = vault_ontology.meta(onto, kind, props, relations, ["architecture"], genere="architecture-review")
-        notes[rel] = vault_ontology.render(metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+        rels = [(f"{base}/Exigences/{i}", i) for i in ids if i in catalog and notes.exists(f"{base}/Exigences/{i}")]
+        return rels or ([(option_rel, f"Option {option}")] if option_rel else [])
 
     up = f"Revue : [[{review_rel}|{title}]]"
     constats = []
     for f in found["findings"]:
-        rel = f"{base}/Constats/{title}/{safe_name(f['rule'] + ' ' + f['element'])}"
+        rel = f"{base}/Constats/{title}/{vault_ontology.safe_name(f['rule'] + ' ' + f['element'])}"
         constats.append((rel, f))
         body = [f"# {f['rule']} {f['element']}", "", f["message"], "", up, "", f"**Correction** : {f['fix']}", "",
-                f"**Référence** : {f['ref']}"] + ([ "", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
-        typed(rel, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"], "regle": f["rule"],
-                               "statut": "accepte" if f["accepted"] else "ouvert"},
-              {"porte-sur": about([f["element"]]), "issu-de": (review_rel, title)}, body)
+                f"**Référence** : {f['ref']}"] + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
+        notes.add(rel, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"], "regle": f["rule"],
+                                   "statut": "accepte" if f["accepted"] else "ouvert"},
+                  {"porte-sur": about([f["element"]]), "issu-de": (review_rel, title)}, body, ["architecture"])
     risques = []
     for r in spec.get("risks", []):
-        rel = f"{base}/Risques/{title}/{safe_name(r['id'])}"
+        rel = f"{base}/Risques/{title}/{vault_ontology.safe_name(r['id'])}"
         risques.append((rel, r))
         body = [f"# {r['id']} {r['text']}", "", up, "", f"**Atténuation** : {r.get('mitigation', 'à définir')}",
                 "", f"**Responsable** : {r.get('owner', 'à désigner')}"]
         if r.get("scenarios"):
             body += ["", "**Scénarios** : " + ", ".join(r["scenarios"])]
-        typed(rel, "risque", {"id": r["id"], "gravite": r["severity"],
-                              "statut": "attenue" if r.get("mitigation") else "ouvert"},
-              {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body)
+        notes.add(rel, "risque", {"id": r["id"], "gravite": r["severity"],
+                                  "statut": "attenue" if r.get("mitigation") else "ouvert"},
+                  {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body, ["architecture"])
     body = [f"# Revue d'architecture : {spec['title']}", "", f"**Avis : {verdict}**", "",
             f"Revue complète : `{out.name}`."]
     for label, items in (("Constats ouverts", [(r, f) for r, f in constats if not f["accepted"]]),
@@ -643,39 +626,12 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
                                               for rel, f in items]
     if risques:
         body += ["", "## Risques", ""] + [f"- [[{rel}|{r['id']}]] ({r['severity']}) : {r['text']}" for rel, r in risques]
-    evalue = [(p, a) for p, a in ((option_rel, f"Option {option}"), (adr_rel, "ADR")) if p and exists(p)]
-    typed(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body)
-
-    # Chaque note suit l'ontologie (types, propriétés, relations, tags) : sinon rien n'est écrit.
-    def resolve(path):
-        if path in metas:
-            return metas[path]["type"]
-        if not exists(path):
-            raise KeyError(path)
-        return (vault_ontology.parse((vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0]
-                or {}).get("type")
-    invalid = [f"{rel} : {e}" for rel, m in metas.items()
-               for e in vault_ontology.check_meta(onto, m, generated=True)[0]
-               + vault_ontology.check_targets(onto, m, resolve)[0]]
-    if invalid:
-        errors += ["vault : note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]]
-        return None
-    for rel, text in notes.items():
-        path = vault / f"{rel}.md"
-        if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
-            continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+    evalue = [(p, a) for p, a in ((option_rel, f"Option {option}"), (f"{base}/ADR architecture", "ADR")) if p]
+    notes.add(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body,
+              ["architecture"])
     # Constats et risques d'une revue précédente qui ne sont plus relevés : notes générées retirées.
-    removed = 0
-    for sub_ in (f"{base}/Constats/{title}", f"{base}/Risques/{title}"):
-        for path in sorted((vault / sub_).glob("*.md")) if (vault / sub_).is_dir() else []:
-            rel = path.relative_to(vault).with_suffix("").as_posix()
-            if rel not in notes and path.read_text(encoding="utf-8", errors="replace").startswith(GENERATED):
-                path.unlink()
-                removed += 1
-    return {"vault": str(vault), "folder": base, "notes": len(notes), "removed": removed}
+    result = notes.write(errors, cleanup=(f"{base}/Constats/{title}", f"{base}/Risques/{title}"))
+    return {**result, "folder": base} if result else None
 
 
 def accept(findings: list[dict], accepted: dict, warnings: list[str]) -> None:

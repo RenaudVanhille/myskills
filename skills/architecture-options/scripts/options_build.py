@@ -25,6 +25,12 @@ urbanization-map) vérifie les noms dans le POS, compte créations,
 cible de chaque option (`schemas/pos-option-<id>.json`, pour pos_build.py) ;
 le script ajoute le critère « urbanisation ».
 
+Avec `hosting` (qualifications exigées : secnumcloud, hds, et les exigences
+qui les portent), l'hébergeur de chaque option est comparé au catalogue
+commun des hébergeurs (shared/providers.json) : sans la qualification, l'option
+ne couvre pas ces exigences (écart ajouté, éliminée si l'une est
+indispensable).
+
 Chaque option cloud (`provider`) passe la revue Well-Architected des piliers
 (wa_check.py du skill well-architected-review) : constats par pilier dans
 `options.md`, détail dans `schemas/option-<id>.wa.md`, constats de l'option
@@ -146,19 +152,52 @@ def layout(option: dict) -> list[dict]:
 CLOUD_TYPES = {"person": "user", "system": "service", "external": "external", "db": "db", "queue": "queue"}
 
 
-def cloud_spec(option: dict) -> dict:
+def cloud_spec(option: dict, qualifications: list[str] | None = None) -> dict:
     """Description cloud_build.py d'une option hébergée chez un fournisseur."""
     items = [{"id": c["id"], "type": c.get("type") or CLOUD_TYPES[c.get("role", "system")], "label": c["label"],
               **({"count": c["count"]} if c.get("count") else {})} for c in option["components"]]
     flows = [{k: f[k] for k in ("from", "to", "label", "style", "protocol") if f.get(k)}
              for f in option.get("flows", [])]
-    return {"_source": "généré par options_build.py", "title": f"Option {option['id']} : {option['name']}",
+    spec = {"_source": "généré par options_build.py", "title": f"Option {option['id']} : {option['name']}",
             "provider": option["provider"], "items": items, "flows": flows}
+    if qualifications:
+        spec["qualifications"] = qualifications
+    return spec
 
 
-def wa_review(wa, option: dict, where: str, errors: list[str], warnings: list[str]) -> dict:
+# Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
+PROVIDERS = json.loads((Path(__file__).resolve().parent / "lib" / "providers.json").read_text(encoding="utf-8"))
+
+
+def check_hosting(spec: dict, option: dict, where: str, catalog: dict, warnings: list[str]) -> None:
+    """Qualifications exigées (hosting) : l'hébergeur de l'option qui ne les a pas ne couvre pas les exigences
+    citées (écart « non » ajouté, l'option est éliminée si l'une est indispensable)."""
+    hosting = spec.get("hosting") or {}
+    required = hosting.get("qualifications") or []
+    if not required:
+        return
+    name = option.get("provider")
+    info = PROVIDERS["providers"].get(name or "")
+    if not info:
+        warnings.append(f"{where} : qualifications {', '.join(required)} non vérifiées (option sans provider "
+                        "connu du catalogue des hébergeurs)")
+        return
+    missing = [q for q in required if q not in info["qualifications"]]
+    if not missing:
+        return
+    pending = [q for q in missing if q in info.get("pending", [])]
+    note = f"{info['name']} sans {', '.join(missing)}" + (f" (en cours : {', '.join(pending)})" if pending else "")
+    gaps = option.setdefault("gaps", {})
+    added = [r for r in hosting.get("refs", []) if r in catalog and r not in gaps]
+    for ref in added:
+        gaps[ref] = {"level": "non", "note": note + " (catalogue des hébergeurs)"}
+    warnings.append(f"option {option['id']} : {note}" + (f", écart ajouté sur {', '.join(added)}" if added else ""))
+
+
+def wa_review(wa, option: dict, where: str, errors: list[str], warnings: list[str],
+              qualifications: list[str] | None = None) -> dict:
     """Revue Well-Architected des piliers d'une option cloud (sans les conventions de schéma)."""
-    findings, errs, clouds = wa.check(cloud_spec(option))
+    findings, errs, clouds = wa.check(cloud_spec(option, qualifications))
     errors += [f"{where}/components : {e}" for e in errs]
     findings = [f for f in findings if f["pillar"] != "conventions"]
     unused: list[str] = []
@@ -384,8 +423,10 @@ def analyse(spec: dict, base: Path) -> dict:
                 if flow[end] not in comp_ids:
                     errors.append(f"{where}/flows/{fi}/{end} : composant inconnu « {flow[end]} »")
         check_refs(f"{where}/gaps", option.get("gaps", {}), catalog, errors)
+        check_hosting(spec, option, where, catalog, warnings)
         if wa and option.get("provider"):
-            reviews.append(wa_review(wa, option, where, errors, warnings))
+            reviews.append(wa_review(wa, option, where, errors, warnings,
+                                     (spec.get("hosting") or {}).get("qualifications")))
         elif option.get("wa_accept"):
             warnings.append(f"{where}/wa_accept : ignoré, l'option n'a pas de provider")
         for ci, comp in enumerate(option["components"]):
@@ -409,6 +450,7 @@ def analyse(spec: dict, base: Path) -> dict:
 
     rec = spec["recommendation"]
     check_refs("recommendation", rec.get("refs", []), catalog, errors)
+    check_refs("hosting/refs", (spec.get("hosting") or {}).get("refs", []), catalog, errors)
     if rec["option"] not in option_ids:
         errors.append(f"recommendation/option : option inconnue « {rec['option']} » ({', '.join(option_ids)})")
     elif ranking and not errors:
@@ -520,7 +562,7 @@ def main() -> int:
         if option.get("provider"):
             target_cloud = out_dir / "schemas" / f"option-{option['id'].lower()}.cloud.json"
             with open(target_cloud, "w", encoding="utf-8", newline="\n") as handle:
-                json.dump(cloud_spec(option), handle, ensure_ascii=False, indent=2)
+                json.dump(cloud_spec(option, (spec.get("hosting") or {}).get("qualifications")), handle, ensure_ascii=False, indent=2)
                 handle.write("\n")
             report["outputs"].append(str(target_cloud))
     for review in reviews:

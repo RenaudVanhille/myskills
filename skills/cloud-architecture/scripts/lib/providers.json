@@ -1,0 +1,383 @@
+{
+  "_doc": "Catalogue commun des hébergeurs : juridiction et qualifications (chiffrage, contrôle d'hébergement des options et de la revue Well-Architected) et, pour les hébergeurs sans jeu d'icônes dans draw.io, le vocabulaire de schéma (champ diagram). Une qualification porte sur une offre, pas sur tout le fournisseur : la note dit laquelle. Données déclaratives, à tenir à jour depuis la liste des prestataires qualifiés de l'ANSSI. scripts/build.py le copie dans scripts/lib/ des skills qui le lisent ; un catalogue propre au projet (champ providers de chiffrage.json) complète celui-ci.",
+  "checked": "2026-10-24",
+  "source": "Liste des prestataires qualifiés SecNumCloud de l'ANSSI (cyber.gouv.fr) et pages de certification HDS des hébergeurs",
+  "diagram": {
+    "_doc": "Services et groupes génériques des hébergeurs marqués diagram : type <hébergeur>:<service> dans cloud_build.py, dessiné avec les formes de la charte (as : type générique de cloud_build) ; roles : rôle pour la revue Well-Architected (vm, serverless, database, entry, waf, cdn, secrets, monitoring, audit, backup, managed). Un hébergeur renomme un service avec diagram.labels.",
+    "services": {
+      "instance": {
+        "as": "server",
+        "label": "Instance",
+        "roles": [
+          "vm"
+        ]
+      },
+      "bare-metal": {
+        "as": "server",
+        "label": "Serveur dédié",
+        "roles": [
+          "vm"
+        ]
+      },
+      "kubernetes": {
+        "as": "service",
+        "label": "Kubernetes managé",
+        "roles": [
+          "vm"
+        ]
+      },
+      "container": {
+        "as": "service",
+        "label": "Conteneurs serverless",
+        "roles": [
+          "serverless"
+        ]
+      },
+      "functions": {
+        "as": "service",
+        "label": "Fonctions",
+        "roles": [
+          "serverless"
+        ]
+      },
+      "database": {
+        "as": "db",
+        "label": "Base managée",
+        "roles": [
+          "database"
+        ]
+      },
+      "postgresql": {
+        "as": "db",
+        "label": "PostgreSQL managé",
+        "roles": [
+          "database"
+        ]
+      },
+      "mysql": {
+        "as": "db",
+        "label": "MySQL managé",
+        "roles": [
+          "database"
+        ]
+      },
+      "cache": {
+        "as": "db",
+        "label": "Cache managé",
+        "roles": [
+          "database"
+        ]
+      },
+      "object-storage": {
+        "as": "db",
+        "label": "Stockage objet",
+        "roles": [
+          "managed"
+        ]
+      },
+      "block-storage": {
+        "as": "db",
+        "label": "Stockage bloc",
+        "roles": []
+      },
+      "queue": {
+        "as": "queue",
+        "label": "File de messages",
+        "roles": [
+          "managed"
+        ]
+      },
+      "load-balancer": {
+        "as": "service",
+        "label": "Équilibreur de charge",
+        "roles": [
+          "entry"
+        ]
+      },
+      "api-gateway": {
+        "as": "service",
+        "label": "Passerelle d'API",
+        "roles": [
+          "entry"
+        ]
+      },
+      "waf": {
+        "as": "service",
+        "label": "Pare-feu applicatif (WAF)",
+        "roles": [
+          "waf"
+        ]
+      },
+      "cdn": {
+        "as": "service",
+        "label": "CDN",
+        "roles": [
+          "cdn",
+          "entry",
+          "managed"
+        ]
+      },
+      "dns": {
+        "as": "service",
+        "label": "DNS",
+        "roles": [
+          "managed"
+        ]
+      },
+      "firewall": {
+        "as": "service",
+        "label": "Pare-feu réseau",
+        "roles": []
+      },
+      "nat": {
+        "as": "service",
+        "label": "Passerelle NAT",
+        "roles": []
+      },
+      "vpn": {
+        "as": "service",
+        "label": "VPN",
+        "roles": []
+      },
+      "kms": {
+        "as": "service",
+        "label": "Gestion des clés (KMS)",
+        "roles": [
+          "secrets",
+          "managed"
+        ]
+      },
+      "secrets": {
+        "as": "service",
+        "label": "Coffre à secrets",
+        "roles": [
+          "secrets",
+          "managed"
+        ]
+      },
+      "iam": {
+        "as": "service",
+        "label": "Identités et accès (IAM)",
+        "roles": [
+          "managed"
+        ]
+      },
+      "monitoring": {
+        "as": "service",
+        "label": "Supervision",
+        "roles": [
+          "monitoring",
+          "managed"
+        ]
+      },
+      "logs": {
+        "as": "service",
+        "label": "Journaux",
+        "roles": [
+          "monitoring",
+          "audit",
+          "managed"
+        ]
+      },
+      "audit": {
+        "as": "service",
+        "label": "Journal d'audit",
+        "roles": [
+          "audit",
+          "managed"
+        ]
+      },
+      "backup": {
+        "as": "service",
+        "label": "Sauvegarde",
+        "roles": [
+          "backup",
+          "managed"
+        ]
+      },
+      "registry": {
+        "as": "repo",
+        "label": "Registre d'images",
+        "roles": [
+          "managed"
+        ]
+      }
+    },
+    "groups": {
+      "project": {
+        "as": "project",
+        "label": "Projet"
+      },
+      "region": {
+        "as": "region",
+        "label": "Région"
+      },
+      "zone": {
+        "as": "zone",
+        "label": "Zone de disponibilité"
+      },
+      "network": {
+        "as": "network",
+        "label": "Réseau privé"
+      },
+      "subnet": {
+        "as": "subnet",
+        "label": "Sous-réseau"
+      }
+    }
+  },
+  "providers": {
+    "aws": {
+      "name": "Amazon Web Services",
+      "jurisdiction": "hors-ue",
+      "qualifications": [
+        "hds"
+      ],
+      "note": "soumis aux lois extraterritoriales américaines"
+    },
+    "azure": {
+      "name": "Microsoft Azure",
+      "jurisdiction": "hors-ue",
+      "qualifications": [
+        "hds"
+      ],
+      "note": "soumis aux lois extraterritoriales américaines"
+    },
+    "gcp": {
+      "name": "Google Cloud",
+      "jurisdiction": "hors-ue",
+      "qualifications": [
+        "hds"
+      ],
+      "note": "soumis aux lois extraterritoriales américaines"
+    },
+    "ovh": {
+      "name": "OVHcloud",
+      "jurisdiction": "ue",
+      "qualifications": [
+        "secnumcloud",
+        "hds"
+      ],
+      "note": "SecNumCloud sur certaines offres seulement (Hosted Private Cloud, Bare Metal Pod) : vérifier l'offre chiffrée",
+      "diagram": {
+        "labels": {
+          "kubernetes": "Managed Kubernetes Service",
+          "instance": "Public Cloud Instance",
+          "network": "vRack",
+          "project": "Projet Public Cloud",
+          "database": "Public Cloud Databases",
+          "object-storage": "Object Storage"
+        }
+      }
+    },
+    "cloud-temple": {
+      "name": "Cloud Temple",
+      "jurisdiction": "ue",
+      "qualifications": [
+        "secnumcloud",
+        "hds"
+      ],
+      "note": "offres IaaS et PaaS qualifiées : vérifier l'offre chiffrée",
+      "diagram": {
+        "labels": {
+          "instance": "VM IaaS",
+          "kubernetes": "Kubernetes managé",
+          "project": "Tenant",
+          "zone": "Zone de disponibilité"
+        }
+      }
+    },
+    "outscale": {
+      "name": "3DS Outscale",
+      "jurisdiction": "ue",
+      "qualifications": [
+        "secnumcloud",
+        "hds"
+      ],
+      "note": "régions qualifiées seulement : vérifier la région",
+      "diagram": {
+        "labels": {
+          "instance": "VM",
+          "network": "Net",
+          "subnet": "Subnet",
+          "object-storage": "OOS",
+          "load-balancer": "Load Balancer Unit",
+          "kubernetes": "OKS"
+        }
+      }
+    },
+    "s3ns": {
+      "name": "S3NS (Thales, technologie Google Cloud)",
+      "jurisdiction": "ue",
+      "qualifications": [],
+      "pending": [
+        "secnumcloud"
+      ],
+      "note": "offre de confiance : qualification à vérifier sur la liste de l'ANSSI",
+      "diagram": {
+        "labels": {
+          "project": "Projet",
+          "network": "VPC"
+        }
+      }
+    },
+    "bleu": {
+      "name": "Bleu (Orange et Capgemini, technologie Microsoft)",
+      "jurisdiction": "ue",
+      "qualifications": [],
+      "pending": [
+        "secnumcloud"
+      ],
+      "note": "offre de confiance : qualification à vérifier sur la liste de l'ANSSI",
+      "diagram": {
+        "labels": {
+          "project": "Abonnement",
+          "network": "VNet"
+        }
+      }
+    },
+    "numspot": {
+      "name": "NumSpot",
+      "jurisdiction": "ue",
+      "qualifications": [],
+      "pending": [
+        "secnumcloud"
+      ],
+      "note": "qualification à vérifier sur la liste de l'ANSSI",
+      "diagram": {
+        "labels": {
+          "network": "VPC"
+        }
+      }
+    },
+    "scaleway": {
+      "name": "Scaleway",
+      "jurisdiction": "ue",
+      "qualifications": [
+        "hds"
+      ],
+      "diagram": {
+        "labels": {
+          "kubernetes": "Kapsule",
+          "container": "Serverless Containers",
+          "network": "VPC",
+          "database": "Managed Database"
+        }
+      }
+    },
+    "sur-site": {
+      "name": "Hébergement interne",
+      "jurisdiction": "ue",
+      "qualifications": [],
+      "note": "centre de données de l'entreprise : qualifications à déclarer dans un catalogue propre au projet",
+      "diagram": {
+        "labels": {
+          "project": "Centre de données",
+          "instance": "Serveur",
+          "network": "Réseau interne",
+          "kubernetes": "Cluster Kubernetes"
+        }
+      }
+    }
+  }
+}

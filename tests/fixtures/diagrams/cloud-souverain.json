@@ -1,0 +1,25 @@
+{
+  "_note": "Portail chez OVHcloud, qualification SecNumCloud exigée : formes de la charte et vocabulaire commun des hébergeurs.",
+  "title": "Portail de sinistres : hébergement OVHcloud",
+  "provider": "ovh",
+  "qualifications": ["secnumcloud"],
+  "items": [
+    {"id": "assures", "type": "user", "label": "Assurés"},
+    {"type": "project", "items": [
+      {"type": "region", "label": "Gravelines", "items": [
+        {"id": "waf", "type": "waf"},
+        {"type": "network", "items": [
+          {"type": "subnet", "label": "Public", "items": [{"id": "lb", "type": "load-balancer"}]},
+          {"type": "subnet", "label": "Privé", "items": [
+            {"id": "api", "type": "kubernetes", "label": "API déclarations", "count": "2-6"},
+            {"id": "db", "type": "postgresql", "count": 2}]}]},
+        {"id": "secrets", "type": "secrets"},
+        {"id": "logs", "type": "logs"}]}]}
+  ],
+  "flows": [
+    {"from": "assures", "to": "waf", "protocol": "HTTPS", "port": 443},
+    {"from": "waf", "to": "lb", "protocol": "HTTPS"},
+    {"from": "lb", "to": "api", "protocol": "HTTPS"},
+    {"from": "api", "to": "db", "port": 5432, "encrypted": true}
+  ]
+}

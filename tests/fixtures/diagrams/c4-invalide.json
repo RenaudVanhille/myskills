@@ -1,0 +1,8 @@
+{
+  "title": "Modèle fautif",
+  "elements": [
+    {"id": "client", "kind": "persn", "label": "Client"},
+    {"id": "api", "kind": "container", "label": "API"}
+  ],
+  "relations": [{"from": "client", "to": "api", "label": "appelle", "asynch": true}]
+}

@@ -24,6 +24,9 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                   "drawio-diagram"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
+# Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
+DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options",
+                                 "solution-estimate"]}
 
 
 def generated_libs() -> dict[Path, str]:
@@ -41,6 +44,10 @@ def generated_libs() -> dict[Path, str]:
         text = (shared / module).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / module] = text
+    for data, skills in DATA_USERS.items():
+        text = (REPO / "shared" / data).read_text(encoding="utf-8")
+        for name in skills:
+            files[REPO / "skills" / name / "scripts" / "lib" / data] = text
     # Ontologie du vault Obsidian et son module, pour les skills qui lisent ou écrivent le vault (champ vault).
     ontology = (REPO / "shared" / "vault-ontology.json").read_text(encoding="utf-8")
     module = (shared / "vault_ontology.py").read_text(encoding="utf-8")
