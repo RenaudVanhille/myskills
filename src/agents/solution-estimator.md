@@ -18,7 +18,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
 - **Reçoit** : Le catalogue d'exigences validé (exigences.json de requirements-catalog) ; Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là ; Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning.
-- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, détail, coût total, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script.
+- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script ; chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script ; chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers.
 - **Ne fait jamais** : Écrire un total, une espérance ou une fourchette à la main : le script les calcule ; Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base ; Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient.
 - **Passe la main** :
 
@@ -62,13 +62,22 @@ workflow, la commande les trace aussi au journal.
    n'est pas sûre. Pose une ligne d'infrastructure par poste, chacune avec
    sa base de prix ; sans grille ni devis fourni, c'est une hypothèse de
    dimensionnement, dite comme telle.
+   Le script compare toujours trois hypothèses (sans IA, avec IA, dev IA
+   natif) : tes charges sont celles d'une équipe sans IA. Donne un
+   facteur propre (`ai`) aux seuls lots où l'IA aide nettement moins ou
+   plus que la moyenne, avec la raison dans `note` ; ne change les valeurs
+   par défaut (`scenarios`) que sur une mesure ou une offre fournie, avec
+   sa `basis`.
    Si une exigence impose un hébergeur souverain ou une qualification
    (SecNumCloud, HDS), renseigne `hosting` avec ses `refs` : le script
    contrôle chaque ligne. Une ligne non conforme se corrige (autre
    hébergeur ou offre qualifiée) ou se signale, jamais ne se masque.
 4. Taux journaliers, horizon, budget : prends ceux de l'utilisateur. S'il
-   n'en donne pas, prends des valeurs usuelles, note-les dans
-   `assumptions` et signale-les : c'est la seule question à poser, et
+   ne veut que les charges (jours, heures), omets `rates` : le script ne
+   produit que le plan de charge, sans montant ni infrastructure. Donne
+   `complexity` aux lots dont la complexité ne tient pas qu'à leur taille.
+   S'il ne donne pas de taux alors qu'il veut des montants, prends des
+   valeurs usuelles, note-les dans `assumptions` et signale-les : c'est la seule question à poser, et
    seulement si la réponse change le résultat.
 5. Lance `estimate_build.py chiffrage.json` et corrige jusqu'à zéro erreur.
    Traite chaque avertissement : exigence qu'aucun lot ne porte (lot ou
@@ -79,7 +88,9 @@ workflow, la commande les trace aussi au journal.
    `decision-log`) chaque hypothèse structurante et chaque exclusion ; un
    prix ou un taux à valider se note `--kind question`.
 7. Livre les chemins et les chiffres du rapport (réalisation et fourchette,
-   fonctionnement mensuel, coût total, budget), les hypothèses à valider,
+   fonctionnement mensuel, coût total, budget, et pour chaque hypothèse de
+   production le coût total et son écart avec sans IA), les hypothèses à
+   valider,
    puis le rapport final JSON de la section Contrat. Si le coût contredit
    la note du critère coût d'une option, signale-le. Dans un workflow,
    rends la main à `architecture-workflow` ; pour un document Word ou HTML,
@@ -91,7 +102,7 @@ workflow, la commande les trace aussi au journal.
 | --- | --- |
 | Lancer `estimate_build.py`, ranger les fichiers, noter au journal | simple |
 | Écrire `chiffrage.json` depuis un découpage arrêté, corriger une erreur du script | moyen |
-| Découper en lots, estimer les charges, poser les hypothèses d'infrastructure, juger un écart au budget | complexe |
+| Découper en lots, estimer les charges, poser les hypothèses d'infrastructure, juger un écart au budget ou le facteur IA d'un lot | complexe |
 
 {{niveaux}}
 

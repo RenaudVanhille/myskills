@@ -448,7 +448,8 @@
         "Le chiffrage porte sur l'option A et donne la charge de réalisation avec une fourchette.",
         "Chaque ligne d'infrastructure a une base de prix, présentée comme une hypothèse quand aucun devis n'est fourni.",
         "Le coût total sur 3 ans et le fonctionnement mensuel sont comparés au budget de 8 000 euros par mois (ENF-005).",
-        "Aucune exigence retenue n'est laissée sans lot, ou elle est listée comme exclue avec sa raison."
+        "Aucune exigence retenue n'est laissée sans lot, ou elle est listée comme exclue avec sa raison.",
+        "Le chiffrage compare trois hypothèses de production, sans IA, avec IA et dev IA natif, avec leur coût total et la base de leurs valeurs."
       ]
     },
     {
