@@ -1,0 +1,38 @@
+{
+  "checked": "2026-10-25",
+  "note": "Valeurs de départ prudentes, à remplacer par les mesures de l'équipe (lot pilote, historique) : les études publiées divergent fortement selon la tâche et la base de code.",
+  "sources": [
+    "Peng et al., The Impact of AI on Developer Productivity: Evidence from GitHub Copilot, arXiv:2302.06590 (2023) : tâche isolée et neuve terminée 55,8 % plus vite avec l'assistant.",
+    "METR, Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity (juillet 2025) : développeurs expérimentés sur leurs propres dépôts matures, 19 % plus lents avec les outils d'IA.",
+    "DORA, Accelerate State of DevOps 2024 : une adoption accrue de l'IA va avec une légère baisse du débit et de la stabilité des livraisons."
+  ],
+  "scenarios": {
+    "sans-ia": {
+      "name": "Sans IA",
+      "description": "Développement classique : charges estimées par l'équipe, sans assistant de code.",
+      "basis": "référence : les charges saisies dans work"
+    },
+    "avec-ia": {
+      "name": "Avec IA",
+      "description": "Développement assisté : complétion, assistant conversationnel et revue assistée ; l'équipe écrit et relit le code.",
+      "factors": {"cadrage": 0.95, "conception": 0.9, "realisation": 0.75, "integration": 0.85, "tests": 0.8,
+                  "deploiement": 0.9, "migration": 0.85, "conduite-changement": 0.95, "pilotage": 1},
+      "gain_uncertainty": 0.5,
+      "setup_percent": 2,
+      "tooling_per_day": 3,
+      "run_factor": 0.9,
+      "basis": "hypothèse par défaut du skill : gain de 25 % sur le code, moindre ailleurs ; outillage = licence d'assistant d'environ 40 € par personne et par mois sur 20 jours, plus l'usage conversationnel"
+    },
+    "ia-natif": {
+      "name": "Dev IA natif",
+      "description": "Développement agentique : des agents écrivent le code et les tests à partir de spécifications ; l'équipe spécifie, supervise, relit et valide.",
+      "factors": {"cadrage": 1, "conception": 1.1, "realisation": 0.5, "integration": 0.75, "tests": 0.65,
+                  "deploiement": 0.8, "migration": 0.7, "conduite-changement": 1, "pilotage": 1},
+      "gain_uncertainty": 0.7,
+      "setup_percent": 6,
+      "tooling_per_day": 20,
+      "run_factor": 0.8,
+      "basis": "hypothèse par défaut du skill : code et tests produits par agents, spécification et conception renforcées, revue humaine comprise ; jetons d'agents en tâche longue à mesurer sur un lot pilote"
+    }
+  }
+}

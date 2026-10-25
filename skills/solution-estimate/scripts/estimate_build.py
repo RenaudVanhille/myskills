@@ -16,11 +16,16 @@ modèle :
   maxi) / 6), la fourchette P10-P90 de la réalisation (loi normale, lots
   indépendants), le pilotage, la provision, l'infrastructure par an et
   ponctuelle, le run par an et le coût total sur l'horizon ;
+- refait ces calculs pour trois hypothèses de production : sans IA (charges
+  saisies), avec IA et dev IA natif (facteur par phase ou par lot,
+  incertitude sur le gain, adoption, licences et jetons, run), avec les
+  valeurs de references/hypotheses-ia.json que la description peut remplacer ;
 - signale les exigences retenues qu'aucun lot ne porte, les composants de
   l'option sans lot ni ligne d'infrastructure, les estimations très
   incertaines et les dépassements de budget ;
-- écrit `chiffrage.md` (revue) et `chiffrage.csv` (lignes détaillées),
-  relit le CSV et vérifie que ses montants redonnent les totaux.
+- écrit `chiffrage.md` (revue), `chiffrage.csv` (lignes détaillées) et
+  `chiffrage.hypotheses.csv`, relit les CSV et vérifie que leurs montants
+  redonnent les totaux.
 
 L'option chiffrée est `option`, sinon la décision de options.json, sinon sa
 recommandation. Les prix d'infrastructure sont des hypothèses saisies avec
@@ -57,6 +62,8 @@ PERIODS = {"mois": 12, "an": 1, "unique": 0}
 UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper ou hypothèse à lever
 # Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
 PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
+# Hypothèses de production par défaut : sans IA (charges saisies), avec IA, dev IA natif.
+SCENARIOS = Path(__file__).resolve().parent.parent / "references" / "hypotheses-ia.json"
 STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier
 QUALIFIED_KINDS = ("cloud", "service")  # lignes soumises aux qualifications exigées
 
@@ -200,7 +207,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
             lines.append({"type": "lot", "id": task["id"], "name": task["name"], "phase": task["phase"],
                           "component": task.get("component", ""), "profile": name, "low": low, "likely": likely,
                           "high": high, "days": expected, "rate": rate, "cost": expected * rate,
-                          "refs": task.get("refs", [])})
+                          "refs": task.get("refs", []), "sd": sd, "ai": task.get("ai", {})})
 
     over_days = over_cost = 0.0
     for index, item in enumerate(spec.get("overheads", [])):
@@ -305,8 +312,132 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
                                 f"({', '.join(budget.get('refs', [])) or 'sans exigence citée'})")
     totals["budget"] = None if not budget else {"over": over}
     totals["hosting"] = hosting
-    return {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
-            "uncovered": uncovered, "uncertain": uncertain}
+    found = {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
+             "uncovered": uncovered, "uncertain": uncertain}
+    found["scenarios"] = scenarios(spec, found, profile, errors, warnings)
+    return found
+
+
+def load_scenarios(spec: dict, errors: list[str], warnings: list[str]) -> dict:
+    """Hypothèses par défaut du skill, validées, remplacées champ à champ par celles de la description."""
+    schema = input_schema(__file__)
+    try:
+        data = json.loads(SCENARIOS.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"scenarios : fichier illisible {SCENARIOS} ({error})")
+        return {}
+    invalid = check(data, schema["$defs"]["scenarios"], schema)
+    if invalid:
+        errors.extend(f"scenarios : {SCENARIOS.name} : {e}" for e in invalid[:10])
+        return {}
+    merged = {}
+    for sid, default in data["scenarios"].items():
+        own = spec.get("scenarios", {}).get(sid, {})
+        mine = sorted(k for k in own if k not in ("name", "description", "basis"))
+        if mine and "basis" not in own:
+            warnings.append(f"scenarios/{sid} : valeurs propres au projet sans base (basis) : "
+                            "mesure de l'équipe, lot pilote ou hypothèse à faire valider")
+            own = {**own, "basis": "non donnée pour les valeurs du projet, à faire valider"}
+        merged[sid] = {**default, **own, "factors": {**default.get("factors", {}), **own.get("factors", {})},
+                       "own": mine}
+    return merged
+
+
+def scenarios(spec: dict, found: dict, profile, errors: list[str], warnings: list[str]) -> list[dict]:
+    """Mêmes calculs que la réalisation et le run, avec le facteur de chaque phase ou lot de l'hypothèse."""
+    defs = load_scenarios(spec, errors, warnings)
+    lots = [x for x in found["lines"] if x["type"] == "lot"]
+    base_days = sum(x["days"] for x in lots)
+    base_cost = sum(x["cost"] for x in lots)
+    avg_rate = base_cost / base_days if base_days else 0.0
+    t = found["totals"]
+    build0 = t["build"]["cost"] / (1 + spec.get("contingency", 0) / 100)  # réalisation hors provision, sans IA
+    results = []
+    for sid, scen in defs.items():
+        # Écart type : celui des lots (indépendants), plus l'incertitude sur le gain, commune à tous les lots.
+        rows, w_days, w_var, w_cost, c_var, g_days, g_cost = [], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        for line in lots:
+            factor = line["ai"].get(sid, scen["factors"].get(line["phase"], 1))
+            sd = line["sd"] * factor
+            gain_sd = line["days"] * abs(1 - factor) * scen.get("gain_uncertainty", 0)
+            w_days += line["days"] * factor
+            w_var += sd ** 2
+            w_cost += line["days"] * factor * line["rate"]
+            c_var += (sd * line["rate"]) ** 2
+            g_days += gain_sd
+            g_cost += gain_sd * line["rate"]
+            rows.append({"type": "lot", "id": line["id"], "name": line["name"], "phase": line["phase"],
+                         "profile": line["profile"], "factor": factor, "days": line["days"] * factor,
+                         "rate": line["rate"], "cost": line["days"] * factor * line["rate"], "annual": 0})
+        setup_days = base_days * scen.get("setup_percent", 0) / 100
+        setup_rate = profile(scen["setup_profile"], f"scenarios/{sid}/setup_profile") \
+            if scen.get("setup_profile") else avg_rate
+        if setup_days:
+            rows.append({"type": "adoption", "id": "A", "name": "Adoption : outillage, garde-fous, formation",
+                         "phase": "", "profile": scen.get("setup_profile", "taux moyen"), "factor": "",
+                         "days": setup_days, "rate": setup_rate, "cost": setup_days * setup_rate, "annual": 0})
+        over_days = over_cost = 0.0
+        for item in spec.get("overheads", []):
+            rate = next(x["rate"] for x in found["lines"] if x["id"] == item["id"])
+            amount = (w_days + setup_days) * item["percent"] / 100
+            over_days, over_cost = over_days + amount, over_cost + amount * rate
+            rows.append({"type": "pilotage", "id": item["id"], "name": item["name"], "phase": "pilotage",
+                         "profile": item["profile"], "factor": "", "days": amount, "rate": rate,
+                         "cost": amount * rate, "annual": 0})
+        per_day = scen.get("tooling_per_day", 0)
+        tooling = per_day * (w_days + setup_days)
+        if tooling:
+            rows.append({"type": "outillage", "id": "O", "name": "Outillage IA : licences et jetons", "phase": "",
+                         "profile": "", "factor": "", "days": "", "rate": per_day, "cost": tooling, "annual": 0})
+        contingency = scen.get("contingency", spec.get("contingency", 0)) / 100
+        sd_days, sd_cost = math.sqrt(w_var + g_days ** 2), math.sqrt(c_var + g_cost ** 2)
+        fixed_days, fixed_cost = setup_days, setup_days * setup_rate + tooling
+        f_days = over_days / (w_days + setup_days) if w_days + setup_days else 0.0
+        f_cost = over_cost / (w_cost + setup_days * setup_rate) if w_cost + setup_days * setup_rate else 0.0
+        base = w_cost + fixed_cost + over_cost
+        low_c = max(w_cost - Z90 * sd_cost, 0) + setup_days * setup_rate
+        high_c = w_cost + Z90 * sd_cost + setup_days * setup_rate
+        build = {"days": round(w_days + setup_days + over_days, 1),
+                 "days_low": round((max(w_days - Z90 * sd_days, 0) + fixed_days) * (1 + f_days), 1),
+                 "days_high": round((w_days + Z90 * sd_days + fixed_days) * (1 + f_days), 1),
+                 "cost": round(base * (1 + contingency)),
+                 "cost_low": round((low_c * (1 + f_cost) + per_day * (max(w_days - Z90 * sd_days, 0) + fixed_days))
+                                   * (1 + contingency)),
+                 "cost_high": round((high_c * (1 + f_cost) + per_day * (w_days + Z90 * sd_days + fixed_days))
+                                    * (1 + contingency)),
+                 "contingency": round(base * contingency), "setup": round(setup_days * setup_rate),
+                 "tooling": round(tooling)}
+        run_annual = run_tooling = 0.0
+        for item in found["run"]:
+            factor = scen.get("run_factor", 1)
+            if "days_per_year" in item:
+                amount = item["days_per_year"] * factor * item["rate"]
+                run_tooling += item["days_per_year"] * factor * per_day
+            else:
+                amount = build0 * item["percent_of_build"] / 100 * factor
+            run_annual += amount
+            rows.append({"type": "run", "id": item["id"], "name": item["name"], "phase": "",
+                         "profile": item.get("profile", ""), "factor": factor,
+                         "days": item["days_per_year"] * factor if "days_per_year" in item else "",
+                         "rate": item.get("rate", ""), "cost": 0, "annual": amount})
+        if run_tooling:
+            rows.append({"type": "outillage", "id": "O-run", "name": "Outillage IA du run", "phase": "", "profile": "",
+                         "factor": "", "days": "", "rate": per_day, "cost": 0, "annual": run_tooling})
+            run_annual += run_tooling
+        horizon = t["tco"]["years"]
+        infra_annual, infra_once = t["infra"]["annual"], t["infra"]["one_time"]
+        tco = round(build["cost"] + infra_once + horizon * (infra_annual + run_annual))
+        budget, over = spec.get("budget") or {}, []
+        values = {"build": build["cost"], "monthly": round((infra_annual + run_annual) / 12), "tco": tco}
+        over = [k for k in ("build", "monthly", "tco") if k in budget and values[k] > budget[k]]
+        results.append({"id": sid, "name": scen["name"], "build": build,
+                        "run": {"annual": round(run_annual), "tooling": round(run_tooling)},
+                        "operate": {"monthly": values["monthly"]}, "tco": {"total": tco}, "budget_over": over,
+                        "rows": rows, "scenario": scen})
+    ref = results[0]["tco"]["total"] if results else 0
+    for item in results:
+        item["delta"] = round((item["tco"]["total"] - ref) / ref * 100, 1) if ref else 0.0
+    return results
 
 
 def check_hosting(spec: dict, option: dict, infra: list[dict], providers: dict, checked: str | None,
@@ -380,6 +511,58 @@ def render_hosting(spec: dict, found: dict, providers: dict) -> list[str]:
     return out
 
 
+def render_scenarios(spec: dict, found: dict) -> list[str]:
+    """Comparaison des trois hypothèses de production, facteurs par phase et base de chaque hypothèse."""
+    cur, items = spec.get("currency", "€"), found["scenarios"]
+    if not items:
+        return []
+    horizon = found["totals"]["tco"]["years"]
+    head = "| Poste | " + " | ".join(i["name"] for i in items) + " |"
+    rule = "| --- |" + " --- |" * len(items)
+
+    def row(label: str, value) -> str:
+        return f"| {label} | " + " | ".join(value(i) for i in items) + " |"
+
+    out = ["## Hypothèses de production", "",
+           "Même périmètre chiffré trois fois : sans IA (charges saisies), avec IA (développement assisté) et "
+           "dev IA natif (agents qui écrivent le code, l'équipe spécifie et valide). Les gains réduisent la charge "
+           "et sont eux-mêmes incertains (incertitude sur le gain, commune à tous les lots, ajoutée à la fourchette) : "
+           "ils restent à confirmer sur un lot pilote.", "", head, rule,
+           row("Réalisation, charge", lambda i: f"{days(i['build']['days'])} j ({days(i['build']['days_low'])} à "
+                                                f"{days(i['build']['days_high'])})"),
+           row("Réalisation, coût", lambda i: f"{money(i['build']['cost'], cur)} ({money(i['build']['cost_low'], cur)}"
+                                              f" à {money(i['build']['cost_high'], cur)})"),
+           row("dont adoption de l'IA", lambda i: money(i["build"]["setup"], cur)),
+           row("dont outillage IA (licences, jetons)", lambda i: money(i["build"]["tooling"], cur)),
+           row("Run par an", lambda i: money(i["run"]["annual"], cur)),
+           row("Fonctionnement par mois", lambda i: money(i["operate"]["monthly"], cur)),
+           row(f"**Coût total sur {horizon} an(s)**", lambda i: f"**{money(i['tco']['total'], cur)}**"),
+           row("Écart avec sans IA", lambda i: "référence" if i["id"] == "sans-ia"
+               else f"{i['delta']:+.1f} %".replace(".", ","))]
+    if spec.get("budget"):
+        out.append(row("Budget", lambda i: ("dépassé : " + ", ".join(i["budget_over"])) if i["budget_over"] else "tenu"))
+    phases = [p for p in PHASES if any(line["phase"] == p for line in found["lines"] if line["type"] == "lot")]
+    out += ["", "### Facteurs appliqués à la charge sans IA", "",
+            "| Phase | " + " | ".join(i["name"] for i in items[1:]) + " |", "| --- |" + " --- |" * (len(items) - 1)]
+    out += [f"| {PHASES[p]} | " + " | ".join(num(i["scenario"]["factors"].get(p, 1)) for i in items[1:]) + " |"
+            for p in phases]
+    for label, key, fmt in (("Incertitude sur le gain (écart type relatif)", "gain_uncertainty", num),
+                            ("Adoption, % de la charge des lots", "setup_percent", num),
+                            (f"Outillage IA par jour travaillé ({cur})", "tooling_per_day", num),
+                            ("Facteur du run", "run_factor", num)):
+        out.append(f"| {label} | " + " | ".join(fmt(i["scenario"].get(key, 0 if key in ("setup_percent", "tooling_per_day", "gain_uncertainty") else 1))
+                                              for i in items[1:]) + " |")
+    lots = [t for t in spec["work"] if t.get("ai")]
+    if lots:
+        out += ["", "Facteurs propres à un lot : " + " ; ".join(
+            f"{t['id']} " + ", ".join(f"{k} {num(v)}" for k, v in t["ai"].items())
+            + (f" ({cell(t['note'])})" if t.get("note") else "") for t in lots) + "."]
+    out += [""] + [f"- **{i['name']}** : {cell(i['scenario']['description'])} Base : {cell(i['scenario']['basis'])}"
+                   + (f" (valeurs du projet : {', '.join(i['scenario']['own'])})" if i["scenario"]["own"] else "")
+                   + "." for i in items] + [""]
+    return out
+
+
 def render_md(spec: dict, option: dict, status: str, found: dict, providers: dict) -> str:
     cur, t = spec.get("currency", "€"), found["totals"]
     build, horizon = t["build"], t["tco"]["years"]
@@ -413,6 +596,7 @@ def render_md(spec: dict, option: dict, status: str, found: dict, providers: dic
             out.append(f"\nExigences : {', '.join(budget['refs'])}.")
         out.append("")
 
+    out += render_scenarios(spec, found)
     tasks = [line for line in found["lines"] if line["type"] == "lot"]
     out += ["## Réalisation par lot", "",
             "| Lot | Phase | Composant | Exigences | Profil | Mini | Probable | Maxi | Espérés | Coût |",
@@ -511,6 +695,34 @@ def csv_rows(found: dict) -> list[list]:
     return [[num(v) if isinstance(v, (int, float)) else v for v in row] for row in rows]
 
 
+SCENARIO_HEAD = ["hypothèse", "type", "id", "libellé", "phase", "profil", "facteur", "jours", "taux",
+                 "coût réalisation", "par an"]
+
+
+def scenario_rows(found: dict) -> list[list]:
+    rows = [SCENARIO_HEAD]
+    for item in found["scenarios"]:
+        rows += [[item["id"], r["type"], r["id"], r["name"], r["phase"], r["profile"], r["factor"], r["days"],
+                  r["rate"], r["cost"], r["annual"]] for r in item["rows"]]
+    return [[num(v) if isinstance(v, (int, float)) else v for v in row] for row in rows]
+
+
+def verify_scenarios(path: Path, found: dict, spec: dict) -> list[str]:
+    """Relit le CSV des hypothèses : chaque hypothèse redonne sa réalisation et son run."""
+    with open(path, encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter=";"))
+    errors = []
+    for item in found["scenarios"]:
+        mine = [r for r in rows if r["hypothèse"] == item["id"]]
+        contingency = item["scenario"].get("contingency", spec.get("contingency", 0)) / 100
+        build = sum(float(r["coût réalisation"].replace(",", ".") or 0) for r in mine) * (1 + contingency)
+        annual = sum(float(r["par an"].replace(",", ".") or 0) for r in mine)
+        for label, got, want in (("réalisation", build, item["build"]["cost"]), ("run", annual, item["run"]["annual"])):
+            if abs(got - want) > 1:
+                errors.append(f"{path.name} : {item['id']}, total {label} {round(got)} au lieu de {want}")
+    return errors
+
+
 def verify_csv(path: Path, totals: dict, contingency: float) -> list[str]:
     """Relit le CSV écrit et vérifie que ses montants redonnent les totaux du rapport."""
     with open(path, encoding="utf-8-sig", newline="") as handle:
@@ -556,6 +768,9 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
             f"{totals['build']['cost_high']}), {totals['build']['days']} jours.", "",
             f"Chiffrage complet : `{md.name}`.", "", "## Lots", ""]
     body += [f"- [[{base}/Lots/{title}/{vault_ontology.safe_name(i)}|{i}]] {lots[i]['name']}" for i in lots]
+    body += ["", "## Hypothèses de production", ""] + [
+        f"- {s['name']} : {s['tco']['total']} {currency} sur {totals['tco']['years']} an(s), réalisation "
+        f"{s['build']['cost']} {currency}" for s in found["scenarios"]]
     if spec.get("assumptions"):
         body += ["", "## Hypothèses", ""] + [f"- {a}" for a in spec["assumptions"]]
     notes.add(rel, "chiffrage", {"total": totals["tco"]["total"], "devise": currency,
@@ -613,6 +828,7 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1
     report.update({k: found["totals"][k] for k in ("build", "infra", "run", "operate", "tco", "budget", "hosting")})
+    report["scenarios"] = [{k: v for k, v in s.items() if k not in ("rows", "scenario")} for s in found["scenarios"]]
     report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"),
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
                    "uncertain": found["uncertain"]})
@@ -620,13 +836,16 @@ def main() -> int:
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
+    md, table, hypo = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.hypotheses.csv"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(render_md(spec, option, status, found, providers))
     with open(table, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(csv_rows(found))
+    with open(hypo, "w", encoding="utf-8-sig", newline="") as handle:
+        csv.writer(handle, delimiter=";").writerows(scenario_rows(found))
     errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)
-    report["outputs"] = [str(md), str(table)]
+    errors += verify_scenarios(hypo, found, spec)
+    report["outputs"] = [str(md), str(table), str(hypo)]
     if args.vault and not errors:
         report["vault"] = write_vault(args.vault, args.folder, spec, option, found, md, errors)
     print(json.dumps(report, ensure_ascii=False))
