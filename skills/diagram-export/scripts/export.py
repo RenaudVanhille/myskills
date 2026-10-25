@@ -122,7 +122,7 @@ def export_drawio(src: Path, out: Path, fmt: str, scale: float, transparent: boo
             cmd += ["--scale", str(scale)]
             if transparent:
                 cmd.append("--transparent")
-        cmd += ["--all-pages"] if fmt == "pdf" else ["--page-index", str(index)]
+        cmd += ["--all-pages"] if fmt == "pdf" else ["--page-index", str(index - 1)]
         if NO_SANDBOX:
             cmd.append("--no-sandbox")
         cmd.append(str(src))

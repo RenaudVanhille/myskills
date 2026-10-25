@@ -38,7 +38,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 | `init DOSSIER [--definition NOM\|DEF.json \| --stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, définition introuvable ou non conforme, vault introuvable |
 | `start DOSSIER ETAPE` | avant de travailler sur l'étape | une étape dont elle dépend n'est pas validée, ou un de ses livrables a changé depuis |
 | `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
-| `submit DOSSIER ETAPE [--files F ...]` | livrables vérifiés par leurs scripts | l'étape n'est pas en cours, fichier introuvable, livrable attendu par la définition absent |
+| `submit DOSSIER ETAPE [--files F ...]` | livrables vérifiés par leurs scripts | l'étape n'est ni en cours ni en revue (une étape en revue se soumet à nouveau si ses livrables changent), fichier introuvable, livrable attendu par la définition absent |
 | `review DOSSIER ETAPE --decision valide\|retour --text "..."` | quand l'utilisateur a répondu | validation : étape pas en revue, ou fichiers modifiés depuis la soumission |
 | `review DOSSIER ETAPE --from-vault` | l'utilisateur a rempli sa note de revue dans Obsidian | pas de vault, note sans propriété `revue` |
 | `handoff DOSSIER --file M.json` | avant d'envoyer un message de passage | message non conforme, fichier introuvable |

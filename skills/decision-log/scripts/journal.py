@@ -471,8 +471,9 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         else:
             entry = add_entry(state, stage["id"], args.kind, args.by, args.text, args.why or "", split(args.refs))
     elif args.command == "submit":
-        if stage["status"] != "en-cours":
-            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en cours se soumet")
+        if stage["status"] not in ("en-cours", "en-revue"):
+            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en cours "
+                          "ou en revue se soumet")
         expected = stage_definition(state, stage["id"])
         if not args.files and not expected:
             errors.append("submit : --files (pas de définition de workflow qui donne les livrables)")

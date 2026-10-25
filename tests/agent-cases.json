@@ -878,7 +878,7 @@
       "agent": "architecture-workflow",
       "prompt": "Lance le workflow cloud-existant sur le Terraform de infra/, sans vault Obsidian.",
       "rounds": {
-        "next": "Je valide, sans autre retour. Continue avec toutes les étapes prêtes.",
+        "next": "Je valide, sans autre retour. J'accepte les constats et écarts restants comme risques connus, raison : existant repris tel quel, corrections suivies au plan d'actions ; ne modifie pas les étapes déjà validées. Continue avec toutes les étapes prêtes.",
         "max": 5
       },
       "inputs": [
@@ -900,7 +900,7 @@
       "agent": "architecture-workflow",
       "prompt": "Lance le workflow d'architecture sur cahier-des-charges.md, compte-rendu-atelier.md et exigences-securite.md, sans vault Obsidian ni POS.",
       "rounds": {
-        "next": "Je valide, sans autre retour. Pour le choix d'option, je retiens celle que tu recommandes. Je veux toutes les étapes facultatives ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
+        "next": "Je valide, sans autre retour. Pour le choix d'option, je retiens celle que tu recommandes. J'accepte les constats et écarts restants comme risques connus, raison : cadrage à ce stade, corrections suivies au plan d'actions ; ne modifie pas les étapes déjà validées. Je veux toutes les étapes facultatives ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
         "max": 10
       },
       "inputs": [

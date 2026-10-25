@@ -155,9 +155,11 @@ def run_case(case: dict, model: str, keep: bool) -> list[dict]:
         rows.append(row_of(case["id"], case, model, data, (work / case["output"]).exists()))
     else:
         prompt = case["prompt"]
-        for _ in range(case["rounds"].get("max", 12)):
+        for number in range(case["rounds"].get("max", 12)):
             before = stages(work)
             data = claude(prompt, case, model, work)
+            if keep:
+                (work / f"claude-result-{number + 1}.txt").write_text(str(data.get("result", "")), encoding="utf-8")
             after = stages(work)
             submitted = [s for s, status in after.items() if status == "en-revue" and before.get(s) != "en-revue"]
             done = bool(after) and all(status in ("validee", "sautee") for status in after.values())

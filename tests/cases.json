@@ -1018,7 +1018,7 @@
     {
       "id": "workflow-parallele",
       "skill": "decision-log",
-      "_note": "Étapes en graphe (after) : après la description, schémas et menaces sont prêtes ensemble et se mènent en parallèle ; un retour sur les schémas ne remet pas les menaces à reprendre ; une définition dont after vise une étape placée après est refusée.",
+      "_note": "Étapes en graphe (after) : après la description, schémas et menaces sont prêtes ensemble et se mènent en parallèle ; un retour sur les schémas ne remet pas les menaces à reprendre ; une étape en revue dont un livrable change se soumet à nouveau ; une définition dont after vise une étape placée après est refusée.",
       "steps": [
         {"copy": ["{fixtures}/diagrams/cloud-aws-web.json", "{out}/w/schemas/architecture.json"]},
         {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/w/schemas/architecture.drawio.png"]},
@@ -1032,6 +1032,9 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "schemas"], "exit": 0, "report": {"stage.id": "schemas", "ready": ["menaces"]}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "menaces"], "exit": 0, "report": {"stage.id": "menaces", "ready": []}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "menaces"], "exit": 0},
+        {"copy": ["{fixtures}/workflow/sources/compte-rendu-atelier.md", "{out}/w/schemas/architecture.threats.md"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "menaces", "--decision", "valide", "--text", "ok"], "exit": 1, "report_contains": {"errors": "modifiés depuis la soumission"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "menaces"], "exit": 0, "report": {"stages.2.status": "en-revue"}},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "schemas"], "exit": 0},
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "schemas", "--decision", "retour", "--text", "les flux sont à revoir"], "exit": 0, "report": {"stages.1.status": "a-reprendre", "stages.2.status": "en-revue"}},
         {"copy": ["{fixtures}/workflow/definition-after-invalide.json", "{out}/def.json"]},

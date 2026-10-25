@@ -48,6 +48,13 @@
   interface et relit chaque YAML ; étape `schemas` du workflow
   `architecture`, sur demande.
 
+### Corrections
+
+- `diagram-export` : un `.drawio` de plusieurs pages exportait deux fois la
+  dernière page (`--page-index` de draw.io compte à partir de 0).
+- `decision-log` : une étape en revue dont un livrable change se soumet à
+  nouveau, au lieu d'être bloquée jusqu'à un retour.
+
 ### Par où commencer
 
 - Agent `orientation` (niveau simple) : lit la demande et les noms des

@@ -104,7 +104,8 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    trancher se note `--kind question`.
 5. **Soumettre** : `journal.py submit DOSSIER ETAPE` (livrables pris dans
    la définition ; il refuse s'il en manque un), pour chaque étape menée,
-   puis arrête-toi. Présente
+   puis arrête-toi. Une fois soumis, ne touche plus aux livrables ; si un
+   changement s'impose avant la revue, soumets l'étape à nouveau. Présente
    en quelques lignes : les chemins des livrables, les compteurs des
    rapports, après un retour les seuls changements de `changes`, les
    questions ouvertes, la note de revue du vault s'il y en a une, et ce qui
