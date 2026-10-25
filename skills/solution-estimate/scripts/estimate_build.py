@@ -59,6 +59,8 @@ PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réa
           "migration": "Reprise de données", "conduite-changement": "Conduite du changement",
           "pilotage": "Pilotage"}
 PERIODS = {"mois": 12, "an": 1, "unique": 0}
+COMPLEXITY = {"faible": "Faible", "moyenne": "Moyenne", "elevee": "Élevée", "tres-elevee": "Très élevée"}
+SIZES = ((5, "faible"), (15, "moyenne"), (40, "elevee"))  # jours espérés d'une tâche : complexité déduite
 UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper ou hypothèse à lever
 # Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
 PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
@@ -155,9 +157,9 @@ def three_points(value) -> tuple[float, float, float, float, float]:
 def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
             errors: list[str], warnings: list[str]) -> dict:
     """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
-    rates = spec["rates"]
-    if not rates:
-        errors.append("rates : au moins un profil attendu")
+    rates = spec.get("rates")  # sans taux : mode charges, jours et heures seulement
+    if rates is not None and not rates:
+        errors.append("rates : au moins un profil attendu, ou pas de champ rates pour les charges seules")
     comps = {c["id"]: c for c in option["components"]}
     ids: dict[str, str] = {}
 
@@ -167,6 +169,8 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
         ids[item_id] = where
 
     def profile(name: str, where: str) -> float:
+        if rates is None:
+            return 0.0
         if name not in rates:
             errors.append(f"{where} : profil inconnu « {name} »{hint(name, rates)}")
             return 0.0
@@ -207,7 +211,8 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
             lines.append({"type": "lot", "id": task["id"], "name": task["name"], "phase": task["phase"],
                           "component": task.get("component", ""), "profile": name, "low": low, "likely": likely,
                           "high": high, "days": expected, "rate": rate, "cost": expected * rate,
-                          "refs": task.get("refs", []), "sd": sd, "ai": task.get("ai", {})})
+                          "refs": task.get("refs", []), "sd": sd, "ai": task.get("ai", {}),
+                          "complexity": task.get("complexity")})
 
     over_days = over_cost = 0.0
     for index, item in enumerate(spec.get("overheads", [])):
@@ -294,7 +299,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
     if uncertain:
         warnings.append(f"estimation(s) très incertaine(s) (écart mini-maxi supérieur au probable) : "
                         f"{', '.join(uncertain)} ; découper le lot ou lever l'hypothèse")
-    if option.get("provider") and not any(i["kind"] == "cloud" for i in infra):
+    if rates is not None and option.get("provider") and not any(i["kind"] == "cloud" for i in infra):
         warnings.append(f"option {option['id']} hébergée chez {option['provider']} sans ligne d'infrastructure cloud")
     if not spec.get("assumptions"):
         warnings.append("aucune hypothèse notée (assumptions)")
@@ -315,7 +320,40 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
     found = {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
              "uncovered": uncovered, "uncertain": uncertain}
     found["scenarios"] = scenarios(spec, found, profile, errors, warnings)
+    if rates is None and spec.get("infra"):
+        warnings.append("infra ignorée : sans rates, seules les charges (jours, heures) sont produites")
+    found["charges"] = charges(spec, found, warnings)
     return found
+
+
+def charges(spec: dict, found: dict, warnings: list[str]) -> dict:
+    """Charges sans montant : par tâche (complexité, jours, heures) et par hypothèse de production."""
+    hours = spec.get("hours_per_day", 7)
+    lots = [x for x in found["lines"] if x["type"] == "lot"]
+    size: dict[str, float] = {}
+    for line in lots:
+        size[line["id"]] = size.get(line["id"], 0.0) + line["days"]
+    deduced = []
+    for line in lots:
+        if not line["complexity"]:
+            line["complexity"] = next((c for limit, c in SIZES if size[line["id"]] <= limit), "tres-elevee")
+            line["deduced"] = True
+            if line["id"] not in deduced:
+                deduced.append(line["id"])
+    if deduced:
+        warnings.append(f"complexité déduite de la charge (au plus 5 j faible, 15 moyenne, 40 élevée) : "
+                        f"{', '.join(deduced)} ; donnez complexity si elle tient à autre chose que la taille")
+    build_days = found["totals"]["build"]["days"]
+    run_days = sum(r["days_per_year"] if "days_per_year" in r else build_days * r["percent_of_build"] / 100
+                   for r in found["run"])
+    out = {"hours_per_day": hours, "tasks": len(size),
+           "by_complexity": {c: sum(1 for i, n in size.items()
+                                    if next(x for x in lots if x["id"] == i)["complexity"] == c) for c in COMPLEXITY},
+           "run_days_per_year": round(run_days, 1),
+           "scenarios": [{"id": sc["id"], "name": sc["name"], "days": sc["build"]["days"],
+                          "days_low": sc["build"]["days_low"], "days_high": sc["build"]["days_high"],
+                          "hours": round(sc["build"]["days"] * hours)} for sc in found["scenarios"]]}
+    return out
 
 
 def load_scenarios(spec: dict, errors: list[str], warnings: list[str]) -> dict:
@@ -695,6 +733,104 @@ def csv_rows(found: dict) -> list[list]:
     return [[num(v) if isinstance(v, (int, float)) else v for v in row] for row in rows]
 
 
+def hrs(value: float, per_day: float) -> str:
+    return f"{round(value * per_day):,}".replace(",", " ")
+
+
+def render_charges(spec: dict, option: dict, status: str, found: dict) -> str:
+    """Plan de charge sans montant : tâches, complexité, jours et heures, par hypothèse de production."""
+    ch, scen = found["charges"], found["scenarios"]
+    per_day = ch["hours_per_day"]
+    names = [x["name"] for x in scen[1:]]
+    out = [f"# Charges : {spec.get('title') or 'Chiffrage'}", ""]
+    if spec.get("context"):
+        out += [spec["context"], ""]
+    out += [f"Option {option['id']} : {option['name']}, {status}. Charges en jours et en heures ({num(per_day)} h "
+            "par jour), sans taux journalier : la valorisation se fait à part. Fourchette P10-P90 calculée sur les "
+            "estimations à trois points.", "", "## Synthèse", "",
+            "| Hypothèse | Jours | Fourchette P10-P90 | Heures |", "| --- | --- | --- | --- |"]
+    out += [f"| {x['name']} | {days(x['days'])} | {days(x['days_low'])} à {days(x['days_high'])} | {hrs(x['days'], per_day)} |"
+            for x in ch["scenarios"]]
+    out += ["", f"{ch['tasks']} tâches : " + ", ".join(f"{n} {COMPLEXITY[c].lower()}" for c, n in ch["by_complexity"].items()
+                                                        if n) + "."]
+    if ch["run_days_per_year"]:
+        out.append(f"Maintenance et exploitation : {days(ch['run_days_per_year'])} j par an sans IA "
+                   f"({hrs(ch['run_days_per_year'], per_day)} h).")
+    out += ["", "## Détail par tâche", "",
+            "| Tâche | Phase | Composant | Complexité | Profil | Mini | Probable | Maxi | Jours | Heures | "
+            + " | ".join(f"{n} (j)" for n in names) + " |", "| --- " * (10 + len(names)) + "|"]
+    for row in charge_rows(found):
+        if row["type"] == "adoption":
+            continue
+        complexity = COMPLEXITY.get(row["complexity"], "") + (" (déduite)" if row.get("deduced") else "")
+        out.append(f"| {row['id']} {cell(row['name'])} | {PHASES.get(row['phase'], '')} | {row['component']} | "
+                   f"{complexity} | {row['profile']} | {days(row['low']) if row['low'] != '' else ''} | "
+                   f"{days(row['likely']) if row['likely'] != '' else str(row.get('percent', '')) + ' %'} | "
+                   f"{days(row['high']) if row['high'] != '' else ''} | {days(row['days'])} | {hrs(row['days'], per_day)} | "
+                   + " | ".join(days(v) for v in row["by_scenario"][1:]) + " |")
+    setup = [next((r["days"] for r in x["rows"] if r["type"] == "adoption"), 0) for x in scen]
+    if any(setup):
+        out.append("| Adoption de l'IA : outillage, garde-fous, formation |  |  |  |  |  |  |  |  |  | "
+                   + " | ".join(days(v) for v in setup[1:]) + " |")
+    for label, key in (("Par phase", "phase"), ("Par profil", "profile")):
+        groups: dict[str, list[float]] = {}
+        for row in charge_rows(found):
+            if row["type"] != "adoption":
+                acc = groups.setdefault(row[key], [0.0] * len(scen))
+                for i, v in enumerate(row["by_scenario"]):
+                    acc[i] += v
+        out += ["", f"### {label}", "", f"| {label[4:].capitalize()} | Jours | Heures | " + " | ".join(f"{n} (j)" for n in names)
+                + " |", "| --- " * (3 + len(names)) + "|"]
+        out += [f"| {PHASES.get(k, k)} | {days(v[0])} | {hrs(v[0], per_day)} | " + " | ".join(days(x) for x in v[1:]) + " |"
+                for k, v in groups.items()]
+    out.append("")
+    for key, label in (("assumptions", "Hypothèses"), ("exclusions", "Exclusions")):
+        if spec.get(key):
+            out += [f"## {label}", ""] + [f"- {cell(x)}" for x in spec[key]] + [""]
+    return "\n".join(out)
+
+
+def charge_rows(found: dict) -> list[dict]:
+    """Lignes de charge (tâche par profil, pilotage, adoption) avec leurs jours dans chaque hypothèse."""
+    scen = found["scenarios"]
+    rows = []
+    for index, line in enumerate(x for x in found["lines"] if x["type"] in ("lot", "pilotage")):
+        mine = [[r for r in x["rows"] if r["type"] in ("lot", "pilotage")][index]["days"] for x in scen]
+        rows.append({**line, "complexity": line.get("complexity") or "", "by_scenario": mine})
+    setup = [next((r["days"] for r in x["rows"] if r["type"] == "adoption"), 0.0) for x in scen]
+    if any(setup):
+        rows.append({"type": "adoption", "id": "A", "name": "Adoption de l'IA", "phase": "", "component": "",
+                     "complexity": "", "profile": "", "low": "", "likely": "", "high": "", "days": 0.0,
+                     "by_scenario": setup})
+    return rows
+
+
+CHARGE_HEAD = ["type", "id", "tâche", "phase", "composant", "complexité", "profil", "mini", "probable", "maxi",
+               "jours", "heures"]
+
+
+def charge_csv(found: dict) -> list[list]:
+    per_day, scen = found["charges"]["hours_per_day"], found["scenarios"]
+    rows = [CHARGE_HEAD + [f"jours {x['id']}" for x in scen[1:]]]
+    for r in charge_rows(found):
+        rows.append([r["type"], r["id"], r["name"], r["phase"], r["component"], r["complexity"], r["profile"],
+                     r["low"], r["likely"], r["high"], r["days"], r["days"] * per_day] + r["by_scenario"][1:])
+    return [[num(v) if isinstance(v, (int, float)) else v for v in row] for row in rows]
+
+
+def verify_charges(path: Path, found: dict) -> list[str]:
+    """Relit le CSV des charges : chaque colonne de jours redonne la charge de son hypothèse."""
+    with open(path, encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter=";"))
+    errors = []
+    for item in found["scenarios"]:
+        column = "jours" if item["id"] == "sans-ia" else f"jours {item['id']}"
+        got = sum(float(r[column].replace(",", ".") or 0) for r in rows)
+        if abs(got - item["build"]["days"]) > 0.2:
+            errors.append(f"{path.name} : {item['id']}, total {round(got, 1)} j au lieu de {item['build']['days']}")
+    return errors
+
+
 SCENARIO_HEAD = ["hypothèse", "type", "id", "libellé", "phase", "profil", "facteur", "jours", "taux",
                  "coût réalisation", "par an"]
 
@@ -757,26 +893,34 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
         exigences = [(f"{base}/Exigences/{r}", r) for r in lot["refs"]]
         notes.add(f"{base}/Lots/{title}/{vault_ontology.safe_name(lot['id'])}", "lot",
                   {"id": lot["id"], "charge": round(lot["days"], 1), "phase": lot["phase"],
-                   "composant": lot["component"] or None},
+                   "composant": lot["component"] or None, "complexite": lot["complexity"]},
                   {"porte-sur": exigences or [(option_rel, f"Option {option['id']}")], "issu-de": (rel, title)},
                   [f"# {lot['id']} {lot['name']}", "", up, "", f"Charge : {round(lot['days'], 1)} jours (espérance)."])
+    priced = spec.get("rates") is not None
     budget = "non-fixe" if not totals["budget"] else ("depasse" if totals["budget"]["over"] else "respecte")
-    host = totals["hosting"]["provider"]
-    body = [f"# Chiffrage : {spec['title']}", "",
-            f"Coût total sur {totals['tco']['years']} an(s) : **{totals['tco']['total']} {currency}** ; "
-            f"réalisation {totals['build']['cost']} {currency} ({totals['build']['cost_low']} à "
-            f"{totals['build']['cost_high']}), {totals['build']['days']} jours.", "",
-            f"Chiffrage complet : `{md.name}`.", "", "## Lots", ""]
+    host = (totals["hosting"] or {}).get("provider")
+    body = [f"# Chiffrage : {spec['title']}", ""]
+    if priced:
+        body.append(f"Coût total sur {totals['tco']['years']} an(s) : **{totals['tco']['total']} {currency}** ; "
+                    f"réalisation {totals['build']['cost']} {currency} ({totals['build']['cost_low']} à "
+                    f"{totals['build']['cost_high']}), {totals['build']['days']} jours.")
+    else:
+        body.append(f"Charge de réalisation : **{totals['build']['days']} jours** ({totals['build']['days_low']} à "
+                    f"{totals['build']['days_high']}), sans taux journalier.")
+    body += ["", f"Chiffrage complet : `{md.name}`.", "", "## Lots", ""]
     body += [f"- [[{base}/Lots/{title}/{vault_ontology.safe_name(i)}|{i}]] {lots[i]['name']}" for i in lots]
     body += ["", "## Hypothèses de production", ""] + [
         f"- {s['name']} : {s['tco']['total']} {currency} sur {totals['tco']['years']} an(s), réalisation "
-        f"{s['build']['cost']} {currency}" for s in found["scenarios"]]
+        f"{s['build']['cost']} {currency}, {s['build']['days']} jours" if priced
+        else f"- {s['name']} : {s['build']['days']} jours ({s['build']['days_low']} à {s['build']['days_high']})"
+        for s in found["scenarios"]]
     if spec.get("assumptions"):
         body += ["", "## Hypothèses", ""] + [f"- {a}" for a in spec["assumptions"]]
-    notes.add(rel, "chiffrage", {"total": totals["tco"]["total"], "devise": currency,
-                                 "horizon": totals["tco"]["years"], "charge": totals["build"]["days"],
-                                 "budget": budget, "hebergeur": host},
-              {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
+    props = {"charge": totals["build"]["days"], "hebergeur": host}
+    if priced:
+        props.update({"total": totals["tco"]["total"], "devise": currency, "horizon": totals["tco"]["years"],
+                      "budget": budget})
+    notes.add(rel, "chiffrage", props, {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
     result = notes.write(errors, cleanup=(f"{base}/Lots/{title}",))
     return {**result, "folder": base} if result else None
 
@@ -827,9 +971,14 @@ def main() -> int:
     if errors or not found:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    report.update({k: found["totals"][k] for k in ("build", "infra", "run", "operate", "tco", "budget", "hosting")})
-    report["scenarios"] = [{k: v for k, v in s.items() if k not in ("rows", "scenario")} for s in found["scenarios"]]
-    report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"),
+    priced = spec.get("rates") is not None
+    report["mode"] = "chiffrage" if priced else "charges"
+    if priced:
+        report.update({k: found["totals"][k] for k in ("build", "infra", "run", "operate", "tco", "budget", "hosting")})
+        report["scenarios"] = [{k: v for k, v in s.items() if k not in ("rows", "scenario")} for s in found["scenarios"]]
+    else:
+        del report["currency"]
+    report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"), "charges": found["charges"],
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
                    "uncertain": found["uncertain"]})
 
@@ -837,17 +986,26 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
     md, table, hypo = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.hypotheses.csv"
-    with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, option, status, found, providers))
-    with open(table, "w", encoding="utf-8-sig", newline="") as handle:
-        csv.writer(handle, delimiter=";").writerows(csv_rows(found))
-    with open(hypo, "w", encoding="utf-8-sig", newline="") as handle:
-        csv.writer(handle, delimiter=";").writerows(scenario_rows(found))
-    errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)
-    errors += verify_scenarios(hypo, found, spec)
-    report["outputs"] = [str(md), str(table), str(hypo)]
+    charge_md, charge_table = out_dir / f"{stem}.charges.md", out_dir / f"{stem}.charges.csv"
+    if priced:
+        with open(md, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(render_md(spec, option, status, found, providers))
+        with open(table, "w", encoding="utf-8-sig", newline="") as handle:
+            csv.writer(handle, delimiter=";").writerows(csv_rows(found))
+        with open(hypo, "w", encoding="utf-8-sig", newline="") as handle:
+            csv.writer(handle, delimiter=";").writerows(scenario_rows(found))
+        errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)
+        errors += verify_scenarios(hypo, found, spec)
+        report["outputs"] = [str(md), str(table), str(hypo)]
+    with open(charge_md, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(render_charges(spec, option, status, found))
+    with open(charge_table, "w", encoding="utf-8-sig", newline="") as handle:
+        csv.writer(handle, delimiter=";").writerows(charge_csv(found))
+    errors += verify_charges(charge_table, found)
+    report["outputs"] += [str(charge_md), str(charge_table)]
     if args.vault and not errors:
-        report["vault"] = write_vault(args.vault, args.folder, spec, option, found, md, errors)
+        report["vault"] = write_vault(args.vault, args.folder, spec, option, found,
+                                      md if report["mode"] == "chiffrage" else charge_md, errors)
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
 

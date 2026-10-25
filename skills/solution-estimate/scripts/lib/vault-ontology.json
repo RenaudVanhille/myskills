@@ -203,11 +203,11 @@
     },
     "chiffrage": {
       "label": "Chiffrage",
-      "description": "Chiffrage d'une option (solution-estimate) : charge, fourchette, coût total, budget, hébergeur.",
+      "description": "Chiffrage d'une option (solution-estimate) : charge, fourchette, coût total, budget, hébergeur ; sans taux journalier, la charge seule.",
       "folder": "Chiffrages",
-      "required": ["total"],
+      "required": ["charge"],
       "properties": {
-        "total": {"type": "number", "description": "Coût total sur l'horizon (espérance), dans la devise."},
+        "total": {"type": "number", "description": "Coût total sur l'horizon (espérance), dans la devise ; absent pour un chiffrage en charges seules."},
         "devise": {"type": "string"},
         "horizon": {"type": "integer", "minimum": 1, "description": "Années."},
         "charge": {"type": "number", "description": "Charge en jours (espérance)."},
@@ -224,7 +224,8 @@
       "properties": {
         "charge": {"type": "number", "description": "Charge en jours (espérance)."},
         "phase": {"type": "string"},
-        "composant": {"type": "string"}
+        "composant": {"type": "string"},
+        "complexite": {"enum": ["faible", "moyenne", "elevee", "tres-elevee"]}
       }
     }
   },

@@ -881,10 +881,25 @@
         {"copy": ["{fixtures}/workflow/chiffrage.json", "{out}/chiffrage.json"]},
         {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
         {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
-        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json"], "exit": 0, "report": {"option": "A", "lots": 10, "build.days": 169.1, "build.days_low": 156.0, "build.cost": 128776, "build.contingency": 11707, "infra.one_time": 6000, "infra.annual": 10200, "run.annual": 33160, "operate.monthly": 3613, "tco.total": 264857, "budget.over": [], "unestimated": [], "uncovered": [], "uncertain": ["L4"], "scenarios.0.id": "sans-ia", "scenarios.0.tco.total": 264857, "scenarios.0.build.cost_low": 119164, "scenarios.1.id": "avec-ia", "scenarios.1.build.days": 139.0, "scenarios.1.build.tooling": 372, "scenarios.1.tco.total": 233239, "scenarios.1.delta": -11.9, "scenarios.2.id": "ia-natif", "scenarios.2.build.setup": 6100, "scenarios.2.build.days_low": 59.8, "scenarios.2.tco.total": 209994, "errors": []}, "report_contains": {"warnings": "option A chiffrée sur la recommandation"}}
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json"], "exit": 0, "report": {"option": "A", "lots": 10, "build.days": 169.1, "build.days_low": 156.0, "build.cost": 128776, "build.contingency": 11707, "infra.one_time": 6000, "infra.annual": 10200, "run.annual": 33160, "operate.monthly": 3613, "tco.total": 264857, "budget.over": [], "unestimated": [], "uncovered": [], "uncertain": ["L4"], "scenarios.0.id": "sans-ia", "scenarios.0.tco.total": 264857, "scenarios.0.build.cost_low": 119164, "scenarios.1.id": "avec-ia", "scenarios.1.build.days": 139.0, "scenarios.1.build.tooling": 372, "scenarios.1.tco.total": 233239, "scenarios.1.delta": -11.9, "scenarios.2.id": "ia-natif", "scenarios.2.build.setup": 6100, "scenarios.2.build.days_low": 59.8, "scenarios.2.tco.total": 209994, "mode": "chiffrage", "charges.tasks": 7, "charges.scenarios.0.hours": 1184, "errors": []}, "report_contains": {"warnings": "option A chiffrée sur la recommandation"}}
       ],
-      "files": ["chiffrage.md", "chiffrage.csv", "chiffrage.hypotheses.csv"],
+      "files": ["chiffrage.md", "chiffrage.csv", "chiffrage.hypotheses.csv", "chiffrage.charges.md", "chiffrage.charges.csv"],
       "contains": {"chiffrage.md": ["| Réalisation, coût | 128 776 € (de 119 164 € à 138 387 €), dont provision 11 707 € |", "| Fonctionnement par mois | 8 000 € | 3 613 € | tenu |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet | 12 % |", "| **Total** | | | | **264 857 €** |", "devis infogérant du 2026-10-01"], "chiffrage.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;architecte;8;10;14;10,33;950;0;0;9816,67;;;"], "chiffrage.hypotheses.csv": ["avec-ia;lot;L2;Portail web;realisation;developpeur;0,75;31,25;650;20312,5;0", "ia-natif;outillage;O;Outillage IA : licences et jetons;;;;;20;2081,53;0"]}
+    },
+    {
+      "id": "chiffrage-charges",
+      "skill": "solution-estimate",
+      "_note": "Plan de charge sans taux journalier : chaque tâche avec sa complexité (donnée ou déduite), ses jours et ses heures, sans IA, avec IA et IA natif ; aucun montant ni fichier de coût ; note chiffrage du vault sans coût, lots avec leur complexité.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/chiffrage-charges.json", "{out}/chiffrage-charges.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
+        {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-charges.json", "--vault", "{out}", "--folder", "P"], "exit": 0, "report": {"mode": "charges", "lots": 10, "charges.hours_per_day": 8, "charges.tasks": 7, "charges.by_complexity.tres-elevee": 2, "charges.by_complexity.moyenne": 1, "charges.run_days_per_year": 49.4, "charges.scenarios.0.days": 169.1, "charges.scenarios.0.hours": 1353, "charges.scenarios.2.days": 116.6, "vault.notes": 8, "errors": []}, "report_contains": {"warnings": "complexité déduite de la charge (au plus 5 j faible, 15 moyenne, 40 élevée) : L1, L2, L3, L6, L7"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}", "--folder", "P", "--strict"], "exit": 0, "report": {"errors": [], "types.chiffrage": 1, "types.lot": 7}}
+      ],
+      "files": ["chiffrage-charges.charges.md", "chiffrage-charges.charges.csv"],
+      "absent": ["chiffrage-charges.md", "chiffrage-charges.csv", "chiffrage-charges.hypotheses.csv"],
+      "contains": {"chiffrage-charges.charges.md": ["| Sans IA | 169,1 | 156 à 182,2 | 1 353 |", "| L4 File et connecteur vers l'outil de gestion | Intégration | file | Très élevée | developpeur | 10 | 15 | 40 | 18,3 | 147 |", "| L2 Portail web | Réalisation | portail | Très élevée (déduite) |", "| P1 Pilotage | Pilotage |  |  | chef-de-projet |  | 12 % |", "| developpeur | 109,8 | 879 |"], "chiffrage-charges.charges.csv": ["lot;L1;Cadrage et architecture détaillée;cadrage;;elevee;architecte;8;10;14;10,33;82,67;9,82;10,33"], "P/Lots/Charges du portail de déclaration de sinistres/L4.md": ["complexite: \"tres-elevee\""]}
     },
     {
       "id": "chiffrage-hypotheses-ia",
