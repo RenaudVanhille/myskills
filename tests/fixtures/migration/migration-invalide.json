@@ -1,0 +1,6 @@
+{
+  "title": "Description fautive",
+  "applications": [
+    {"id": "APP-01", "name": "Portail", "criticality": "haute", "strategy": "rehots", "why": "test", "effort": "M", "risk": "moyen", "dependson": ["APP-02"]}
+  ]
+}

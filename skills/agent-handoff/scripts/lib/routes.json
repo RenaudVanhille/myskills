@@ -124,6 +124,25 @@
    "match": "Catalogue des exigences doc-to-markdown requirements-catalog Description cloud cloud-architecture diagram-export Menaces STRIDE et qualification de l'hébergement threat-model well-architected-review Registre des traitements et AIPD data-protection Plan d'actions et dossier de conformité architecture-dossier"
   },
   {
+   "name": "migration-cloud",
+   "agent": "architecture-workflow",
+   "title": "Migration d'un portefeuille d'applications vers le cloud",
+   "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
+   "stages": [
+    "exigences",
+    "evaluation",
+    "cible",
+    "chiffrage (facultative)",
+    "feuille-de-route",
+    "dossier (facultative)"
+   ],
+   "inputs": [
+    "documents/*",
+    "sources/*.md"
+   ],
+   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible cloud-architecture well-architected-review diagram-export Chiffrage de la migration solution-estimate Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
+  },
+  {
    "name": "revue-dossier",
    "agent": "architecture-workflow",
    "title": "Instruction d'un dossier d'architecture reçu",
@@ -332,6 +351,16 @@
    "match": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian."
   },
   {
+   "name": "migration-assessment",
+   "level": "complexe",
+   "description": "Évalue un portefeuille d'applications pour une migration vers le cloud (ou un autre hébergement) selon les 6R : réhéberger, replateformer, refondre, racheter, retirer ou conserver, avec la raison, l'effort et le risque de chaque choix.",
+   "inputs": [
+    "Description JSON du portefeuille d'applications et de la stratégie 6R de chacune (assess_build.py --schema), tirée d'un inventaire (CSV, POS d'urbanization-map, documents)",
+    "Facultatif : exigences.json (requirements-catalog), cité par les applications ; l'hébergeur cible (shared/providers.json)"
+   ],
+   "match": "Évalue un portefeuille d'applications pour une migration vers le cloud (ou un autre hébergement) selon les 6R : réhéberger, replateformer, refondre, racheter, retirer ou conserver, avec la raison, l'effort et le risque de chaque choix. Le script contrôle les dépendances, les retraits, l'obsolescence et l'hébergeur cible, puis calcule les vagues de migration. À utiliser pour une étude de migration, un plan de sortie d'un datacenter, une rationalisation du portefeuille applicatif ou un inventaire à trier en 6R."
+  },
+  {
    "name": "requirements-catalog",
    "level": "moyen",
    "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV.",
@@ -362,6 +391,16 @@
     "Ou la description cloud d'une option d'architecture-options (schemas/option-<id>.cloud.json)"
    ],
    "match": "Prépare le modèle de menaces STRIDE d'une architecture décrite en JSON (celle des schémas cloud) : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable avec sa mesure et son statut à compléter. À utiliser pour une analyse de sécurité d'une architecture cloud, d'une option d'architecture ou d'une infrastructure existante."
+  },
+  {
+   "name": "transition-roadmap",
+   "level": "moyen",
+   "description": "Construit la feuille de route de transition d'une architecture actuelle vers la cible : chantiers et jalons avec durées et prédécesseurs, vagues de migration reprises de migration-assessment, dates, marges et chemin critique calculés par script, échéance contrôlée, diagramme de Gantt Mermaid et CSV.",
+   "inputs": [
+    "Description JSON des chantiers et jalons de la transition (roadmap_build.py --schema)",
+    "Facultatif : les vagues de migration (<nom>.waves.json de migration-assessment)"
+   ],
+   "match": "Construit la feuille de route de transition d'une architecture actuelle vers la cible : chantiers et jalons avec durées et prédécesseurs, vagues de migration reprises de migration-assessment, dates, marges et chemin critique calculés par script, échéance contrôlée, diagramme de Gantt Mermaid et CSV. À utiliser pour un plan de transition, une trajectoire, un planning de migration ou un schéma directeur à phaser."
   },
   {
    "name": "urbanization-map",

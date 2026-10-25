@@ -39,7 +39,7 @@ KINDS = ("agents", "workflows", "skills")
 # Familles de mots de même sens, ramenées à un seul mot avant comparaison.
 SYNONYMS = {"coute": "chiff", "budge": "chiff", "prix": "chiff",
             "estim": "chiff", "combi": "chiff", "diagr": "schem", "dessi": "schem", "conve": "conve",
-            "impor": "conve", "trans": "conve", "secur": "menac", "risqu": "menac", "strid": "menac",
+            "impor": "conve", "extra": "conve", "trans": "conve", "secur": "menac", "risqu": "menac", "strid": "menac",
             "exige": "exige", "besoi": "exige", "cahie": "exige", "spec": "exige", "speci": "exige",
             "publi": "publi", "expor": "publi", "infra": "infra", "terra": "infra", "kuber": "infra"}
 
@@ -99,7 +99,10 @@ def main() -> int:
         if kind == "workflows":
             item.update(agent=entry["agent"], stages=entry["stages"])
         if not args.list:
-            item["score"] = round(sum(math.log((len(entries) + 1) / frequency.get(w, 1)) for w in common), 2)
+            # Un mot du nom même du candidat (schema-designer pour « schéma ») pèse un point de plus.
+            named = words(entry["name"].replace("-", " "))
+            item["score"] = round(sum(math.log((len(entries) + 1) / frequency.get(w, 1)) + (w in named)
+                                      for w in common), 2)
             item["matched"] = common
         scored.append(item)
     if args.list:

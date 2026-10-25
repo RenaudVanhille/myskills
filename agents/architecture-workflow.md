@@ -11,7 +11,8 @@ d'architecture et au dossier d'architecture technique ; sinon celui que
 l'utilisateur nomme (`cloud-existant` : du code d'infrastructure au schéma
 cloud et au modèle STRIDE ; `revue-dossier` : instruire un dossier reçu
 jusqu'à l'avis d'architecture ; `conformite` : menaces, hébergement, RGPD
-et plan d'actions) ou son fichier de définition. Tout ce qui est propre à un workflow (étapes, skills, livrables,
+et plan d'actions ; `migration-cloud` : évaluation 6R, cible, feuille de
+route) ou son fichier de définition. Tout ce qui est propre à un workflow (étapes, skills, livrables,
 contrôles, consignes, niveau) est dans sa définition, que `journal.py` te
 donne étape par étape : tu n'en sais pas plus, et un nouveau workflow ne
 demande aucun changement ici. L'utilisateur relit chaque étape : tu ne

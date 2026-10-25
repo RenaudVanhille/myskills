@@ -1,0 +1,17 @@
+{
+  "title": "Dossier de migration",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "périmètre, répartition 6R, cible, coût, échéance et chemin critique, décisions attendues"},
+    {"id": "evaluation", "title": "Évaluation du portefeuille (6R)", "sources": ["migration.md"], "required": true,
+     "help": "migration-assessment : assess_build.py migration.json"},
+    {"id": "feuille-de-route", "title": "Feuille de route", "sources": ["feuille-de-route.md"], "required": true,
+     "help": "transition-roadmap : roadmap_build.py feuille-de-route.json"},
+    {"id": "schemas", "title": "Architecture cible", "kind": "images", "sources": ["schemas/*.png"]},
+    {"id": "well-architected", "title": "Revue Well-Architected de la cible", "sources": ["schemas/*.wa.md", "*.wa.md"]},
+    {"id": "exigences", "title": "Exigences", "sources": ["exigences.md"]},
+    {"id": "chiffrage", "title": "Chiffrage", "sources": ["chiffrage.md"]},
+    {"id": "donnees", "title": "Annexe : données", "kind": "files", "sources": ["migration.csv", "feuille-de-route.csv"]},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}

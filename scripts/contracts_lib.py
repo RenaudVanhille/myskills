@@ -26,6 +26,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
 DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
+                                 "migration-assessment",
                                  "solution-estimate"]}
 
 

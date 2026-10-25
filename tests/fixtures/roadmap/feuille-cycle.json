@@ -1,0 +1,5 @@
+{"title": "Cycle", "start": "2027-01-04", "items": [
+  {"id": "A", "name": "Chantier A", "weeks": 4, "after": ["C"]},
+  {"id": "B", "name": "Chantier B", "weeks": 4, "after": ["A"]},
+  {"id": "C", "name": "Chantier C", "weeks": 4, "after": ["B"]},
+  {"id": "D", "name": "Chantier D", "weeks": 30, "after": ["Z1"]}]}

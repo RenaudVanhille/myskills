@@ -1,0 +1,283 @@
+{
+  "skill": "migration-assessment",
+  "level": "complexe",
+  "inputs": [
+    "Description JSON du portefeuille d'applications et de la stratégie 6R de chacune (assess_build.py --schema), tirée d'un inventaire (CSV, POS d'urbanization-map, documents)",
+    "Facultatif : exigences.json (requirements-catalog), cité par les applications ; l'hébergeur cible (shared/providers.json)"
+  ],
+  "outputs": [
+    "<nom>.md : synthèse par stratégie, tableau des applications, vagues de migration, points d'attention",
+    "<nom>.csv : une ligne par application (stratégie, effort, risque, vague)",
+    "<nom>.waves.json : vagues de migration, reprises par transition-roadmap"
+  ],
+  "scripts": [
+    {
+      "name": "assess_build.py",
+      "role": "Contrôle l'évaluation 6R (dépendances connues et sans cycle, application retirée encore utilisée, refactor d'effort S, rehost d'une technologie hors support, repurchase sans cible, application critique à risque élevé sans parade, données sensibles chez un hébergeur extraterritorial, références vers les exigences) et calcule les vagues de migration selon les dépendances.",
+      "usage": "uv run scripts/assess_build.py MIGRATION.json [--out-dir DOSSIER] [--max-per-wave N] [--today AAAA-MM-JJ] | --schema",
+      "options": {
+        "MIGRATION.json": "description du portefeuille et des stratégies",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--max-per-wave": "nombre maximal d'applications par vague (défaut : sans limite)",
+        "--today": "date de référence des fins de support (défaut : aujourd'hui)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "évaluation et vagues écrites (avertissements possibles : cohérences à vérifier)",
+        "1": "description invalide, dépendance inconnue ou en cycle, application retirée encore utilisée, hébergeur ou exigence inconnus ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Portefeuille d'applications et stratégie 6R de chacune.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "applications"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "provider": {
+                  "type": "string",
+                  "description": "hébergeur cible (shared/providers.json)"
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
+            },
+            "requirements": {
+              "type": "string",
+              "description": "chemin de exigences.json, relatif à la description"
+            },
+            "applications": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "name",
+                  "criticality",
+                  "strategy",
+                  "why",
+                  "effort",
+                  "risk"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "identifiant court (APP-01)"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "criticality": {
+                    "enum": [
+                      "haute",
+                      "moyenne",
+                      "basse"
+                    ]
+                  },
+                  "technology": {
+                    "type": "string",
+                    "description": "langage, socle, version"
+                  },
+                  "hosting": {
+                    "type": "string",
+                    "description": "hébergement actuel"
+                  },
+                  "users": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "data": {
+                    "enum": [
+                      "sensibles",
+                      "personnelles",
+                      "internes",
+                      "publiques"
+                    ]
+                  },
+                  "end_of_support": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "description": "fin de support du socle, AAAA-MM-JJ"
+                  },
+                  "depends_on": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "applications dont elle dépend"
+                  },
+                  "strategy": {
+                    "enum": [
+                      "rehost",
+                      "replatform",
+                      "refactor",
+                      "repurchase",
+                      "retire",
+                      "retain"
+                    ]
+                  },
+                  "why": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "raison du choix, en une phrase"
+                  },
+                  "target_service": {
+                    "type": "string",
+                    "description": "service ou solution cible"
+                  },
+                  "effort": {
+                    "enum": [
+                      "S",
+                      "M",
+                      "L",
+                      "XL"
+                    ]
+                  },
+                  "risk": {
+                    "enum": [
+                      "faible",
+                      "moyen",
+                      "eleve"
+                    ]
+                  },
+                  "blockers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "mitigations": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "exigences (ids de exigences.json)"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Compteurs par stratégie, nombre de vagues, fichiers produits.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "applications",
+            "strategies",
+            "waves",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "applications": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "strategies": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "propertyNames": {
+                "enum": [
+                  "rehost",
+                  "replatform",
+                  "refactor",
+                  "repurchase",
+                  "retire",
+                  "retain"
+                ]
+              }
+            },
+            "waves": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "transition-roadmap",
+      "kind": "skill",
+      "when": "planifier les vagues dans la feuille de route de transition (waves dans sa description)"
+    },
+    {
+      "to": "cloud-architecture",
+      "kind": "skill",
+      "when": "décrire et dessiner l'architecture cible des applications migrées"
+    },
+    {
+      "to": "data-protection",
+      "kind": "skill",
+      "when": "des données sensibles partent chez un hébergeur soumis à des lois extraterritoriales"
+    },
+    {
+      "to": "solution-estimate",
+      "kind": "skill",
+      "when": "chiffrer la migration à partir des efforts et des vagues"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "faire valider chaque retrait d'application et les stratégies des applications critiques"
+    }
+  ]
+}

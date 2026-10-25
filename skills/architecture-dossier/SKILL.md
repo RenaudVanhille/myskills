@@ -49,7 +49,9 @@ erreur, sans fichier produit : à utiliser avant un comité.
 menaces, Well-Architected et documents reçus. `--template conformite`
 (workflow `conformite`, avec `--out dossier-conformite.md`) : synthèse,
 plan d'actions, exigences, menaces, Well-Architected, registre des
-traitements et AIPD. Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
+traitements et AIPD. `--template migration` (workflow `migration-cloud`,
+avec `--out dossier-migration.md`) : synthèse, évaluation 6R, feuille de
+route, cible et chiffrage. Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
 avec `--template` ; `--schema` donne sa forme. Ne relisez pas
 `dossier-architecture.md` : le rapport donne les sections reprises, les
 manquantes et les liens cassés.

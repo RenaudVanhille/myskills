@@ -1,0 +1,172 @@
+{
+  "name": "migration-cloud",
+  "title": "Migration d'un portefeuille d'applications vers le cloud",
+  "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "l'inventaire des applications (CSV, POS d'urbanization-map ou documents), s'il n'est pas dans documents/",
+    "l'hébergeur cible et l'échéance de la migration (sans réponse : hypothèses notées au journal)"
+  ],
+  "memory": {
+    "requirements": "exigences.json"
+  },
+  "stages": [
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "doc-to-markdown",
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "documents/*",
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md"
+      ],
+      "optional": [
+        "sources/*.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
+        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+      ],
+      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Garder les exigences de migration : échéances, hébergement, réversibilité, continuité, contraintes de licence ; chaque exigence déduite se note au journal."
+    },
+    {
+      "id": "evaluation",
+      "label": "Évaluation 6R et vagues",
+      "level": "complexe",
+      "skills": [
+        "migration-assessment",
+        "urbanization-map"
+      ],
+      "inputs": [
+        "documents/inventaire*",
+        "documents/pos*",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "migration.json",
+        "migration.md",
+        "migration.waves.json"
+      ],
+      "optional": [
+        "migration.csv"
+      ],
+      "checks": [
+        "migration-assessment : assess_build.py migration.json (zéro erreur ; dépendances, retraits et hébergeur cible contrôlés, vagues calculées)"
+      ],
+      "instructions": "Une entrée par application de l'inventaire, sans en inventer ; stratégie 6R, raison en une phrase, effort et risque. Chaque retrait et la stratégie de chaque application critique se présentent à la revue. Un avertissement gardé (refactor d'effort S, socle hors support réhébergé) se note au journal avec sa raison."
+    },
+    {
+      "id": "cible",
+      "label": "Architecture cible",
+      "level": "complexe",
+      "skills": [
+        "cloud-architecture",
+        "well-architected-review",
+        "diagram-export"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "migration.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "schemas/cible.json",
+        "schemas/cible.drawio",
+        "schemas/*.png",
+        "schemas/cible.wa.md"
+      ],
+      "checks": [
+        "cloud-architecture : cloud_build.py schemas/cible.json --matrix",
+        "well-architected-review : wa_check.py schemas/cible.json --fail-on moyenne, avec --vault <vault> --folder <dossier> si le workflow a un vault",
+        "diagram-export : export.py schemas/cible.drawio, puis relire l'image une fois"
+      ],
+      "instructions": "Décrire la cible des applications migrées avec l'hébergeur de migration.json : services cibles (target_service), réseau, identité, sauvegardes. Un constat Well-Architected de gravité haute se corrige ou s'accepte avec la raison de l'utilisateur."
+    },
+    {
+      "id": "chiffrage",
+      "label": "Chiffrage de la migration",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "solution-estimate"
+      ],
+      "agent": "solution-estimator",
+      "inputs": [
+        "migration.json",
+        "schemas/cible.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "chiffrage.json",
+        "chiffrage.md"
+      ],
+      "optional": [
+        "chiffrage.csv"
+      ],
+      "checks": [
+        "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault"
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un lot par vague ; les efforts S à XL de migration.json servent de base aux estimations à trois points."
+    },
+    {
+      "id": "feuille-de-route",
+      "label": "Feuille de route de transition",
+      "level": "moyen",
+      "skills": [
+        "transition-roadmap",
+        "diagram-export"
+      ],
+      "inputs": [
+        "migration.waves.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "feuille-de-route.json",
+        "feuille-de-route.md"
+      ],
+      "optional": [
+        "feuille-de-route.csv",
+        "feuille-de-route-*.png"
+      ],
+      "checks": [
+        "transition-roadmap : roadmap_build.py feuille-de-route.json (zéro erreur ; chemin critique et échéance)",
+        "si l'utilisateur veut une image : diagram-export : export.py feuille-de-route.md"
+      ],
+      "instructions": "Reprendre les vagues (waves.file : migration.waves.json) et ajouter les chantiers transverses : cadrage, socle, sécurité et AIPD, formation, décommissionnement, jalons. Échéance d'une exigence dans deadline. Une échéance dépassée se présente à la revue avec le chemin critique ; chaque durée prise sans source se note au journal comme hypothèse."
+    },
+    {
+      "id": "dossier",
+      "label": "Dossier de migration",
+      "level": "simple",
+      "facultative": true,
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "migration.md",
+        "feuille-de-route.md",
+        "schemas/*.png",
+        "schemas/cible.wa.md",
+        "chiffrage.md",
+        "journal.md"
+      ],
+      "deliverables": [
+        "synthese.md",
+        "dossier-migration.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --template migration --out dossier-migration.md --strict",
+        "si l'utilisateur veut un Word ou un PDF : passer dossier-migration.md à document-publisher"
+      ],
+      "instructions": "Étape facultative, proposée en dernier. Écrire synthese.md (une page : périmètre, répartition 6R, cible, coût, échéance et chemin critique, décisions attendues) à partir des rapports des étapes précédentes ; le reste est assemblé par le script."
+    }
+  ]
+}

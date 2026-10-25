@@ -1,0 +1,31 @@
+{
+  "title": "Sortie du datacenter de la mutuelle",
+  "target": {"provider": "aws", "note": "région eu-west-3"},
+  "requirements": "../workflow/exigences.json",
+  "applications": [
+    {"id": "APP-01", "name": "Portail assurés", "criticality": "haute", "technology": "Java 8, Tomcat", "hosting": "VM VMware",
+     "data": "personnelles", "depends_on": ["APP-02", "APP-04"], "strategy": "replatform", "target_service": "ECS Fargate",
+     "why": "Socle Java à jour en conteneur sans toucher au code métier, élasticité exigée en période de sinistres.",
+     "effort": "M", "risk": "moyen", "refs": ["ENF-001"]},
+    {"id": "APP-02", "name": "Gestion des contrats", "criticality": "haute", "technology": "Oracle 12c, PL/SQL", "hosting": "serveur physique",
+     "data": "sensibles", "end_of_support": "2022-07-31", "strategy": "refactor", "target_service": "Aurora PostgreSQL",
+     "why": "Oracle 12c hors support et cœur de métier différenciant : refonte du PL/SQL vers PostgreSQL.",
+     "effort": "XL", "risk": "eleve", "mitigations": ["migration par lots de contrats", "double run de trois mois"]},
+    {"id": "APP-03", "name": "Ancien extranet courtiers", "criticality": "basse", "technology": "PHP 5", "hosting": "VM VMware",
+     "end_of_support": "2018-12-31", "strategy": "retire", "why": "Moins de dix connexions par mois, fonctions reprises par le portail courtiers.",
+     "effort": "S", "risk": "faible"},
+    {"id": "APP-04", "name": "Référentiel des personnes", "criticality": "moyenne", "technology": ".NET 8", "hosting": "VM VMware",
+     "data": "personnelles", "strategy": "rehost", "why": "Socle récent et stable, aucun gain attendu d'une refonte.",
+     "effort": "S", "risk": "faible"},
+    {"id": "APP-05", "name": "Messagerie collaborative", "criticality": "moyenne", "technology": "Exchange 2016", "hosting": "serveur physique",
+     "strategy": "repurchase", "target_service": "suite collaborative en SaaS", "why": "Fonction standard, Exchange 2016 en fin de vie.",
+     "effort": "M", "risk": "moyen"},
+    {"id": "APP-06", "name": "Éditique", "criticality": "moyenne", "technology": "progiciel sur Windows 2012", "hosting": "VM VMware",
+     "end_of_support": "2023-10-10", "strategy": "rehost", "why": "Licence liée au matériel, renégociation en cours.",
+     "effort": "S", "risk": "moyen", "depends_on": ["APP-02"]},
+    {"id": "APP-07", "name": "Pilotage de la fraude", "criticality": "basse", "technology": "Python, scripts batch", "hosting": "VM VMware",
+     "data": "sensibles", "strategy": "refactor", "why": "Scripts batch à reprendre en traitements gérés.", "effort": "S", "risk": "faible"},
+    {"id": "APP-08", "name": "Chaîne d'impression", "criticality": "basse", "technology": "matériel dédié", "hosting": "salle d'impression",
+     "strategy": "retain", "why": "Imprimantes de production sur site, hors périmètre cloud.", "effort": "S", "risk": "faible"}
+  ]
+}

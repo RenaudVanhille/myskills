@@ -1,0 +1,12 @@
+{
+  "title": "Dépendances incohérentes",
+  "target": {"provider": "ovhcloud"},
+  "requirements": "../workflow/exigences.json",
+  "applications": [
+    {"id": "APP-01", "name": "Portail", "criticality": "haute", "depends_on": ["APP-02", "APP-9"], "strategy": "rehost", "why": "test", "effort": "M", "risk": "moyen", "refs": ["ENF-999"]},
+    {"id": "APP-02", "name": "Contrats", "criticality": "haute", "depends_on": ["APP-03"], "strategy": "rehost", "why": "test", "effort": "M", "risk": "moyen"},
+    {"id": "APP-03", "name": "Référentiel", "criticality": "moyenne", "depends_on": ["APP-01"], "strategy": "rehost", "why": "test", "effort": "S", "risk": "faible"},
+    {"id": "APP-04", "name": "Extranet", "criticality": "basse", "strategy": "retire", "why": "test", "effort": "S", "risk": "faible"},
+    {"id": "APP-05", "name": "Batch", "criticality": "basse", "depends_on": ["APP-04"], "strategy": "retain", "why": "test", "effort": "S", "risk": "faible"}
+  ]
+}

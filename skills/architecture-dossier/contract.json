@@ -16,7 +16,7 @@
       "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--strict] | --schema",
       "options": {
         "DOSSIER": "dossier du workflow",
-        "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement)",
+        "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration)",
         "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
         "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
         "--strict": "section obligatoire sans pièce : erreur, aucun fichier produit",

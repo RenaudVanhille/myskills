@@ -37,6 +37,20 @@
   dossier de conformité (`dossier_build.py --template conformite`).
 - Agent `architecture-reviewer` : AIPD avec `data-protection`.
 
+### Migration
+
+- Skill `migration-assessment` (niveau complexe) : `assess_build.py`
+  contrôle l'évaluation 6R d'un portefeuille (dépendances inconnues ou en
+  cycle, application retirée encore utilisée, socle hors support
+  réhébergé, données sensibles chez un hébergeur extraterritorial) et
+  calcule les vagues de migration selon les dépendances.
+- Skill `transition-roadmap` (niveau moyen) : `roadmap_build.py` reprend
+  les vagues, calcule dates, marges et chemin critique, contrôle
+  l'échéance et écrit un diagramme de Gantt Mermaid.
+- Workflow `migration-cloud` : exigences, évaluation 6R, architecture
+  cible, chiffrage (facultatif), feuille de route, dossier de migration
+  (facultatif, `dossier_build.py --template migration`).
+
 ### Tests
 
 - Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet
