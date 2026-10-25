@@ -11,7 +11,8 @@ exigences ou options qu'elle concerne. `journal.md` en est la version
 lisible, réécrite à chaque commande.
 
 Règles appliquées par le script, pas par le modèle :
-- une étape ne démarre que si toutes les précédentes sont validées ;
+- une étape ne démarre que si toutes les précédentes sont validées (ou,
+  facultatives dans la définition, sautées à la demande de l'utilisateur) ;
 - seule une étape en revue peut être validée, et seulement si ses fichiers
   n'ont pas changé depuis la soumission ;
 - un retour sur une étape remet à reprendre cette étape et toutes les
@@ -39,6 +40,7 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
 
     uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c | --definition NOM|DEF.json] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE
+    uv run scripts/journal.py skip DOSSIER ETAPE --text "mots de l'utilisateur"
     uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
@@ -58,16 +60,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
-from vault_sync import review_note, safe_folder, safe_name, sync  # noqa: E402
+from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 
 STAGES = ["documents", "exigences", "architectures", "schemas"]
-STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
-                 "validee": "validée", "a-reprendre": "à reprendre"}
-KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
-               "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
-               "passage": "Passage de main", "rapport": "Rapport d'agent"}
+# Étape franchie : validée par l'utilisateur, ou facultative et sautée à sa demande.
+DONE = ("validee", "sautee")
 # Valeurs de la propriété `revue` d'une note de revue dans le vault.
 VAULT_DECISIONS = {"validée": "valide", "validee": "valide", "valide": "valide", "ok": "valide",
                    "retour": "retour", "à reprendre": "retour", "a reprendre": "retour"}
@@ -209,9 +208,12 @@ def next_action(state: dict) -> tuple[str | None, str]:
     """Étape courante et prochaine action attendue, déduites de l'état seul."""
     for stage in state["stages"]:
         status, name = stage["status"], stage["id"]
-        if status == "validee":
+        if status in DONE:
             continue
         if status in ("a-faire", "a-reprendre"):
+            if (stage_definition(state, name) or {}).get("facultative"):
+                return name, (f"demander à l'utilisateur s'il veut l'étape facultative {name} : la démarrer (start) "
+                              "ou la sauter (skip, avec ses mots)")
             return name, f"démarrer l'étape {name} (start)"
         if status == "en-cours":
             return name, f"produire les livrables de {name}, puis les soumettre (submit)"
@@ -353,8 +355,8 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         return None, None
     index = state["stages"].index(stage)
     entry = None
-    if args.command == "start":
-        blocking = [s["id"] for s in state["stages"][:index] if s["status"] != "validee"]
+    if args.command in ("start", "skip"):
+        blocking = [s["id"] for s in state["stages"][:index] if s["status"] not in DONE]
         stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in state["stages"][:index]
                  if s["status"] == "validee" and changed_files(folder, s)]
         if blocking:
@@ -363,8 +365,16 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         elif stale:
             errors.append(f"{stage['id']} ne peut pas démarrer : livrable(s) validé(s) modifié(s) depuis : "
                           f"{'; '.join(stale)} ; faites-les revoir (review --decision retour)")
-        elif stage["status"] not in ("a-faire", "a-reprendre"):
-            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]}, pas à démarrer")
+        elif args.command == "skip" and not (stage_definition(state, stage["id"]) or {}).get("facultative"):
+            errors.append(f"{stage['id']} n'est pas facultative dans la définition du workflow : elle ne se saute pas")
+        elif args.command == "skip" and not args.text:
+            errors.append("skip : --text (les mots de l'utilisateur qui renonce à l'étape)")
+        elif stage["status"] not in ("a-faire", "a-reprendre") + (("sautee",) if args.command == "start" else ()):
+            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]}, pas à "
+                          + ("démarrer" if args.command == "start" else "sauter"))
+        elif args.command == "skip":
+            stage["status"] = "sautee"
+            entry = add_entry(state, stage["id"], "saut", "utilisateur", args.text)
         else:
             stage["status"] = "en-cours"
     elif args.command == "log":
@@ -453,7 +463,8 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                 entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs),
                                   via=via)
                 for later in state["stages"][index + 1:]:
-                    if later["status"] != "a-faire":
+                    # Une étape sautée le reste : l'utilisateur y a renoncé, le retour n'y change rien.
+                    if later["status"] not in ("a-faire", "sautee"):
                         later["status"] = "a-reprendre"
                         add_entry(state, later["id"], "invalidation", "agent",
                                   f"à reprendre après le retour {entry} sur {stage['id']}", refs=[entry])
@@ -480,10 +491,12 @@ def main() -> int:
                                                                 "(défaut : Workflows/<titre>)")
     status = sub.add_parser("status", help="état, prochaine action, fichiers validés modifiés")
     status.add_argument("folder", type=Path)
-    for name in ("start", "log", "submit", "review"):
+    for name in ("start", "skip", "log", "submit", "review"):
         command = sub.add_parser(name)
         command.add_argument("folder", type=Path)
         command.add_argument("stage")
+        if name == "skip":
+            command.add_argument("--text", help="les mots de l'utilisateur qui renonce à l'étape")
         if name == "log":
             command.add_argument("--kind", required=True, choices=["choix", "hypothese", "question"])
             command.add_argument("--text", required=True)

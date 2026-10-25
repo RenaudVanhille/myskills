@@ -1,0 +1,9 @@
+{
+  "name": "note-facultative",
+  "title": "Note avec une relecture facultative",
+  "stages": [
+    {"id": "note", "level": "moyen", "deliverables": ["note.md"]},
+    {"id": "relecture", "level": "complexe", "facultative": true, "deliverables": ["relecture.md"]},
+    {"id": "publication", "level": "simple", "deliverables": ["note.md"]}
+  ]
+}

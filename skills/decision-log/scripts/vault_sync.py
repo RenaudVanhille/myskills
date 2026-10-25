@@ -49,12 +49,12 @@ MARK = "genere: decision-log"
 ONTOLOGY = vault_ontology.load()
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
-               "passage": "Passage de main", "rapport": "Rapport d'agent"}
+               "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée"}
 REVIEW_HELP = ("Pour valider, mettez la propriété **revue** à `validée` ; pour demander une reprise, mettez "
                "`retour` et écrivez votre retour sous « Votre retour ». L'agent lit cette note "
                "(`journal.py review --from-vault`) : seules la propriété revue et cette section sont gardées.")
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
-                 "validee": "validée", "a-reprendre": "à reprendre"}
+                 "validee": "validée", "a-reprendre": "à reprendre", "sautee": "sautée"}
 
 
 # Caractères interdits dans un nom de fichier sous Windows, ou qui cassent un wikilink Obsidian.

@@ -30,7 +30,7 @@
       "required": ["etape", "statut"],
       "properties": {
         "etape": {"type": "string"},
-        "statut": {"enum": ["a-faire", "en-cours", "en-revue", "validee", "a-reprendre"]}
+        "statut": {"enum": ["a-faire", "en-cours", "en-revue", "validee", "a-reprendre", "sautee"]}
       },
       "facets": ["statut"]
     },
@@ -80,7 +80,7 @@
       "folder": "Décisions",
       "required": ["id", "nature", "etape", "par", "date"],
       "properties": {
-        "nature": {"enum": ["choix", "hypothese", "question", "soumission", "retour", "validation", "invalidation", "passage", "rapport"]},
+        "nature": {"enum": ["choix", "hypothese", "question", "soumission", "retour", "validation", "invalidation", "passage", "rapport", "saut"]},
         "etape": {"type": "string"},
         "par": {"type": "string"}
       },

@@ -1,7 +1,7 @@
 {
   "name": "architecture",
   "title": "Des documents du projet aux schémas d'architecture",
-  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas.",
+  "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas ; puis, au choix de l'utilisateur, revue d'architecture et chiffrage de l'option retenue.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
@@ -121,6 +121,64 @@
         "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
       ],
       "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas."
+    },
+    {
+      "id": "revue",
+      "label": "Revue d'architecture",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "architecture-review",
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "options.json",
+        "exigences.json",
+        "decision.json",
+        "adr-architecture.md",
+        "schemas/option-*.cloud.json"
+      ],
+      "deliverables": [
+        "revue.json",
+        "revue.md"
+      ],
+      "optional": [
+        "schemas/option-*.threats.md",
+        "schemas/option-*.wa.md"
+      ],
+      "checks": [
+        "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
+        "si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json"
+      ],
+      "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
+    },
+    {
+      "id": "chiffrage",
+      "label": "Chiffrage de l'option retenue",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "solution-estimate"
+      ],
+      "agent": "solution-estimator",
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "decision.json"
+      ],
+      "deliverables": [
+        "chiffrage.json",
+        "chiffrage.md"
+      ],
+      "optional": [
+        "chiffrage.csv"
+      ],
+      "checks": [
+        "solution-estimate : estimate_build.py chiffrage.json (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
     }
   ]
 }
