@@ -30,6 +30,10 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 uv run scripts/wa_check.py SUJET.json [--scope piliers|conventions] [--fail-on moyenne]
 ```
 
+Dans un workflow avec un vault Obsidian, ajoutez `--vault VAULT --folder
+DOSSIER [--option ID]` : une note `revue-well-architected` et une note
+`constat` par constat rejoignent la mémoire partagée.
+
 Le contrôle des piliers sert dès la définition de l'architecture : lancez
 `--scope piliers` sur la description d'une option (celle qu'écrit
 `architecture-options`, sans groupes réseau) pour comparer les options et

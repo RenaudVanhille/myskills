@@ -108,6 +108,10 @@ donne sa forme) :
 uv run scripts/estimate_build.py chiffrage.json
 ```
 
+Dans un workflow avec un vault Obsidian, ajoutez `--vault VAULT --folder
+DOSSIER` : une note `chiffrage` (évalue l'option) et une note `lot` par lot
+(porte sur ses exigences) rejoignent la mémoire partagée.
+
 Produit `chiffrage.md` (revue) et `chiffrage.csv` (lignes détaillées,
 ouvrable dans un tableur). Corrigez jusqu'à zéro erreur, puis traitez les
 avertissements : exigence qu'aucun lot ne porte (ajouter un lot ou des

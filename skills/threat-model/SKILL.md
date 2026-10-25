@@ -32,6 +32,10 @@ uv run scripts/stride.py SUJET.json
 uv run ../cloud-architecture/scripts/cloud_build.py SUJET.json --view threats --out SUJET-menaces.drawio
 ```
 
+Dans un workflow avec un vault Obsidian, ajoutez à `stride.py` `--vault
+VAULT --folder DOSSIER [--option ID]` : une note `modele-menaces`
+(compteurs, flux à risque) rejoint la mémoire partagée, reliée à l'option.
+
 Les comptes, VPC, sous-réseaux, security groups, clusters, namespaces,
 `onprem`, `internet` et `boundary` sont des frontières de confiance
 (`"boundary": false` ou `true` pour forcer) ; une entité externe (`user`,
