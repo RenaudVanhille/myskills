@@ -12,14 +12,17 @@
     {
       "name": "wa_check.py",
       "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
-      "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+      "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --rules | --schema",
       "options": {
         "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
         "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
         "--scope": "règles appliquées : piliers à la définition de l'architecture (description d'une option, avant tout schéma), conventions au dessin, tout (défaut) pour un schéma terminé",
         "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
         "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--vault": "vault Obsidian où écrire aussi la revue, selon son ontologie : une note revue-well-architected et une note par constat, reliées à la note de l'option",
+        "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+        "--option": "identifiant de l'option évaluée : relation evalue vers sa note Options/Option <id> du vault"
       },
       "input": {
         "format": "json",
@@ -514,6 +517,39 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "vault": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "vault",
+                        "folder",
+                        "notes",
+                        "removed"
+                      ],
+                      "properties": {
+                        "vault": {
+                          "type": "string"
+                        },
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "removed": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -575,5 +611,12 @@
       "kind": "utilisateur",
       "when": "un écart est voulu : sa raison va dans accept"
     }
-  ]
+  ],
+  "vault": {
+    "writes": [
+      "revue-well-architected",
+      "constat"
+    ],
+    "reads": true
+  }
 }

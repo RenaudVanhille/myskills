@@ -6317,11 +6317,13 @@
         {
           "name": "estimate_build.py",
           "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage et son CSV, puis relit le CSV pour vérifier les totaux.",
-          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema",
+          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
           },
           "input": {
             "format": "json",
@@ -7032,6 +7034,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -7074,6 +7109,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 }
@@ -7117,6 +7185,13 @@
           "when": "le coût chiffré contredit la note du critère coût d'une option : revoir sa note"
         }
       ],
+      "vault": {
+        "writes": [
+          "chiffrage",
+          "lot"
+        ],
+        "reads": true
+      },
       "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure ou un coût total de possession.",
       "path": "skills/solution-estimate"
     },
@@ -7134,12 +7209,15 @@
         {
           "name": "stride.py",
           "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
-          "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] | --schema",
+          "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
             "--out": "fichier Markdown (défaut : <sujet>.threats.md)",
             "--all-flows": "analyser aussi les flux internes (défaut : ceux qui traversent une frontière)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi la note modele-menaces (compteurs, flux à risque), selon son ontologie",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+            "--option": "identifiant de l'option évaluée : relation evalue vers sa note Options/Option <id> du vault"
           },
           "input": {
             "format": "json",
@@ -7537,6 +7615,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -7599,6 +7710,12 @@
           "when": "compléter avec lui les mesures retenues et les statuts des menaces"
         }
       ],
+      "vault": {
+        "writes": [
+          "modele-menaces"
+        ],
+        "reads": true
+      },
       "description": "Prépare le modèle de menaces STRIDE d'une architecture décrite en JSON (celle des schémas cloud) : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable avec sa mesure et son statut à compléter. À utiliser pour une analyse de sécurité d'une architecture cloud, d'une option d'architecture ou d'une infrastructure existante.",
       "path": "skills/threat-model"
     },
@@ -8163,14 +8280,17 @@
         {
           "name": "wa_check.py",
           "role": "Contrôle la même description contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, excellence opérationnelle, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs (imbrication région, VPC/VNet, zone, sous-réseau ; icônes officielles) : un constat par règle enfreinte, avec pilier, gravité, élément, correction et référence du cadre ; écrit <sujet>.wa.md.",
-          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] | --rules | --schema",
+          "usage": "uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --rules | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
             "--out": "fichier Markdown (défaut : <sujet>.wa.md)",
             "--scope": "règles appliquées : piliers à la définition de l'architecture (description d'une option, avant tout schéma), conventions au dessin, tout (défaut) pour un schéma terminé",
             "--fail-on": "code de sortie 1 dès un constat non accepté de cette gravité ou plus (défaut : haute ; aucune : jamais)",
             "--rules": "liste les règles (identifiant, pilier, gravité), puis s'arrête",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--vault": "vault Obsidian où écrire aussi la revue, selon son ontologie : une note revue-well-architected et une note par constat, reliées à la note de l'option",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+            "--option": "identifiant de l'option évaluée : relation evalue vers sa note Options/Option <id> du vault"
           },
           "input": {
             "format": "json",
@@ -8665,6 +8785,39 @@
                       "items": {
                         "type": "string"
                       }
+                    },
+                    "vault": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "vault",
+                            "folder",
+                            "notes",
+                            "removed"
+                          ],
+                          "properties": {
+                            "vault": {
+                              "type": "string"
+                            },
+                            "folder": {
+                              "type": "string"
+                            },
+                            "notes": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "removed": {
+                              "type": "integer",
+                              "minimum": 0
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 },
@@ -8727,6 +8880,13 @@
           "when": "un écart est voulu : sa raison va dans accept"
         }
       ],
+      "vault": {
+        "writes": [
+          "revue-well-architected",
+          "constat"
+        ],
+        "reads": true
+      },
       "description": "Contrôle une architecture cloud décrite en JSON contre l'AWS Well-Architected Framework, l'Azure Well-Architected Framework et le Google Cloud Well-Architected Framework (fiabilité, sécurité, opérations, performances, coûts, durabilité) et contre les conventions de schéma des fournisseurs. À utiliser dès la définition d'une architecture (piliers) puis sur le schéma (conventions).",
       "path": "skills/well-architected-review"
     }

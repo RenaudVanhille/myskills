@@ -26,7 +26,12 @@ L'option chiffrée est `option`, sinon la décision de options.json, sinon sa
 recommandation. Les prix d'infrastructure sont des hypothèses saisies avec
 leur base : aucun tarif n'est consulté en ligne.
 
-    uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] | --schema
+    uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema
+
+Avec `--vault`, le chiffrage va aussi dans le vault Obsidian du workflow, selon
+son ontologie : une note chiffrage (coût total, charge, budget, hébergeur ;
+relation evalue vers la note de l'option) et une note par lot (porte-sur ses
+exigences), vérifiées avant l'écriture.
 """
 
 import argparse
@@ -41,6 +46,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+import vault_ontology  # noqa: E402
 
 Z90 = 1.2816  # quantile 90 % de la loi normale : fourchette P10-P90
 PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réalisation",
@@ -520,12 +526,54 @@ def verify_csv(path: Path, totals: dict, contingency: float) -> list[str]:
             for label, got, want in zip(labels, (build, annual, once), expected) if abs(got - want) > 1]
 
 
+def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict, md: Path,
+                errors: list[str]) -> dict | None:
+    """Notes typées du chiffrage : chiffrage (évalue l'option), un lot par tâche (porte sur ses exigences)."""
+    notes = vault_ontology.Notes(vault, "solution-estimate")
+    base = vault_ontology.safe_folder(folder)
+    title = vault_ontology.safe_name(spec["title"], "chiffrage")
+    rel = f"{base}/Chiffrages/{title}"
+    totals, currency = found["totals"], spec.get("currency", "€")
+    option_rel = f"{base}/Options/Option {option['id']}"
+    lots: dict[str, dict] = {}
+    for line in found["lines"]:
+        if line["type"] == "lot":
+            lot = lots.setdefault(line["id"], {**line, "days": 0.0})
+            lot["days"] += line["days"]
+    up = f"Chiffrage : [[{rel}|{title}]]"
+    for lot in lots.values():
+        exigences = [(f"{base}/Exigences/{r}", r) for r in lot["refs"]]
+        notes.add(f"{base}/Lots/{title}/{vault_ontology.safe_name(lot['id'])}", "lot",
+                  {"id": lot["id"], "charge": round(lot["days"], 1), "phase": lot["phase"],
+                   "composant": lot["component"] or None},
+                  {"porte-sur": exigences or [(option_rel, f"Option {option['id']}")], "issu-de": (rel, title)},
+                  [f"# {lot['id']} {lot['name']}", "", up, "", f"Charge : {round(lot['days'], 1)} jours (espérance)."])
+    budget = "non-fixe" if not totals["budget"] else ("depasse" if totals["budget"]["over"] else "respecte")
+    host = totals["hosting"]["provider"]
+    body = [f"# Chiffrage : {spec['title']}", "",
+            f"Coût total sur {totals['tco']['years']} an(s) : **{totals['tco']['total']} {currency}** ; "
+            f"réalisation {totals['build']['cost']} {currency} ({totals['build']['cost_low']} à "
+            f"{totals['build']['cost_high']}), {totals['build']['days']} jours.", "",
+            f"Chiffrage complet : `{md.name}`.", "", "## Lots", ""]
+    body += [f"- [[{base}/Lots/{title}/{vault_ontology.safe_name(i)}|{i}]] {lots[i]['name']}" for i in lots]
+    if spec.get("assumptions"):
+        body += ["", "## Hypothèses", ""] + [f"- {a}" for a in spec["assumptions"]]
+    notes.add(rel, "chiffrage", {"total": totals["tco"]["total"], "devise": currency,
+                                 "horizon": totals["tco"]["years"], "charge": totals["build"]["days"],
+                                 "budget": budget, "hebergeur": host},
+              {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
+    result = notes.write(errors, cleanup=(f"{base}/Lots/{title}",))
+    return {**result, "folder": base} if result else None
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description chiffrage.json")
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
+    parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire le chiffrage (notes typées)")
+    parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -534,6 +582,8 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if bool(args.vault) != bool(args.folder):
+        parser.error("--vault et --folder vont ensemble")
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -555,8 +605,10 @@ def main() -> int:
     option, status = pick_option(spec, arch, errors, warnings) if arch else (None, "")
     providers, checked = load_providers(base, spec, errors, warnings)
     found = analyse(spec, catalog, option, providers, checked, errors, warnings) if option else None
+    if args.vault and not args.vault.is_dir():
+        errors.append(f"--vault : dossier introuvable {args.vault}")
     report = {"input": str(args.spec), "outputs": [], "option": option["id"] if option else None,
-              "currency": spec.get("currency", "€"), "errors": errors, "warnings": warnings}
+              "currency": spec.get("currency", "€"), "vault": None, "errors": errors, "warnings": warnings}
     if errors or not found:
         print(json.dumps(report, ensure_ascii=False))
         return 1
@@ -575,6 +627,8 @@ def main() -> int:
         csv.writer(handle, delimiter=";").writerows(csv_rows(found))
     errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)
     report["outputs"] = [str(md), str(table)]
+    if args.vault and not errors:
+        report["vault"] = write_vault(args.vault, args.folder, spec, option, found, md, errors)
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
 

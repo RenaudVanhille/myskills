@@ -26,7 +26,12 @@ schéma ; `--scope conventions` ne garde que les conventions de schéma.
 
     uv run scripts/wa_check.py SUJET.json [--out SUJET.wa.md] [--scope tout|piliers|conventions]
                                [--fail-on haute|moyenne|basse|aucune]
+                               [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]]
     uv run scripts/wa_check.py --rules
+
+Avec `--vault`, la revue va aussi dans le vault Obsidian du workflow, selon
+son ontologie : une note revue-well-architected (évalue l'option `--option`)
+et une note constat par constat, vérifiées avant l'écriture.
 """
 
 import argparse
@@ -37,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+import vault_ontology  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
@@ -486,6 +492,40 @@ def markdown(title: str, findings: list[dict], clouds: set[str], rules: int) -> 
     return "\n".join(lines) + "\n"
 
 
+def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clouds: set[str], out: Path,
+                option: str | None, errors: list[str]) -> dict | None:
+    """Notes typées de la revue : revue-well-architected (évalue l'option), un constat par constat."""
+    notes = vault_ontology.Notes(vault, "well-architected-review")
+    base = vault_ontology.safe_folder(folder)
+    title = vault_ontology.safe_name(str(spec.get("title", "architecture")), "revue")
+    rel = f"{base}/Revues Well-Architected/{title}"
+    option_rel = f"{base}/Options/Option {option}" if option else None
+    up = f"Revue : [[{rel}|{title}]]"
+    lines = []
+    for f in findings:
+        name = vault_ontology.safe_name(f"{f['rule']} {f['element']}")
+        note = f"{base}/Constats/{title}/{name}"
+        lines.append(f"- [[{note}|{f['rule']} {f['element']}]] ({f['severity']}"
+                     + (", accepté)" if f["accepted"] else ")"))
+        body = [f"# {f['rule']} {f['element']}", "", f["message"], "", up, "", f"**Correction** : {f['fix']}", "",
+                f"**Référence** : {f['ref']}"] + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
+        notes.add(note, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"],
+                                    "regle": f["rule"], "statut": "accepte" if f["accepted"] else "ouvert"},
+                  {"porte-sur": [(option_rel, f"Option {option}")] if option_rel else [], "issu-de": (rel, title)},
+                  body, ["well-architected"])
+    open_ = [f for f in findings if not f["accepted"]]
+    body = [f"# Revue Well-Architected : {spec.get('title', 'architecture')}", "",
+            f"{len(open_)} constat(s) ouvert(s), dont {sum(f['severity'] == 'haute' for f in open_)} de gravité "
+            f"haute ; {len(findings) - len(open_)} accepté(s).", "", f"Revue complète : `{out.name}`.", ""]
+    body += ["## Constats", ""] + (lines or ["Aucun constat."])
+    notes.add(rel, "revue-well-architected",
+              {"ouverts": len(open_), "hauts": sum(f["severity"] == "haute" for f in open_),
+               "fournisseur": ", ".join(sorted(clouds)) or None},
+              {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["well-architected"])
+    result = notes.write(errors, cleanup=(f"{base}/Constats/{title}",))
+    return {**result, "folder": base} if result else None
+
+
 def list_rules() -> str:
     return "\n".join(f"{rule} {PILLARS[p]} ({s}) : {title}" for rule, (p, s, title, _, _) in RULES.items())
 
@@ -502,6 +542,9 @@ def main() -> int:
                         help="règles appliquées : piliers à la définition de l'architecture, conventions au dessin "
                              "(défaut : tout)")
     parser.add_argument("--rules", action="store_true", help="liste les règles, puis s'arrête")
+    parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire la revue (notes typées)")
+    parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
+    parser.add_argument("--option", help="identifiant de l'option évaluée (note Options/Option <id> du vault)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -513,6 +556,12 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if bool(args.vault) != bool(args.folder):
+        parser.error("--vault et --folder vont ensemble")
+    if args.vault and not args.vault.is_dir():
+        print(json.dumps({"input": str(args.spec), "errors": [f"--vault : dossier introuvable {args.vault}"],
+                          "warnings": []}, ensure_ascii=False))
+        return 1
     if MISSING:
         print(json.dumps({"input": str(args.spec), "errors": [MISSING], "warnings": []}, ensure_ascii=False))
         return 1
@@ -540,11 +589,13 @@ def main() -> int:
     # option-a.cloud.json (architecture-options) -> option-a.wa.md
     out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json").removesuffix(".cloud") + ".wa.md")
     result = {"input": str(args.spec), "output": None, "providers": sorted(clouds), "scope": args.scope, "rules": len(rules),
-              "counts": counts, "findings": findings, "errors": errors, "warnings": warnings}
+              "counts": counts, "findings": findings, "vault": None, "errors": errors, "warnings": warnings}
     if not errors:
         out.write_text(markdown(str(spec.get("title", "architecture")), findings, clouds, len(rules)),
                        encoding="utf-8")
         result["output"] = str(out)
+        if args.vault:
+            result["vault"] = write_vault(args.vault, args.folder, spec, findings, clouds, out, args.option, errors)
     print(json.dumps(result, ensure_ascii=False))
     limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1
     failing = any(SEVERITIES.index(f["severity"]) <= limit for f in open_)

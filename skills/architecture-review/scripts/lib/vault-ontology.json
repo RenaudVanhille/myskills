@@ -165,6 +165,54 @@
         "statut": {"enum": ["ouvert", "attenue", "accepte"]}
       },
       "facets": ["stride", "statut"]
+    },
+    "modele-menaces": {
+      "label": "Modèle de menaces",
+      "description": "Modèle de menaces STRIDE préparé par threat-model (stride.py) : frontières, flux à risque, menaces à analyser.",
+      "folder": "Modèles de menaces",
+      "required": ["menaces"],
+      "properties": {
+        "menaces": {"type": "integer", "minimum": 0},
+        "flux-a-risque": {"type": "integer", "minimum": 0, "description": "Flux qui traversent une frontière de confiance."}
+      }
+    },
+    "revue-well-architected": {
+      "label": "Revue Well-Architected",
+      "description": "Contrôle d'une architecture cloud contre les piliers Well-Architected et les conventions de schéma (well-architected-review), avec ses constats.",
+      "folder": "Revues Well-Architected",
+      "required": ["ouverts"],
+      "properties": {
+        "ouverts": {"type": "integer", "minimum": 0},
+        "hauts": {"type": "integer", "minimum": 0, "description": "Constats ouverts de gravité haute."},
+        "fournisseur": {"type": "string"}
+      },
+      "facets": ["fournisseur"]
+    },
+    "chiffrage": {
+      "label": "Chiffrage",
+      "description": "Chiffrage d'une option (solution-estimate) : charge, fourchette, coût total, budget, hébergeur.",
+      "folder": "Chiffrages",
+      "required": ["total"],
+      "properties": {
+        "total": {"type": "number", "description": "Coût total sur l'horizon (espérance), dans la devise."},
+        "devise": {"type": "string"},
+        "horizon": {"type": "integer", "minimum": 1, "description": "Années."},
+        "charge": {"type": "number", "description": "Charge en jours (espérance)."},
+        "budget": {"enum": ["respecte", "depasse", "non-fixe"]},
+        "hebergeur": {"type": "string"}
+      },
+      "facets": ["budget"]
+    },
+    "lot": {
+      "label": "Lot",
+      "description": "Lot de travail d'un chiffrage, estimé à trois points.",
+      "folder": "Lots",
+      "required": ["id", "charge"],
+      "properties": {
+        "charge": {"type": "number", "description": "Charge en jours (espérance)."},
+        "phase": {"type": "string"},
+        "composant": {"type": "string"}
+      }
     }
   },
   "relations": {
@@ -177,9 +225,9 @@
     "option": {"label": "retient l'option", "from": ["adr"], "to": ["option-architecture"], "many": false},
     "exigences": {"label": "répond aux exigences", "from": ["adr"], "to": ["exigence"], "many": true},
     "extrait-de": {"label": "extrait du document", "from": ["exigence", "terme"], "to": ["document"], "many": true},
-    "evalue": {"label": "évalue", "from": ["revue-architecture"], "to": ["option-architecture", "adr"], "many": true},
-    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace"], "to": ["exigence", "option-architecture", "application", "adr"], "many": true},
-    "issu-de": {"label": "relevé par la revue", "from": ["constat", "risque", "menace"], "to": ["revue-architecture"], "many": false},
+    "evalue": {"label": "évalue", "from": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "to": ["option-architecture", "adr"], "many": true},
+    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot"], "to": ["exigence", "option-architecture", "application", "adr"], "many": true},
+    "issu-de": {"label": "issu de", "from": ["constat", "risque", "menace", "lot"], "to": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "many": false},
     "attenue-par": {"label": "atténué par", "from": ["risque", "menace"], "to": ["decision", "adr"], "many": true},
     "remplace": {"label": "remplace", "from": ["adr", "application"], "to": ["adr", "application"], "many": true, "same_type": true}
   }

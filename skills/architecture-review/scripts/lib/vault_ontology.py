@@ -6,7 +6,9 @@ un wikilink ou une liste de wikilinks) et la forme des tags. Un skill qui
 écrit dans le vault construit le frontmatter avec `meta()` et le vérifie
 avec `check_meta()` avant d'écrire ; `check_targets()` vérifie le type des
 notes visées par les relations. `parse()` lit le frontmatter d'une note
-(sous-ensemble YAML écrit par Obsidian et par ces skills).
+(sous-ensemble YAML écrit par Obsidian et par ces skills). `Notes` rassemble
+les notes d'un skill, les vérifie toutes, puis les écrit (rien si une seule
+sort de l'ontologie) et retire ses notes devenues sans objet.
 
 Source : shared/scripts/vault_ontology.py et shared/vault-ontology.json,
 copiés dans scripts/lib/ des skills dont le contrat déclare `vault` par
@@ -180,6 +182,8 @@ def scalar(text: str):
         return text == "true"
     if re.fullmatch(r"-?\d+", text):
         return int(text)
+    if re.fullmatch(r"-?\d+\.\d+", text):
+        return float(text)
     return text
 
 
@@ -260,3 +264,79 @@ def render(data: dict) -> str:
         else:
             lines.append(f"{key}: {write(value)}")
     return "\n".join(lines + ["---"]) + "\n"
+
+
+# Caractères interdits dans un nom de fichier sous Windows, ou qui cassent un wikilink Obsidian.
+FORBIDDEN = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]')
+
+
+def safe_name(text, default: str = "note") -> str:
+    """Nom de note valable sous Windows, macOS et Linux et dans un wikilink."""
+    return re.sub(r"\s+", " ", FORBIDDEN.sub("-", str(text))).strip().rstrip(". ") or default
+
+
+def safe_folder(folder: str) -> str:
+    """Dossier du vault (chemin relatif, séparateurs / ou \\), chaque partie rendue sûre."""
+    return "/".join(safe_name(p) for p in re.split(r"[\\/]+", str(folder)) if p.strip())
+
+
+class Notes:
+    """Notes typées écrites par un skill dans un vault : toutes vérifiées contre l'ontologie avant l'écriture."""
+
+    def __init__(self, vault: Path, genere: str, onto: dict | None = None):
+        self.vault, self.genere, self.onto = Path(vault), genere, onto or load()
+        self.pending: dict[str, tuple] = {}
+        self.metas: dict[str, dict] = {}
+        self.texts: dict[str, str] = {}
+
+    def exists(self, rel: str) -> bool:
+        return rel in self.pending or (self.vault / f"{rel}.md").is_file()
+
+    def add(self, rel: str, kind: str, props: dict, relations: dict | None, body: list[str], tags=()) -> None:
+        """Note rel (chemin relatif au vault, sans .md). À l'écriture, les relations vers une note absente
+        (ni dans le vault, ni ajoutée) sont omises."""
+        self.pending[rel] = (kind, props, relations or {}, body, tags)
+
+    def build(self) -> None:
+        for rel, (kind, props, relations, body, tags) in self.pending.items():
+            kept = {}
+            for name, value in relations.items():
+                items = [v for v in (value if isinstance(value, list) else [value]) if v]
+                items = [v for v in items if self.exists(v[0] if isinstance(v, tuple) else v)]
+                if items:
+                    kept[name] = items if isinstance(value, list) else items[0]
+            self.metas[rel] = meta(self.onto, kind, props, kept, tags, genere=self.genere)
+            self.texts[rel] = render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+
+    def resolve(self, path: str):
+        if path in self.metas:
+            return self.metas[path]["type"]
+        if not (self.vault / f"{path}.md").is_file():
+            raise KeyError(path)
+        return (parse((self.vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0] or {}).get("type")
+
+    def write(self, errors: list[str], cleanup=()) -> dict | None:
+        """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites."""
+        self.build()
+        invalid = [f"{rel} : {e}" for rel, m in self.metas.items()
+                   for e in check_meta(self.onto, m, generated=True)[0] + check_targets(self.onto, m, self.resolve)[0]]
+        if invalid:
+            errors += ["vault : note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]]
+            return None
+        for rel, text in self.texts.items():
+            path = self.vault / f"{rel}.md"
+            if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(text)
+        removed = 0
+        mark = f"---\ngenere: {self.genere}\n"
+        for sub in cleanup:
+            folder = self.vault / sub
+            for path in sorted(folder.glob("*.md")) if folder.is_dir() else []:
+                rel = path.relative_to(self.vault).with_suffix("").as_posix()
+                if rel not in self.texts and path.read_text(encoding="utf-8", errors="replace").startswith(mark):
+                    path.unlink()
+                    removed += 1
+        return {"vault": str(self.vault), "notes": len(self.texts), "removed": removed}
