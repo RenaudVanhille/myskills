@@ -1,0 +1,33 @@
+{
+  "title": "Portail de déclaration des sinistres",
+  "controller": "Mutuelle exemple",
+  "dpo": "dpo@mutuelle.example",
+  "requirements": "../workflow/exigences.json",
+  "threats": "menaces.threats.md",
+  "hosting": {"provider": "aws"},
+  "criteria": ["donnees-sensibles", "grande-echelle"],
+  "treatments": [
+    {"id": "T-01", "name": "Déclaration des sinistres", "purpose": "Recevoir et instruire les déclarations de sinistres des assurés.",
+     "legal_basis": "contrat", "subjects": ["assurés", "tiers impliqués"], "retention": "durée du contrat plus 5 ans",
+     "data": [{"category": "identité et contrat", "examples": "nom, numéro de contrat"},
+              {"category": "santé (dommages corporels)", "sensitive": true}],
+     "art9_exception": "constatation, exercice ou défense d'un droit en justice (art. 9.2.f)",
+     "recipients": ["gestionnaires sinistres", "experts mandatés"],
+     "transfers": [{"country": "États-Unis", "mechanism": "clauses-types"}, {"country": "FR"}],
+     "flows": ["F1", "F4"], "refs": ["EF-001"]},
+    {"id": "T-02", "name": "Suivi des dossiers", "purpose": "Informer l'assuré de l'avancement de son dossier.",
+     "legal_basis": "contrat", "subjects": ["assurés"], "retention": "durée du dossier plus 2 ans",
+     "data": [{"category": "identité et contrat"}, {"category": "pièces jointes", "sensitive": true}]}
+  ],
+  "risks": [
+    {"id": "R-01", "treatment": "T-01", "event": "acces-illegitime", "sources": ["attaquant externe", "autorité étrangère"],
+     "impacts": "divulgation de données de santé", "gravity": 4, "likelihood": 3,
+     "measures": [{"text": "chiffrement en transit", "refs": ["M001"]}, {"text": "authentification forte", "refs": ["ENF-003"], "kind": "prevue"}],
+     "residual": {"gravity": 4, "likelihood": 3}},
+    {"id": "R-02", "treatment": "T-01", "event": "modification-non-desiree", "impacts": "indemnisation erronée",
+     "gravity": 3, "likelihood": 2, "measures": [{"text": "journal des modifications"}], "residual": {"gravity": 3, "likelihood": 1}},
+    {"id": "R-03", "treatment": "T-01", "event": "disparition", "impacts": "dossier perdu, déclaration à refaire",
+     "gravity": 2, "likelihood": 2, "measures": [{"text": "sauvegardes chiffrées", "refs": ["M002"]}], "residual": {"gravity": 2, "likelihood": 1}},
+    {"id": "R-04", "treatment": "T-02", "event": "acces-illegitime", "gravity": 3, "likelihood": 2}
+  ]
+}

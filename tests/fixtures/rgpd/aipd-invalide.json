@@ -1,0 +1,8 @@
+{
+  "title": "AIPD fautive",
+  "controller": "Mutuelle exemple",
+  "treatments": [
+    {"id": "T-01", "name": "Déclaration", "purpose": "Déclarer", "legal_basis": "contart", "subjects": ["assurés"],
+     "retention": "5 ans", "data": [{"category": "identité", "sensibel": true}]}
+  ]
+}

@@ -22,6 +22,21 @@
 - Workflow `architecture` : étape facultative `dossier`. Nouveau workflow
   `revue-dossier` : documents, exigences, revue d'architecture, avis.
 
+### Conformité
+
+- Skill `data-protection` (niveau complexe) : `dpia_build.py` écrit le
+  registre des traitements et l'AIPD depuis une description courte ;
+  AIPD requise à partir de deux critères du CEPD, base légale et exception
+  de l'article 9 contrôlées, transfert hors EEE sans garantie refusé,
+  hébergeur soumis à des lois extraterritoriales signalé, mesures reliées
+  aux exigences et aux menaces STRIDE, risque résiduel élevé signalé
+  (consultation de la CNIL) ; notes `traitement` (nouveau type de
+  l'ontologie) et `risque` dans le vault.
+- Workflow `conformite` : exigences, description cloud, menaces et
+  qualification de l'hébergeur, registre et AIPD, plan d'actions et
+  dossier de conformité (`dossier_build.py --template conformite`).
+- Agent `architecture-reviewer` : AIPD avec `data-protection`.
+
 ### Tests
 
 - Mesure de coût des 21 cas d'agent, modèle de chaque niveau contre Sonnet

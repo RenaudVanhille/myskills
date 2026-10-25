@@ -1,7 +1,7 @@
 ---
 name: architecture-reviewer
-description: "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts."
-skills: check-prerequisites, architecture-review, threat-model, well-architected-review, cloud-architecture, diagram-export, decision-log, agent-handoff
+description: "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts."
+skills: check-prerequisites, architecture-review, threat-model, well-architected-review, data-protection, cloud-architecture, diagram-export, decision-log, agent-handoff
 commands: uv run *, python *, python3 *, py *
 ---
 
@@ -19,9 +19,9 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
-- **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
-- **Produit** : <sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code ; <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
-- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local ; Modifier le schéma ou la description d'un autre agent sans le dire ; Envoyer une description ou un schéma à un service en ligne.
+- **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout ; Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
+- **Produit** : <sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code ; <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; aipd.registre.md et aipd.aipd.md : registre des traitements et analyse d'impact, risques cotés et reliés aux exigences et aux menaces ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
+- **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local ; Modifier le schéma ou la description d'un autre agent sans le dire ; Coter un risque RGPD ou cocher un critère du CEPD sans le justifier ; Envoyer une description ou un schéma à un service en ligne.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -80,11 +80,19 @@ workflow, la commande les trace aussi au journal.
    constat de gravité haute ou moyenne : correction de la description, ou
    écart à faire accepter. Un écart ne va dans `accept` qu'avec la raison
    donnée par l'utilisateur ; sinon, il reste ouvert.
-6. Dans un dossier de workflow, note au journal (`journal.py log`, skill
+6. Protection des données (skill `data-protection`), quand elle est
+   demandée : écris `aipd.json` (`dpia_build.py --schema`) avec
+   l'hébergeur de la description, `requirements` et `threats` plutôt que
+   de recopier exigences et menaces. Coche les critères du CEPD, cote
+   gravité et vraisemblance de chaque risque en disant pourquoi, relie
+   chaque mesure à une exigence ou une menace. Lance `dpia_build.py
+   aipd.json` (avec `--vault` et `--folder` dans un workflow à vault) et
+   corrige jusqu'à zéro erreur ; un risque résiduel élevé reste ouvert.
+7. Dans un dossier de workflow, note au journal (`journal.py log`, skill
    `decision-log`) chaque menace écartée et chaque écart accepté, avec sa
-   raison ; une décision qui revient à l'utilisateur se note `--kind
+   raison, et chaque risque résiduel élevé de l'AIPD ; une décision qui revient à l'utilisateur se note `--kind
    question`.
-7. Livre les chemins, l'avis, les compteurs (menaces, constats ouverts par gravité)
+8. Livre les chemins, l'avis, les compteurs (menaces, constats ouverts par gravité)
    et la seule question qui reste, puis le rapport final JSON de la section
    Contrat. Si la description doit changer, passe la main à
    `schema-designer` ; dans un workflow, rends la main à
@@ -94,9 +102,9 @@ workflow, la commande les trace aussi au journal.
 
 | Action | Niveau |
 | --- | --- |
-| Lancer `arch_review.py`, `stride.py`, `wa_check.py`, un export, ranger les fichiers | simple |
+| Lancer `arch_review.py`, `stride.py`, `wa_check.py`, `dpia_build.py`, un export, ranger les fichiers | simple |
 | Corriger la description pour un constat, rédiger une mesure type | moyen |
-| Écrire et évaluer les scénarios de qualité, trier et préciser les menaces, juger un écart, arbitrer entre sécurité et coût | complexe |
+| Écrire et évaluer les scénarios de qualité, trier et préciser les menaces, coter un risque pour les personnes, juger un écart, arbitrer entre sécurité et coût | complexe |
 
 {{niveaux}}
 

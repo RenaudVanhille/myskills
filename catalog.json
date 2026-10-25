@@ -13,19 +13,22 @@
       "receives": [
         "Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code",
         "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
-        "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, ou tout",
+        "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout",
+        "Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux",
         "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
       ],
       "produces": [
         "<sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code",
         "<sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés",
         "<sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison",
+        "aipd.registre.md et aipd.aipd.md : registre des traitements et analyse d'impact, risques cotés et reliés aux exigences et aux menaces",
         "Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG"
       ],
       "never": [
         "Accepter un écart (accept) sans la raison donnée par l'utilisateur",
         "Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local",
         "Modifier le schéma ou la description d'un autre agent sans le dire",
+        "Coter un risque RGPD ou cocher un critère du CEPD sans le justifier",
         "Envoyer une description ou un schéma à un service en ligne"
       ],
       "handoffs": [
@@ -56,12 +59,13 @@
           ]
         }
       ],
-      "description": "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.",
+      "description": "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.",
       "skills": [
         "check-prerequisites",
         "architecture-review",
         "threat-model",
         "well-architected-review",
+        "data-protection",
         "cloud-architecture",
         "diagram-export",
         "decision-log",
@@ -158,7 +162,8 @@
         "threat-model",
         "architecture-review",
         "solution-estimate",
-        "architecture-dossier"
+        "architecture-dossier",
+        "data-protection"
       ]
     },
     {
@@ -746,7 +751,7 @@
           "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--strict] | --schema",
           "options": {
             "DOSSIER": "dossier du workflow",
-            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu)",
+            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement)",
             "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
             "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
             "--strict": "section obligatoire sans pièce : erreur, aucun fichier produit",
@@ -3528,6 +3533,455 @@
       "path": "skills/cloud-architecture"
     },
     {
+      "skill": "data-protection",
+      "level": "complexe",
+      "inputs": [
+        "Description JSON des traitements de données personnelles et des risques pour les personnes (dpia_build.py --schema)",
+        "Facultatif : exigences.json (requirements-catalog) et le .threats.md (threat-model), cités par les mesures ; l'hébergeur (shared/providers.json)"
+      ],
+      "outputs": [
+        "<nom>.registre.md : fiches du registre des traitements (art. 30)",
+        "<nom>.aipd.md : analyse d'impact (critères, risques, carte gravité × vraisemblance, mesures, résiduels, points à valider)"
+      ],
+      "scripts": [
+        {
+          "name": "dpia_build.py",
+          "role": "Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD.",
+          "usage": "uv run scripts/dpia_build.py AIPD.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+          "options": {
+            "AIPD.json": "description des traitements et des risques",
+            "--out-dir": "dossier du registre et de l'AIPD (défaut : celui du .json)",
+            "--vault": "vault Obsidian où écrire une note traitement par traitement et une note risque par risque",
+            "--folder": "dossier des notes dans le vault, celui du workflow ; avec --vault",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts)",
+            "1": "description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Traitements et risques pour les personnes.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "controller",
+                "treatments"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "controller": {
+                  "type": "string",
+                  "description": "responsable du traitement"
+                },
+                "dpo": {
+                  "type": "string"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "exigences.json (requirements-catalog), relatif à la description : refs vérifiées"
+                },
+                "threats": {
+                  "type": "string",
+                  "description": ".threats.md (threat-model) : menaces M001... citables par les mesures"
+                },
+                "hosting": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "provider"
+                  ],
+                  "properties": {
+                    "provider": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "evaluation",
+                      "decision-automatique",
+                      "surveillance",
+                      "donnees-sensibles",
+                      "grande-echelle",
+                      "croisement",
+                      "personnes-vulnerables",
+                      "usage-innovant",
+                      "exclusion"
+                    ]
+                  },
+                  "description": "critères du CEPD remplis : deux au moins rendent l'AIPD obligatoire"
+                },
+                "treatments": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "name",
+                      "purpose",
+                      "legal_basis",
+                      "subjects",
+                      "data",
+                      "retention"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "purpose": {
+                        "type": "string"
+                      },
+                      "legal_basis": {
+                        "enum": [
+                          "consentement",
+                          "contrat",
+                          "obligation-legale",
+                          "interet-vital",
+                          "mission-publique",
+                          "interet-legitime"
+                        ]
+                      },
+                      "art9_exception": {
+                        "type": "string",
+                        "description": "exception de l'article 9.2 pour des données sensibles"
+                      },
+                      "subjects": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "data": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "category"
+                          ],
+                          "properties": {
+                            "category": {
+                              "type": "string"
+                            },
+                            "sensitive": {
+                              "type": "boolean"
+                            },
+                            "examples": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "retention": {
+                        "type": "string"
+                      },
+                      "minimisation": {
+                        "type": "string"
+                      },
+                      "transfers": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "country"
+                          ],
+                          "properties": {
+                            "country": {
+                              "type": "string"
+                            },
+                            "mechanism": {
+                              "enum": [
+                                "adequation",
+                                "clauses-types",
+                                "bcr",
+                                "derogation",
+                                "aucun"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "flows": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "flux de l'architecture (F1, F2...) qui portent les données"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "exigences liées"
+                      }
+                    }
+                  }
+                },
+                "risks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "treatment",
+                      "event",
+                      "gravity",
+                      "likelihood"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      },
+                      "treatment": {
+                        "type": "string"
+                      },
+                      "event": {
+                        "enum": [
+                          "acces-illegitime",
+                          "modification-non-desiree",
+                          "disparition"
+                        ]
+                      },
+                      "sources": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "impacts": {
+                        "type": "string"
+                      },
+                      "gravity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4
+                      },
+                      "likelihood": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4
+                      },
+                      "measures": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "text"
+                          ],
+                          "properties": {
+                            "text": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "enum": [
+                                "existante",
+                                "prevue"
+                              ]
+                            },
+                            "refs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "residual": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "gravity",
+                          "likelihood"
+                        ],
+                        "properties": {
+                          "gravity": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4
+                          },
+                          "likelihood": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 4
+                          }
+                        }
+                      },
+                      "status": {
+                        "enum": [
+                          "ouvert",
+                          "attenue",
+                          "accepte"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Compteurs, nécessité de l'AIPD, résiduels élevés, transferts hors EEE, notes du vault.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "treatments",
+                "risks",
+                "aipd",
+                "residual_high",
+                "transfers_out",
+                "vault",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "treatments": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "risks": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "aipd": {
+                  "enum": [
+                    "requise",
+                    "non-requise",
+                    null
+                  ]
+                },
+                "residual_high": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "transfers_out": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "vault": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "vault",
+                        "folder",
+                        "notes",
+                        "removed"
+                      ],
+                      "properties": {
+                        "vault": {
+                          "type": "string"
+                        },
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "removed": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "vault": {
+        "writes": [
+          "traitement",
+          "risque"
+        ],
+        "reads": true
+      },
+      "handoffs": [
+        {
+          "to": "threat-model",
+          "kind": "skill",
+          "when": "les menaces STRIDE de l'architecture ne sont pas encore analysées : elles nourrissent les risques et les mesures"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "noter au journal un risque accepté et sa raison, soumettre l'AIPD à la revue"
+        },
+        {
+          "to": "document-publisher",
+          "kind": "agent",
+          "when": "le registre ou l'AIPD doivent être livrés en Word ou PDF"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "faire valider l'analyse par le délégué à la protection des données et décider d'un risque résiduel élevé"
+        }
+      ],
+      "description": "Prépare la conformité RGPD d'une solution : fiches du registre des traitements (article 30) et analyse d'impact relative à la protection des données (AIPD, article 35), avec nécessité de l'AIPD selon les critères du CEPD, transferts hors UE, hébergeur extraterritorial, risques pour les personnes notés en gravité et vraisemblance, mesures liées aux exigences et aux menaces STRIDE. Les contrôles et la carte des risques sont faits par script. À utiliser pour une analyse RGPD, une AIPD (DPIA), un registre des traitements ou un dossier d'homologation.",
+      "path": "skills/data-protection"
+    },
+    {
       "skill": "decision-log",
       "level": "simple",
       "inputs": [
@@ -3536,7 +3990,7 @@
         "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
-        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
         "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)"
       ],
@@ -3546,7 +4000,7 @@
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes précédentes, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et les suivantes), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
-            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
+            "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
             "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",

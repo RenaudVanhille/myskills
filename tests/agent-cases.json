@@ -414,6 +414,22 @@
       ]
     },
     {
+      "id": "aipd",
+      "agent": "architecture-reviewer",
+      "prompt": "Fais le registre des traitements et l'analyse d'impact RGPD du portail décrit par cloud-aws-web.json et exigences.json, dans rgpd/ (description rgpd/aipd.json). Le portail traite les déclarations de sinistres des assurés, dont des certificats médicaux.",
+      "inputs": [
+        {"from": "fixtures/diagrams/cloud-aws-web.json", "to": "cloud-aws-web.json"},
+        {"from": "fixtures/workflow/exigences.json", "to": "exigences.json"}
+      ],
+      "output": "rgpd/aipd.aipd.md",
+      "rubric": [
+        "Le registre (rgpd/aipd.registre.md) donne pour chaque traitement sa finalité, sa base légale, ses données et sa durée de conservation.",
+        "Les données de santé sont marquées sensibles avec une exception de l'article 9.2.",
+        "L'AIPD cote chaque risque en gravité et vraisemblance, avec des mesures reliées aux exigences.",
+        "L'hébergement chez AWS est relevé (lois extraterritoriales ou transfert hors UE) et couvert par un risque ou une mesure."
+      ]
+    },
+    {
       "id": "chiffrage",
       "agent": "solution-estimator",
       "prompt": "Chiffre l'option recommandée du portail de sinistres : réalisation, infrastructure et run sur 3 ans. Taux : chef de projet 850, architecte 950, développeur 650, testeur 550 euros par jour.",

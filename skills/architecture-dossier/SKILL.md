@@ -46,7 +46,10 @@ erreur, sans fichier produit : à utiliser avant un comité.
 
 `--template avis` donne l'avis d'architecture sur un dossier reçu
 (workflow `revue-dossier`) : synthèse et avis, exigences, revue, schémas,
-menaces, Well-Architected et documents reçus. Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
+menaces, Well-Architected et documents reçus. `--template conformite`
+(workflow `conformite`, avec `--out dossier-conformite.md`) : synthèse,
+plan d'actions, exigences, menaces, Well-Architected, registre des
+traitements et AIPD. Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
 avec `--template` ; `--schema` donne sa forme. Ne relisez pas
 `dossier-architecture.md` : le rapport donne les sections reprises, les
 manquantes et les liens cassés.
