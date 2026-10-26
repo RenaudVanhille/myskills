@@ -57,7 +57,7 @@ jobs:
       - name: Justesse de Laya sur les exigences
         run: |
           uv run tests/laya_eval.py --markdown laya-eval.md > laya-eval.json
-          cat laya-eval.md >> "$GITHUB_STEP_SUMMARY"
+          tee -a "$GITHUB_STEP_SUMMARY" < laya-eval.md
       - uses: actions/upload-artifact@v4
         if: always()
         with:
