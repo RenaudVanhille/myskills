@@ -73,7 +73,23 @@ uv run tests/cost.py --label apres --only extraire-docx,schema-drawio --keep
 Avec `--keep`, les dossiers de travail restent, pour `judge.py outputs`.
 Chaque cas coûte quelques centimes avec `sonnet`.
 
-### 4. Déclenchement des skills
+### 4. Justesse de Laya sur les exigences
+
+`fixtures/laya/phrases.json` étiquette 112 phrases de cahier des charges et de
+compte rendu (exigence ou non, nature, catégorie), avec des pièges voulus :
+exigences sans verbe normatif, verbes normatifs hors exigence. `laya_eval.py`
+pose à Laya les questions de `req_build.py --laya` et compare au repli par
+regex : précision, rappel et F1, meilleur seuil, fausses alertes sur la nature
+et la catégorie. Laya se garde si son F1 dépasse celui de la regex.
+
+```bash
+uv run tests/laya_eval.py --markdown laya-eval.md
+```
+
+Le job `rendus` de la CI le lance à chaque PR (résumé du job et artefact
+`laya-eval`), avec les cas lents de `run.py` et l'export par draw.io Desktop.
+
+### 5. Déclenchement des skills
 
 `triggers.json` associe des demandes au skill attendu. Le juge choisit un
 skill d'après les seules descriptions des `SKILL.md` : une erreur signale une

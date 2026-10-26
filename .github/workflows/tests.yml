@@ -26,3 +26,41 @@ jobs:
           python-version: "3.13"
       - name: Tests des scripts
         run: uv run tests/run.py
+
+  # Cas lents de run.py (navigateur, Pandoc, Docling, Laya) et export réel par
+  # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
+  # pas télécharger.
+  rendus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: draw.io Desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo jgraph/drawio-desktop --pattern 'drawio-amd64-*.deb' --dir "$RUNNER_TEMP"
+          sudo apt-get update -q
+          sudo apt-get install -y -q xvfb "$RUNNER_TEMP"/drawio-amd64-*.deb
+          printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox\n' | sudo tee /usr/local/bin/drawio
+          sudo chmod +x /usr/local/bin/drawio
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/ms-playwright
+          key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py') }}
+      - name: Tests lents et exports draw.io
+        run: uv run tests/run.py --slow
+      - name: Justesse de Laya sur les exigences
+        run: |
+          uv run tests/laya_eval.py --markdown laya-eval.md > laya-eval.json
+          cat laya-eval.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: laya-eval
+          path: laya-eval.*
+          if-no-files-found: ignore
