@@ -81,6 +81,7 @@
       ],
       "checks": [
         "threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault",
+        "threat-model : threat_review.py schemas/architecture.decisions.json (décisions sur les menaces : statut, mesure retenue, raison ; le tableau ne se réécrit pas à la main)",
         "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (piliers et conventions du schéma), avec --vault <vault> --folder <dossier> si le workflow a un vault"
       ],
       "run": [
@@ -93,6 +94,14 @@
           "vault": true
         },
         {
+          "skill": "threat-model",
+          "script": "threat_review.py",
+          "args": [
+            "schemas/architecture.decisions.json"
+          ],
+          "if": "schemas/architecture.decisions.json"
+        },
+        {
           "skill": "well-architected-review",
           "script": "wa_check.py",
           "args": [
@@ -103,7 +112,10 @@
           "vault": true
         }
       ],
-      "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue. Constats Well-Architected : corriger la description, ou les accepter dans accept avec la raison donnée par l'utilisateur."
+      "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue. Constats Well-Architected : corriger la description, ou les accepter dans accept avec la raison donnée par l'utilisateur.",
+      "optional": [
+        "schemas/architecture.decisions.json"
+      ]
     }
   ]
 }

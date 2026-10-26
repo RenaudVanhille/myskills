@@ -106,6 +106,7 @@
       ],
       "checks": [
         "threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault",
+        "threat-model : threat_review.py schemas/architecture.decisions.json (décisions sur les menaces : statut, mesure retenue, raison ; le tableau ne se réécrit pas à la main)",
         "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (dont SEC-08 : qualification SecNumCloud exigée et absente chez l'hébergeur), avec --vault <vault> --folder <dossier> si le workflow a un vault"
       ],
       "run": [
@@ -118,6 +119,14 @@
           "vault": true
         },
         {
+          "skill": "threat-model",
+          "script": "threat_review.py",
+          "args": [
+            "schemas/architecture.decisions.json"
+          ],
+          "if": "schemas/architecture.decisions.json"
+        },
+        {
           "skill": "well-architected-review",
           "script": "wa_check.py",
           "args": [
@@ -128,7 +137,10 @@
           "vault": true
         }
       ],
-      "instructions": "Garder les menaces pertinentes et leur mesure ; une qualification exigée que l'hébergeur n'a pas ne s'accepte qu'avec la raison de l'utilisateur, notée au journal. Les numéros des menaces (M001...) servent de références aux mesures de l'AIPD."
+      "instructions": "Garder les menaces pertinentes et leur mesure ; une qualification exigée que l'hébergeur n'a pas ne s'accepte qu'avec la raison de l'utilisateur, notée au journal. Les numéros des menaces (M001...) servent de références aux mesures de l'AIPD.",
+      "optional": [
+        "schemas/architecture.decisions.json"
+      ]
     },
     {
       "id": "rgpd",

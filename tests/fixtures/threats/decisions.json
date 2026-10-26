@@ -1,0 +1,10 @@
+{
+  "model": "aws.threats.json",
+  "threats": {
+    "M001": {"status": "traitee", "measure": "TLS 1.3 imposé par CloudFront (politique de sécurité TLSv1.2_2021)", "element": "F1 Clients → CloudFront"},
+    "M002": {"status": "traitee", "measure": "HTTPS seul, HSTS", "threat": "Interception des données de paiement des clients sur le flux F1"},
+    "M003": {"status": "acceptee", "measure": "AWS Shield Standard", "why": "Shield Advanced jugé trop cher par le métier (comité du 12 mars)"},
+    "M004": {"status": "ecartee", "why": "flux interne au service géré WAF et ALB, sans transit hors AWS"},
+    "M005": {"status": "a-traiter"}
+  }
+}

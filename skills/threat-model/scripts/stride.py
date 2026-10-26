@@ -11,7 +11,10 @@ traitement : S, T, R, I, D, E ; stockage : T, R, I, D ; flux : T, I, D),
 met en tête les flux qui traversent une frontière, et écrit
 <sujet>.threats.md : frontières, flux à risque, puis une ligne par menace
 avec une mesure type et une colonne Statut à compléter. Les numéros de flux
-(F1, F2...) sont ceux du schéma `cloud_build.py --view threats`.
+(F1, F2...) sont ceux du schéma `cloud_build.py --view threats`. Il écrit
+aussi <sujet>.threats.json, les mêmes menaces en données : le modèle n'y
+répond que par un court fichier de décisions, que threat_review.py reporte
+dans le tableau (pas de réécriture du Markdown).
 
     uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows]
                              [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]]
@@ -74,7 +77,7 @@ def cell(text: str) -> str:
     return str(text).replace("|", "/").replace("\n", " ")
 
 
-def model(spec: dict, all_flows: bool) -> tuple[str, dict]:
+def model(spec: dict, all_flows: bool) -> tuple[str, dict, list[dict]]:
     _, pages, errors, warnings = CLOUD.build(spec, "threats")
     lines = [f"# Modèle de menaces STRIDE : {spec.get('title', 'architecture')}", "",
              "Prérempli par `stride.py` à partir de la description de l'architecture : une menace type par "
@@ -128,12 +131,14 @@ def model(spec: dict, all_flows: bool) -> tuple[str, dict]:
     rows.sort(key=lambda r: r[0])
     lines += ["## Menaces", "", "| ID | Élément | STRIDE | Menace | Mesure type | Mesure retenue | Statut |",
               "| --- | --- | --- | --- | --- | --- | --- |"]
+    threats = []
     for index, (_, name, nature, category) in enumerate(rows, 1):
         text, measure = threat(category, "process" if nature == "network" else nature, name)
+        threats.append({"id": f"M{index:03d}", "element": name, "stride": category, "threat": text, "measure": measure})
         lines.append(f"| M{index:03d} | {cell(name)} | {category} : {CATEGORIES[category]} | {cell(text)} | "
                      f"{cell(measure)} |  | à analyser |")
     counts["threats"] = len(rows)
-    return "\n".join(lines) + "\n", {**counts, "errors": errors, "warnings": warnings}
+    return "\n".join(lines) + "\n", {**counts, "errors": errors, "warnings": warnings}, threats
 
 
 def write_vault(vault: Path, folder: str, spec: dict, report: dict, out: Path, option: str | None,
@@ -194,13 +199,17 @@ def main() -> int:
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
-    text, report = model(spec, args.all_flows)
+    text, report, threats = model(spec, args.all_flows)
     out = args.out or args.spec.with_name(args.spec.name.removesuffix(".json") + ".threats.md")
-    result = {"input": str(args.spec), "output": None, **{k: v for k, v in report.items() if k != "by_stride"},
-              "vault": None}
+    data = out.with_name(out.name.removesuffix(".md") + ".json")
+    result = {"input": str(args.spec), "output": None, "model": None,
+              **{k: v for k, v in report.items() if k != "by_stride"}, "vault": None}
     if not report["errors"]:
         out.write_text(text, encoding="utf-8")
-        result["output"] = str(out)
+        head = text.split("## Menaces", 1)[0]
+        data.write_text(json.dumps({"title": spec.get("title", "architecture"), "head": head, "threats": threats},
+                                   ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        result["output"], result["model"] = str(out), str(data)
         if args.vault:
             result["vault"] = write_vault(args.vault, args.folder, spec, report, out, args.option, report["errors"])
     print(json.dumps(result, ensure_ascii=False))

@@ -10348,7 +10348,8 @@
         "Ou la description cloud d'une option d'architecture-options (schemas/option-<id>.cloud.json)"
       ],
       "outputs": [
-        "<sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type et statut à compléter"
+        "<sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type ; après threat_review.py, menaces précisées, mesures retenues, statuts et menaces écartées avec leur raison",
+        "<sujet>.threats.json : les mêmes menaces en données, auxquelles le modèle répond par un fichier de décisions"
       ],
       "scripts": [
         {
@@ -10710,6 +10711,7 @@
                   "required": [
                     "input",
                     "output",
+                    "model",
                     "boundaries",
                     "elements",
                     "flows",
@@ -10793,6 +10795,13 @@
                           }
                         }
                       ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "<sujet>.threats.json : les menaces en données, pour threat_review.py"
                     }
                   }
                 },
@@ -10828,6 +10837,169 @@
           "exit_codes": {
             "0": "modèle produit sans erreur",
             "1": "description illisible ou erreur"
+          }
+        },
+        {
+          "name": "threat_review.py",
+          "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser.",
+          "usage": "uv run scripts/threat_review.py DECISIONS.json [--out SUJET.threats.md] [--fail-undecided] | --schema",
+          "options": {
+            "DECISIONS.json": "décisions : model (le .threats.json de stride.py) et threats, par identifiant M001...",
+            "--out": "modèle Markdown réécrit (défaut : celui de model, en .md)",
+            "--fail-undecided": "erreur s'il reste des menaces à analyser",
+            "--schema": "affiche le schéma JSON des décisions sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Décisions sur les menaces du modèle STRIDE.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "model",
+                "threats"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "<sujet>.threats.json écrit par stride.py, relatif au fichier de décisions"
+                },
+                "threats": {
+                  "type": "object",
+                  "description": "une entrée par menace décidée, par identifiant (M001...) ; les autres restent à analyser",
+                  "propertyNames": {
+                    "pattern": "^M\\d{3,}$"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "a-traiter",
+                          "traitee",
+                          "acceptee",
+                          "ecartee"
+                        ]
+                      },
+                      "measure": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "mesure retenue (obligatoire si traitee)"
+                      },
+                      "threat": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "menace précisée pour le contexte, à la place de la menace type"
+                      },
+                      "why": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "raison, obligatoire si acceptee (celle de l'utilisateur) ou ecartee"
+                      },
+                      "element": {
+                        "type": "string",
+                        "description": "élément visé, pour vérifier que l'identifiant n'a pas changé"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Menaces, décisions reportées, menaces encore à analyser, compte par statut.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "threats",
+                "decided",
+                "undecided",
+                "by_status",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "threats": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "decided": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "undecided": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "by_status": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "a-traiter",
+                    "traitee",
+                    "acceptee",
+                    "ecartee"
+                  ],
+                  "properties": {
+                    "a-traiter": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "traitee": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "acceptee": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ecartee": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "décisions reportées dans le modèle",
+            "1": "décisions invalides (menace inconnue, mesure ou raison manquante, identifiant décalé) ou modèle illisible"
           }
         }
       ],

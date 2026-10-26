@@ -78,8 +78,10 @@ workflow, la commande les trace aussi au journal.
    `schemas/option-<id>.cloud.json` ; pour du code d'infrastructure,
    `iac_import.py` (skill `cloud-architecture`) l'écrit d'abord.
 5. Menaces : `stride.py SUJET.json` (skill `threat-model`). Lis le rapport,
-   puis le tableau une fois : garde les menaces pertinentes, précise-les
-   pour le contexte, propose une mesure retenue et un statut. Avec un
+   puis le tableau une fois ; n'écris que tes décisions dans
+   `SUJET.decisions.json` (menace précisée, mesure retenue, statut, raison
+   d'un écart), jamais le tableau, puis `threat_review.py
+   SUJET.decisions.json` jusqu'à zéro erreur. Avec un
    schéma demandé, `cloud_build.py SUJET.json --view threats` puis export
    PNG : mêmes numéros de flux.
 6. Well-Architected : `wa_check.py SUJET.json` (skill

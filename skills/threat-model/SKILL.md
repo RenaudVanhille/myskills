@@ -16,8 +16,10 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : complexe (modèle puissant).
 - **Entrées** : Description JSON de l'architecture, celle de cloud_build.py (skill cloud-architecture) : groupes, services typés, flux avec protocole ; Ou la description cloud d'une option d'architecture-options (schemas/option-<id>.cloud.json).
-- **Sorties** : <sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type et statut à compléter.
+- **Sorties** : <sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type ; après threat_review.py, menaces précisées, mesures retenues, statuts et menaces écartées avec leur raison ; <sujet>.threats.json : les mêmes menaces en données, auxquelles le modèle répond par un fichier de décisions.
 - **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`threat_review.py`** : Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser. Rapport JSON, codes de sortie : 0 décisions reportées dans le modèle ; 1 décisions invalides (menace inconnue, mesure ou raison manquante, identifiant décalé) ou modèle illisible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `cloud-architecture` (`cloud_build.py`, obligatoire) : lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2....
 - **Vault Obsidian** : écrit les notes de type `modele-menaces` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
@@ -43,11 +45,36 @@ Les comptes, VPC, sous-réseaux, security groups, clusters, namespaces,
 frontières, flux qui les traversent (en tête, avec chiffrement déclaré ou
 non), puis une menace type par catégorie STRIDE applicable à chaque
 élément, avec une mesure type et les colonnes « Mesure retenue » et
-« Statut » à compléter. Relisez le tableau : gardez les menaces
-pertinentes, précisez-les pour le contexte, complétez les mesures. Les
-numéros F1, F2... sont les mêmes que sur le schéma `threats`.
+« Statut » à compléter, et `SUJET.threats.json`, les mêmes menaces en
+données. Les numéros F1, F2... sont les mêmes que sur le schéma `threats`.
 
-## 2. Relire avec l'utilisateur
+## 2. Décider, sans réécrire le tableau
+
+Lisez le tableau une fois, puis écrivez seulement vos décisions dans un
+court `SUJET.decisions.json` (`threat_review.py --schema`) : une entrée par
+menace gardée, précisée, acceptée ou écartée.
+
+```json
+{"model": "SUJET.threats.json",
+ "threats": {"M001": {"status": "traitee", "measure": "WAF et MFA sur le portail", "threat": "Vol de session d'un assuré"},
+             "M004": {"status": "ecartee", "why": "pas de compte administrateur sur ce service"}}}
+```
+
+`status` : `traitee` (avec `measure`), `a-traiter`, `acceptee` ou
+`ecartee` (avec `why`, celle de l'utilisateur pour une acceptation).
+Ensuite :
+
+```bash
+uv run scripts/threat_review.py SUJET.decisions.json
+```
+
+Il vérifie chaque décision (menace inconnue, mesure ou raison manquante),
+réécrit `SUJET.threats.md` (menaces écartées à part) et compte les menaces
+encore à analyser. Relancer `stride.py` remet le tableau à blanc :
+relancez alors `threat_review.py`, qui signale un identifiant décalé si
+vous donnez `element`.
+
+## 3. Relire avec l'utilisateur
 
 Une menace sans mesure retenue reste « à traiter ». Notez dans le journal du
 workflow (skill `decision-log`) une menace écartée et pourquoi. Pour
