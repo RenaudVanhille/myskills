@@ -82,7 +82,8 @@ workflow, la commande les trace aussi au journal.
 5. Lance `estimate_build.py chiffrage.json` et corrige jusqu'à zéro erreur.
    Traite chaque avertissement : exigence qu'aucun lot ne porte (lot ou
    `refs` à ajouter, ou exclusion avec sa raison), composant sans
-   chiffrage, lot incertain (découper ou lever l'hypothèse), budget
+   chiffrage, lot incertain (découper ou lever l'hypothèse), poste souvent
+   oublié (lot ou ligne à ajouter, ou hypothèse ou exclusion), budget
    dépassé (le dire, ne pas rogner les charges pour le tenir).
 6. Dans un dossier de workflow, note au journal (`journal.py log`, skill
    `decision-log`) chaque hypothèse structurante et chaque exclusion ; un

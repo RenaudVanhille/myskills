@@ -21,7 +21,10 @@ modèle :
   incertitude sur le gain, adoption, licences et jetons, run), avec les
   valeurs de references/hypotheses-ia.json que la description peut remplacer ;
 - signale les exigences retenues qu'aucun lot ne porte, les composants de
-  l'option sans lot ni ligne d'infrastructure, les estimations très
+  l'option sans lot ni ligne d'infrastructure, les postes souvent oubliés
+  (tests de sécurité, environnements hors production, réseau, recette, mise
+  en production, formation) qu'aucun lot, ligne, hypothèse ni exclusion ne
+  cite, les estimations très
   incertaines et les dépassements de budget ;
 - écrit `chiffrage.md` (revue), `chiffrage.csv` (lignes détaillées) et
   `chiffrage.hypotheses.csv`, relit les CSV et vérifie que leurs montants
@@ -44,7 +47,9 @@ import csv
 import difflib
 import json
 import math
+import re
 import sys
+import unicodedata
 from datetime import date
 from pathlib import Path
 
@@ -144,6 +149,40 @@ def pick_option(spec: dict, arch: dict, errors: list[str], warnings: list[str]) 
         errors.append(f"option : option inconnue « {wanted} »{hint(wanted, options)}")
         return None, status
     return options[wanted], status
+
+
+# Postes souvent oubliés : (libellé, motif cherché dans les lots, lignes d'infrastructure, hypothèses et
+# exclusions, phase qui le couvre, quand le chercher). Textes comparés sans accents ni majuscules.
+HABITUAL = [
+    ("tests de sécurité (test d'intrusion, audit)", r"intrusion|pentest|audit de securite|tests? de securite", None,
+     "securite"),
+    ("environnements hors production (recette, préproduction)", r"hors.production|recette|preprod|qualification",
+     None, "infra"),
+    ("réseau (interconnexion, VPN, pare-feu, trafic sortant)",
+     r"reseau|vpn|pare.feu|firewall|\bwaf\b|\bnat\b|egress|sortant|interconnexion|bande passante", None, "cloud"),
+    ("recette", r"recette|tests? fonctionnel", "tests", "toujours"),
+    ("mise en production", r"mise en production|deploiement|bascule", "deploiement", "toujours"),
+    ("formation et conduite du changement", r"formation|conduite du changement|accompagnement", "conduite-changement",
+     "toujours"),
+]
+
+
+def plain(text: str) -> str:
+    text = unicodedata.normalize("NFKD", str(text))
+    return "".join(c for c in text if not unicodedata.combining(c)).lower()
+
+
+def forgotten(spec: dict, catalog: dict, option: dict) -> list[str]:
+    """Postes habituels qu'aucun lot, ligne d'infrastructure, hypothèse ni exclusion ne cite."""
+    texts = [w.get("name", "") for w in spec.get("work", [])] + \
+        [f"{i.get('name', '')} {i.get('basis', '')} {i.get('environment', '')}" for i in spec.get("infra", [])] + \
+        [str(a) for a in spec.get("assumptions", []) + spec.get("exclusions", [])]
+    corpus = plain(" ".join(texts))
+    phases = {w.get("phase") for w in spec.get("work", [])}
+    when = {"toujours": True, "securite": any(r.get("category") == "securite" for r in catalog.values()),
+            "infra": bool(spec.get("infra")), "cloud": bool(option.get("provider")) and bool(spec.get("infra"))}
+    return [label for label, pattern, phase, condition in HABITUAL
+            if when[condition] and phase not in phases and not re.search(pattern, corpus)]
 
 
 def three_points(value) -> tuple[float, float, float, float, float]:
@@ -303,6 +342,10 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
         warnings.append(f"option {option['id']} hébergée chez {option['provider']} sans ligne d'infrastructure cloud")
     if not spec.get("assumptions"):
         warnings.append("aucune hypothèse notée (assumptions)")
+    missing = [] if errors else forgotten(spec, catalog, option)
+    if missing:
+        warnings.append(f"poste(s) souvent oublié(s), absent(s) : {'; '.join(missing)} ; ajouter un lot ou une "
+                        "ligne, ou le noter dans assumptions ou exclusions")
 
     budget = spec.get("budget")
     over = []
