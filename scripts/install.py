@@ -459,6 +459,8 @@ def cmd_status(args, report: dict) -> None:
 
 
 def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     argv = sys.argv[1:]
     command = argv[0] if argv and argv[0] in ("sync", "status") else "install"
     if command != "install":
