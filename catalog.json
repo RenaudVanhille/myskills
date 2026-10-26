@@ -522,13 +522,15 @@
         {
           "name": "route.py",
           "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
-          "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] | --list [--kind ...]",
+          "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]] | --list [--kind ...]",
           "options": {
             "--query": "la demande de l'utilisateur, telle quelle",
             "--files": "fichiers fournis avec la demande (leurs extensions orientent le classement)",
             "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
             "--top": "nombre de candidats rendus (défaut : tous)",
-            "--list": "tous les candidats, sans classement"
+            "--list": "tous les candidats, sans classement",
+            "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 6 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
+            "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/route.laya.json du dossier courant)"
           },
           "exit_codes": {
             "0": "liste rendue (avertissement si aucun mot commun ou égalité en tête)",
@@ -544,6 +546,7 @@
               "required": [
                 "query",
                 "candidates",
+                "laya",
                 "errors",
                 "warnings"
               ],
@@ -620,9 +623,135 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "laya": {
+                  "description": "Avec --laya : choix de Laya et sa confiance, sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "method",
+                        "choice",
+                        "confidence"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "method": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "choice": {
+                          "type": "string"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          }
+        },
+        {
+          "name": "route_laya.py",
+          "role": "Pose au modèle local Laya (CPU, sans service en ligne) la question fermée de route.py --laya : quel candidat traite la demande, d'après les descriptions ; lancé par route.py dans son propre environnement.",
+          "usage": "uv run scripts/route_laya.py question.json | --schema",
+          "options": {
+            "question.json": "la demande (query) et les candidats (nom : description)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Demande et candidats soumis à Laya.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "query",
+                "candidates"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "candidates": {
+                  "type": "object",
+                  "minProperties": 2,
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "nom du candidat : sa description"
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Choix de Laya et sa confiance, ou l'erreur qui fait garder le classement par mots.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "method",
+                "choice",
+                "confidence",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "choice": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "confidence": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "choix rendu",
+            "1": "description invalide ou Laya indisponible"
           }
         }
       ],

@@ -12,19 +12,32 @@ ignorés, racines de 5 lettres, mots rares pesant plus) et par les
 extensions des fichiers fournis. Le score n'est qu'un indice : l'agent
 orientation choisit en lisant les descriptions.
 
-    uv run scripts/route.py --query "TEXTE" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N]
+Avec --laya, le modèle local Laya (route_laya.py, dans son propre
+environnement) choisit parmi les premiers candidats d'après leur
+description ; son choix passe en tête quand sa confiance est d'au moins
+LAYA_CONFIDENT, sinon il est seulement donné dans `laya`. Réponses en cache,
+classement par mots gardé si Laya est indisponible.
+
+    uv run scripts/route.py --query "TEXTE" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]]
     uv run scripts/route.py --list [--kind ...]
 """
 
 import argparse
+import hashlib
 import json
 import math
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import unicodedata
 from pathlib import Path
 
 ROUTES = Path(__file__).resolve().parent / "lib" / "routes.json"
+LAYA = Path(__file__).resolve().parent / "route_laya.py"
+# Candidats soumis à Laya (les premiers du classement par mots), et confiance qui fait passer son choix en tête.
+LAYA_CANDIDATES, LAYA_CONFIDENT = 6, 0.6
 STOP = set("""a au aux avec ce ces cette d dans de des du elle en et est il je la le les leur lui ma mais me
 mes mon ne nos notre nous on ou par pas pour qu que qui sa se ses son sur ta te tes ton tu un une vos votre
 vous l j m n s t y fais faire faut peux veux voudrais besoin aide aider moi ici sont avoir etre tout tous plus
@@ -56,6 +69,38 @@ def entry_text(kind: str, entry: dict) -> str:
     return " ".join(parts)
 
 
+def ask_laya(query: str, candidates: list[dict], cache_path: Path, warnings: list[str]) -> dict | None:
+    """Choix de Laya parmi les candidats (cache d'abord) ; None si Laya est indisponible."""
+    names = {c["name"]: c["description"] for c in candidates}
+    key = hashlib.sha1(json.dumps([" ".join(sorted(words(query))), sorted(names)]).encode("utf-8")).hexdigest()[:16]
+    try:
+        cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    if key in cache.get("answers", {}):
+        return {"method": cache.get("method", "laya"), **cache["answers"][key]}
+    with tempfile.TemporaryDirectory() as tmp:
+        question = Path(tmp) / "question.json"
+        question.write_text(json.dumps({"query": query, "candidates": names}, ensure_ascii=False), encoding="utf-8")
+        command = ["uv", "run", "--quiet", str(LAYA)] if shutil.which("uv") else [sys.executable, str(LAYA)]
+        result = subprocess.run(command + [str(question)], capture_output=True, text=True, encoding="utf-8")
+    try:
+        report = json.loads(result.stdout)
+    except ValueError:
+        lines = (result.stderr or "sortie vide").strip().splitlines()
+        report = {"errors": [lines[-1][:300] if lines else "?"]}
+    if report.get("errors") or report.get("choice") not in names:
+        reason = (report.get("errors") or ["aucun choix"])[0]
+        warnings.append(f"Laya indisponible, classement par mots : {reason.removeprefix('Laya indisponible : ')}")
+        return None
+    answer = {"choice": report["choice"], "confidence": report["confidence"]}
+    cache.setdefault("answers", {})[key] = answer
+    cache["method"] = report.get("method") or cache.get("method")
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    return {"method": cache["method"], **answer}
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -67,10 +112,14 @@ def main() -> int:
     parser.add_argument("--top", type=int, default=0,
                         help="nombre de candidats rendus (défaut : tous, classés ; le score n'est qu'un indice)")
     parser.add_argument("--list", action="store_true", help="tous les candidats, sans classement")
+    parser.add_argument("--laya", action="store_true",
+                        help="faire choisir le modèle local Laya parmi les premiers candidats")
+    parser.add_argument("--laya-cache", type=Path,
+                        help="cache des réponses de Laya (défaut : .myskills-tmp/route.laya.json du dossier courant)")
     args = parser.parse_args()
     errors: list[str] = []
     warnings: list[str] = []
-    report = {"query": args.query, "candidates": [], "errors": errors, "warnings": warnings}
+    report = {"query": args.query, "candidates": [], "laya": None, "errors": errors, "warnings": warnings}
     if not args.query and not args.list:
         errors.append("--query TEXTE (la demande) ou --list")
     try:
@@ -110,11 +159,24 @@ def main() -> int:
     else:
         # Un workflow enchaîne plusieurs agents : à score égal, il passe avant un agent seul.
         scored.sort(key=lambda c: (-c["score"], c["kind"] != "workflow", c["name"]))
+        decided = False
+        if args.laya or args.laya_cache:
+            cache = args.laya_cache or Path(".myskills-tmp") / "route.laya.json"
+            said = ask_laya(args.query, scored[:LAYA_CANDIDATES], cache, warnings)
+            if said:
+                report["laya"] = said
+                if said["confidence"] >= LAYA_CONFIDENT:
+                    chosen = next(c for c in scored if c["name"] == said["choice"])
+                    scored, decided = [chosen] + [c for c in scored if c is not chosen], True
+                else:
+                    warnings.append(f"Laya choisit {said['choice']} sans assurance ({said['confidence']}) : "
+                                    "classement par mots gardé")
         report["candidates"] = scored[:args.top] if args.top else scored
         if not report["candidates"] or report["candidates"][0]["score"] == 0:
             warnings.append("aucun candidat ne partage de mot avec la demande : posez la question à l'utilisateur, "
                             "ou relancez avec --list")
-        elif len(report["candidates"]) > 1 and report["candidates"][0]["score"] == report["candidates"][1]["score"]:
+        elif not decided and len(report["candidates"]) > 1 and \
+                report["candidates"][0]["score"] == report["candidates"][1]["score"]:
             warnings.append(f"{report['candidates'][0]['name']} et {report['candidates'][1]['name']} à égalité : "
                             "départagez par la description, ou posez une question")
     print(json.dumps(report, ensure_ascii=False))
