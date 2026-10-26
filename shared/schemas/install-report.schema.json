@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "install-report.schema.json",
+  "title": "Rapport de scripts/install.py",
+  "type": "object",
+  "required": ["command", "errors", "warnings", "next_steps"],
+  "properties": {
+    "command": {"enum": ["install", "sync", "status"]},
+    "scope": {"enum": ["global", "project"]},
+    "root": {"type": "string"},
+    "state": {"type": "string"},
+    "tools": {"type": "array", "items": {"$ref": "#/$defs/tool"}},
+    "source": {"$ref": "#/$defs/source"},
+    "dry_run": {"type": "boolean"},
+    "changed": {"type": "boolean", "description": "faux : version, outils et modèles inchangés, rien n'a été réécrit"},
+    "installed": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/tool"},
+      "additionalProperties": {"$ref": "#/$defs/counts"}
+    },
+    "removed": {"type": "integer", "minimum": 0, "description": "éléments d'une synchro précédente retirés"},
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scope", "root", "state", "installed", "tools"],
+        "properties": {
+          "scope": {"enum": ["global", "project"]},
+          "root": {"type": "string"},
+          "state": {"type": "string"},
+          "installed": {"type": "boolean"},
+          "sha": {"type": ["string", "null"]},
+          "repo": {"type": ["string", "null"]},
+          "ref": {"type": ["string", "null"]},
+          "installed_at": {"type": ["string", "null"]},
+          "remote_sha": {"type": "string"},
+          "up_to_date": {"type": "boolean"},
+          "tools": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["missing"],
+              "properties": {
+                "skills": {"type": "integer"},
+                "agents": {"type": "integer"},
+                "missing": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "next_steps": {"type": "array", "items": {"type": "string"}},
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "tool": {"enum": ["claude", "copilot", "opencode", "kiro", "hermes"]},
+    "counts": {
+      "type": "object",
+      "required": ["skills", "agents"],
+      "properties": {"skills": {"type": "integer", "minimum": 0}, "agents": {"type": "integer", "minimum": 0}}
+    },
+    "source": {
+      "type": "object",
+      "required": ["repo", "ref", "sha", "path"],
+      "properties": {
+        "repo": {"type": ["string", "null"]},
+        "ref": {"type": ["string", "null"]},
+        "sha": {"type": "string"},
+        "path": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

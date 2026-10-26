@@ -31,6 +31,43 @@ forme de skills. Hermes ne lit que `~/.hermes/skills` : en projet, `install.py`
 affiche la commande `hermes config set skills.external_dirs "<dossier>"` à
 lancer une fois (elle remplace les `external_dirs` déjà configurés).
 
+### Synchronisation depuis GitHub
+
+`install.py sync` installe et met à jour skills et agents pour les cinq
+outils d'un coup, sans clone ni identifiants git : il télécharge l'archive
+du dépôt par l'API GitHub, avec le jeton de `gh auth login` (ou
+`MYSKILLS_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, le dépôt étant privé).
+Installation **globale** par défaut, conseillée : les skills ne dépendent
+d'aucun projet. Première fois, sans copie du dépôt :
+
+```bash
+gh api repos/RenaudVanhille/myskills/contents/scripts/install.py -H "Accept: application/vnd.github.raw" > install.py
+uv run install.py sync --tools claude,copilot
+```
+
+En PowerShell, remplacez `> install.py` par `| Set-Content -Encoding utf8 install.py`.
+Ensuite, `uv run ~/.myskills/install.py sync` met à jour (rien n'est
+réécrit si la version n'a pas changé) et `uv run ~/.myskills/install.py status`
+dit ce qui est installé et si GitHub a plus récent.
+
+| Option | Effet |
+| --- | --- |
+| `--global` (défaut) ou `--project DIR` | Dossier personnel, ou projet (version figée pour un client, prioritaire sur la globale) |
+| `--tools claude,copilot,opencode,kiro,hermes` | Outils ciblés ; par défaut ceux de la synchro précédente, sinon ceux détectés |
+| `--ref BRANCHE`, `--repo OWNER/NOM` | Version à installer (défaut : `main`) |
+| `--source DIR` | Copie locale du dépôt, sans téléchargement |
+| `--models FICHIER` | Modèles de l'abonnement (voir plus bas), gardés pour les synchros suivantes |
+| `--force`, `--dry-run` | Réinstaller même sans changement ; tout calculer sans rien écrire |
+
+Dossiers : Claude Code `~/.claude/skills` et `~/.claude/agents` ; Copilot
+`~/.copilot/skills` et `~/.copilot/agents` (en projet `.github/agents`, les
+skills étant lus dans `.claude/skills` si Claude est ciblé) ; OpenCode
+`~/.config/opencode` ; Kiro `~/.kiro` ; Hermes `~/.hermes/skills`. L'état
+(version, outils, fichiers installés) est dans `~/.myskills/state.json` ou
+`<projet>/.myskills.json` : une synchro retire ce qu'elle avait installé et
+qui n'existe plus, et rien d'autre. Choisissez le plugin **ou** `sync` pour
+Claude Code et Copilot, pas les deux : les skills apparaîtraient en double.
+
 Les scripts sont en Python 3.10+ et fonctionnent sous Windows, macOS et
 Linux. Lancez-les avec [uv](https://docs.astral.sh/uv/) (`uv run scripts/...`) :
 uv installe les dépendances déclarées en tête de chaque script (MarkItDown,
@@ -198,7 +235,7 @@ Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
-| `scripts/install.py` | Installation pour OpenCode, Hermes et les agents Kiro |
+| `scripts/install.py` | Installation et synchronisation depuis GitHub (`sync`, `status`) pour les cinq outils, en global ou par projet |
 | `tests/` | Documents de test, résultats attendus, `run.py` (scripts), `judge.py` (agents et déclenchement des skills) et `cost.py` (coût des agents, historique dans `costs.csv`) |
 
 Vérification du plugin Claude Code : `claude plugin validate .`
