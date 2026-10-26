@@ -85,7 +85,11 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    et passe à la suivante. Après `start`, suis le champ
    `stage` du rapport : `instructions` (consignes de l'étape), `skills` à
    appliquer, `checks` à lancer jusqu'à zéro erreur, `deliverables` à
-   produire. `level` est le niveau de l'étape : s'il diffère du tien, vois
+   produire. Si l'étape a un champ `run`, écris d'abord toutes ses
+   descriptions, puis lance `journal.py check DOSSIER ETAPE` : il passe
+   tous ces contrôles en un appel (constructions, exports, revues) ;
+   corrige les descriptions citées dans `errors` et relance-le jusqu'à zéro
+   erreur. Seuls les `checks` sans équivalent dans `run` se lancent à part. `level` est le niveau de l'étape : s'il diffère du tien, vois
    la « Grille des niveaux ». `agent` est l'agent à qui passer la main pour un
    travail de jugement que l'utilisateur demande ; les commandes des
    `checks` restent à toi.

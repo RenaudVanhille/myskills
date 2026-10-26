@@ -50,6 +50,15 @@
       "checks": [
         "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
       ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
       "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal."
     },
     {
@@ -78,6 +87,15 @@
       ],
       "checks": [
         "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+      ],
+      "run": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "args": [
+            "options.json"
+          ]
+        }
       ],
       "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
     },
@@ -123,6 +141,72 @@
         "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../exigences.json, source ../options.json et l'option)",
         "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
       ],
+      "run": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "args": [
+            "options.json",
+            "--decision",
+            "decision.json"
+          ]
+        },
+        {
+          "skill": "drawio-diagram",
+          "script": "drawio_build.py",
+          "args": [
+            "schemas/architectures.json",
+            "--export",
+            "png"
+          ]
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "schemas/option-*.cloud.json"
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "args": [
+            "{file}",
+            "--scope",
+            "conventions"
+          ],
+          "foreach": "schemas/option-*.cloud.json"
+        },
+        {
+          "skill": "urbanization-map",
+          "script": "pos_build.py",
+          "args": [
+            "{file}"
+          ],
+          "foreach": "schemas/pos-option-*.json"
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "args": [
+            "{file}",
+            "--format",
+            "png"
+          ],
+          "foreach": "schemas/pos-option-*.drawio"
+        },
+        {
+          "skill": "api-contract",
+          "script": "api_build.py",
+          "args": [
+            "api/api.json"
+          ],
+          "if": "api/api.json"
+        }
+      ],
       "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas."
     },
     {
@@ -158,6 +242,16 @@
         "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
         "si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json, avec --vault <vault> --folder <dossier> --option <id> si le workflow a un vault"
       ],
+      "run": [
+        {
+          "skill": "architecture-review",
+          "script": "arch_review.py",
+          "args": [
+            "revue.json"
+          ],
+          "vault": true
+        }
+      ],
       "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
     },
     {
@@ -186,6 +280,16 @@
       ],
       "checks": [
         "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
+      ],
+      "run": [
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "args": [
+            "chiffrage.json"
+          ],
+          "vault": true
+        }
       ],
       "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
     },
@@ -222,6 +326,24 @@
         "architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)",
         "architecture-dossier : dossier_build.py . --strict (sections obligatoires présentes, liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-architecture.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "actions.py",
+          "args": [
+            "."
+          ],
+          "if": "revue.json"
+        },
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--strict"
+          ]
+        }
       ],
       "instructions": "Étape facultative, proposée en dernier : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Écrire synthese.md (une page : objet, option retenue et pourquoi, avis de la revue, coût, points ouverts) à partir des rapports des étapes précédentes, sans relire les livrables ; le reste est assemblé par le script."
     }

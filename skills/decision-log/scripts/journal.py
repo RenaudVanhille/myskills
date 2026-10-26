@@ -39,6 +39,12 @@ workflows/ ou fournie) : étapes, skills, livrables attendus et contrôles. Le
 rapport donne alors l'étape à produire (`stage`), et `submit` prend les
 livrables dans la définition et refuse s'il en manque un.
 
+Avec un champ `run` dans une étape de la définition, `check DOSSIER ETAPE`
+lance en un seul appel tous les contrôles mécaniques de l'étape (scripts des
+skills, une fois par fichier pour `foreach`, avec le vault du workflow pour
+`vault`) depuis le dossier du workflow, et rend leurs erreurs : l'agent écrit
+toutes ses descriptions, puis contrôle et exporte tout d'un coup.
+
 Les messages de passage et rapports finaux d'agent sont validés par le
 skill `agent-handoff` (check_message.py), qui les note au journal par
 `trace()` quand le dossier est celui d'un workflow.
@@ -50,6 +56,7 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
+    uv run scripts/journal.py check DOSSIER ETAPE
     uv run scripts/journal.py status DOSSIER
     uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
@@ -62,11 +69,14 @@ import fnmatch
 import hashlib
 import json
 import os
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from lib.skill_paths import SKILLS, absent, find_script  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
 
@@ -79,6 +89,8 @@ DONE = ("validee", "sautee")
 VAULT_DECISIONS = {"validée": "valide", "validee": "valide", "valide": "valide", "ok": "valide",
                    "retour": "retour", "à reprendre": "retour", "a reprendre": "retour"}
 STATE, JOURNAL, LOCK = "workflow.json", "journal.md", "workflow.lock"
+# Erreurs d'un contrôle reprises dans le rapport de check, au plus.
+MAX_CHECK_ERRORS = 5
 # Attente maximale du verrou, et âge au-delà duquel un verrou est abandonné (commande interrompue).
 LOCK_WAIT, LOCK_STALE = 30, 120
 
@@ -210,6 +222,18 @@ def load_definition(value: str, errors: list[str]) -> dict | None:
             if need not in ids[:index]:
                 invalid.append(f"stages/{index}/after : « {need} » n'est pas une étape placée avant "
                                f"{stage.get('id')} ({', '.join(map(str, ids[:index])) or 'aucune'})")
+        for number, entry in enumerate(stage.get("run", []) if isinstance(stage.get("run"), list) else []):
+            if isinstance(entry, dict) and entry.get("skill") and entry.get("script"):
+                if entry["skill"] not in stage.get("skills", []):
+                    invalid.append(f"stages/{index}/run/{number} : skill « {entry['skill']} » absent des skills "
+                                   f"de l'étape {stage.get('id')}")
+                elif find_script(entry["skill"], entry["script"]) is None:
+                    known = sorted(p.name for p in (SKILLS / entry["skill"] / "scripts").glob("*.py"))
+                    close = difflib.get_close_matches(entry["script"], known, n=1)
+                    invalid.append(f"stages/{index}/run/{number} : " + (
+                        f"script inconnu « {entry['script']} » du skill {entry['skill']} ({', '.join(known)})"
+                        + (f" ; vouliez-vous « {close[0]} » ?" if close else "") if known
+                        else absent(entry["skill"], entry["script"])))
     errors += [f"{path.name} : {e}" for e in invalid]
     return None if invalid else {k: v for k, v in definition.items() if not k.startswith("_")}
 
@@ -278,6 +302,59 @@ def changed_files(folder: Path, stage: dict) -> list[str]:
         if not path.exists() or digest(path) != sha:
             changed.append(rel)
     return changed
+
+
+def run_checks(folder: Path, state: dict, stage: dict, errors: list[str]) -> list[dict]:
+    """Lance les contrôles `run` de l'étape depuis le dossier du workflow ; une ligne par commande lancée
+    ou sautée, et une erreur par commande en échec (ses premières erreurs)."""
+    definition = stage_definition(state, stage["id"]) or {}
+    if not definition.get("run"):
+        errors.append(f"{stage['id']} : pas de champ run dans la définition ; lancez les checks un par un")
+        return []
+    if stage["status"] not in ("en-cours", "en-revue"):
+        errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : check se lance sur une étape "
+                      "démarrée (start d'abord)")
+        return []
+    memory = state.get("memory")
+    runner = ["uv", "run", "--quiet"] if shutil.which("uv") else [sys.executable]
+    results = []
+    for entry in definition["run"]:
+        script = find_script(entry["skill"], entry["script"])
+        label = f"{entry['script']} {' '.join(entry.get('args', []))}".strip()
+        if entry.get("if") and not any(folder.glob(entry["if"])):
+            results.append({"command": label, "status": "saute", "why": f"aucun fichier {entry['if']}"})
+            continue
+        files = sorted(p.relative_to(folder).as_posix() for p in folder.glob(entry["foreach"])) \
+            if entry.get("foreach") else [None]
+        if not files:
+            results.append({"command": label, "status": "saute", "why": f"aucun fichier {entry['foreach']}"})
+            continue
+        for rel in files:
+            name = Path(rel).name.split(".")[0] if rel else ""
+            args = [a.replace("{file}", rel or "").replace("{name}", name) for a in entry.get("args", [])]
+            if entry.get("vault") and memory:
+                args += ["--vault", memory["vault"], "--folder", memory["folder"]]
+            command = f"{entry['script']} {' '.join(args)}".strip()
+            if script is None:
+                errors.append(f"{command} : {absent(entry['skill'], entry['script'])}")
+                results.append({"command": command, "status": "echec", "errors": 1, "warnings": 0})
+                continue
+            done = subprocess.run(runner + [str(script)] + args, cwd=folder, capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace")
+            try:
+                report = json.loads(done.stdout)
+                found, warned = list(report.get("errors", [])), len(report.get("warnings", []))
+            except ValueError:
+                tail = (done.stderr or done.stdout).strip().splitlines()[-1:] or ["sans sortie"]
+                found, warned = [f"rapport illisible ({tail[0][:200]})"], 0
+            if done.returncode and not found:
+                found = [f"code de sortie {done.returncode}"]
+            errors += [f"{command} : {e}" for e in found[:MAX_CHECK_ERRORS]]
+            if len(found) > MAX_CHECK_ERRORS:
+                errors.append(f"{command} : et {len(found) - MAX_CHECK_ERRORS} autre(s) erreur(s)")
+            results.append({"command": command, "status": "echec" if found else "ok",
+                            "errors": len(found), "warnings": warned})
+    return results
 
 
 def next_action(state: dict) -> tuple[str | None, str]:
@@ -579,7 +656,7 @@ def main() -> int:
                                                                 "(défaut : Workflows/<titre>)")
     status = sub.add_parser("status", help="état, prochaine action, fichiers validés modifiés")
     status.add_argument("folder", type=Path)
-    for name in ("start", "skip", "log", "submit", "review"):
+    for name in ("start", "skip", "log", "submit", "review", "check"):
         command = sub.add_parser(name)
         command.add_argument("folder", type=Path)
         command.add_argument("stage")
@@ -604,16 +681,26 @@ def main() -> int:
 
     errors: list[str] = []
     warnings: list[str] = []
+    checks, memory = None, None
     try:
-        with locked(args.folder):
-            state, entry = run(args, errors, warnings)
-            if state and not errors and args.command != "status":
-                save(args.folder, state)
-            memory = synchronize(args.folder, state, warnings) if state and not errors else None
+        if args.command == "check":
+            # Hors verrou : les contrôles peuvent durer, et des étapes en parallèle continuent d'écrire le journal.
+            state, entry = load_state(args.folder, errors), None
+            stage = stage_of(state, args.stage, errors) if state else None
+            checks = run_checks(args.folder, state, stage, errors) if stage else []
+        else:
+            with locked(args.folder):
+                state, entry = run(args, errors, warnings)
+                if state and not errors and args.command != "status":
+                    save(args.folder, state)
+                memory = synchronize(args.folder, state, warnings) if state and not errors else None
     except TimeoutError as error:
         state, entry, memory = None, None, None
         errors.append(str(error))
     current, action = next_action(state) if state else (None, "corriger l'erreur")
+    if checks:
+        action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
+                  else f"soumettre {args.stage} (submit)")
     startable = ready(state) if state and not errors else []
     others = [s for s in startable if s != current]
     if others:
@@ -632,7 +719,7 @@ def main() -> int:
               "stage": stage_definition(state, current_stage) if todo else None,
               "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
-              "memory": memory,
+              "memory": memory, "checks": checks,
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0

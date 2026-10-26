@@ -275,6 +275,15 @@ def check_contracts() -> dict:
                          for s in stage.get("skills", []) if s not in skills]
             if stage.get("agent") and stage["agent"] not in agents:
                 failures.append(f"workflows/{path.name} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
+            # run : contrôles lancés par journal.py check, scripts déclarés dans le contrat d'un skill de l'étape.
+            for entry in stage.get("run", []):
+                declared = {s["name"] for s in skills.get(entry.get("skill"), {}).get("scripts", [])}
+                if entry.get("skill") not in stage.get("skills", []):
+                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise « {entry.get('skill')} », "
+                                    "absent des skills de l'étape")
+                elif entry.get("script") not in declared:
+                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise {entry.get('skill')}/"
+                                    f"{entry.get('script')}, absent de son contrat")
 
     for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
         if path.stem not in agents:

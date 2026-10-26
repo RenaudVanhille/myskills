@@ -46,6 +46,18 @@
       ],
       "checks": [
         "cloud-architecture : cloud_build.py schemas/architecture.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois"
+      ],
+      "run": [
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "schemas/architecture.json",
+            "--matrix",
+            "--export",
+            "png"
+          ]
+        }
       ]
     },
     {
@@ -70,6 +82,26 @@
       "checks": [
         "threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault",
         "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (piliers et conventions du schéma), avec --vault <vault> --folder <dossier> si le workflow a un vault"
+      ],
+      "run": [
+        {
+          "skill": "threat-model",
+          "script": "stride.py",
+          "args": [
+            "schemas/architecture.json"
+          ],
+          "vault": true
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "args": [
+            "schemas/architecture.json",
+            "--fail-on",
+            "moyenne"
+          ],
+          "vault": true
+        }
       ],
       "instructions": "Compléter mesures et statuts des menaces avec l'utilisateur à la revue. Constats Well-Architected : corriger la description, ou les accepter dans accept avec la raison donnée par l'utilisateur."
     }

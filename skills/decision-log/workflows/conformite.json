@@ -35,6 +35,15 @@
         "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
         "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
       ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
       "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
     },
     {
@@ -59,6 +68,18 @@
       "checks": [
         "cloud-architecture : iac_import.py <sources> --out schemas/architecture.json (seulement sans description fournie)",
         "cloud-architecture : cloud_build.py schemas/architecture.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois"
+      ],
+      "run": [
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "schemas/architecture.json",
+            "--matrix",
+            "--export",
+            "png"
+          ]
+        }
       ],
       "instructions": "Reprendre la description fournie, ou celle tirée du code, et la compléter : hébergeur (provider, y compris souverain), données personnelles portées par chaque flux dans son libellé, flux vers des tiers et leur pays. Chaque flux ajouté sans source se note au journal comme hypothèse."
     },
@@ -87,6 +108,26 @@
         "threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault",
         "well-architected-review : wa_check.py schemas/architecture.json --fail-on moyenne (dont SEC-08 : qualification SecNumCloud exigée et absente chez l'hébergeur), avec --vault <vault> --folder <dossier> si le workflow a un vault"
       ],
+      "run": [
+        {
+          "skill": "threat-model",
+          "script": "stride.py",
+          "args": [
+            "schemas/architecture.json"
+          ],
+          "vault": true
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "args": [
+            "schemas/architecture.json",
+            "--fail-on",
+            "moyenne"
+          ],
+          "vault": true
+        }
+      ],
       "instructions": "Garder les menaces pertinentes et leur mesure ; une qualification exigée que l'hébergeur n'a pas ne s'accepte qu'avec la raison de l'utilisateur, notée au journal. Les numéros des menaces (M001...) servent de références aux mesures de l'AIPD."
     },
     {
@@ -109,6 +150,16 @@
       ],
       "checks": [
         "data-protection : dpia_build.py aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)"
+      ],
+      "run": [
+        {
+          "skill": "data-protection",
+          "script": "dpia_build.py",
+          "args": [
+            "aipd.json"
+          ],
+          "vault": true
+        }
       ],
       "instructions": "aipd.json reprend l'hébergeur de la description, requirements (exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL)."
     },
@@ -137,6 +188,27 @@
         "architecture-dossier : actions.py . (plan-actions.md et plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)",
         "architecture-dossier : dossier_build.py . --template conformite --out dossier-conformite.md --strict (sections obligatoires présentes, liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-conformite.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "actions.py",
+          "args": [
+            "."
+          ]
+        },
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "conformite",
+            "--out",
+            "dossier-conformite.md",
+            "--strict"
+          ]
+        }
       ],
       "instructions": "plan-actions.md se construit avec actions.py, sans relire les revues : une action par règle ou mesure, priorité tirée de la gravité ; seuls responsables et échéances donnés par l'utilisateur vont dans --assign. Les menaces encore sans mesure retenue se règlent à l'étape menaces, pas ici. synthese.md tient en une page : périmètre, hébergement, AIPD requise ou non, risques ouverts, décisions attendues. Le reste est assemblé par le script."
     }
