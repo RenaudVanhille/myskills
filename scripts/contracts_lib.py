@@ -27,7 +27,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
 DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
                                  "migration-assessment",
-                                 "solution-estimate"]}
+                                 "solution-estimate", "cloud-cost"]}
 
 
 def generated_libs() -> dict[Path, str]:

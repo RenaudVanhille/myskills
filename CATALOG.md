@@ -38,7 +38,7 @@ Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.
 
-**Skills** : `check-prerequisites`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `architecture-dossier`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`
+**Skills** : `check-prerequisites`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `cloud-cost`, `architecture-dossier`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`
 
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
@@ -141,7 +141,7 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
 Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts.
 
-**Skills** : `check-prerequisites`, `solution-estimate`, `requirements-catalog`, `architecture-options`, `decision-log`, `agent-handoff`
+**Skills** : `check-prerequisites`, `solution-estimate`, `cloud-cost`, `requirements-catalog`, `architecture-options`, `decision-log`, `agent-handoff`
 
 Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
@@ -311,6 +311,22 @@ Résumé de [`contract.json`](skills/cloud-architecture/contract.json), qui fait
 - **Passe la main** au skill `mermaid-diagram` : diagramme de séquence des appels entre services pour un parcours.
 - **Passe la main** au skill `threat-model` : modèle de menaces STRIDE de l'architecture décrite (même description JSON).
 - **Passe la main** au skill `well-architected-review` : revue Well-Architected des piliers ou des conventions de schéma (même description JSON).
+
+### `cloud-cost`
+
+Estime et compare le coût de fonctionnement mensuel d'options d'architecture cloud (AWS, Azure, Google Cloud, OVHcloud, Scaleway, ou prix propres) : consommations par option (calcul, conteneurs, base de données, stockage, réseau, journaux), plages horaires, remise d'engagement, production et hors production, calculées par script sur une grille de prix locale. Signale les prix à vérifier, le hors production allumé en continu et les postes oubliés. À utiliser pour un coût de run, une estimation FinOps, comparer des options sur leur coût d'hébergement ou préparer les lignes d'infrastructure d'un chiffrage.
+
+Résumé de [`contract.json`](skills/cloud-cost/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Les options d'architecture cloud à comparer (options.json d'architecture-options, ou leurs schémas cloud) et le dimensionnement connu : volumes, utilisateurs, données ; Description JSON des consommations par option (cost_build.py --schema) : service de la grille, quantité, environnement, plage horaire, prix propre et sa base, remise d'engagement ; Facultatif : une grille de prix propre (devis, grille vérifiée), de même forme que references/prix.json.
+- **Sorties** : <nom>.md : comparaison des options (par mois, par an, sur l'horizon, production et hors production), coût par catégorie, détail des lignes avec la base de chaque prix ; <nom>.csv : une ligne par consommation (séparateur ;) ; Avec --infra : <nom>.infra.json, les lignes d'infrastructure du chiffrage de l'option (solution-estimate).
+- **`cost_build.py`** : Vérifie hébergeurs et services de la grille, calcule chaque consommation (prix horaire et plage, ou prix mensuel), la remise d'engagement, le coût mensuel par catégorie et par environnement, annuel et sur l'horizon, classe les options ; signale les prix indicatifs à vérifier, le hors production allumé en continu avec l'économie d'un arrêt, les postes souvent oubliés (trafic sortant, sauvegardes, journaux) et le budget dépassé ; écrit la comparaison et le CSV, relit le CSV pour vérifier les totaux ; avec --infra, écrit les lignes d'infrastructure du chiffrage. Rapport JSON, codes de sortie : 0 comparaison écrite et CSV vérifié (avertissements possibles : prix indicatifs, postes oubliés, budget) ; 1 description invalide, hébergeur ou service inconnu, prix absent sans unit_cost, base manquante, grille illisible ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage.
+- **Passe la main** au skill `architecture-options` : le coût de fonctionnement change la note du critère cout d'une option.
+- **Passe la main** au skill `solution-estimate` : chiffrer l'option retenue : ses lignes d'infrastructure viennent de --infra.
+- **Passe la main** à l'utilisateur : valider le dimensionnement et faire vérifier les prix indicatifs avant tout engagement.
 
 ### `data-protection`
 

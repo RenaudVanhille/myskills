@@ -1,0 +1,196 @@
+{
+ "_doc": "Grille de prix indicative de cloud_cost.py : ordres de grandeur, en euros hors taxes, des grilles publiques des fournisseurs pour une région européenne, à la demande, sans remise. Elle sert à comparer des options, jamais à s'engager : vérifiez chaque prix dans le calculateur du fournisseur, ou donnez unit_cost et basis dans la description. Une autre grille de même forme se passe dans prices. Aucun tarif n'est consulté en ligne.",
+ "checked": "2026-10-26",
+ "currency": "EUR",
+ "source": "ordres de grandeur relevés sur les pages tarifaires publiques (dollar compté à parité avec l'euro), à vérifier",
+ "services": {
+  "vm.vcpu": {
+   "category": "calcul",
+   "unit": "vCPU",
+   "per": "heure",
+   "label": "Machine virtuelle : vCPU"
+  },
+  "vm.ram": {
+   "category": "calcul",
+   "unit": "Go de mémoire",
+   "per": "heure",
+   "label": "Machine virtuelle : mémoire"
+  },
+  "conteneur.vcpu": {
+   "category": "calcul",
+   "unit": "vCPU",
+   "per": "heure",
+   "label": "Conteneurs managés ou serverless : vCPU"
+  },
+  "conteneur.ram": {
+   "category": "calcul",
+   "unit": "Go de mémoire",
+   "per": "heure",
+   "label": "Conteneurs managés ou serverless : mémoire"
+  },
+  "kubernetes.plan-controle": {
+   "category": "calcul",
+   "unit": "cluster",
+   "per": "heure",
+   "label": "Kubernetes managé : plan de contrôle"
+  },
+  "fonction.appels": {
+   "category": "calcul",
+   "unit": "million d'appels",
+   "per": "mois",
+   "label": "Fonctions : appels (hors durée d'exécution)"
+  },
+  "bdd.vcpu": {
+   "category": "base de données",
+   "unit": "vCPU",
+   "per": "heure",
+   "label": "Base de données managée : vCPU (mémoire comprise)"
+  },
+  "bdd.stockage": {
+   "category": "base de données",
+   "unit": "Go",
+   "per": "mois",
+   "label": "Base de données managée : stockage"
+  },
+  "stockage.bloc": {
+   "category": "stockage",
+   "unit": "Go",
+   "per": "mois",
+   "label": "Disque (bloc, SSD)"
+  },
+  "stockage.objet": {
+   "category": "stockage",
+   "unit": "Go",
+   "per": "mois",
+   "label": "Stockage objet, classe standard"
+  },
+  "sauvegarde": {
+   "category": "stockage",
+   "unit": "Go",
+   "per": "mois",
+   "label": "Sauvegardes et instantanés"
+  },
+  "reseau.sortant": {
+   "category": "réseau",
+   "unit": "Go",
+   "per": "mois",
+   "label": "Trafic sortant vers internet"
+  },
+  "reseau.equilibreur": {
+   "category": "réseau",
+   "unit": "équilibreur",
+   "per": "heure",
+   "label": "Équilibreur de charge (hors unités de trafic)"
+  },
+  "reseau.nat": {
+   "category": "réseau",
+   "unit": "passerelle",
+   "per": "heure",
+   "label": "Passerelle NAT (hors données traitées)"
+  },
+  "reseau.ip": {
+   "category": "réseau",
+   "unit": "adresse",
+   "per": "heure",
+   "label": "Adresse IP publique"
+  },
+  "journaux": {
+   "category": "exploitation",
+   "unit": "Go ingéré",
+   "per": "mois",
+   "label": "Journaux et supervision : ingestion"
+  }
+ },
+ "providers": {
+  "aws": {
+   "vm.vcpu": 0.03,
+   "vm.ram": 0.004,
+   "conteneur.vcpu": 0.045,
+   "conteneur.ram": 0.005,
+   "kubernetes.plan-controle": 0.1,
+   "fonction.appels": 0.2,
+   "bdd.vcpu": 0.09,
+   "bdd.stockage": 0.13,
+   "stockage.bloc": 0.09,
+   "stockage.objet": 0.024,
+   "sauvegarde": 0.05,
+   "reseau.sortant": 0.09,
+   "reseau.equilibreur": 0.025,
+   "reseau.nat": 0.05,
+   "reseau.ip": 0.005,
+   "journaux": 0.57
+  },
+  "azure": {
+   "vm.vcpu": 0.03,
+   "vm.ram": 0.004,
+   "conteneur.vcpu": 0.086,
+   "conteneur.ram": 0.0108,
+   "kubernetes.plan-controle": 0.1,
+   "fonction.appels": 0.2,
+   "bdd.vcpu": 0.09,
+   "bdd.stockage": 0.12,
+   "stockage.bloc": 0.08,
+   "stockage.objet": 0.02,
+   "sauvegarde": 0.05,
+   "reseau.sortant": 0.087,
+   "reseau.equilibreur": 0.025,
+   "reseau.nat": 0.045,
+   "reseau.ip": 0.005,
+   "journaux": 2.5
+  },
+  "gcp": {
+   "vm.vcpu": 0.033,
+   "vm.ram": 0.0045,
+   "conteneur.vcpu": 0.086,
+   "conteneur.ram": 0.009,
+   "kubernetes.plan-controle": 0.1,
+   "fonction.appels": 0.4,
+   "bdd.vcpu": 0.07,
+   "bdd.stockage": 0.17,
+   "stockage.bloc": 0.1,
+   "stockage.objet": 0.023,
+   "sauvegarde": 0.05,
+   "reseau.sortant": 0.12,
+   "reseau.equilibreur": 0.025,
+   "reseau.nat": 0.045,
+   "reseau.ip": 0.005,
+   "journaux": 0.5
+  },
+  "ovh": {
+   "vm.vcpu": 0.015,
+   "vm.ram": 0.002,
+   "conteneur.vcpu": 0.015,
+   "conteneur.ram": 0.002,
+   "kubernetes.plan-controle": 0.0,
+   "fonction.appels": 0.4,
+   "bdd.vcpu": 0.05,
+   "bdd.stockage": 0.1,
+   "stockage.bloc": 0.04,
+   "stockage.objet": 0.007,
+   "sauvegarde": 0.01,
+   "reseau.sortant": 0.0,
+   "reseau.equilibreur": 0.014,
+   "reseau.nat": 0.003,
+   "reseau.ip": 0.004,
+   "journaux": 1.0
+  },
+  "scaleway": {
+   "vm.vcpu": 0.016,
+   "vm.ram": 0.002,
+   "conteneur.vcpu": 0.036,
+   "conteneur.ram": 0.004,
+   "kubernetes.plan-controle": 0.0,
+   "fonction.appels": 0.15,
+   "bdd.vcpu": 0.06,
+   "bdd.stockage": 0.1,
+   "stockage.bloc": 0.08,
+   "stockage.objet": 0.015,
+   "sauvegarde": 0.01,
+   "reseau.sortant": 0.01,
+   "reseau.equilibreur": 0.012,
+   "reseau.nat": 0.005,
+   "reseau.ip": 0.004,
+   "journaux": 0.35
+  }
+ }
+}

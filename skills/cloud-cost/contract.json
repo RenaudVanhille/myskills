@@ -1,0 +1,318 @@
+{
+  "skill": "cloud-cost",
+  "level": "moyen",
+  "inputs": [
+    "Les options d'architecture cloud à comparer (options.json d'architecture-options, ou leurs schémas cloud) et le dimensionnement connu : volumes, utilisateurs, données",
+    "Description JSON des consommations par option (cost_build.py --schema) : service de la grille, quantité, environnement, plage horaire, prix propre et sa base, remise d'engagement",
+    "Facultatif : une grille de prix propre (devis, grille vérifiée), de même forme que references/prix.json"
+  ],
+  "outputs": [
+    "<nom>.md : comparaison des options (par mois, par an, sur l'horizon, production et hors production), coût par catégorie, détail des lignes avec la base de chaque prix",
+    "<nom>.csv : une ligne par consommation (séparateur ;)",
+    "Avec --infra : <nom>.infra.json, les lignes d'infrastructure du chiffrage de l'option (solution-estimate)"
+  ],
+  "scripts": [
+    {
+      "name": "cost_build.py",
+      "role": "Vérifie hébergeurs et services de la grille, calcule chaque consommation (prix horaire et plage, ou prix mensuel), la remise d'engagement, le coût mensuel par catégorie et par environnement, annuel et sur l'horizon, classe les options ; signale les prix indicatifs à vérifier, le hors production allumé en continu avec l'économie d'un arrêt, les postes souvent oubliés (trafic sortant, sauvegardes, journaux) et le budget dépassé ; écrit la comparaison et le CSV, relit le CSV pour vérifier les totaux ; avec --infra, écrit les lignes d'infrastructure du chiffrage.",
+      "usage": "uv run scripts/cost_build.py couts.json [--out-dir DOSSIER] [--infra OPTION] | --schema",
+      "options": {
+        "couts.json": "description des consommations par option",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--infra": "option dont écrire les lignes d'infrastructure du chiffrage (<nom>.infra.json)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Consommations de chaque option d'architecture.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "title",
+            "options"
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^_": {}
+          },
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "description": "défaut : celle de la grille (EUR)"
+            },
+            "horizon_months": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "défaut : 36"
+            },
+            "budget_monthly": {
+              "type": "number",
+              "minimum": 0
+            },
+            "prices": {
+              "type": "string",
+              "description": "autre grille de même forme que references/prix.json, relative à la description"
+            },
+            "options": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "provider",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "identifiant de l'option (celui d'options.json)"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$",
+                    "description": "hébergeur du catalogue commun (shared/providers.json)"
+                  },
+                  "discount": {
+                    "type": "object",
+                    "required": [
+                      "percent"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "percent": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 90
+                      },
+                      "on": {
+                        "type": "array",
+                        "items": {
+                          "enum": [
+                            "calcul",
+                            "base de données",
+                            "stockage",
+                            "réseau",
+                            "exploitation"
+                          ]
+                        },
+                        "description": "catégories remisées (défaut : calcul et base de données)"
+                      },
+                      "basis": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "engagement ou contrat qui donne la remise"
+                      }
+                    }
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "service",
+                        "quantity"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                        },
+                        "service": {
+                          "type": "string",
+                          "description": "service de la grille (vm.vcpu, conteneur.ram, bdd.stockage, stockage.objet, reseau.sortant, journaux...)"
+                        },
+                        "label": {
+                          "type": "string",
+                          "description": "libellé (défaut : celui du service)"
+                        },
+                        "component": {
+                          "type": "string",
+                          "description": "composant de l'option concerné"
+                        },
+                        "quantity": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "dans l'unité du service : vCPU, Go, Go par mois, millions d'appels par mois..."
+                        },
+                        "environment": {
+                          "enum": [
+                            "production",
+                            "hors-production"
+                          ],
+                          "description": "défaut : production"
+                        },
+                        "schedule": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "continu",
+                                "ouvre"
+                              ]
+                            },
+                            {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 744
+                            }
+                          ],
+                          "description": "plage d'un service à l'heure : continu (730 h par mois, défaut), ouvre (264 h : 12 h par jour ouvré) ou un nombre d'heures par mois"
+                        },
+                        "unit_cost": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "prix propre (devis, grille vérifiée) à la place de la grille, dans l'unité du service"
+                        },
+                        "basis": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "d'où vient le prix propre : devis, grille et date"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Coûts de chaque option (par mois, par an, sur l'horizon, économie possible hors production, par catégorie) et l'option la moins chère.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "input",
+            "outputs",
+            "options",
+            "cheapest",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "provider",
+                  "monthly",
+                  "annual",
+                  "horizon",
+                  "saving_monthly",
+                  "by_category"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "monthly": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "annual": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "horizon": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "saving_monthly": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "by_category": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            },
+            "cheapest": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "comparaison écrite et CSV vérifié (avertissements possibles : prix indicatifs, postes oubliés, budget)",
+        "1": "description invalide, hébergeur ou service inconnu, prix absent sans unit_cost, base manquante, grille illisible ; aucun fichier produit"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "solution-estimate",
+      "script": "estimate_build.py",
+      "why": "vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "architecture-options",
+      "kind": "skill",
+      "when": "le coût de fonctionnement change la note du critère cout d'une option"
+    },
+    {
+      "to": "solution-estimate",
+      "kind": "skill",
+      "when": "chiffrer l'option retenue : ses lignes d'infrastructure viennent de --infra"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "valider le dimensionnement et faire vérifier les prix indicatifs avant tout engagement"
+    }
+  ]
+}

@@ -61,7 +61,9 @@ workflow, la commande les trace aussi au journal.
    Estime chaque lot en jours par profil, à trois points dès que la charge
    n'est pas sûre. Pose une ligne d'infrastructure par poste, chacune avec
    sa base de prix ; sans grille ni devis fourni, c'est une hypothèse de
-   dimensionnement, dite comme telle.
+   dimensionnement, dite comme telle. Pour une option cloud, décris ses
+   consommations dans `couts.json` (skill `cloud-cost`) et reprends les
+   lignes de `cost_build.py couts.json --infra <option>`.
    Le script compare toujours trois hypothèses (sans IA, avec IA, dev IA
    natif) : tes charges sont celles d'une équipe sans IA. Donne un
    facteur propre (`ai`) aux seuls lots où l'IA aide nettement moins ou

@@ -263,7 +263,8 @@
       ],
       "facultative": true,
       "skills": [
-        "solution-estimate"
+        "solution-estimate",
+        "cloud-cost"
       ],
       "agent": "solution-estimator",
       "inputs": [
@@ -276,12 +277,24 @@
         "chiffrage.md"
       ],
       "optional": [
-        "chiffrage.csv"
+        "chiffrage.csv",
+        "couts.json",
+        "couts.md",
+        "couts.csv"
       ],
       "checks": [
+        "cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)",
         "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
       ],
       "run": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "args": [
+            "couts.json"
+          ],
+          "if": "couts.json"
+        },
         {
           "skill": "solution-estimate",
           "script": "estimate_build.py",
