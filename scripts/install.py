@@ -6,17 +6,18 @@ OpenCode, Kiro et Hermes, en global (dossier personnel) ou dans un projet.
 
 Usage :
     uv run scripts/install.py sync [--global | --project DIR] [--tools claude,copilot,opencode,kiro,hermes]
-                                   [--repo OWNER/NOM] [--ref BRANCHE] [--source DIR] [--models FICHIER]
+                                   [--repo OWNER/NOM] [--ref BRANCHE] [--source DIR|ZIP] [--models FICHIER]
                                    [--force] [--dry-run]
     uv run scripts/install.py status [--global | --project DIR] [--offline]
     uv run scripts/install.py [--project DIR | --global] [--tools opencode,kiro,hermes] [--models FICHIER] [--dry-run]
     uv run scripts/install.py --schema
 
 sync : télécharge la dernière version du dépôt GitHub (archive de l'API,
-authentifiée par MYSKILLS_TOKEN, GH_TOKEN, GITHUB_TOKEN ou `gh auth token`)
-dans ~/.myskills/cache, installe pour les outils ciblés et retire ce qu'une
-synchro précédente avait installé et qui n'existe plus. Portée globale par
-défaut ; outils par défaut : ceux de la synchro précédente, sinon ceux
+authentifiée par MYSKILLS_TOKEN, GH_TOKEN, GITHUB_TOKEN, `gh auth token` ou,
+à défaut, un jeton demandé dans le terminal) dans ~/.myskills/cache, ou
+prend une copie locale (--source : dossier, clone git ou « Download ZIP »),
+installe pour les outils ciblés et retire ce qu'une synchro précédente
+avait installé et qui n'existe plus. Portée globale par défaut ; outils par défaut : ceux de la synchro précédente, sinon ceux
 détectés. Rien n'est réécrit si la version, les outils et les modèles n'ont
 pas changé (--force pour réinstaller). L'état est gardé dans
 ~/.myskills/state.json (global) ou <projet>/.myskills.json, avec une copie
@@ -42,6 +43,7 @@ code 0 succès, 1 erreur.
 import argparse
 import datetime
 import difflib
+import getpass
 import hashlib
 import io
 import json
@@ -52,6 +54,7 @@ import sys
 import tarfile
 import urllib.error
 import urllib.request
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -128,18 +131,35 @@ def detect_tools() -> list[str]:
 
 # ---------------------------------------------------------------- GitHub
 
+TOKEN: dict[str, str | None] = {}
+
+
 def token() -> str | None:
+    """Jeton GitHub : variables d'environnement, puis `gh auth token` si gh est installé."""
+    if "value" in TOKEN:
+        return TOKEN["value"]
+    TOKEN["value"] = None
     for name in ("MYSKILLS_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
         if os.environ.get(name):
-            return os.environ[name]
+            TOKEN["value"] = os.environ[name]
+            return TOKEN["value"]
     if shutil.which("gh"):
         try:
             result = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, timeout=20)
+            if result.returncode == 0 and result.stdout.strip():
+                TOKEN["value"] = result.stdout.strip()
         except (OSError, subprocess.SubprocessError):
-            return None
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    return None
+            pass
+    return TOKEN["value"]
+
+
+def ask_token() -> str | None:
+    """Sans gh ni variable : demande le jeton dans le terminal (saisie masquée, jamais enregistré)."""
+    if not sys.stdin.isatty():
+        return None
+    value = getpass.getpass("Jeton GitHub (lecture du dépôt myskills, non enregistré) : ").strip()
+    TOKEN["value"] = value or None
+    return TOKEN["value"]
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -161,10 +181,13 @@ def http_get(url: str, accept: str, auth: str | None) -> bytes:
             request = urllib.request.Request(error.headers["Location"], headers={"User-Agent": "myskills-install"})
             with urllib.request.urlopen(request, timeout=300) as response:
                 return response.read()
+        if error.code in (401, 403, 404) and not auth and ask_token():
+            return http_get(url, accept, TOKEN["value"])
         if error.code in (401, 403, 404):
             hint = ("jeton refusé ou sans accès au dépôt" if auth else
-                    "dépôt privé ou introuvable et aucun jeton : lancez `gh auth login` "
-                    "ou définissez GH_TOKEN (jeton avec accès en lecture au dépôt)")
+                    "dépôt privé ou introuvable et aucun jeton : définissez MYSKILLS_TOKEN (jeton avec "
+                    "accès en lecture au dépôt), lancez `gh auth login`, ou passez une archive "
+                    "téléchargée depuis GitHub avec --source myskills-main.zip")
             raise Failure(f"GitHub {error.code} sur {url} : {hint}") from None
         raise Failure(f"GitHub {error.code} sur {url}") from None
     except (urllib.error.URLError, OSError) as error:
@@ -201,6 +224,28 @@ def download(repo: str, sha: str) -> Path:
             path.write_bytes(archive.extractfile(member).read())
     partial.rename(target)
     return target
+
+
+def unzip(archive: Path) -> Path:
+    """Archive « Download ZIP » de GitHub, extraite dans ~/.myskills/cache/zip (remplacée à chaque fois)."""
+    target = state_dir() / "cache" / "zip"
+    shutil.rmtree(target, ignore_errors=True)
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            for member in bundle.infolist():
+                parts = Path(member.filename).parts
+                if not parts or member.is_dir() or ".." in parts or Path(member.filename).is_absolute():
+                    continue
+                path = target.joinpath(*parts)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(bundle.read(member))
+    except (OSError, zipfile.BadZipFile) as error:
+        raise Failure(f"--source : archive illisible {archive} ({error})") from None
+    found = [p.parent.parent for p in target.glob("*/scripts/install.py")] + \
+        [p.parent.parent for p in target.glob("scripts/install.py")]
+    if not found:
+        raise Failure(f"--source : {archive} ne contient pas le dépôt myskills (scripts/install.py)")
+    return found[0]
 
 
 # ---------------------------------------------------------------- installation
@@ -386,6 +431,8 @@ def resolve_source(args, previous: dict) -> tuple[Path, dict]:
         args.source = Path(old["path"])
     if args.source is not None:
         source = args.source.resolve()
+        if source.suffix.lower() == ".zip" and source.is_file():
+            source = unzip(source)
         if not (source / "skills").is_dir() or not (source / "scripts" / "install.py").is_file():
             raise Failure(f"--source : {source} n'est pas une copie du dépôt myskills (skills/, scripts/install.py)")
         return source, {"repo": None, "ref": None, "sha": args.sha or local_version(source), "path": str(source)}
@@ -480,7 +527,7 @@ def main() -> int:
     if command == "sync":
         parser.add_argument("--repo", help=f"dépôt GitHub (défaut : {DEFAULT_REPO})")
         parser.add_argument("--ref", help="branche, tag ou commit (défaut : main)")
-        parser.add_argument("--source", type=Path, help="copie locale du dépôt, sans téléchargement")
+        parser.add_argument("--source", type=Path, help="copie locale du dépôt (dossier ou .zip de GitHub), sans téléchargement")
         parser.add_argument("--force", action="store_true", help="réinstaller même si rien n'a changé")
         parser.add_argument("--sha", help=argparse.SUPPRESS)
         parser.add_argument("--origin", help=argparse.SUPPRESS)

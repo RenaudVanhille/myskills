@@ -5,7 +5,9 @@
 - `install.py sync` : installe et met à jour skills et agents pour Claude
   Code, Copilot, OpenCode, Kiro et Hermes, en global (défaut) ou par projet,
   depuis l'archive GitHub (jeton `gh auth token`, `GH_TOKEN`...), sans clone
-  ni identifiants git ; ne réécrit rien si la version n'a pas changé, retire
+  ni identifiants git, ou depuis une copie locale (`--source` : dossier,
+  clone, ZIP téléchargé depuis GitHub) ; sans gh ni variable, le jeton est
+  demandé dans le terminal ; ne réécrit rien si la version n'a pas changé, retire
   ce qui n'existe plus, garde l'état (`~/.myskills/state.json`,
   `.myskills.json`) et une copie du script dans `~/.myskills/`.
   `install.py status` : ce qui est installé, fichiers manquants, version

@@ -34,11 +34,61 @@ lancer une fois (elle remplace les `external_dirs` déjà configurés).
 ### Synchronisation depuis GitHub
 
 `install.py sync` installe et met à jour skills et agents pour les cinq
-outils d'un coup, sans clone ni identifiants git : il télécharge l'archive
-du dépôt par l'API GitHub, avec le jeton de `gh auth login` (ou
-`MYSKILLS_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN`, le dépôt étant privé).
-Installation **globale** par défaut, conseillée : les skills ne dépendent
-d'aucun projet. Première fois, sans copie du dépôt :
+outils d'un coup. Installation **globale** par défaut, conseillée : les
+skills ne dépendent d'aucun projet. Le dépôt étant privé, il faut l'une des
+quatre voies ci-dessous pour la première fois ; ensuite,
+`uv run ~/.myskills/install.py sync` met à jour (rien n'est réécrit si la
+version n'a pas changé) et `uv run ~/.myskills/install.py status` dit ce
+qui est installé et si GitHub a plus récent.
+
+**1. Archive ZIP, sans jeton ni outil.** Sur la page du dépôt, connecté à
+GitHub : Code > Download ZIP. Décompressez-la, puis :
+
+```bash
+uv run myskills-main/scripts/install.py sync --source myskills-main --tools claude,copilot
+```
+
+Pour mettre à jour, téléchargez un nouveau ZIP et passez-le tel quel :
+`uv run ~/.myskills/install.py sync --source ~/Downloads/myskills-main.zip`.
+
+**2. Jeton GitHub, sans gh.** Créez un jeton *fine-grained* (GitHub >
+Settings > Developer settings > Personal access tokens), limité au dépôt
+`myskills` avec la permission *Contents : Read-only*. Téléchargez le script
+avec ce jeton :
+
+```powershell
+# PowerShell
+$env:MYSKILLS_TOKEN = "github_pat_..."
+Invoke-WebRequest https://api.github.com/repos/RenaudVanhille/myskills/contents/scripts/install.py `
+  -Headers @{Authorization = "Bearer $env:MYSKILLS_TOKEN"; Accept = "application/vnd.github.raw"} -OutFile install.py
+uv run install.py sync --tools claude,copilot
+```
+
+```bash
+# bash, zsh
+export MYSKILLS_TOKEN=github_pat_...
+curl -fsSL -H "Authorization: Bearer $MYSKILLS_TOKEN" -H "Accept: application/vnd.github.raw" \
+  -o install.py https://api.github.com/repos/RenaudVanhille/myskills/contents/scripts/install.py
+uv run install.py sync --tools claude,copilot
+```
+
+Le script lit `MYSKILLS_TOKEN` (ou `GH_TOKEN`, `GITHUB_TOKEN`) ; sans
+variable ni gh, il demande le jeton dans le terminal, saisie masquée, sans
+l'enregistrer. Pour le garder : `setx MYSKILLS_TOKEN github_pat_...` sous
+Windows, une ligne `export` dans le profil du shell ailleurs.
+
+**3. Clone git.** Git pour Windows ouvre le navigateur pour se connecter à
+GitHub au premier clone (Git Credential Manager) :
+
+```bash
+git clone https://github.com/RenaudVanhille/myskills
+uv run myskills/scripts/install.py sync --source myskills --tools claude,copilot
+```
+
+Pour mettre à jour : `git -C myskills pull`, puis `uv run ~/.myskills/install.py sync`
+(la synchro reprend le dossier source de la précédente).
+
+**4. GitHub CLI.** Avec `gh auth login` fait, aucun jeton à gérer :
 
 ```bash
 gh api repos/RenaudVanhille/myskills/contents/scripts/install.py -H "Accept: application/vnd.github.raw" > install.py
@@ -46,16 +96,13 @@ uv run install.py sync --tools claude,copilot
 ```
 
 En PowerShell, remplacez `> install.py` par `| Set-Content -Encoding utf8 install.py`.
-Ensuite, `uv run ~/.myskills/install.py sync` met à jour (rien n'est
-réécrit si la version n'a pas changé) et `uv run ~/.myskills/install.py status`
-dit ce qui est installé et si GitHub a plus récent.
 
 | Option | Effet |
 | --- | --- |
 | `--global` (défaut) ou `--project DIR` | Dossier personnel, ou projet (version figée pour un client, prioritaire sur la globale) |
 | `--tools claude,copilot,opencode,kiro,hermes` | Outils ciblés ; par défaut ceux de la synchro précédente, sinon ceux détectés |
 | `--ref BRANCHE`, `--repo OWNER/NOM` | Version à installer (défaut : `main`) |
-| `--source DIR` | Copie locale du dépôt, sans téléchargement |
+| `--source DIR` ou `--source FICHIER.zip` | Copie locale du dépôt (dossier, clone, ZIP de GitHub), sans téléchargement |
 | `--models FICHIER` | Modèles de l'abonnement (voir plus bas), gardés pour les synchros suivantes |
 | `--force`, `--dry-run` | Réinstaller même sans changement ; tout calculer sans rien écrire |
 
