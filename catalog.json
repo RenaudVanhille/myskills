@@ -6147,7 +6147,8 @@
       ],
       "outputs": [
         "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json",
-        "Après export : <sujet>.drawio.png, .svg ou .pdf"
+        "Après export : <sujet>.drawio.png, .svg ou .pdf",
+        "Depuis un .drawio existant : sa description courte <sujet>.json (drawio_read.py), à éditer puis reconstruire"
       ],
       "scripts": [
         {
@@ -6501,6 +6502,75 @@
           "exit_codes": {
             "0": "aucune erreur",
             "1": "au moins un fichier a une erreur"
+          }
+        },
+        {
+          "name": "drawio_read.py",
+          "role": "Tire d'un .drawio existant (XML clair ou compressé) la description JSON courte de drawio_build.py : rôle de chaque forme déduit de son style, identifiants, libellés sans HTML et positions (ou grille approchée), flèches avec libellé et style ; vérifie la description contre le schéma de drawio_build.py avant de l'écrire. Le modèle édite cette description au lieu du XML.",
+          "usage": "uv run scripts/drawio_read.py SCHEMA.drawio [--out SCHEMA.json] [--grid] [--force]",
+          "options": {
+            "SCHEMA.drawio": "schéma draw.io à reprendre",
+            "--out": "description JSON (défaut : SCHEMA.json à côté du .drawio)",
+            "--grid": "grille approchée (row, col) au lieu des coordonnées : drawio_build.py refait la mise en page",
+            "--force": "remplacer une description existante"
+          },
+          "report": {
+            "format": "json",
+            "description": "Pages, formes et flèches lues, description écrite ; avertissements : flèche sans extrémité, forme sans libellé, icônes de fournisseur.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "pages",
+                "elements",
+                "arrows",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pages": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "elements": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "formes lues (zones et notes comprises)"
+                },
+                "arrows": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "description écrite",
+            "1": "fichier illisible, schéma vide, description existante sans --force ou non conforme"
           }
         }
       ],
