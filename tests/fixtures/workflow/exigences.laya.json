@@ -1,137 +1,137 @@
 {
  "method": "laya (fictif, pour les tests)",
  "answers": {
-  "exigence:f6eb4906e56a7cea": {
+  "exigence.v2:f6eb4906e56a7cea": {
    "probability": 0.4
   },
-  "exigence:437e4d26277b928a": {
+  "exigence.v2:437e4d26277b928a": {
    "probability": 0.85
   },
-  "exigence:dc02fdf6e6cfcb14": {
+  "exigence.v2:dc02fdf6e6cfcb14": {
    "probability": 0.2
   },
-  "exigence:32ad639cb9548d30": {
+  "exigence.v2:32ad639cb9548d30": {
    "probability": 0.05
   },
-  "nature:89b5c476bd12883a": {
+  "nature.v2:89b5c476bd12883a": {
    "choice": "fonctionnelle",
    "confidence": 0.9
   },
-  "nature:9435c13f3d157a93": {
+  "nature.v2:9435c13f3d157a93": {
    "choice": "fonctionnelle",
    "confidence": 0.9
   },
-  "nature:2c17d48054ecdd30": {
+  "nature.v2:2c17d48054ecdd30": {
    "choice": "fonctionnelle",
    "confidence": 0.9
   },
-  "nature:1ac7f43377f6c348": {
+  "nature.v2:1ac7f43377f6c348": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:1ac7f43377f6c348": {
+  "categorie.v2:1ac7f43377f6c348": {
    "choice": "performance",
    "confidence": 0.9
   },
-  "nature:33f1a79f406dd2e4": {
+  "nature.v2:33f1a79f406dd2e4": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:33f1a79f406dd2e4": {
+  "categorie.v2:33f1a79f406dd2e4": {
    "choice": "disponibilite",
    "confidence": 0.9
   },
-  "nature:08e2ef361932480c": {
+  "nature.v2:08e2ef361932480c": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:08e2ef361932480c": {
+  "categorie.v2:08e2ef361932480c": {
    "choice": "securite",
    "confidence": 0.8
   },
-  "nature:4d7fdcbf84d59004": {
+  "nature.v2:4d7fdcbf84d59004": {
    "choice": "fonctionnelle",
    "confidence": 0.75
   },
-  "categorie:4d7fdcbf84d59004": {
+  "categorie.v2:4d7fdcbf84d59004": {
    "choice": "securite",
    "confidence": 0.9
   },
-  "nature:8b7e65da3bcf5d72": {
+  "nature.v2:8b7e65da3bcf5d72": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:8b7e65da3bcf5d72": {
+  "categorie.v2:8b7e65da3bcf5d72": {
    "choice": "performance",
    "confidence": 0.55
   },
-  "nature:5af33e6d33664543": {
+  "nature.v2:5af33e6d33664543": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:5af33e6d33664543": {
+  "categorie.v2:5af33e6d33664543": {
    "choice": "securite",
    "confidence": 0.9
   },
-  "nature:a1e06c8b229e5a35": {
+  "nature.v2:a1e06c8b229e5a35": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:a1e06c8b229e5a35": {
+  "categorie.v2:a1e06c8b229e5a35": {
    "choice": "securite",
    "confidence": 0.9
   },
-  "exigence:5d307527a01cd082": {
+  "exigence.v2:5d307527a01cd082": {
    "probability": 0.9
   },
-  "exigence:26a996baba85fd09": {
+  "exigence.v2:26a996baba85fd09": {
    "probability": 0.3
   },
-  "exigence:4ad346c2b7a2c675": {
+  "exigence.v2:4ad346c2b7a2c675": {
    "probability": 0.9
   },
-  "exigence:7a4c52ede6d3279a": {
+  "exigence.v2:7a4c52ede6d3279a": {
    "probability": 0.9
   },
-  "exigence:c8dbcf0493c00372": {
+  "exigence.v2:c8dbcf0493c00372": {
    "probability": 0.9
   },
-  "exigence:a9ce53e86676d212": {
+  "exigence.v2:a9ce53e86676d212": {
    "probability": 0.9
   },
-  "exigence:a282a109bbd84af3": {
+  "exigence.v2:a282a109bbd84af3": {
    "probability": 0.9
   },
-  "exigence:85c35e8c5e9d19d4": {
+  "exigence.v2:85c35e8c5e9d19d4": {
    "probability": 0.9
   },
-  "exigence:89c837391536d433": {
+  "exigence.v2:89c837391536d433": {
    "probability": 0.9
   },
-  "exigence:18aa47bd2b27d67c": {
+  "exigence.v2:18aa47bd2b27d67c": {
    "probability": 0.9
   },
-  "nature:995a8bd930303c35": {
+  "nature.v2:995a8bd930303c35": {
    "choice": "fonctionnelle",
    "confidence": 0.9
   },
-  "nature:e783c75dc8b83d6a": {
+  "nature.v2:e783c75dc8b83d6a": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:e783c75dc8b83d6a": {
+  "categorie.v2:e783c75dc8b83d6a": {
    "choice": "performance",
    "confidence": 0.9
   },
-  "nature:da5c073d1e0de78a": {
+  "nature.v2:da5c073d1e0de78a": {
    "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
-  "categorie:da5c073d1e0de78a": {
+  "categorie.v2:da5c073d1e0de78a": {
    "choice": "securite",
    "confidence": 0.9
   },
-  "nature:02dc87adaf13f5a3": {
+  "nature.v2:02dc87adaf13f5a3": {
    "choice": "fonctionnelle",
    "confidence": 0.9
   }

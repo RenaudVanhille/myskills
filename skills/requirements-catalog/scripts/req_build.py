@@ -51,8 +51,12 @@ NORMATIVE = re.compile(
     r"obligatoire\w*|imperatif|exige|exigee?s?|ne pourra pas|pourra|shall|must|should|is required|are required)\b")
 MAX_LISTED = 20
 LAYA = Path(__file__).resolve().parent / "req_laya.py"
-# Probabilité à partir de laquelle Laya tient une phrase pour une exigence.
+# Probabilité à partir de laquelle Laya tient une phrase pour une exigence. Laya ne fait qu'ajouter des
+# phrases à celles de la regex : mesuré par tests/laya_eval.py, il n'écarte pas assez bien une phrase
+# normative pour qu'on la taise sur son avis.
 LAYA_REQUIREMENT = 0.5
+# Version des consignes de req_laya.py, dans la clé du cache : la changer quand elles changent.
+LAYA_PROMPT = 2
 # Confiance à partir de laquelle un désaccord de Laya sur la nature ou la catégorie est signalé.
 LAYA_DISAGREE = 0.7
 # Identifiant d'exigence dans un document : REQ-012, EX_F_03, RG.45, RF12...
@@ -145,7 +149,12 @@ def sentences(lines: list[str], every: bool = False):
 
 
 def laya_key(question: str, text: str) -> str:
-    return f"{question}:{hashlib.sha1(normalize(text).encode('utf-8')).hexdigest()[:16]}"
+    return f"{question}.v{LAYA_PROMPT}:{hashlib.sha1(normalize(text).encode('utf-8')).hexdigest()[:16]}"
+
+
+def flagged(normative: bool, said: dict | None) -> bool:
+    """Phrase à reprendre ou à écarter : normative pour la regex, ou exigence pour Laya."""
+    return normative or (said is not None and said["probability"] >= LAYA_REQUIREMENT)
 
 
 def ask_laya(items: list[dict], cache_path: Path, warnings: list[str]) -> tuple[dict, str]:
@@ -369,14 +378,13 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
     uncovered = []
     for doc, number, sentence, normative in candidates:
         said = answers.get(laya_key("exigence", sentence))
-        if said is None:
-            if normative:
-                uncovered.append(f"phrase normative non reprise ni écartée : {doc}:{number} « {sentence[:120]} »")
-        elif said["probability"] >= LAYA_REQUIREMENT:
+        if normative:
+            uncovered.append(f"phrase normative non reprise ni écartée : {doc}:{number} « {sentence[:120]} »")
+            # Phrase que Laya ne tient pas pour une exigence : signalée quand même, comptée à part.
+            dismissed += said is not None and said["probability"] < LAYA_REQUIREMENT
+        elif flagged(normative, said):
             uncovered.append(f"phrase d'exigence non reprise ni écartée (Laya {said['probability']}) : "
                              f"{doc}:{number} « {sentence[:120]} »")
-        elif normative:
-            dismissed += 1
     warnings += uncovered[:MAX_LISTED]
     if len(uncovered) > MAX_LISTED:
         warnings.append(f"... et {len(uncovered) - MAX_LISTED} autres phrases d'exigence non reprises")

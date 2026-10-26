@@ -100,8 +100,9 @@ zéro phrase non reprise. Produit `exigences.md` pour la revue et
 **Avec Laya** (`--laya`, facultatif) : le modèle local de décision
 [Laya](https://github.com/NandhaKishorM/laya) (Apache-2.0, CPU, rien ne
 sort du poste) lit chaque phrase non reprise et dit si c'est une exigence,
-même sans « doit » (« un accusé de réception est envoyé ») ; une phrase
-normative qu'il écarte n'est plus signalée (compteur `dismissed`). Il
+même sans « doit » (« un accusé de réception est envoyé »). Il ajoute des
+phrases à celles de la regex sans en retirer : une phrase normative qu'il
+ne tient pas pour une exigence reste signalée (compteur `dismissed`). Il
 contrôle aussi la nature et la catégorie de chaque exigence retenue : un
 désaccord net devient un avertissement « Laya y voit plutôt... », à
 trancher par vous, jamais une erreur. Réponses en cache

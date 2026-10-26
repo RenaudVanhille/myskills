@@ -8,12 +8,12 @@ réponse attendue : exigence ou non, et pour une exigence sa nature et sa
 catégorie. Le script pose à Laya les questions de req_build.py --laya (par
 `ask_laya`, donc avec le même cache et le même repli), puis compare :
 - exigence : précision, rappel et F1 de Laya au seuil de req_build.py
-  (LAYA_REQUIREMENT), ceux de la regex NORMATIVE, et le seuil qui donne le
-  meilleur F1 ;
+  (LAYA_REQUIREMENT), ceux de la regex NORMATIVE, ceux de la règle de
+  req_build.py (regex ou Laya), et le seuil qui donne le meilleur F1 ;
 - nature et catégorie : part de bonnes réponses, et part des désaccords que
   req_build.py signalerait à tort (confiance >= LAYA_DISAGREE).
 
-Laya est gardé dans req_build.py si son F1 dépasse celui de la regex.
+Laya est gardé dans req_build.py si la règle regex ou Laya dépasse la regex seule.
 Premier lancement long (PyTorch CPU puis le modèle, ~1,5 Go) ; les réponses
 restent dans le cache. Ce script sert aux tests du dépôt (CI : job laya).
 
@@ -59,7 +59,7 @@ def main() -> int:
                         help="cache des réponses de Laya (même format que req_build.py --laya-cache)")
     parser.add_argument("--markdown", type=Path, help="écrit aussi le résultat en Markdown (résumé de CI)")
     parser.add_argument("--min-gain", type=float,
-                        help="code 1 si le F1 de Laya ne dépasse pas celui de la regex d'au moins cette valeur")
+                        help="code 1 si le F1 de la règle regex ou Laya ne dépasse pas celui de la regex d'au moins cette valeur")
     args = parser.parse_args()
 
     report = {"phrases": 0, "method": None, "exigence": None, "nature": None, "categorie": None,
@@ -86,8 +86,10 @@ def main() -> int:
     probability = [answers.get(key("exigence", p["text"]), {}).get("probability", 0.0) for p in phrases]
     regex = [bool(rb.NORMATIVE.search(rb.normalize(p["text"]))) for p in phrases]
     laya = scores([x >= rb.LAYA_REQUIREMENT for x in probability], expected)
+    # Règle de req_build.py : phrase signalée si la regex ou Laya y voit une exigence.
+    rule = scores([rb.flagged(r, {"probability": x}) for r, x in zip(regex, probability)], expected)
     report["exigence"] = {"threshold": rb.LAYA_REQUIREMENT, "laya": laya, "regex": scores(regex, expected),
-                          "gain_f1": round(laya["f1"] - scores(regex, expected)["f1"], 3)}
+                          "rule": rule, "gain_f1": round(rule["f1"] - scores(regex, expected)["f1"], 3)}
     best = max(THRESHOLDS, key=lambda t: (scores([x >= t for x in probability], expected)["f1"], -abs(t - 0.5)))
     report["best_threshold"] = {"threshold": best, **scores([x >= best for x in probability], expected)}
     for p, x, r in zip(phrases, probability, regex):
@@ -110,12 +112,12 @@ def main() -> int:
     if args.markdown:
         e = report["exigence"]
         lines = [f"# Justesse de Laya sur les exigences ({len(phrases)} phrases, {method})", "",
-                 "| Question | Laya | Regex |", "| --- | --- | --- |",
-                 f"| exigence, F1 (seuil {e['threshold']}) | {e['laya']['f1']} | {e['regex']['f1']} |",
-                 f"| exigence, précision | {e['laya']['precision']} | {e['regex']['precision']} |",
-                 f"| exigence, rappel | {e['laya']['recall']} | {e['regex']['recall']} |",
-                 f"| nature, bonnes réponses | {report['nature']['accuracy']} | (déclarée) |",
-                 f"| catégorie, bonnes réponses | {report['categorie']['accuracy']} | (déclarée) |", "",
+                 "| Question | Laya | Regex | Regex ou Laya (req_build.py) |", "| --- | --- | --- | --- |",
+                 *(f"| exigence, {label} | {e['laya'][k]} | {e['regex'][k]} | {e['rule'][k]} |"
+                   for label, k in ((f"F1 (seuil {e['threshold']})", "f1"), ("précision", "precision"),
+                                    ("rappel", "recall"))),
+                 f"| nature, bonnes réponses | {report['nature']['accuracy']} | (déclarée) | |",
+                 f"| catégorie, bonnes réponses | {report['categorie']['accuracy']} | (déclarée) | |", "",
                  f"Meilleur seuil pour exigence : {best} (F1 {report['best_threshold']['f1']}). "
                  f"Fausses alertes de req_build.py : nature {report['nature']['false_alarms']}, "
                  f"catégorie {report['categorie']['false_alarms']}.", "", "## Erreurs de Laya", "",
@@ -124,7 +126,7 @@ def main() -> int:
                   for m in report["mistakes"]]
         args.markdown.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if args.min_gain is not None and report["exigence"]["gain_f1"] < args.min_gain:
-        report["errors"].append(f"F1 de Laya {laya['f1']} : gain {report['exigence']['gain_f1']} sur la regex, "
+        report["errors"].append(f"F1 de la règle {rule['f1']} : gain {report['exigence']['gain_f1']} sur la regex, "
                                 f"moins que --min-gain {args.min_gain}")
     report["mistakes"] = report["mistakes"][:40]
     print(json.dumps(report, ensure_ascii=False))

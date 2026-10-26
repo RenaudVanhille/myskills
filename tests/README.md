@@ -80,7 +80,8 @@ compte rendu (exigence ou non, nature, catégorie), avec des pièges voulus :
 exigences sans verbe normatif, verbes normatifs hors exigence. `laya_eval.py`
 pose à Laya les questions de `req_build.py --laya` et compare au repli par
 regex : précision, rappel et F1, meilleur seuil, fausses alertes sur la nature
-et la catégorie. Laya se garde si son F1 dépasse celui de la regex.
+et la catégorie. Laya se garde si la règle de `req_build.py` (regex ou
+Laya) a un meilleur F1 que la regex seule.
 
 ```bash
 uv run tests/laya_eval.py --markdown laya-eval.md
