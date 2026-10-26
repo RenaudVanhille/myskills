@@ -1,5 +1,15 @@
 # Journal des versions
 
+## Non publié
+
+- `req_build.py --laya` (requirements-catalog) : le modèle local Laya
+  (`req_laya.py`, dans son propre environnement) dit si chaque phrase non
+  reprise des sources est une exigence, même sans verbe normatif, et
+  contrôle la nature et la catégorie des exigences retenues
+  (avertissements au-dessus de 0,7 de confiance). Réponses en cache
+  (`--laya-cache`), repli sur la regex sans Laya. Rapport : `method`,
+  `dismissed`, `disagreements`. Facultatif : sans `--laya`, rien ne change.
+
 ## 0.6.0 (2026-10-25)
 
 ### Parallélisation

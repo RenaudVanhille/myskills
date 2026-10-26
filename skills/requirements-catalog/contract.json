@@ -12,12 +12,14 @@
   "scripts": [
     {
       "name": "req_build.py",
-      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence, signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
-      "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] | --schema",
+      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases normatives des sources reprises par aucune exigence (avec --laya, les phrases d'exigence selon le modèle local Laya, et ses désaccords sur la nature et la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
+      "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--laya [--laya-cache FICHIER]] | --schema",
       "options": {
         "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--laya": "phrases d'exigence, nature et catégorie contrôlées par le modèle local Laya (req_laya.py), avertissements seulement ; repli sur la regex sans Laya",
+        "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/<nom>.laya.json à côté du .json) ; implique --laya"
       },
       "input": {
         "format": "json",
@@ -250,7 +252,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Compteurs, fichiers produits, erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase normative non reprise, exigence non mesurable, doublon).",
+        "description": "Compteurs, fichiers produits, méthode (regles ou laya), phrases normatives que Laya ne tient pas pour des exigences (dismissed), désaccords de Laya (disagreements), erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, désaccord de Laya).",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
@@ -268,7 +270,10 @@
                 "uncovered",
                 "errors",
                 "warnings",
-                "glossary"
+                "glossary",
+                "method",
+                "dismissed",
+                "disagreements"
               ],
               "additionalProperties": false,
               "properties": {
@@ -324,6 +329,18 @@
                 "glossary": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "method": {
+                  "type": "string",
+                  "pattern": "^(regles|laya.*)$"
+                },
+                "dismissed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "disagreements": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               }
             },
@@ -359,6 +376,140 @@
       "exit_codes": {
         "0": "catalogue produit sans erreur (avertissements possibles)",
         "1": "description invalide, citation introuvable ou autre erreur ; aucun fichier produit"
+      }
+    },
+    {
+      "name": "req_laya.py",
+      "role": "Pose au modèle local Laya les questions fermées de req_build.py --laya (la phrase est-elle une exigence, sa nature, sa catégorie) ; lancé par req_build.py dans son propre environnement.",
+      "usage": "uv run scripts/req_laya.py questions.json | --schema",
+      "options": {
+        "questions.json": "questions écrites par req_build.py --laya",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Validée avant le chargement du modèle : clé inconnue, question hors liste ou texte vide donnent une erreur avec son chemin.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "question",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "question": {
+                    "enum": [
+                      "exigence",
+                      "nature",
+                      "categorie"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Méthode (modèle Laya employé) et réponse à chaque question : probabilité pour exigence, choix et confiance pour nature et categorie ; erreur si la description est invalide ou si Laya ne se charge pas.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "input",
+            "method",
+            "answers",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "method": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "answers": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "probability"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "probability": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "choice",
+                      "confidence"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "choice": {
+                        "type": "string"
+                      },
+                      "confidence": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "toutes les questions posées (une phrase sans réponse est un avertissement)",
+        "1": "description invalide ou Laya indisponible"
       }
     }
   ],
