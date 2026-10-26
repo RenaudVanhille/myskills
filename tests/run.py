@@ -46,6 +46,7 @@ from referencing import Registry, Resource  # noqa: E402
 # Schéma du rapport de chaque script, d'après les contract.json (None : pas de JSON).
 CONTRACTS = {script["name"]: script["report"].get("schema")
              for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
+CONTRACTS["install.py"] = contracts_lib.schema("install-report")
 # Schéma d'entrée (description JSON) de chaque script qui en déclare un.
 INPUTS = {script["name"]: script["input"]["schema"]
           for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
