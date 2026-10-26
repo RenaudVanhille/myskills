@@ -179,7 +179,7 @@ def remote_sha(repo: str, ref: str) -> str:
 
 
 def download(repo: str, sha: str) -> Path:
-    """Archive du commit dans ~/.myskills/cache/<sha> ; les autres versions du cache sont retirées."""
+    """Archive du commit dans ~/.myskills/cache/<sha>."""
     cache = state_dir() / "cache"
     target = cache / sha
     if (target / "scripts" / "install.py").is_file():
@@ -199,9 +199,6 @@ def download(repo: str, sha: str) -> Path:
                 continue
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(archive.extractfile(member).read())
-    for old in cache.iterdir():
-        if old != partial:
-            shutil.rmtree(old, ignore_errors=True)
     partial.rename(target)
     return target
 
@@ -358,6 +355,11 @@ def apply(args, source: dict, report: dict) -> None:
     for rel in stale:
         remove(root, rel)
     agents_lib.write_text(spath, json.dumps(new_state, ensure_ascii=False, indent=1) + "\n")
+    if source["repo"]:
+        # Le cache ne garde que la version installée.
+        for other in (state_dir() / "cache").iterdir():
+            if other.name != source["sha"]:
+                shutil.rmtree(other, ignore_errors=True)
     if global_:
         # Copie autonome du script : `uv run ~/.myskills/install.py sync` pour les synchros suivantes.
         shutil.copyfile(Path(__file__), state_dir() / "install.py")
