@@ -520,6 +520,26 @@
                    "exigences.csv": ["ENF-004;non fonctionnelle", "SEC-02;non fonctionnelle"]}
     },
     {
+      "id": "exigences-laya",
+      "skill": "requirements-catalog",
+      "_note": "Réponses de Laya prises dans un cache fictif (aucun modèle chargé) : phrase d'exigence sans verbe normatif trouvée, phrase normative écartée, désaccords sur la nature et la catégorie au-dessus du seuil seulement.",
+      "steps": [
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}", "--laya-cache", "{fixtures}/workflow/exigences.laya.json"], "exit": 0, "report": {"uncovered": 1, "dismissed": 0, "disagreements": 2, "method": "laya (fictif, pour les tests)", "errors": []}, "report_contains": {"warnings": "(Laya 0.85) : cahier-des-charges.md:17 « Un accusé de réception est envoyé"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}", "--laya-cache", "{fixtures}/workflow/exigences.laya.json"], "exit": 0, "report_contains": {"warnings": "(ENF-003) : Laya y voit plutôt la catégorie securite (0.8) que conformite"}},
+        {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences-citation.json", "--out-dir", "{out}", "--laya-cache", "{fixtures}/workflow/exigences.laya.json"], "exit": 1, "report": {"dismissed": 1}}
+      ],
+      "files": ["exigences.md", "exigences.csv"]
+    },
+    {
+      "id": "exigences-laya-entree",
+      "skill": "requirements-catalog",
+      "slow": true,
+      "_note": "Installe PyTorch et Laya au premier lancement, d'où --slow. La description est refusée avant le chargement du modèle.",
+      "steps": [
+        {"script": "{skills}/requirements-catalog/scripts/req_laya.py", "args": ["{fixtures}/workflow/laya-invalide.json"], "exit": 1, "report_contains": {"errors": "items/0/question"}}
+      ]
+    },
+    {
       "id": "exigences-erreurs",
       "skill": "requirements-catalog",
       "_note": "Description non conforme, citation inventée, document mal nommé et exigences oubliées : refusés avec le chemin, la ligne proche et les phrases non reprises.",
