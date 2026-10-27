@@ -35,6 +35,15 @@
         "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
         "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
       ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
       "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Garder les exigences de migration : échéances, hébergement, réversibilité, continuité, contraintes de licence ; chaque exigence déduite se note au journal."
     },
     {
@@ -60,6 +69,15 @@
       ],
       "checks": [
         "migration-assessment : assess_build.py migration.json (zéro erreur ; dépendances, retraits et hébergeur cible contrôlés, vagues calculées)"
+      ],
+      "run": [
+        {
+          "skill": "migration-assessment",
+          "script": "assess_build.py",
+          "args": [
+            "migration.json"
+          ]
+        }
       ],
       "instructions": "Une entrée par application de l'inventaire, sans en inventer ; stratégie 6R, raison en une phrase, effort et risque. Chaque retrait et la stratégie de chaque application critique se présentent à la revue. Un avertissement gardé (refactor d'effort S, socle hors support réhébergé) se note au journal avec sa raison."
     },
@@ -87,6 +105,28 @@
         "cloud-architecture : cloud_build.py schemas/cible.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois",
         "well-architected-review : wa_check.py schemas/cible.json --fail-on moyenne, avec --vault <vault> --folder <dossier> si le workflow a un vault"
       ],
+      "run": [
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "schemas/cible.json",
+            "--matrix",
+            "--export",
+            "png"
+          ]
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "args": [
+            "schemas/cible.json",
+            "--fail-on",
+            "moyenne"
+          ],
+          "vault": true
+        }
+      ],
       "instructions": "Décrire la cible des applications migrées avec l'hébergeur de migration.json : services cibles (target_service), réseau, identité, sauvegardes. Un constat Well-Architected de gravité haute se corrige ou s'accepte avec la raison de l'utilisateur."
     },
     {
@@ -95,7 +135,8 @@
       "level": "complexe",
       "facultative": true,
       "skills": [
-        "solution-estimate"
+        "solution-estimate",
+        "cloud-cost"
       ],
       "agent": "solution-estimator",
       "inputs": [
@@ -108,10 +149,32 @@
         "chiffrage.md"
       ],
       "optional": [
-        "chiffrage.csv"
+        "chiffrage.csv",
+        "couts.json",
+        "couts.md",
+        "couts.csv"
       ],
       "checks": [
+        "cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)",
         "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault"
+      ],
+      "run": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "args": [
+            "couts.json"
+          ],
+          "if": "couts.json"
+        },
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "args": [
+            "chiffrage.json"
+          ],
+          "vault": true
+        }
       ],
       "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un lot par vague ; les efforts S à XL de migration.json servent de base aux estimations à trois points."
     },
@@ -141,6 +204,15 @@
       "checks": [
         "transition-roadmap : roadmap_build.py feuille-de-route.json (zéro erreur ; chemin critique et échéance)",
         "si l'utilisateur veut une image : diagram-export : export.py feuille-de-route.md"
+      ],
+      "run": [
+        {
+          "skill": "transition-roadmap",
+          "script": "roadmap_build.py",
+          "args": [
+            "feuille-de-route.json"
+          ]
+        }
       ],
       "instructions": "Reprendre les vagues (waves.file : migration.waves.json) et ajouter les chantiers transverses : cadrage, socle, sécurité et AIPD, formation, décommissionnement, jalons. Échéance d'une exigence dans deadline. Une échéance dépassée se présente à la revue avec le chemin critique ; chaque durée prise sans source se note au journal comme hypothèse."
     },
@@ -176,6 +248,28 @@
         "architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)",
         "architecture-dossier : dossier_build.py . --template migration --out dossier-migration.md --strict",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-migration.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "actions.py",
+          "args": [
+            "."
+          ],
+          "if": "**/*.threats.md"
+        },
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "migration",
+            "--out",
+            "dossier-migration.md",
+            "--strict"
+          ]
+        }
       ],
       "instructions": "Étape facultative, proposée en dernier. Écrire synthese.md (une page : périmètre, répartition 6R, cible, coût, échéance et chemin critique, décisions attendues) à partir des rapports des étapes précédentes ; le reste est assemblé par le script."
     }

@@ -71,8 +71,9 @@ workflow, la commande les trace aussi au journal.
    description JSON courte (ou passe l'inventaire CSV tel quel pour un POS)
    et construis le fichier avec le script du skill (`drawio_build.py`,
    `excalidraw_build.py`, `pos_build.py`, `cloud_build.py`), jusqu'à zéro
-   erreur ; n'écris le XML draw.io à la
-   main que pour modifier un fichier existant (`check_drawio.py`). Pour un
+   erreur ; jamais de XML à la main. Pour modifier un `.drawio` existant,
+   `drawio_read.py` en tire la description, que tu édites avant de
+   reconstruire. Pour un
    schéma cloud AWS, Azure ou GCP, lance aussi `wa_check.py --scope
    conventions` (skill `well-architected-review`) sur la description :
    corrige les constats de gravité haute ou moyenne, ou ajoute-les à

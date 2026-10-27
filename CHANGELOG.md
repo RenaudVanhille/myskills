@@ -1,7 +1,66 @@
 # Journal des versions
 
-## Non publié
+## 0.7.0 (2026-10-26)
 
+### Fiabilité
+
+- CI : job `rendus` (Linux) qui installe draw.io Desktop et Playwright et
+  joue les cas lents (`run.py --slow`), dont l'export draw.io et les cas
+  Laya ; la matrice Linux, macOS, Windows reste.
+- `tests/laya_eval.py` et `fixtures/laya/phrases.json` (112 phrases
+  étiquetées, pièges compris) : précision, rappel et F1 de Laya face à la
+  regex, meilleur seuil, justesse sur la nature et la catégorie ; résultat
+  dans le résumé du job `rendus`. Première mesure : F1 0,505 pour Laya
+  contre 0,496 pour la regex, rappel plus bas (0,38 contre 0,42), nature
+  juste à 59 %, catégorie à 45 %.
+- `req_build.py --laya` : Laya ne fait plus qu'ajouter des phrases à celles
+  de la regex ; une phrase normative qu'il écarte reste signalée
+  (`dismissed` la compte). Consignes de `req_laya.py` réécrites sur le
+  modèle des exemples de Laya, versionnées dans la clé du cache
+  (`LAYA_PROMPT`) : un ancien cache ne sert plus. Après coup : F1 de la
+  règle « regex ou Laya » 0,555 contre 0,496 pour la regex seule (rappel
+  0,50 contre 0,42), catégorie juste à 57 % ; la nature (56 %) reste peu
+  fiable, ses désaccords ne sont qu'à vérifier.
+- Mesure du coût (`cost.py --repeat 3`, modèle de chaque agent) : étape
+  schémas du workflow `architecture` 0,61 $ et 69 tours avant, 0,15 $ et
+  13 tours après (`journal.py check`) ; chiffrage 0,61 $ avant, 0,73 $
+  après, l'agent décrivant désormais les consommations cloud avec
+  `cloud-cost` ; `workflow-cloud-existant` 0,21 $ avant, 0,24 $ après ;
+  `revue-menaces` stable (0,69 $ puis 0,71 $). draw.io simulé pour ces
+  mesures dans le conteneur (export de PNG fixe).
+
+### Coût
+
+- `journal.py check DOSSIER ETAPE` : lance en un appel tous les contrôles
+  d'une étape (champ `run` des étapes : script, arguments, `foreach`, `if`,
+  `vault`), rapport `checks` par commande ; les cinq workflows le
+  déclarent, `architecture-workflow` l'appelle avant `submit`. Le cas
+  `regles` vérifie chaque entrée `run`.
+- `stride.py` écrit aussi `<sujet>.threats.json` ; `threat_review.py`
+  (threat-model) lit un court fichier de décisions par menace (traitée,
+  acceptée, écartée, avec mesure ou raison), le vérifie et réécrit le
+  modèle : le modèle ne réécrit plus le Markdown des menaces.
+- `estimate_build.py` signale les postes souvent oubliés (tests de
+  sécurité, environnements hors production, réseau, recette, mise en
+  production, formation). Le chiffrage reste au niveau complexe : Sonnet
+  oubliait ces postes, que le script rattrape désormais sans changer de
+  modèle.
+- Budget de taille : `SKILL.md` et agent source sous 16 000 caractères
+  (cas `regles`).
+
+### Ajouts
+
+- `drawio_read.py` (drawio-diagram) : tire d'un `.drawio` existant (clair
+  ou compressé) la description courte de `drawio_build.py`, rôles déduits
+  du style, positions ou grille (`--grid`) ; plus de XML édité à la main.
+- Skill `cloud-cost` : coût de fonctionnement cloud des options
+  (`cost_build.py couts.json`), grille de prix indicative locale (AWS,
+  Azure, Google Cloud, OVHcloud, Scaleway), plages horaires, remises,
+  postes oubliés, budget ; `--infra OPTION` donne les lignes
+  d'infrastructure du chiffrage. Étape chiffrage des workflows
+  `architecture` et `migration-cloud`.
+- `route.py --laya` (agent-handoff) : Laya choisit parmi les six premiers
+  candidats ; son choix passe en tête à partir de 0,6 de confiance.
 - `install.py sync` : installe et met à jour skills et agents pour Claude
   Code, Copilot, OpenCode, Kiro et Hermes, en global (défaut) ou par projet,
   depuis l'archive GitHub (jeton `gh auth token`, `GH_TOKEN`...), sans clone

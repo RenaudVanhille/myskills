@@ -162,6 +162,7 @@
         "threat-model",
         "architecture-review",
         "solution-estimate",
+        "cloud-cost",
         "architecture-dossier",
         "data-protection",
         "migration-assessment",
@@ -427,6 +428,7 @@
       "skills": [
         "check-prerequisites",
         "solution-estimate",
+        "cloud-cost",
         "requirements-catalog",
         "architecture-options",
         "decision-log",
@@ -520,13 +522,15 @@
         {
           "name": "route.py",
           "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
-          "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] | --list [--kind ...]",
+          "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]] | --list [--kind ...]",
           "options": {
             "--query": "la demande de l'utilisateur, telle quelle",
             "--files": "fichiers fournis avec la demande (leurs extensions orientent le classement)",
             "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
             "--top": "nombre de candidats rendus (défaut : tous)",
-            "--list": "tous les candidats, sans classement"
+            "--list": "tous les candidats, sans classement",
+            "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 6 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
+            "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/route.laya.json du dossier courant)"
           },
           "exit_codes": {
             "0": "liste rendue (avertissement si aucun mot commun ou égalité en tête)",
@@ -542,6 +546,7 @@
               "required": [
                 "query",
                 "candidates",
+                "laya",
                 "errors",
                 "warnings"
               ],
@@ -618,9 +623,135 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "laya": {
+                  "description": "Avec --laya : choix de Laya et sa confiance, sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "method",
+                        "choice",
+                        "confidence"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "method": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "choice": {
+                          "type": "string"
+                        },
+                        "confidence": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
+          }
+        },
+        {
+          "name": "route_laya.py",
+          "role": "Pose au modèle local Laya (CPU, sans service en ligne) la question fermée de route.py --laya : quel candidat traite la demande, d'après les descriptions ; lancé par route.py dans son propre environnement.",
+          "usage": "uv run scripts/route_laya.py question.json | --schema",
+          "options": {
+            "question.json": "la demande (query) et les candidats (nom : description)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Demande et candidats soumis à Laya.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "query",
+                "candidates"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "candidates": {
+                  "type": "object",
+                  "minProperties": 2,
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "nom du candidat : sa description"
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Choix de Laya et sa confiance, ou l'erreur qui fait garder le classement par mots.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "method",
+                "choice",
+                "confidence",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "choice": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "confidence": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "choix rendu",
+            "1": "description invalide ou Laya indisponible"
           }
         }
       ],
@@ -4100,6 +4231,326 @@
       "path": "skills/cloud-architecture"
     },
     {
+      "skill": "cloud-cost",
+      "level": "moyen",
+      "inputs": [
+        "Les options d'architecture cloud à comparer (options.json d'architecture-options, ou leurs schémas cloud) et le dimensionnement connu : volumes, utilisateurs, données",
+        "Description JSON des consommations par option (cost_build.py --schema) : service de la grille, quantité, environnement, plage horaire, prix propre et sa base, remise d'engagement",
+        "Facultatif : une grille de prix propre (devis, grille vérifiée), de même forme que references/prix.json"
+      ],
+      "outputs": [
+        "<nom>.md : comparaison des options (par mois, par an, sur l'horizon, production et hors production), coût par catégorie, détail des lignes avec la base de chaque prix",
+        "<nom>.csv : une ligne par consommation (séparateur ;)",
+        "Avec --infra : <nom>.infra.json, les lignes d'infrastructure du chiffrage de l'option (solution-estimate)"
+      ],
+      "scripts": [
+        {
+          "name": "cost_build.py",
+          "role": "Vérifie hébergeurs et services de la grille, calcule chaque consommation (prix horaire et plage, ou prix mensuel), la remise d'engagement, le coût mensuel par catégorie et par environnement, annuel et sur l'horizon, classe les options ; signale les prix indicatifs à vérifier, le hors production allumé en continu avec l'économie d'un arrêt, les postes souvent oubliés (trafic sortant, sauvegardes, journaux) et le budget dépassé ; écrit la comparaison et le CSV, relit le CSV pour vérifier les totaux ; avec --infra, écrit les lignes d'infrastructure du chiffrage.",
+          "usage": "uv run scripts/cost_build.py couts.json [--out-dir DOSSIER] [--infra OPTION] | --schema",
+          "options": {
+            "couts.json": "description des consommations par option",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--infra": "option dont écrire les lignes d'infrastructure du chiffrage (<nom>.infra.json)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Consommations de chaque option d'architecture.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "title",
+                "options"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "currency": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{3}$",
+                  "description": "défaut : celle de la grille (EUR)"
+                },
+                "horizon_months": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "défaut : 36"
+                },
+                "budget_monthly": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "prices": {
+                  "type": "string",
+                  "description": "autre grille de même forme que references/prix.json, relative à la description"
+                },
+                "options": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "provider",
+                      "items"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "identifiant de l'option (celui d'options.json)"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$",
+                        "description": "hébergeur du catalogue commun (shared/providers.json)"
+                      },
+                      "discount": {
+                        "type": "object",
+                        "required": [
+                          "percent"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "percent": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 90
+                          },
+                          "on": {
+                            "type": "array",
+                            "items": {
+                              "enum": [
+                                "calcul",
+                                "base de données",
+                                "stockage",
+                                "réseau",
+                                "exploitation"
+                              ]
+                            },
+                            "description": "catégories remisées (défaut : calcul et base de données)"
+                          },
+                          "basis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "engagement ou contrat qui donne la remise"
+                          }
+                        }
+                      },
+                      "items": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "service",
+                            "quantity"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                            },
+                            "service": {
+                              "type": "string",
+                              "description": "service de la grille (vm.vcpu, conteneur.ram, bdd.stockage, stockage.objet, reseau.sortant, journaux...)"
+                            },
+                            "label": {
+                              "type": "string",
+                              "description": "libellé (défaut : celui du service)"
+                            },
+                            "component": {
+                              "type": "string",
+                              "description": "composant de l'option concerné"
+                            },
+                            "quantity": {
+                              "type": "number",
+                              "minimum": 0,
+                              "description": "dans l'unité du service : vCPU, Go, Go par mois, millions d'appels par mois..."
+                            },
+                            "environment": {
+                              "enum": [
+                                "production",
+                                "hors-production"
+                              ],
+                              "description": "défaut : production"
+                            },
+                            "schedule": {
+                              "anyOf": [
+                                {
+                                  "enum": [
+                                    "continu",
+                                    "ouvre"
+                                  ]
+                                },
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 744
+                                }
+                              ],
+                              "description": "plage d'un service à l'heure : continu (730 h par mois, défaut), ouvre (264 h : 12 h par jour ouvré) ou un nombre d'heures par mois"
+                            },
+                            "unit_cost": {
+                              "type": "number",
+                              "minimum": 0,
+                              "description": "prix propre (devis, grille vérifiée) à la place de la grille, dans l'unité du service"
+                            },
+                            "basis": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "d'où vient le prix propre : devis, grille et date"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Coûts de chaque option (par mois, par an, sur l'horizon, économie possible hors production, par catégorie) et l'option la moins chère.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "outputs",
+                "options",
+                "cheapest",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "provider",
+                      "monthly",
+                      "annual",
+                      "horizon",
+                      "saving_monthly",
+                      "by_category"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "string"
+                      },
+                      "monthly": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "annual": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "horizon": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "saving_monthly": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "by_category": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                },
+                "cheapest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "comparaison écrite et CSV vérifié (avertissements possibles : prix indicatifs, postes oubliés, budget)",
+            "1": "description invalide, hébergeur ou service inconnu, prix absent sans unit_cost, base manquante, grille illisible ; aucun fichier produit"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "why": "vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "architecture-options",
+          "kind": "skill",
+          "when": "le coût de fonctionnement change la note du critère cout d'une option"
+        },
+        {
+          "to": "solution-estimate",
+          "kind": "skill",
+          "when": "chiffrer l'option retenue : ses lignes d'infrastructure viennent de --infra"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "valider le dimensionnement et faire vérifier les prix indicatifs avant tout engagement"
+        }
+      ],
+      "description": "Estime et compare le coût de fonctionnement mensuel d'options d'architecture cloud (AWS, Azure, Google Cloud, OVHcloud, Scaleway, ou prix propres) : consommations par option (calcul, conteneurs, base de données, stockage, réseau, journaux), plages horaires, remise d'engagement, production et hors production, calculées par script sur une grille de prix locale. Signale les prix à vérifier, le hors production allumé en continu et les postes oubliés. À utiliser pour un coût de run, une estimation FinOps, comparer des options sur leur coût d'hébergement ou préparer les lignes d'infrastructure d'un chiffrage.",
+      "path": "skills/cloud-cost"
+    },
+    {
       "skill": "data-protection",
       "level": "complexe",
       "inputs": [
@@ -4553,7 +5004,7 @@
       "level": "simple",
       "inputs": [
         "Dossier du workflow",
-        "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
+        "Commande : init, start, log, check, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
         "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
       ],
       "outputs": [
@@ -4565,7 +5016,7 @@
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
+          "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -4574,7 +5025,8 @@
             "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
-            "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer"
+            "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
+            "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec ; n'écrit rien dans workflow.json"
           },
           "report": {
             "format": "json",
@@ -4596,7 +5048,8 @@
                 "changes",
                 "stage",
                 "ask",
-                "ready"
+                "ready",
+                "checks"
               ],
               "additionalProperties": false,
               "properties": {
@@ -4611,7 +5064,8 @@
                     "log",
                     "submit",
                     "review",
-                    "status"
+                    "status",
+                    "check"
                   ]
                 },
                 "stages": {
@@ -4771,6 +5225,48 @@
                     "type": "string"
                   },
                   "description": "Étapes qui peuvent démarrer maintenant (toutes celles dont elles dépendent sont franchies) ; plusieurs : à mener en parallèle."
+                },
+                "checks": {
+                  "description": "Avec check : chaque commande lancée ou sautée, sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "command",
+                          "status"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "command": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "ok",
+                              "echec",
+                              "saute"
+                            ]
+                          },
+                          "errors": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "warnings": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "why": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -5054,6 +5550,49 @@
                             },
                             "uniqueItems": true,
                             "description": "Étapes dont celle-ci dépend, toutes placées avant elle (défaut : l'étape précédente ; [] : aucune). Des étapes prêtes en même temps se mènent en parallèle, chacune avec sa revue."
+                          },
+                          "run": {
+                            "type": "array",
+                            "description": "Contrôles mécaniques de l'étape, lancés en un appel par journal.py check depuis le dossier du workflow ; chaque skill figure dans skills de l'étape et son script existe. Les checks en texte restent la consigne lisible.",
+                            "items": {
+                              "type": "object",
+                              "required": [
+                                "skill",
+                                "script"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "skill": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                                },
+                                "script": {
+                                  "type": "string",
+                                  "pattern": "^[\\w.-]+\\.py$"
+                                },
+                                "args": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions"
+                                },
+                                "foreach": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "motif de fichiers : la commande se lance une fois par fichier, et se saute s'il n'y en a aucun"
+                                },
+                                "if": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "description": "motif de fichiers : la commande se saute si aucun ne correspond (contrôle facultatif)"
+                                },
+                                "vault": {
+                                  "type": "boolean",
+                                  "description": "ajoute --vault et --folder du workflow s'il a un vault"
+                                }
+                              }
+                            }
                           }
                         }
                       }
@@ -6059,7 +6598,8 @@
       ],
       "outputs": [
         "<sujet>.drawio en XML clair, à côté de sa description <sujet>.json",
-        "Après export : <sujet>.drawio.png, .svg ou .pdf"
+        "Après export : <sujet>.drawio.png, .svg ou .pdf",
+        "Depuis un .drawio existant : sa description courte <sujet>.json (drawio_read.py), à éditer puis reconstruire"
       ],
       "scripts": [
         {
@@ -6413,6 +6953,75 @@
           "exit_codes": {
             "0": "aucune erreur",
             "1": "au moins un fichier a une erreur"
+          }
+        },
+        {
+          "name": "drawio_read.py",
+          "role": "Tire d'un .drawio existant (XML clair ou compressé) la description JSON courte de drawio_build.py : rôle de chaque forme déduit de son style, identifiants, libellés sans HTML et positions (ou grille approchée), flèches avec libellé et style ; vérifie la description contre le schéma de drawio_build.py avant de l'écrire. Le modèle édite cette description au lieu du XML.",
+          "usage": "uv run scripts/drawio_read.py SCHEMA.drawio [--out SCHEMA.json] [--grid] [--force]",
+          "options": {
+            "SCHEMA.drawio": "schéma draw.io à reprendre",
+            "--out": "description JSON (défaut : SCHEMA.json à côté du .drawio)",
+            "--grid": "grille approchée (row, col) au lieu des coordonnées : drawio_build.py refait la mise en page",
+            "--force": "remplacer une description existante"
+          },
+          "report": {
+            "format": "json",
+            "description": "Pages, formes et flèches lues, description écrite ; avertissements : flèche sans extrémité, forme sans libellé, icônes de fournisseur.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "pages",
+                "elements",
+                "arrows",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pages": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "elements": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "formes lues (zones et notes comprises)"
+                },
+                "arrows": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "description écrite",
+            "1": "fichier illisible, schéma vide, description existante sans --force ou non conforme"
           }
         }
       ],
@@ -8433,7 +9042,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Compteurs, fichiers produits, méthode (regles ou laya), phrases normatives que Laya ne tient pas pour des exigences (dismissed), désaccords de Laya (disagreements), erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, désaccord de Laya).",
+            "description": "Compteurs, fichiers produits, méthode (regles ou laya), phrases normatives que Laya ne tient pas pour des exigences, signalées quand même (dismissed), désaccords de Laya (disagreements), erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, désaccord de Laya).",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -8733,7 +9342,7 @@
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux.",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
@@ -10260,7 +10869,8 @@
         "Ou la description cloud d'une option d'architecture-options (schemas/option-<id>.cloud.json)"
       ],
       "outputs": [
-        "<sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type et statut à compléter"
+        "<sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type ; après threat_review.py, menaces précisées, mesures retenues, statuts et menaces écartées avec leur raison",
+        "<sujet>.threats.json : les mêmes menaces en données, auxquelles le modèle répond par un fichier de décisions"
       ],
       "scripts": [
         {
@@ -10622,6 +11232,7 @@
                   "required": [
                     "input",
                     "output",
+                    "model",
                     "boundaries",
                     "elements",
                     "flows",
@@ -10705,6 +11316,13 @@
                           }
                         }
                       ]
+                    },
+                    "model": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "<sujet>.threats.json : les menaces en données, pour threat_review.py"
                     }
                   }
                 },
@@ -10740,6 +11358,169 @@
           "exit_codes": {
             "0": "modèle produit sans erreur",
             "1": "description illisible ou erreur"
+          }
+        },
+        {
+          "name": "threat_review.py",
+          "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser.",
+          "usage": "uv run scripts/threat_review.py DECISIONS.json [--out SUJET.threats.md] [--fail-undecided] | --schema",
+          "options": {
+            "DECISIONS.json": "décisions : model (le .threats.json de stride.py) et threats, par identifiant M001...",
+            "--out": "modèle Markdown réécrit (défaut : celui de model, en .md)",
+            "--fail-undecided": "erreur s'il reste des menaces à analyser",
+            "--schema": "affiche le schéma JSON des décisions sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Décisions sur les menaces du modèle STRIDE.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "model",
+                "threats"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "<sujet>.threats.json écrit par stride.py, relatif au fichier de décisions"
+                },
+                "threats": {
+                  "type": "object",
+                  "description": "une entrée par menace décidée, par identifiant (M001...) ; les autres restent à analyser",
+                  "propertyNames": {
+                    "pattern": "^M\\d{3,}$"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "a-traiter",
+                          "traitee",
+                          "acceptee",
+                          "ecartee"
+                        ]
+                      },
+                      "measure": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "mesure retenue (obligatoire si traitee)"
+                      },
+                      "threat": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "menace précisée pour le contexte, à la place de la menace type"
+                      },
+                      "why": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "raison, obligatoire si acceptee (celle de l'utilisateur) ou ecartee"
+                      },
+                      "element": {
+                        "type": "string",
+                        "description": "élément visé, pour vérifier que l'identifiant n'a pas changé"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Menaces, décisions reportées, menaces encore à analyser, compte par statut.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "threats",
+                "decided",
+                "undecided",
+                "by_status",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "threats": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "decided": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "undecided": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "by_status": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "a-traiter",
+                    "traitee",
+                    "acceptee",
+                    "ecartee"
+                  ],
+                  "properties": {
+                    "a-traiter": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "traitee": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "acceptee": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ecartee": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "décisions reportées dans le modèle",
+            "1": "décisions invalides (menace inconnue, mesure ou raison manquante, identifiant décalé) ou modèle illisible"
           }
         }
       ],

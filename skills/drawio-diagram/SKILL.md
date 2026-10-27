@@ -15,10 +15,11 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Décision de diagram-brief et description JSON du schéma : title, audience, elements (ou pages) ; Ou un .drawio existant à modifier.
-- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf.
+- **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf ; Depuis un .drawio existant : sa description courte <sujet>.json (drawio_read.py), à éditer puis reconstruire.
 - **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`drawio_read.py`** : Tire d'un .drawio existant (XML clair ou compressé) la description JSON courte de drawio_build.py : rôle de chaque forme déduit de son style, identifiants, libellés sans HTML et positions (ou grille approchée), flèches avec libellé et style ; vérifie la description contre le schéma de drawio_build.py avant de l'écrire. Le modèle édite cette description au lieu du XML. Rapport JSON, codes de sortie : 0 description écrite ; 1 fichier illisible, schéma vide, description existante sans --force ou non conforme.
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
@@ -72,11 +73,24 @@ de titre). Corrigez la description jusqu'à zéro erreur et zéro avertissement.
 
 ## 3. Modifier un .drawio existant
 
-Lisez-le, gardez les identifiants et ne touchez qu'aux cellules concernées
-(`<mxCell>` : `value` pour le libellé, `style`, `<mxGeometry x y width
-height>`). Les styles de la charte sont dans `references/style.md` (section
-draw.io). S'il est compressé (texte en base64 dans `<diagram>`),
-`check_drawio.py` sait le lire ; réécrivez-le en XML clair. Puis vérifiez :
+Ne lisez pas le XML : tirez-en la description courte, éditez-la, puis
+reconstruisez.
+
+```bash
+uv run scripts/drawio_read.py SCHEMA.drawio --out SCHEMA.json
+uv run scripts/drawio_build.py SCHEMA.json --out SCHEMA.drawio --export png
+```
+
+`drawio_read.py` lit chaque page (XML clair ou compressé), garde les
+identifiants, les libellés et les positions (`--grid` : une grille `row`,
+`col` approchée, pour que `drawio_build.py` refasse la mise en page), déduit
+le rôle de chaque forme de son style et reprend les flèches. Il refuse
+d'écraser une description existante sans `--force`. Avertissements : flèche
+sans forme à une extrémité (ignorée), forme sans libellé, icônes de
+fournisseur : un schéma cloud se reprend avec `cloud-architecture`, qui
+garde les icônes, car `drawio_build.py` applique les styles de la charte.
+
+Pour seulement vérifier un `.drawio` reçu :
 
 ```bash
 uv run scripts/check_drawio.py SCHEMA.drawio
@@ -85,10 +99,6 @@ uv run scripts/check_drawio.py SCHEMA.drawio
 Erreurs : XML illisible, identifiant en double, parent ou extrémité de flèche
 introuvable. Avertissements : chevauchement, forme sans libellé, flèche non
 attachée, couleur hors charte, pas de titre.
-
-Si quelqu'un a retouché à la main un `.drawio` construit par le script, c'est
-le `.drawio` qui fait foi : modifiez-le directement plutôt que de
-reconstruire.
 
 ## 4. Exporter et relire
 

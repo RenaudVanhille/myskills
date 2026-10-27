@@ -1,0 +1,28 @@
+{
+  "title": "Portail sinistres : coût de run",
+  "budget_monthly": 1500,
+  "options": [
+    {"id": "A", "name": "Conteneurs managés", "provider": "aws",
+     "discount": {"percent": 30, "basis": "engagement d'un an (Savings Plans)"},
+     "items": [
+       {"id": "api", "service": "conteneur.vcpu", "quantity": 4, "component": "api"},
+       {"id": "api-ram", "service": "conteneur.ram", "quantity": 8, "component": "api"},
+       {"id": "recette", "service": "conteneur.vcpu", "quantity": 2, "environment": "hors-production"},
+       {"id": "bdd", "service": "bdd.vcpu", "quantity": 2, "component": "base"},
+       {"id": "bdd-disque", "service": "bdd.stockage", "quantity": 200},
+       {"id": "pieces", "service": "stockage.objet", "quantity": 2000},
+       {"id": "sortant", "service": "reseau.sortant", "quantity": 500},
+       {"id": "alb", "service": "reseau.equilibreur", "quantity": 1},
+       {"id": "logs", "service": "journaux", "quantity": 20, "unit_cost": 0.3, "basis": "devis outil de supervision 2026-10"}
+     ]},
+    {"id": "B", "name": "Machines virtuelles souveraines", "provider": "ovh",
+     "items": [
+       {"id": "vm", "service": "vm.vcpu", "quantity": 8},
+       {"id": "vm-ram", "service": "vm.ram", "quantity": 32},
+       {"id": "recette", "service": "vm.vcpu", "quantity": 4, "environment": "hors-production", "schedule": "ouvre"},
+       {"id": "bdd", "service": "bdd.vcpu", "quantity": 2},
+       {"id": "pieces", "service": "stockage.objet", "quantity": 2000},
+       {"id": "sauvegardes", "service": "sauvegarde", "quantity": 500}
+     ]}
+  ]
+}

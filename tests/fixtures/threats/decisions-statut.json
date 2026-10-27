@@ -1,0 +1,8 @@
+{
+  "model": "aws.threats.json",
+  "threats": {
+    "M006": {
+      "status": "traité"
+    }
+  }
+}

@@ -252,7 +252,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Compteurs, fichiers produits, méthode (regles ou laya), phrases normatives que Laya ne tient pas pour des exigences (dismissed), désaccords de Laya (disagreements), erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, désaccord de Laya).",
+        "description": "Compteurs, fichiers produits, méthode (regles ou laya), phrases normatives que Laya ne tient pas pour des exigences, signalées quand même (dismissed), désaccords de Laya (disagreements), erreurs (citation introuvable, document absent, identifiant en double) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, désaccord de Laya).",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [

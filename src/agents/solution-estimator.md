@@ -1,7 +1,7 @@
 ---
 name: solution-estimator
 description: "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts."
-skills: check-prerequisites, solution-estimate, requirements-catalog, architecture-options, decision-log, agent-handoff
+skills: check-prerequisites, solution-estimate, cloud-cost, requirements-catalog, architecture-options, decision-log, agent-handoff
 commands: uv run *, python *, python3 *, py *
 ---
 
@@ -61,7 +61,9 @@ workflow, la commande les trace aussi au journal.
    Estime chaque lot en jours par profil, à trois points dès que la charge
    n'est pas sûre. Pose une ligne d'infrastructure par poste, chacune avec
    sa base de prix ; sans grille ni devis fourni, c'est une hypothèse de
-   dimensionnement, dite comme telle.
+   dimensionnement, dite comme telle. Pour une option cloud, décris ses
+   consommations dans `couts.json` (skill `cloud-cost`) et reprends les
+   lignes de `cost_build.py couts.json --infra <option>`.
    Le script compare toujours trois hypothèses (sans IA, avec IA, dev IA
    natif) : tes charges sont celles d'une équipe sans IA. Donne un
    facteur propre (`ai`) aux seuls lots où l'IA aide nettement moins ou
@@ -82,7 +84,8 @@ workflow, la commande les trace aussi au journal.
 5. Lance `estimate_build.py chiffrage.json` et corrige jusqu'à zéro erreur.
    Traite chaque avertissement : exigence qu'aucun lot ne porte (lot ou
    `refs` à ajouter, ou exclusion avec sa raison), composant sans
-   chiffrage, lot incertain (découper ou lever l'hypothèse), budget
+   chiffrage, lot incertain (découper ou lever l'hypothèse), poste souvent
+   oublié (lot ou ligne à ajouter, ou hypothèse ou exclusion), budget
    dépassé (le dire, ne pas rogner les charges pour le tenir).
 6. Dans un dossier de workflow, note au journal (`journal.py log`, skill
    `decision-log`) chaque hypothèse structurante et chaque exclusion ; un

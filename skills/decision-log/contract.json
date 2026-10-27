@@ -3,7 +3,7 @@
   "level": "simple",
   "inputs": [
     "Dossier du workflow",
-    "Commande : init, start, log, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
+    "Commande : init, start, log, check, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
     "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
   ],
   "outputs": [
@@ -15,7 +15,7 @@
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
+      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -24,7 +24,8 @@
         "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
         "--schema": "affiche le schéma de workflow.json sur une ligne",
-        "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer"
+        "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
+        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec ; n'écrit rien dans workflow.json"
       },
       "report": {
         "format": "json",
@@ -46,7 +47,8 @@
             "changes",
             "stage",
             "ask",
-            "ready"
+            "ready",
+            "checks"
           ],
           "additionalProperties": false,
           "properties": {
@@ -61,7 +63,8 @@
                 "log",
                 "submit",
                 "review",
-                "status"
+                "status",
+                "check"
               ]
             },
             "stages": {
@@ -221,6 +224,48 @@
                 "type": "string"
               },
               "description": "Étapes qui peuvent démarrer maintenant (toutes celles dont elles dépendent sont franchies) ; plusieurs : à mener en parallèle."
+            },
+            "checks": {
+              "description": "Avec check : chaque commande lancée ou sautée, sinon null.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "command",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "command": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "enum": [
+                          "ok",
+                          "echec",
+                          "saute"
+                        ]
+                      },
+                      "errors": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "warnings": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "why": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
             }
           }
         }
@@ -504,6 +549,49 @@
                         },
                         "uniqueItems": true,
                         "description": "Étapes dont celle-ci dépend, toutes placées avant elle (défaut : l'étape précédente ; [] : aucune). Des étapes prêtes en même temps se mènent en parallèle, chacune avec sa revue."
+                      },
+                      "run": {
+                        "type": "array",
+                        "description": "Contrôles mécaniques de l'étape, lancés en un appel par journal.py check depuis le dossier du workflow ; chaque skill figure dans skills de l'étape et son script existe. Les checks en texte restent la consigne lisible.",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "skill",
+                            "script"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "skill": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+                            },
+                            "script": {
+                              "type": "string",
+                              "pattern": "^[\\w.-]+\\.py$"
+                            },
+                            "args": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions"
+                            },
+                            "foreach": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "motif de fichiers : la commande se lance une fois par fichier, et se saute s'il n'y en a aucun"
+                            },
+                            "if": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "motif de fichiers : la commande se saute si aucun ne correspond (contrôle facultatif)"
+                            },
+                            "vault": {
+                              "type": "boolean",
+                              "description": "ajoute --vault et --folder du workflow s'il a un vault"
+                            }
+                          }
+                        }
                       }
                     }
                   }

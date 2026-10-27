@@ -47,6 +47,15 @@
       "checks": [
         "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
       ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
       "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal."
     },
     {
@@ -76,6 +85,16 @@
         "architecture-review : arch_review.py revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
         "si le dossier décrit une architecture cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/architecture.json"
       ],
+      "run": [
+        {
+          "skill": "architecture-review",
+          "script": "arch_review.py",
+          "args": [
+            "revue.json"
+          ],
+          "vault": true
+        }
+      ],
       "instructions": "Le dossier reçu décrit déjà l'architecture : revue.json reprend ses composants, couches et flux tels que les documents les donnent (chaque déduction se note au journal comme hypothèse), les exigences d'exigences.json et les décisions du dossier. Les scénarios de qualité, risques, sensibilités et compromis passent à architecture-reviewer. Aucune option nouvelle n'est conçue : un manque devient un risque ou une réserve de l'avis."
     },
     {
@@ -103,6 +122,25 @@
         "architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)",
         "architecture-dossier : dossier_build.py . --template avis --strict (liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-architecture.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "actions.py",
+          "args": [
+            "."
+          ]
+        },
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "avis",
+            "--strict"
+          ]
+        }
       ],
       "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). synthese.md donne l'objet du dossier, l'avis calculé et ses réserves, et les décisions attendues du comité, à partir du rapport d'arch_review.py."
     }

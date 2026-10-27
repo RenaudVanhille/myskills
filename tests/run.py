@@ -33,6 +33,8 @@ from pathlib import Path
 
 TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
+# Budget de taille d'un SKILL.md et d'un agent source (environ 4 000 tokens) : le coût suit ce que le modèle relit.
+MAX_CHARS = 16000
 TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" / "samples"),
           "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
@@ -276,6 +278,15 @@ def check_contracts() -> dict:
                          for s in stage.get("skills", []) if s not in skills]
             if stage.get("agent") and stage["agent"] not in agents:
                 failures.append(f"workflows/{path.name} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
+            # run : contrôles lancés par journal.py check, scripts déclarés dans le contrat d'un skill de l'étape.
+            for entry in stage.get("run", []):
+                declared = {s["name"] for s in skills.get(entry.get("skill"), {}).get("scripts", [])}
+                if entry.get("skill") not in stage.get("skills", []):
+                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise « {entry.get('skill')} », "
+                                    "absent des skills de l'étape")
+                elif entry.get("script") not in declared:
+                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise {entry.get('skill')}/"
+                                    f"{entry.get('script')}, absent de son contrat")
 
     for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
         if path.stem not in agents:
@@ -360,6 +371,9 @@ def check_rules() -> dict:
             failures.append(f"{name}/SKILL.md : description absente ou de plus de 1024 caractères")
         if text.count("\n") > 500:
             failures.append(f"{name}/SKILL.md : plus de 500 lignes, déplacez le détail dans references/")
+        if len(text) > MAX_CHARS:
+            failures.append(f"{name}/SKILL.md : {len(text)} caractères, plus que le budget de {MAX_CHARS} (lu à chaque "
+                            "appel du skill) : déplacez le détail dans references/")
         for script in sorted((folder / "scripts").glob("*.py")):
             if not script.read_text(encoding="utf-8").startswith("# /// script"):
                 failures.append(f"{name}/scripts/{script.name} : en-tête PEP 723 (# /// script) manquant")
@@ -434,6 +448,10 @@ def check_rules() -> dict:
             tools = next((line for line in render_agent(src, flavor).splitlines() if line.startswith("tools:")), "")
             if "web" in tools.lower():
                 failures.append(f"agent {name} : outil web autorisé ({flavor})")
+        size = len(src.read_text(encoding="utf-8"))
+        if size > MAX_CHARS:
+            failures.append(f"agent {name} : {size} caractères, plus que le budget de {MAX_CHARS} (lu à chaque tour) : "
+                            "la logique métier va dans les skills")
         if "{{niveaux}}" not in src.read_text(encoding="utf-8"):
             failures.append(f"agent {name} : marqueur {{{{niveaux}}}} absent (niveaux et modèles de shared/models.json)")
         commands = meta.get("commands", "").lower()

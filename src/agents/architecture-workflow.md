@@ -1,7 +1,7 @@
 ---
 name: architecture-workflow
 description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
-skills: check-prerequisites, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, architecture-dossier, data-protection, migration-assessment, transition-roadmap, api-contract
+skills: check-prerequisites, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, cloud-cost, architecture-dossier, data-protection, migration-assessment, transition-roadmap, api-contract
 commands: uv run *, uvx *, python *, python3 *, py *
 ---
 
@@ -85,7 +85,11 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    et passe à la suivante. Après `start`, suis le champ
    `stage` du rapport : `instructions` (consignes de l'étape), `skills` à
    appliquer, `checks` à lancer jusqu'à zéro erreur, `deliverables` à
-   produire. `level` est le niveau de l'étape : s'il diffère du tien, vois
+   produire. Si l'étape a un champ `run`, écris d'abord toutes ses
+   descriptions, puis lance `journal.py check DOSSIER ETAPE` : il passe
+   tous ces contrôles en un appel (constructions, exports, revues) ;
+   corrige les descriptions citées dans `errors` et relance-le jusqu'à zéro
+   erreur. Seuls les `checks` sans équivalent dans `run` se lancent à part. `level` est le niveau de l'étape : s'il diffère du tien, vois
    la « Grille des niveaux ». `agent` est l'agent à qui passer la main pour un
    travail de jugement que l'utilisateur demande ; les commandes des
    `checks` restent à toi.

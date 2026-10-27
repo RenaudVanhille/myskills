@@ -1,0 +1,20 @@
+{
+  "model": "aws.threats.json",
+  "threats": {
+    "M0001": {
+      "status": "traitee",
+      "measure": "x"
+    },
+    "M002": {
+      "status": "traitee"
+    },
+    "M003": {
+      "status": "acceptee"
+    },
+    "M004": {
+      "status": "ecartee",
+      "why": "flux interne",
+      "element": "F9 Clients → ALB"
+    }
+  }
+}

@@ -37,28 +37,34 @@ from spec_schema import print_schema, validate  # noqa: E402
 
 # Le modèle lit environ 1 000 tokens : une exigence tient largement.
 MAX_CHARS = 2000
-NATURES = {"fonctionnelle": "ce que le système fait pour ses utilisateurs : fonction, service, règle de gestion",
-           "non-fonctionnelle": "qualité ou contrainte du système : performance, sécurité, disponibilité, "
-                                "conformité, exploitation, coût"}
-CATEGORIES = {"performance": "temps de réponse, débit, volumétrie, charge",
-              "disponibilite": "disponibilité, continuité, reprise après incident, sauvegarde",
-              "securite": "authentification, droits d'accès, chiffrement, traçabilité, protection",
-              "conformite": "loi, réglementation, RGPD, normes, audit",
-              "exploitabilite": "supervision, journaux, déploiement, exploitation au quotidien",
-              "maintenabilite": "facilité de correction et de modification, qualité du code, documentation",
-              "evolutivite": "montée en charge, ajout de fonctions ou d'utilisateurs",
-              "interoperabilite": "échanges avec d'autres systèmes, API, formats, protocoles",
-              "utilisabilite": "ergonomie, accessibilité, langues, simplicité d'usage",
-              "portabilite": "changement de plateforme, d'hébergeur ou de cloud, réversibilité",
-              "cout": "budget, coût de fonctionnement ou de licence",
-              "autre": "aucune des catégories précédentes"}
+# Consignes en anglais, questions qui citent le champ `phrase` : la forme des exemples de Laya, qui
+# répond mieux ainsi sur des phrases françaises. Changer une consigne : incrémenter LAYA_PROMPT de
+# req_build.py, pour que les réponses en cache ne servent plus.
+NATURES = {"fonctionnelle": "what the system does for its users: a function, a service, a business rule, "
+                            "data it records or shows, a message it sends",
+           "non-fonctionnelle": "how well the system works or a constraint on it: performance, security, "
+                                "availability, compliance, operations, maintainability, portability, cost"}
+CATEGORIES = {"performance": "response time, throughput, volume, load",
+              "disponibilite": "availability, continuity, disaster recovery, backup",
+              "securite": "authentication, access rights, encryption, audit trail, protection",
+              "conformite": "law, regulation, GDPR, standards, certification, audit",
+              "exploitabilite": "monitoring, logs, alerts, deployment, day-to-day operations",
+              "maintenabilite": "ease of change and repair, code quality, tests, documentation, configuration",
+              "evolutivite": "scaling up, adding functions, products or users",
+              "interoperabilite": "exchanges with other systems, API, formats, protocols, message bus",
+              "utilisabilite": "ergonomics, accessibility, languages, ease of use",
+              "portabilite": "changing platform, host or cloud, reversibility, open formats",
+              "cout": "budget, running or licence cost",
+              "autre": "none of the other categories"}
 QUESTIONS = {
-    "exigence": {"type": "noul", "instructions":
-                 "La phrase exprime une exigence : un besoin, une contrainte ou une règle que la solution "
-                 "doit respecter (et non un constat, un contexte, une décision de réunion ou un exemple)."},
-    "nature": {"type": "choice", "instructions": "Quelle est la nature de cette exigence ?", "criteria": NATURES},
-    "categorie": {"type": "choice", "instructions": "Quelle qualité du système cette exigence vise-t-elle ?",
-                  "criteria": CATEGORIES},
+    "exigence": {"type": "noul",
+                 "instructions": "Does `phrase` state a requirement on the system or solution to be built?",
+                 "criteria": {"true": "a function, rule, quality or constraint the system must meet",
+                              "false": "a fact, context, opinion, meeting, or a task for people, not for the system"}},
+    "nature": {"type": "choice", "instructions": "Is the requirement in `phrase` functional or non-functional?",
+               "criteria": NATURES},
+    "categorie": {"type": "choice", "instructions": "Which quality of the system does the requirement in `phrase` "
+                                                    "address?", "criteria": CATEGORIES},
 }
 
 

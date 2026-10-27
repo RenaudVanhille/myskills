@@ -14,7 +14,8 @@ moins de tokens possible.
 - Un skill est un dossier `skills/<nom>/` au format
   [Agent Skills](https://agentskills.io) : `SKILL.md` avec `name` égal au nom
   du dossier et une `description` de 1024 caractères au plus **(vérifiée)**.
-  `SKILL.md` reste sous 500 lignes **(vérifiée)** ; le détail va dans
+  `SKILL.md` reste sous 500 lignes et 16 000 caractères, un agent source
+  sous 16 000 caractères **(vérifiée)** ; le détail va dans
   `references/`, chargé à la demande.
 - Il fonctionne dans GitHub Copilot, Claude Code, OpenCode, Kiro et Hermes,
   installé comme plugin (voir le README). Rien de propre à un seul outil dans

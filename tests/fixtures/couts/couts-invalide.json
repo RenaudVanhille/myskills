@@ -1,0 +1,9 @@
+{
+  "title": "Erreurs",
+  "options": [
+    {"id": "A", "provider": "awz", "items": [{"id": "x", "service": "conteneur.vcpus", "quantity": 1}]},
+    {"id": "B", "provider": "cloud-temple", "discount": {"percent": 10},
+     "items": [{"id": "vm", "service": "vm.vcpu", "quantity": 2},
+               {"id": "devis", "service": "vm.ram", "quantity": 8, "unit_cost": 0.01}]}
+  ]
+}

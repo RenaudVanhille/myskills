@@ -1,0 +1,8 @@
+{
+  "name": "run-invalide",
+  "stages": [
+    {"id": "exigences", "level": "moyen", "skills": ["requirements-catalog"], "deliverables": ["exigences.md"],
+     "run": [{"skill": "requirements-catalog", "script": "req_bild.py", "args": ["exigences.json"]},
+             {"skill": "drawio-diagram", "script": "drawio_build.py", "args": ["a.json"]}]}
+  ]
+}
