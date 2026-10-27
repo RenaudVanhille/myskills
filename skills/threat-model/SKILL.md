@@ -17,9 +17,9 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : complexe (modèle puissant).
 - **Entrées** : Description JSON de l'architecture, celle de cloud_build.py (skill cloud-architecture) : groupes, services typés, flux avec protocole ; Ou la description cloud d'une option d'architecture-options (schemas/option-<id>.cloud.json).
 - **Sorties** : <sujet>.threats.md : frontières de confiance, flux qui les traversent, une menace type par catégorie STRIDE applicable, mesure type ; après threat_review.py, menaces précisées, mesures retenues, statuts et menaces écartées avec leur raison ; <sujet>.threats.json : les mêmes menaces en données, auxquelles le modèle répond par un fichier de décisions.
-- **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
+- **`stride.py`** : Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter ; propose comme traité ce que la description prouve déjà (flux chiffré), et donne à chaque menace sa nature, son type, son flux et son chiffrement pour les règles de threat_review.py. Rapport JSON, codes de sortie : 0 modèle produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
-- **`threat_review.py`** : Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser. Rapport JSON, codes de sortie : 0 décisions reportées dans le modèle ; 1 décisions invalides (menace inconnue, mesure ou raison manquante, identifiant décalé) ou modèle illisible.
+- **`threat_review.py`** : Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON : règles groupées (catégorie, nature, type, élément, flux traversant ou chiffré) et décisions par menace (statut, mesure retenue, menace précisée, raison), plus les propositions de stride.py ; vérifie chaque décision et règle, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut, par règle et celles encore à analyser. Rapport JSON, codes de sortie : 0 décisions reportées dans le modèle ; 1 décisions invalides (menace inconnue, mesure ou raison manquante, identifiant décalé) ou modèle illisible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `cloud-architecture` (`cloud_build.py`, obligatoire) : lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2....
 - **Vault Obsidian** : écrit les notes de type `modele-menaces` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
@@ -51,17 +51,26 @@ données. Les numéros F1, F2... sont les mêmes que sur le schéma `threats`.
 ## 2. Décider, sans réécrire le tableau
 
 Lisez le tableau une fois, puis écrivez seulement vos décisions dans un
-court `SUJET.decisions.json` (`threat_review.py --schema`) : une entrée par
-menace gardée, précisée, acceptée ou écartée.
+court `SUJET.decisions.json` (`threat_review.py --schema`). Les menaces
+d'une même sorte se décident d'un coup par une règle (`rules`, la première
+qui correspond s'applique) ; `threats` ne sert qu'aux menaces à préciser ou
+à traiter autrement, et l'emporte sur les règles.
 
 ```json
 {"model": "SUJET.threats.json",
- "threats": {"M001": {"status": "traitee", "measure": "WAF et MFA sur le portail", "threat": "Vol de session d'un assuré"},
-             "M004": {"status": "ecartee", "why": "pas de compte administrateur sur ce service"}}}
+ "rules": [{"match": {"stride": "R"}, "status": "traitee", "measure": "CloudTrail et journaux applicatifs centralisés"},
+           {"match": {"kind": ["store"], "stride": "TI"}, "status": "traitee", "measure": "Chiffrement KMS, accès privé"},
+           {"match": {"kind": ["flow"], "crossing": false}, "status": "ecartee", "why": "flux interne au VPC"}],
+ "threats": {"M001": {"status": "traitee", "measure": "WAF et MFA sur le portail", "threat": "Vol de session d'un assuré"}}}
 ```
 
-`status` : `traitee` (avec `measure`), `a-traiter`, `acceptee` ou
-`ecartee` (avec `why`, celle de l'utilisateur pour une acceptation).
+Critères de `match`, tous remplis : `stride` (lettres), `kind` (external,
+process, store, network, flow), `type` (`aws:rds` ou `rds`), `element`
+(texte du nom), `crossing` et `encrypted` (flux), `ids`. `status` :
+`traitee` (avec `measure`), `a-traiter`, `acceptee` ou `ecartee` (avec
+`why`, celle de l'utilisateur pour une acceptation). Ce que la description
+prouve (flux chiffré) est déjà proposé comme traité par `stride.py` et
+repris, sauf règle, décision ou `"suggested": false`.
 Ensuite :
 
 ```bash

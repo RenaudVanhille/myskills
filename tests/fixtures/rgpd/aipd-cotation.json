@@ -1,0 +1,112 @@
+{
+  "title": "Portail de déclaration des sinistres",
+  "controller": "Mutuelle exemple",
+  "dpo": "dpo@mutuelle.example",
+  "requirements": "exigences.json",
+  "threats": "menaces.threats.md",
+  "hosting": {
+    "provider": "aws"
+  },
+  "criteria": [
+    "grande-echelle"
+  ],
+  "treatments": [
+    {
+      "id": "T-01",
+      "name": "Déclaration des sinistres",
+      "purpose": "Recevoir et instruire les déclarations de sinistres des assurés.",
+      "legal_basis": "contrat",
+      "subjects": [
+        "assurés",
+        "tiers impliqués"
+      ],
+      "retention": "durée du contrat plus 5 ans",
+      "data": [
+        {
+          "category": "identité et contrat",
+          "examples": "nom, numéro de contrat"
+        },
+        {
+          "category": "santé (dommages corporels)",
+          "sensitive": true
+        }
+      ],
+      "art9_exception": "constatation, exercice ou défense d'un droit en justice (art. 9.2.f)",
+      "recipients": [
+        "gestionnaires sinistres",
+        "experts mandatés"
+      ],
+      "transfers": [
+        {
+          "country": "États-Unis",
+          "mechanism": "clauses-types"
+        },
+        {
+          "country": "FR"
+        }
+      ],
+      "flows": [
+        "F1",
+        "F4"
+      ],
+      "refs": [
+        "EF-001"
+      ]
+    },
+    {
+      "id": "T-02",
+      "name": "Suivi des dossiers",
+      "purpose": "Informer l'assuré de l'avancement de son dossier.",
+      "legal_basis": "contrat",
+      "subjects": [
+        "assurés"
+      ],
+      "retention": "durée du dossier plus 2 ans",
+      "data": [
+        {
+          "category": "identité et contrat"
+        },
+        {
+          "category": "pièces jointes",
+          "sensitive": true
+        }
+      ]
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-01",
+      "treatment": "T-01",
+      "event": "acces-illegitime",
+      "gravity": 4,
+      "likelihood": 2,
+      "residual": {
+        "gravity": 4,
+        "likelihood": 1
+      }
+    },
+    {
+      "id": "R-02",
+      "treatment": "T-01",
+      "event": "modification-non-desiree",
+      "gravity": 3,
+      "likelihood": 2,
+      "residual": {
+        "gravity": 3,
+        "likelihood": 1
+      }
+    },
+    {
+      "id": "R-03",
+      "treatment": "T-01",
+      "event": "disparition",
+      "gravity": 2,
+      "likelihood": 2,
+      "impacts": "dossier perdu, déclaration à refaire",
+      "residual": {
+        "gravity": 2,
+        "likelihood": 1
+      }
+    }
+  ]
+}

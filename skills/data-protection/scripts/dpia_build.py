@@ -23,10 +23,21 @@ modèle, contrôle et calcule :
 - références des mesures vers les exigences (exigences.json) et les
   menaces STRIDE (M001... du .threats.md de threat-model).
 
+Ce qui se déduit sans jugement est proposé par le script : critères du
+CEPD tirés des données (données sensibles, personnes vulnérables) et, pour
+chaque risque, sources de risque, impacts et mesures quand le modèle ne les
+donne pas. Les mesures viennent des exigences de sécurité, de conformité et
+de disponibilité et des menaces STRIDE des flux du traitement et des
+stockages (mesure retenue d'une menace traitée : existante ; sinon mesure
+type : prévue). Avec --draft, le script écrit seulement <nom>.draft.json :
+un risque par traitement et par événement redouté encore sans risque, avec
+ses propositions ; le modèle n'y ajoute que la cotation (gravité,
+vraisemblance, résiduel) dans la description.
+
 Écrit <nom>.registre.md et <nom>.aipd.md ; avec --vault, une note
 `traitement` par traitement et une note `risque` par risque.
 
-    uv run scripts/dpia_build.py AIPD.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema
+    uv run scripts/dpia_build.py AIPD.json [--draft] [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema
 """
 
 import argparse
@@ -61,6 +72,19 @@ BASES = {"consentement": "consentement (art. 6.1.a)", "contrat": "exécution d'u
 MECHANISMS = {"adequation": "décision d'adéquation", "clauses-types": "clauses contractuelles types",
               "bcr": "règles d'entreprise contraignantes", "derogation": "dérogation de l'article 49",
               "aucun": "aucune garantie"}
+# Événement redouté -> catégories STRIDE et catégories d'exigences qui le couvrent.
+EVENT_STRIDE = {"acces-illegitime": "SIE", "modification-non-desiree": "T", "disparition": "D"}
+EVENT_CATEGORIES = {"acces-illegitime": {"securite", "conformite"}, "modification-non-desiree": {"securite"},
+                    "disparition": {"disponibilite"}}
+EVENT_SOURCES = {"acces-illegitime": ["attaquant externe", "personne interne malveillante ou négligente"],
+                 "modification-non-desiree": ["attaquant externe", "erreur d'un utilisateur ou d'un gestionnaire"],
+                 "disparition": ["panne ou sinistre", "rançongiciel", "erreur de manipulation"]}
+EVENT_IMPACTS = {"acces-illegitime": "divulgation de {data}",
+                 "modification-non-desiree": "décisions prises sur des données fausses ({data})",
+                 "disparition": "perte de {data}, démarches des personnes interrompues"}
+VULNERABLE = ("patient", "salarie", "employe", "agent", "enfant", "mineur", "eleve", "etudiant", "age",
+              "demandeur", "handicap", "malade")
+MAX_MEASURES = 6
 SCALE = {1: "négligeable", 2: "limitée", 3: "importante", 4: "maximale"}
 # Espace économique européen : les 27 États membres, l'Islande, le Liechtenstein et la Norvège (codes ISO et noms).
 EEA = {"at", "be", "bg", "cy", "cz", "de", "dk", "ee", "es", "fi", "fr", "gr", "hr", "hu", "ie", "it", "lt", "lu",
@@ -102,6 +126,126 @@ def known_refs(spec: dict, base: Path, errors: list[str], warnings: list[str]) -
         except OSError as error:
             errors.append(f"threats : {spec['threats']} illisible ({error})")
     return refs if given else None
+
+
+def threat_rows(spec: dict, base: Path) -> list[dict]:
+    """Menaces de stride.py (.threats.json) avec la mesure retenue et le statut du .threats.md relu."""
+    if not spec.get("threats"):
+        return []
+    md = base / spec["threats"]
+    try:
+        items = json.loads(md.with_suffix(".json").read_text(encoding="utf-8"))["threats"]
+        text = md.read_text(encoding="utf-8")
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+    decided = {}
+    for row in re.findall(r"^\|\s*(M\d{3,})\s*\|(.*)\|\s*$", text, re.M):
+        cells = [c.strip() for c in row[1].split("|")]
+        if len(cells) >= 6:
+            decided[row[0]] = (cells[4], cells[5])
+    rows = []
+    for item in items:
+        retained, status = decided.get(item["id"], ("", ""))
+        if status.startswith("écartée") or item["id"] not in decided:
+            continue
+        rows.append({**item, "retained": retained.split(" (accepté")[0].strip(), "status": status})
+    return rows
+
+
+def proposal(spec: dict, base: Path) -> dict:
+    """Sources, impacts et mesures proposés pour chaque (traitement, événement redouté), sans jugement."""
+    hors_ue = False
+    if spec.get("hosting", {}).get("provider"):
+        try:
+            catalog = json.loads(PROVIDERS.read_text(encoding="utf-8"))["providers"]
+            hors_ue = catalog.get(spec["hosting"]["provider"], {}).get("jurisdiction") == "hors-ue"
+        except (OSError, ValueError):
+            pass
+    requirements = []
+    if spec.get("requirements"):
+        try:
+            catalog = json.loads((base / spec["requirements"]).read_text(encoding="utf-8"))
+            requirements = [r for r in catalog.get("requirements", []) if r.get("status") != "retiree"]
+        except (OSError, ValueError, TypeError):
+            pass
+    threats = threat_rows(spec, base)
+    result = {}
+    for t in spec["treatments"]:
+        data = ", ".join(d["category"] for d in t["data"])
+        for event in EVENTS:
+            measures: dict[str, dict] = {}
+
+            def add(text: str, ref: str, kind: str) -> None:
+                entry = measures.setdefault(text, {"text": text, "kind": kind, "refs": []})
+                if ref not in entry["refs"]:
+                    entry["refs"].append(ref)
+                if kind == "existante":
+                    entry["kind"] = kind
+
+            for item in threats:
+                if item["stride"] not in EVENT_STRIDE[event]:
+                    continue
+                if not (item.get("kind") == "store" or (item.get("flow") and item["flow"] in t.get("flows", []))):
+                    continue
+                if item["status"].startswith("traitée") and item["retained"]:
+                    add(item["retained"], item["id"], "existante")
+                else:
+                    add(item["measure"], item["id"], "prevue")
+            for r in requirements:
+                if r.get("category") in EVENT_CATEGORIES[event]:
+                    add(f"{r['title']} : {r['text']}".rstrip("."), r["id"], "prevue")
+            # Mesures existantes d'abord, puis les plus citées.
+            ranked = sorted(measures.values(), key=lambda m: (m["kind"] != "existante", -len(m["refs"])))
+            sources = EVENT_SOURCES[event] + (["autorité étrangère (lois extraterritoriales de l'hébergeur)"]
+                                              if hors_ue and event == "acces-illegitime" else [])
+            result[(t["id"], event)] = {"sources": sources, "impacts": EVENT_IMPACTS[event].format(data=data),
+                                        "measures": ranked[:MAX_MEASURES]}
+    return result
+
+
+def deduced_criteria(spec: dict) -> list[str]:
+    found = []
+    if any(d.get("sensitive") for t in spec["treatments"] for d in t["data"]):
+        found.append("donnees-sensibles")
+    if any(word in plain(subject) for t in spec["treatments"] for subject in t["subjects"] for word in VULNERABLE):
+        found.append("personnes-vulnerables")
+    return [c for c in found if c not in spec.get("criteria", [])]
+
+
+def complete(spec: dict, base: Path) -> tuple[int, list[str]]:
+    """Ajoute critères déduits et propositions manquantes des risques ; renvoie le nombre de champs proposés."""
+    added = deduced_criteria(spec)
+    spec["criteria"] = spec.get("criteria", []) + added
+    proposed = 0
+    if spec.get("risks"):
+        ideas = proposal(spec, base)
+        for r in spec["risks"]:
+            idea = ideas.get((r["treatment"], r["event"]))
+            if not idea:
+                continue
+            for key in ("sources", "impacts", "measures"):
+                if key not in r and idea[key]:
+                    r[key] = idea[key]
+                    proposed += 1
+    return proposed, added
+
+
+def draft(spec: dict, base: Path) -> dict:
+    """Risques encore à analyser (un par traitement et événement), avec leurs propositions, sans cotation."""
+    ideas = proposal(spec, base)
+    covered = {(r["treatment"], r["event"]) for r in spec.get("risks", [])}
+    taken = {r["id"] for r in spec.get("risks", [])}
+    risks, n = [], 0
+    for (treatment, event), idea in ideas.items():
+        if (treatment, event) in covered:
+            continue
+        n += 1
+        while f"R-{n:02d}" in taken:
+            n += 1
+        risks.append({"id": f"R-{n:02d}", "treatment": treatment, "event": event, **idea})
+    return {"criteria": spec.get("criteria", []), "risks": risks,
+            "_a_faire": "Reprendre chaque risque dans la description avec gravity, likelihood et residual (1 à 4) ; "
+                        "sources, impacts et measures n'y sont à écrire que pour corriger la proposition."}
 
 
 def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> dict:
@@ -151,7 +295,8 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str]) -> dic
         covered = {r["event"] for r in risks if r["treatment"] == t["id"]}
         missing = [EVENTS[e] for e in EVENTS if e not in covered]
         if aipd == "requise" and missing:
-            warnings.append(f"{where} : événement(s) redouté(s) sans risque analysé : {', '.join(missing)}")
+            warnings.append(f"{where} : événement(s) redouté(s) sans risque analysé : {', '.join(missing)} "
+                            "(--draft les propose)")
     refs = known_refs(spec, base, errors, warnings)
     high = 0
     for r in risks:
@@ -285,6 +430,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description AIPD.json")
     parser.add_argument("--out-dir", type=Path, help="dossier du registre et de l'AIPD (défaut : celui du .json)")
+    parser.add_argument("--draft", action="store_true",
+                        help="écrire seulement <nom>.draft.json : risques à coter avec leurs propositions")
     parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire les notes traitement et risque")
     parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
     parser.add_argument("--schema", action="store_true",
@@ -300,7 +447,8 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "treatments": 0, "risks": 0, "aipd": None,
-              "residual_high": 0, "transfers_out": 0, "vault": None, "errors": errors, "warnings": warnings}
+              "residual_high": 0, "transfers_out": 0, "proposed": 0, "criteria_added": [], "draft": None,
+              "to_rate": 0, "vault": None, "errors": errors, "warnings": warnings}
     if args.vault and not args.vault.is_dir():
         errors.append(f"--vault : dossier introuvable {args.vault}")
     try:
@@ -314,15 +462,28 @@ def main() -> int:
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    result = check(spec, args.spec.resolve().parent, errors, warnings)
+    base = args.spec.resolve().parent
+    out_dir = args.out_dir or args.spec.parent
+    stem = args.spec.name.removesuffix(".json")
+    report["proposed"], report["criteria_added"] = complete(spec, base)
+    if args.draft:
+        proposed = draft(spec, base)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{stem}.draft.json"
+        path.write_text(json.dumps(proposed, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        report.update(draft=str(path), to_rate=len(proposed["risks"]), treatments=len(spec["treatments"]),
+                      risks=len(spec.get("risks", [])))
+        if spec.get("threats") and not threat_rows(spec, base):
+            warnings.append("threats : aucune menace lue (le .threats.json de stride.py doit être à côté du .md)")
+        print(json.dumps(report, ensure_ascii=False))
+        return 0
+    result = check(spec, base, errors, warnings)
     report.update(treatments=len(spec["treatments"]), risks=len(spec.get("risks", [])), **{
         k: result[k] for k in ("aipd", "residual_high", "transfers_out")})
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = args.spec.name.removesuffix(".json")
     for suffix, text in ((".registre.md", registre(spec)), (".aipd.md", aipd(spec, result))):
         path = out_dir / f"{stem}{suffix}"
         with open(path, "w", encoding="utf-8", newline="\n") as handle:

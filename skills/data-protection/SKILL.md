@@ -17,7 +17,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : complexe (modèle puissant).
 - **Entrées** : Description JSON des traitements de données personnelles et des risques pour les personnes (dpia_build.py --schema) ; Facultatif : exigences.json (requirements-catalog) et le .threats.md (threat-model), cités par les mesures ; l'hébergeur (shared/providers.json).
 - **Sorties** : <nom>.registre.md : fiches du registre des traitements (art. 30) ; <nom>.aipd.md : analyse d'impact (critères, risques, carte gravité × vraisemblance, mesures, résiduels, points à valider).
-- **`dpia_build.py`** : Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD. Rapport JSON, codes de sortie : 0 registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts) ; 1 description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit.
+- **`dpia_build.py`** : Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD ; propose ce qui se déduit sans jugement : critères du CEPD tirés des données, et pour chaque risque sources, impacts et mesures (exigences de sécurité, conformité, disponibilité ; menaces STRIDE des flux du traitement et des stockages) quand la description ne les donne pas. Rapport JSON, codes de sortie : 0 registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts) ; avec --draft, propositions écrites ; 1 description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Vault Obsidian** : écrit les notes de type `traitement`, `risque` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
 - **Passe la main** au skill `threat-model` : les menaces STRIDE de l'architecture ne sont pas encore analysées : elles nourrissent les risques et les mesures.
@@ -48,7 +48,6 @@ forme), dans le dossier du projet :
   "risks": [
     {"id": "R-01", "treatment": "T-01", "event": "acces-illegitime", "sources": ["attaquant externe"],
      "impacts": "divulgation de données de santé", "gravity": 4, "likelihood": 2,
-     "measures": [{"text": "authentification forte des gestionnaires", "refs": ["ENF-003", "M063"]}],
      "residual": {"gravity": 4, "likelihood": 1}}
   ]
 }
@@ -62,9 +61,17 @@ forme), dans le dossier du projet :
   EEE). `flows` reprend les numéros de flux du schéma cloud.
 - **Risques** : au moins un par événement redouté (accès illégitime,
   modification non désirée, disparition) et par traitement ; gravité et
-  vraisemblance de 1 à 4 ; mesures existantes ou prévues avec leurs `refs`
-  (exigences, menaces `M001` du modèle STRIDE) ; risque résiduel après
-  mesures. C'est là que porte votre jugement.
+  vraisemblance de 1 à 4 ; risque résiduel après mesures. C'est là que
+  porte votre jugement. N'écrivez dans `risks` que `id`, `treatment`,
+  `event`, `gravity`, `likelihood`, `residual` et, pour justifier la
+  cotation, `impacts` : le script propose sources et mesures (exigences de
+  sécurité, conformité, disponibilité ; menaces des flux du traitement et
+  des stockages, avec leurs `refs`). N'écrivez `sources` ou `measures` que
+  pour les corriger. Pour voir ces propositions avant de coter,
+  `dpia_build.py aipd.json --draft` écrit `aipd.draft.json` : chaque
+  risque manquant avec ses propositions.
+- **Critères** déduits sans jugement (données sensibles, personnes
+  vulnérables) : ajoutés par le script, listés dans `criteria_added`.
 - **Hébergeur** : `hosting.provider` du catalogue commun ; un hébergeur
   hors UE est signalé pour qu'un risque d'accès illégitime le couvre.
 

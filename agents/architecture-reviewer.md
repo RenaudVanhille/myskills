@@ -79,8 +79,10 @@ workflow, la commande les trace aussi au journal.
    `iac_import.py` (skill `cloud-architecture`) l'écrit d'abord.
 5. Menaces : `stride.py SUJET.json` (skill `threat-model`). Lis le rapport,
    puis le tableau une fois ; n'écris que tes décisions dans
-   `SUJET.decisions.json` (menace précisée, mesure retenue, statut, raison
-   d'un écart), jamais le tableau, puis `threat_review.py
+   `SUJET.decisions.json` : des règles (`rules`) pour les menaces d'une même
+   sorte, une entrée par identifiant seulement pour une menace à préciser
+   ou à part (mesure retenue, statut, raison d'un écart), jamais le tableau ;
+   les flux chiffrés sont déjà proposés comme traités, puis `threat_review.py
    SUJET.decisions.json` jusqu'à zéro erreur. Avec un
    schéma demandé, `cloud_build.py SUJET.json --view threats` puis export
    PNG : mêmes numéros de flux.
@@ -93,9 +95,13 @@ workflow, la commande les trace aussi au journal.
 7. Protection des données (skill `data-protection`), quand elle est
    demandée : écris `aipd.json` (`dpia_build.py --schema`) avec
    l'hébergeur de la description, `requirements` et `threats` plutôt que
-   de recopier exigences et menaces. Coche les critères du CEPD, cote
-   gravité et vraisemblance de chaque risque en disant pourquoi, relie
-   chaque mesure à une exigence ou une menace. Lance `dpia_build.py
+   de recopier exigences et menaces. Écris les traitements, les
+   critères du CEPD et, d'un même jet, un risque par traitement et
+   événement redouté avec seulement `id`, `treatment`, `event`, gravité,
+   vraisemblance et résiduel, en disant pourquoi (`impacts`) : le script
+   propose sources et mesures (exigences, menaces) ; n'en écris que pour
+   les corriger. `--draft` ne sert qu'à voir ces propositions avant de
+   coter, si le résiduel en dépend. Lance `dpia_build.py
    aipd.json` (avec `--vault` et `--folder` dans un workflow à vault) et
    corrige jusqu'à zéro erreur ; un risque résiduel élevé reste ouvert.
 8. Dans un dossier de workflow, note au journal (`journal.py log`, skill

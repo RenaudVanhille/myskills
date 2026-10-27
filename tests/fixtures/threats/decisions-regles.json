@@ -1,0 +1,13 @@
+{
+  "model": "aws.threats.json",
+  "rules": [
+    {"match": {"stride": "R"}, "status": "traitee", "measure": "CloudTrail et journaux applicatifs centralisés"},
+    {"match": {"kind": ["store"], "stride": "TI"}, "status": "traitee", "measure": "Chiffrement KMS au repos, accès privé"},
+    {"match": {"type": ["lambda"]}, "status": "a-traiter"},
+    {"match": {"kind": ["flow"], "encrypted": false, "crossing": true}, "status": "ecartee", "why": "flux interne au VPC, sans transit hors AWS"},
+    {"match": {"element": "inexistant"}, "status": "a-traiter"}
+  ],
+  "threats": {
+    "M003": {"status": "acceptee", "measure": "AWS Shield Standard", "why": "Shield Advanced jugé trop cher par le métier"}
+  }
+}
