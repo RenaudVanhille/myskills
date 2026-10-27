@@ -1,0 +1,24 @@
+{
+  "title": "Risques notés et atténués",
+  "components": [
+    {"id": "web", "label": "Portail", "role": "system"},
+    {"id": "api", "label": "API sinistres", "role": "system"},
+    {"id": "base", "label": "Base sinistres", "role": "db"}
+  ],
+  "flows": [{"from": "web", "to": "api"}, {"from": "api", "to": "base"}],
+  "scenarios": [
+    {"id": "QS-01", "attribute": "disponibilite", "stimulus": "panne de la zone principale", "response": "service rétabli",
+     "measure": "en moins de 15 min", "importance": "haute", "status": "non-satisfait", "note": "une seule zone"},
+    {"id": "QS-02", "attribute": "performance", "stimulus": "pic après tempête", "response": "déclaration enregistrée",
+     "measure": "95 % en moins de 2 s", "importance": "moyenne", "status": "risque", "note": "base non dimensionnée"}
+  ],
+  "decisions": [{"id": "ADR-001", "title": "Base relationnelle unique", "status": "acceptee"}],
+  "risks": [
+    {"id": "R-01", "text": "perte du service si la zone tombe", "severity": "haute", "scenarios": ["QS-01"],
+     "mitigation": "réplique dans une seconde zone", "owner": "équipe plateforme"},
+    {"id": "R-02", "text": "saturation de la base au pic", "severity": "haute", "scenarios": ["QS-02"],
+     "mitigation": "file d'attente devant la base", "owner": "équipe sinistres"},
+    {"id": "R-03", "text": "coût de la seconde zone", "severity": "basse",
+     "mitigation": "zone froide", "owner": "équipe plateforme"}
+  ]
+}

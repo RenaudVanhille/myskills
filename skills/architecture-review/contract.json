@@ -525,7 +525,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Un objet ; si la description est illisible, seulement input, errors et warnings. findings va du plus grave au moins grave ; un constat accepté garde sa raison dans accepted et ne compte pas dans counts. verdict : défavorable dès un constat haut ouvert, avec réserves dès un constat moyen ouvert, null en cas d'erreur.",
+        "description": "Un objet ; si la description est illisible, seulement input, errors et warnings. findings va du plus grave au moins grave ; un constat accepté garde sa raison dans accepted et ne compte pas dans counts. verdict : défavorable dès un constat haut ouvert, avec réserves dès un constat moyen ouvert, null en cas d'erreur ; chaque risque noté (RSK-03, ou RSK-01 s'il est haut sans atténuation) et chaque scénario non satisfait (QUA-05, ou QUA-01 sans risque) est un constat de sa gravité, compté tant qu'il n'est pas accepté.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [

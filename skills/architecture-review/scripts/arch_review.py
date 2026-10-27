@@ -20,7 +20,10 @@ modèle :
   du harness ou un modèle local) : dépendances du code absentes des flux,
   cycles entre composants, fichiers non rattachés ;
 - calcule l'avis (défavorable dès un constat haut ouvert, avec réserves dès
-  un constat moyen ouvert) et écrit <sujet>.revue.md.
+  un constat moyen ouvert) et écrit <sujet>.revue.md. Chaque risque noté et
+  chaque scénario non satisfait est un constat de sa gravité (RSK-03,
+  QUA-05) : il compte dans la synthèse et l'avis tant qu'il n'est pas
+  accepté.
 
 Un écart voulu s'accepte dans `accept`, avec sa raison : il reste dans la
 revue mais ne compte plus.
@@ -118,6 +121,10 @@ RULES = {
                f"{ATAM} : scénario de qualité (stimulus, environnement, réponse, mesure)"),
     "QUA-04": ("qualite", "basse", "Scénario à vérifier",
                "Évaluer le scénario : satisfait, à risque ou non satisfait, avec la raison.", f"{ATAM} : analyse"),
+    # Gravité variable : l'importance du scénario (haute si non donnée).
+    "QUA-05": ("qualite", "importance", "Scénario non satisfait",
+               "Changer l'architecture pour satisfaire le scénario, ou faire accepter l'écart (accept) avec sa raison.",
+               f"{ATAM} : risques"),
     "DEC-01": ("decisions", "moyenne", "Aucune décision d'architecture documentée",
                "Documenter les décisions structurantes (ADR).", "arc42 §9 ; ADR (M. Nygard)"),
     "DEC-02": ("decisions", "basse", "Décision encore proposée",
@@ -127,6 +134,10 @@ RULES = {
     "RSK-01": ("risques", "haute", "Risque haut sans mesure d'atténuation",
                "Donner la mesure d'atténuation (mitigation) ou changer l'architecture.", f"arc42 §11 ; {ATAM}"),
     "RSK-02": ("risques", "basse", "Risque sans responsable", "Nommer le responsable (owner).", "arc42 §11"),
+    # Gravité variable : celle du risque.
+    "RSK-03": ("risques", "gravité du risque", "Risque ouvert",
+               "Traiter le risque (changer l'architecture) ou le faire accepter (accept) avec sa raison.",
+               f"arc42 §11 ; {ATAM}"),
 }
 # Ce que la description ne montre pas : à vérifier avec l'équipe.
 OFF_DESCRIPTION = {
@@ -366,8 +377,9 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
     warnings: list[str] = []
     findings: list[dict] = []
 
-    def add(rule, element, message):
-        axis, severity, title, fix, ref = RULES[rule]
+    def add(rule, element, message, severity=None):
+        axis, default, title, fix, ref = RULES[rule]
+        severity = severity or default
         findings.append({"rule": rule, "axis": axis, "severity": severity, "element": element,
                          "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
 
@@ -522,6 +534,8 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
     for sc in scenarios.values():
         if sc["status"] == "non-satisfait" and sc["id"] not in risked:
             add("QUA-01", sc["id"], sc["response"])
+        elif sc["status"] == "non-satisfait":
+            add("QUA-05", sc["id"], sc["response"], sc.get("importance", "haute"))
         elif sc["status"] == "risque" and sc["id"] not in risked:
             add("QUA-02", sc["id"], sc["response"])
         elif sc["status"] == "a-verifier":
@@ -537,8 +551,11 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
         if not item.get("decision"):
             add("DEC-03", f"compromis {i + 1}", item["text"])
     for risk in risks:
+        # Un risque haut sans atténuation est déjà RSK-01 : pas de second constat.
         if risk["severity"] == "haute" and not risk.get("mitigation"):
             add("RSK-01", risk["id"], risk["text"])
+        else:
+            add("RSK-03", risk["id"], risk["text"], risk["severity"])
         if not risk.get("owner"):
             add("RSK-02", risk["id"], risk["text"])
 
@@ -607,6 +624,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
                                    "statut": "accepte" if f["accepted"] else "ouvert"},
                   {"porte-sur": about([f["element"]]), "issu-de": (review_rel, title)}, body, ["architecture"])
     risques = []
+    accepted = {f["element"] for f in found["findings"] if f["rule"] in ("RSK-01", "RSK-03") and f["accepted"]}
     for r in spec.get("risks", []):
         rel = f"{base}/Risques/{title}/{vault_ontology.safe_name(r['id'])}"
         risques.append((rel, r))
@@ -615,7 +633,8 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
         if r.get("scenarios"):
             body += ["", "**Scénarios** : " + ", ".join(r["scenarios"])]
         notes.add(rel, "risque", {"id": r["id"], "gravite": r["severity"],
-                                  "statut": "attenue" if r.get("mitigation") else "ouvert"},
+                                  "statut": "accepte" if r["id"] in accepted
+                                  else "attenue" if r.get("mitigation") else "ouvert"},
                   {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body, ["architecture"])
     body = [f"# Revue d'architecture : {spec['title']}", "", f"**Avis : {verdict}**", "",
             f"Revue complète : `{out.name}`."]
@@ -711,10 +730,14 @@ def markdown(spec: dict, found: dict, verdict: str) -> str:
     if not spec.get("risks"):
         lines.append("Aucun risque noté.")
     else:
-        lines += ["| ID | Risque | Gravité | Scénarios | Atténuation | Responsable |", "| --- | --- | --- | --- | --- | --- |"]
+        accepted = {f["element"]: f["accepted"] for f in findings if f["rule"] in ("RSK-01", "RSK-03")}
+        lines += ["| ID | Risque | Gravité | Scénarios | Atténuation | Responsable | Statut |",
+                  "| --- | --- | --- | --- | --- | --- | --- |"]
         for r in spec["risks"]:
+            status = f"accepté : {accepted[r['id']]}" if accepted.get(r["id"]) else "ouvert"
             lines.append(f"| {r['id']} | {cell(r['text'])} | {r['severity']} | {', '.join(r.get('scenarios', [])) or '-'} | "
-                         f"{cell(r.get('mitigation', 'à définir'))} | {cell(r.get('owner', 'à désigner'))} |")
+                         f"{cell(r.get('mitigation', 'à définir'))} | {cell(r.get('owner', 'à désigner'))} | "
+                         f"{cell(status)} |")
     if spec.get("sensitivities") or spec.get("tradeoffs"):
         lines += ["", "## Points de sensibilité et compromis", ""]
         for item in spec.get("sensitivities", []):
