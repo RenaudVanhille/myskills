@@ -183,3 +183,34 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 4. Pour un agent, un cas dans `tests/agent-cases.json` ; mesure du coût avec
    `tests/cost.py` si le comportement change.
 5. README à jour (tableaux des skills et des agents).
+
+## 9. Commits, PR et versions
+
+Les versions et `CHANGELOG.md` sont produits par
+[release-please](https://github.com/googleapis/release-please) à partir des
+titres des commits de `main` ; personne ne les écrit à la main, ce qui
+supprime les conflits sur le journal.
+
+- Titre de PR au format [Conventional Commits](https://www.conventionalcommits.org/fr/) :
+  `type(portée): description`, description en français, à l'impératif ou
+  nominale, sans point final, 100 caractères au plus. Portée facultative :
+  le skill ou l'agent touché (`feat(cloud-cost): grille GCP`). Contrôlé en
+  CI par `uv run scripts/check_commit.py "TITRE"` (workflow `titre-pr`) ; à lancer
+  avant d'ouvrir ou de renommer une PR.
+- Types : `feat` (ajout visible, version mineure), `fix` (correction,
+  correctif), `perf` (coût en tokens ou en temps, correctif), `docs`,
+  `refactor`, `test`, `ci`, `build`, `chore`, `style` (hors journal, sauf
+  `docs` et `refactor`), `revert`. Rupture d'un contrat, d'un schéma ou d'une
+  option : `!` après le type ou pied `BREAKING CHANGE: ...` (avant 1.0, elle
+  monte le chiffre du milieu).
+- Une PR = un sujet = une ligne du journal : son titre est ce qu'on lira
+  dans `CHANGELOG.md`. Le détail (mesures, cas de test) va dans la
+  description de la PR, pas dans le journal.
+- Fusion en **squash** uniquement : le titre de la PR devient le commit de
+  `main` que release-please lit. Les commits de la branche suivent la même
+  forme, de préférence.
+- Ne jamais modifier à la main `CHANGELOG.md`, la version de `plugin.json`,
+  de `.claude-plugin/*.json` ni `.release-please-manifest.json` **(vérifiée :
+  versions égales, pas de section « Non publié »)**. release-please tient à
+  jour une PR `chore(main): release X.Y.Z` ; la fusionner publie le tag
+  `vX.Y.Z` et la release GitHub.

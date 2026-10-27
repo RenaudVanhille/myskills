@@ -49,6 +49,7 @@ from referencing import Registry, Resource  # noqa: E402
 CONTRACTS = {script["name"]: script["report"].get("schema")
              for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
 CONTRACTS["install.py"] = contracts_lib.schema("install-report")
+CONTRACTS["check_commit.py"] = contracts_lib.schema("commit-report")
 # Schéma d'entrée (description JSON) de chaque script qui en déclare un.
 INPUTS = {script["name"]: script["input"]["schema"]
           for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
@@ -457,6 +458,21 @@ def check_rules() -> dict:
         commands = meta.get("commands", "").lower()
         failures += [f"agent {name} : commande réseau autorisée « {c} »"
                      for c in ("curl", "wget", "invoke-webrequest") if c in commands]
+
+    # Versions : release-please les monte toutes ensemble, depuis son manifeste.
+    plugin_version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+    released = json.loads((ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")).get(".")
+    if released != plugin_version:
+        failures.append(f".release-please-manifest.json : version {released}, plugin.json {plugin_version} ; "
+                        "la version ne se change pas à la main, release-please la monte")
+    config = json.loads((ROOT / "release-please-config.json").read_text(encoding="utf-8"))
+    bumped = {extra["path"] for extra in config["packages"]["."].get("extra-files", [])}
+    failures += [f"release-please-config.json : {path} porte une version absente de extra-files"
+                 for path in ("plugin.json", ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json")
+                 if path not in bumped]
+    if re.search(r"^## Non publié", (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"), re.M):
+        failures.append("CHANGELOG.md : section « Non publié » ; le journal est écrit par release-please "
+                        "depuis les titres de PR (Conventional Commits)")
 
     for path in sorted([*(ROOT / "skills").rglob("*"), *(ROOT / "src").rglob("*")]):
         if path.is_file() and path.suffix in {".md", ".py", ".json"}:
