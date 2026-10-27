@@ -1,0 +1,68 @@
+{
+ "title": "Espace adhérents",
+ "created": "2026-10-01T09:00:00",
+ "definition": {
+  "stages": [
+   {
+    "id": "exigences",
+    "skills": [
+     "requirements-catalog"
+    ]
+   },
+   {
+    "id": "revue",
+    "skills": [
+     "architecture-review",
+     "threat-model"
+    ]
+   },
+   {
+    "id": "chiffrage",
+    "skills": [
+     "solution-estimate",
+     "cloud-cost"
+    ]
+   }
+  ]
+ },
+ "stages": [
+  {
+   "id": "exigences",
+   "status": "validee"
+  },
+  {
+   "id": "revue",
+   "status": "validee"
+  },
+  {
+   "id": "chiffrage",
+   "status": "validee"
+  }
+ ],
+ "entries": [
+  {
+   "id": "D-001",
+   "date": "2026-10-20T10:00:00",
+   "stage": "chiffrage",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Hypercare oubliée : deux semaines de support après la bascule"
+  },
+  {
+   "id": "D-002",
+   "date": "2026-10-20T10:00:00",
+   "stage": "chiffrage",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Les tests de charge ne sont pas chiffrés"
+  },
+  {
+   "id": "D-003",
+   "date": "2026-10-20T10:00:00",
+   "stage": "exigences",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Exigence d'accessibilité RGAA absente"
+  }
+ ]
+}

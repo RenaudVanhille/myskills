@@ -1,0 +1,6 @@
+{
+ "revue": [
+  {"id": "REV-reprise", "off": true},
+  {"id": "REV-degrade", "label": "mode dégradé sous forte charge", "attribute": "performance", "pattern": "degrad", "when": {"categories": ["performance"]}, "source": "retours de revue récurrents"}
+ ]
+}

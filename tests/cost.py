@@ -30,8 +30,13 @@ le prompt de validation de l'utilisateur simulé (`rounds.next`), au plus
 <cas>/<étapes soumises> : on voit ce que coûte chaque étape. Ces cas ne
 tournent qu'avec --workflow ou --only.
 
+Chaque exécution est notée (colonne `score` de costs.csv, de 0 à 1) par
+tests/judge.py : les contrôles sans modèle du cas (`checks`) par défaut, et
+la grille (`rubric`) avec --judge laya (local) : qualité et coût se suivent
+ensemble d'une PR à l'autre. --judge none ne note rien.
+
 --summary ne lance rien : il lit costs.csv et donne, par cas et par modèle,
-la médiane de la dernière mesure et l'écart avec la précédente.
+la médiane de la dernière mesure, l'écart avec la précédente et la note.
 
 Rien ne part ailleurs que chez le modèle de la session Claude Code. Les
 commandes de l'agent sont acceptées sans confirmation : elles ne touchent
@@ -39,7 +44,7 @@ que le dossier temporaire.
 
 Usage :
     uv run tests/cost.py [--only ID[,ID]] [--model sonnet|agent] [--label TEXTE] [--keep]
-        [--max-increase 20] [--repeat N] [--jobs N] [--workflow]
+        [--max-increase 20] [--repeat N] [--jobs N] [--workflow] [--judge checks|laya|none]
     uv run tests/cost.py --summary [--model agent]
 """
 
@@ -61,7 +66,7 @@ ROOT = TESTS.parent
 CSV = TESTS / "costs.csv"
 COLUMNS = ["date", "label", "commit", "case", "agent", "model", "ok", "turns", "cost_usd",
            "input_tokens", "cache_creation_tokens", "cache_read_tokens", "output_tokens",
-           "subagents", "duration_s"]
+           "subagents", "duration_s", "score"]
 
 
 def commit() -> str:
@@ -143,7 +148,19 @@ def stages(work: Path) -> dict[str, str]:
     return {s["id"]: s["status"] for s in state["stages"]}
 
 
-def run_case(case: dict, model: str, keep: bool) -> list[dict]:
+def score(case: dict, work: Path, backend: str) -> float | None:
+    """Note de l'exécution par tests/judge.py (contrôles du cas, grille si le juge est un modèle)."""
+    if backend == "none" or not (case.get("checks") or backend != "checks"):
+        return None
+    sys.path.insert(0, str(TESTS))
+    import judge
+    return judge.score_case(JUDGES.setdefault(backend, judge.Judge(backend, None)), case, work)["score"]
+
+
+JUDGES: dict = {}
+
+
+def run_case(case: dict, model: str, keep: bool, backend: str = "checks") -> list[dict]:
     """Une exécution d'un cas : une ligne, ou une par tour pour un cas de workflow."""
     work = Path(tempfile.mkdtemp(prefix=f"myskills-cost-{case['id']}-"))
     prepare(case, work)
@@ -153,6 +170,7 @@ def run_case(case: dict, model: str, keep: bool) -> list[dict]:
         if keep:
             (work / "claude-result.txt").write_text(str(data.get("result", "")), encoding="utf-8")
         rows.append(row_of(case["id"], case, model, data, (work / case["output"]).exists()))
+        rows[-1]["score"] = score(case, work, backend)
     else:
         prompt = case["prompt"]
         for number in range(case["rounds"].get("max", 12)):
@@ -173,6 +191,7 @@ def run_case(case: dict, model: str, keep: bool) -> list[dict]:
         for field in ("turns", "cost_usd", "input_tokens", "cache_creation_tokens", "cache_read_tokens",
                       "output_tokens", "subagents", "duration_s"):
             total[field] = round(sum(r[field] or 0 for r in rows), 4)
+        total["score"] = score(case, work, backend)
         rows.append(total)
     if keep:
         for row in rows:
@@ -184,7 +203,8 @@ def run_case(case: dict, model: str, keep: bool) -> list[dict]:
 
 def summary(model: str | None) -> int:
     """Tableau des dernières mesures (médianes) et écart avec la précédente, depuis costs.csv."""
-    lines = [f"{'cas':42} {'modèle':7} {'n':>2} {'coût $':>8} {'écart':>7} {'tours':>5} {'durée s':>7}  date"]
+    lines = [f"{'cas':42} {'modèle':7} {'n':>2} {'coût $':>8} {'écart':>7} {'tours':>5} {'durée s':>7} "
+             f"{'note':>5}  date"]
     total = 0.0
     for (case, model_name), runs in sorted(measures(model).items()):
         last = runs[-1]
@@ -194,8 +214,10 @@ def summary(model: str | None) -> int:
             delta = f"{(cost - median(runs[-2], 'cost_usd')) / median(runs[-2], 'cost_usd') * 100:+.0f} %"
         if "/" not in case:
             total += cost
+        note = f"{median(last, 'score'):.2f}" if any(r.get("score") for r in last) else "-"
         lines.append(f"{case[:42]:42} {model_name:7} {len(last):>2} {cost:>8.4f} {delta:>7} "
-                     f"{median(last, 'turns'):>5.0f} {median(last, 'duration_s'):>7.0f}  {last[0]['date'][:10]}")
+                     f"{median(last, 'turns'):>5.0f} {median(last, 'duration_s'):>7.0f} {note:>5}  "
+                     f"{last[0]['date'][:10]}")
     print("\n".join(lines) + f"\n\nTotal des cas (dernières médianes, tours de workflow à part) : {total:.4f} USD")
     return 0
 
@@ -217,6 +239,9 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=1, help="exécutions lancées en même temps")
     parser.add_argument("--workflow", action="store_true", help="jouer aussi les cas de workflow de bout en bout")
     parser.add_argument("--summary", action="store_true", help="résumé de costs.csv, sans rien lancer")
+    parser.add_argument("--judge", choices=["checks", "laya", "decision1", "none"], default="checks",
+                        help="note de chaque exécution : contrôles du cas (défaut), grille par le modèle local "
+                             "laya ou decision1, ou aucune")
     args = parser.parse_args()
     if args.summary:
         return summary(args.model)
@@ -232,7 +257,8 @@ def main() -> int:
     stamp = datetime.datetime.now().isoformat(timespec="seconds")
     sha = commit()
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        futures = {case["id"]: [pool.submit(run_case, case, model, args.keep) for _ in range(max(1, args.repeat))]
+        futures = {case["id"]: [pool.submit(run_case, case, model, args.keep, args.judge)
+                                for _ in range(max(1, args.repeat))]
                    for case in selected}
         runs = {case_id: [f.result() for f in jobs] for case_id, jobs in futures.items()}
 
@@ -246,6 +272,8 @@ def main() -> int:
         result = {"case": case["id"], "runs": len(totals), "ok": all(r["ok"] for r in totals),
                   "cost_usd": median(good, "cost_usd"), "turns": median(good, "turns"),
                   "duration_s": median(good, "duration_s")}
+        if any(r.get("score") is not None for r in good):
+            result["score"] = median(good, "score")
         before = previous.get(case["id"])
         if before and result["ok"]:
             result["increase_pct"] = round((result["cost_usd"] - before) / before * 100, 1)
@@ -259,6 +287,15 @@ def main() -> int:
         print(json.dumps(result, ensure_ascii=False), flush=True)
 
     new = not CSV.exists()
+    if not new:
+        with open(CSV, encoding="utf-8", newline="") as handle:
+            header = next(csv.reader(handle), [])
+        if header != COLUMNS:  # colonne ajoutée (score) : on réécrit l'en-tête, anciennes lignes sans valeur
+            old = read_rows()
+            with open(CSV, "w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=COLUMNS, extrasaction="ignore", lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(old)
     with open(CSV, "a", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, extrasaction="ignore", lineterminator="\n")
         if new:

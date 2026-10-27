@@ -49,6 +49,7 @@ import json
 import re
 import subprocess
 import sys
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -76,6 +77,8 @@ CHAIN = 4      # sauts synchrones au-delà desquels la chaîne est longue
 DEPENDS = {"calls", "imports", "imports_from", "references", "inherits", "implements", "uses"}
 
 ATAM = "ATAM (SEI)"
+# Scénarios attendus selon les exigences : règles livrées, complétées par celles de l'utilisateur et de la mission.
+EXPECTED = Path(__file__).resolve().parent.parent / "references" / "scenarios-attendus.json"
 # règle -> (axe, gravité, titre, correction, référence)
 RULES = {
     "STR-01": ("structure", "moyenne", "Cycle de dépendances synchrones",
@@ -145,6 +148,10 @@ RULES = {
     "QUA-05": ("qualite", "importance", "Scénario non satisfait",
                "Changer l'architecture pour satisfaire le scénario, ou faire accepter l'écart (accept) avec sa raison.",
                f"{ATAM} : risques"),
+    "QUA-06": ("qualite", "moyenne", "Scénario attendu absent",
+               "Écrire ce scénario (stimulus, environnement, réponse, mesure) et l'évaluer, ou accepter l'écart "
+               "(accept) avec sa raison.",
+               f"{ATAM} : scénarios de croissance et d'exploration ; règles de complétude (references/)"),
     "DEC-01": ("decisions", "moyenne", "Aucune décision d'architecture documentée",
                "Documenter les décisions structurantes (ADR).", "arc42 §9 ; ADR (M. Nygard)"),
     "DEC-02": ("decisions", "basse", "Décision encore proposée",
@@ -609,7 +616,32 @@ def code_review(graph: dict, comps: list[dict], flows: list[dict], repos: list[d
     return result
 
 
-def review(spec: dict, base: Path, out_dir: Path) -> dict:
+def plain(text: str) -> str:
+    text = unicodedata.normalize("NFKD", str(text))
+    return "".join(c for c in text if not unicodedata.combining(c)).lower()
+
+
+def expected(rules: list[dict], catalog: dict, comps: list[dict], scenarios) -> list[dict]:
+    """Règles de scénario attendu qui s'appliquent (exigence non fonctionnelle indispensable ou importante de
+    la catégorie, rôle de composant) et qu'aucun scénario de leur attribut ne suit."""
+    categories = {r.get("category") for r in catalog.values()
+                  if r.get("status", "retenue") == "retenue" and r.get("priority") in ("indispensable", "importante")
+                  and (r.get("nature") == "non-fonctionnelle" or r["id"].startswith("ENF"))}
+    roles = {c.get("role", "system") for c in comps}
+    missing = []
+    for rule in rules:
+        when = rule.get("when", {})
+        if (when.get("categories") and not categories & set(when["categories"])) \
+                or (when.get("roles") and not roles & set(when["roles"])):
+            continue
+        texts = [plain(f"{s['stimulus']} {s.get('environment', '')} {s['response']}")
+                 for s in scenarios if s["attribute"] == rule["attribute"]]
+        if not any(re.search(rule["pattern"], text) for text in texts):
+            missing.append(rule)
+    return missing
+
+
+def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None) -> dict:
     errors: list[str] = []
     warnings: list[str] = []
     findings: list[dict] = []
@@ -779,6 +811,9 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
             add("QUA-04", sc["id"], sc["response"])
         if not sc.get("measure"):
             add("QUA-03", sc["id"], sc["response"])
+    if catalog:
+        for rule in expected(rules or [], catalog, comps, scenarios.values()):
+            add("QUA-06", rule["id"], f"{rule['label']} ({ATTRIBUTES.get(rule['attribute'], rule['attribute'])})")
     if not decisions:
         add("DEC-01", "architecture", "aucune décision dans decisions")
     for dec in decisions.values():
@@ -1068,9 +1103,14 @@ def main() -> int:
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
+    # Scénarios attendus : règles livrées, de l'utilisateur et de la mission.
+    rules, _, invalid = workspace.rules("revue", EXPECTED, [args.spec])
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+        return 1
     stem = args.spec.name.removesuffix(".json")
     out = args.out or args.spec.with_name(stem + (".md" if stem.endswith("revue") else ".revue.md"))
-    found = review(spec, args.spec.parent, out.parent)
+    found = review(spec, args.spec.parent, out.parent, rules)
     if "findings" not in found:
         print(json.dumps({"input": str(args.spec), "errors": found["errors"], "warnings": found["warnings"]},
                          ensure_ascii=False))

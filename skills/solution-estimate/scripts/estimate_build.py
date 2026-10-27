@@ -164,20 +164,9 @@ def pick_option(spec: dict, arch: dict, errors: list[str], warnings: list[str]) 
     return options[wanted], status
 
 
-# Postes souvent oubliés : (libellé, motif cherché dans les lots, lignes d'infrastructure, hypothèses et
-# exclusions, phase qui le couvre, quand le chercher). Textes comparés sans accents ni majuscules.
-HABITUAL = [
-    ("tests de sécurité (test d'intrusion, audit)", r"intrusion|pentest|audit de securite|tests? de securite", None,
-     "securite"),
-    ("environnements hors production (recette, préproduction)", r"hors.production|recette|preprod|qualification",
-     None, "infra"),
-    ("réseau (interconnexion, VPN, pare-feu, trafic sortant)",
-     r"reseau|vpn|pare.feu|firewall|\bwaf\b|\bnat\b|egress|sortant|interconnexion|bande passante", None, "cloud"),
-    ("recette", r"recette|tests? fonctionnel", "tests", "toujours"),
-    ("mise en production", r"mise en production|deploiement|bascule", "deploiement", "toujours"),
-    ("formation et conduite du changement", r"formation|conduite du changement|accompagnement", "conduite-changement",
-     "toujours"),
-]
+# Postes souvent oubliés : règles de complétude livrées (references/postes-attendus.json), complétées par celles
+# de l'utilisateur et de la mission (workspace.rules). Textes comparés sans accents ni majuscules.
+EXPECTED = Path(__file__).resolve().parent.parent / "references" / "postes-attendus.json"
 
 
 def plain(text: str) -> str:
@@ -185,32 +174,34 @@ def plain(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
-def forgotten(spec: dict, catalog: dict, option: dict) -> list[str]:
-    """Postes habituels qu'aucun lot, ligne d'infrastructure, hypothèse ni exclusion ne cite."""
+def applies(rule: dict, catalog, option: dict, infra: bool) -> bool:
+    """Condition (when) d'une règle de complétude : toutes requises, aucune = toujours."""
+    when = rule.get("when", {})
+    categories = {r.get("category") for r in catalog if r.get("status") != "retiree"}
+    roles = {c.get("role", "system") for c in option.get("components", [])}
+    return (not when.get("categories") or bool(categories & set(when["categories"]))) \
+        and (not when.get("roles") or bool(roles & set(when["roles"]))) \
+        and (not when.get("infra") or infra) \
+        and (not when.get("cloud") or (bool(option.get("provider")) and infra))
+
+
+def forgotten(spec: dict, catalog: dict, option: dict, rules: list[dict]) -> list[dict]:
+    """Postes attendus qu'aucun lot de leur phase, ligne d'infrastructure, hypothèse ni exclusion ne cite."""
     texts = [w.get("name", "") for w in spec.get("work", [])] + \
         [f"{i.get('name', '')} {i.get('basis', '')} {i.get('environment', '')}" for i in spec.get("infra", [])] + \
         [str(a) for a in spec.get("assumptions", []) + spec.get("exclusions", [])]
     corpus = plain(" ".join(texts))
     phases = {w.get("phase") for w in spec.get("work", [])}
-    when = {"toujours": True, "securite": any(r.get("category") == "securite" for r in catalog.values()),
-            "infra": bool(spec.get("infra")), "cloud": bool(option.get("provider")) and bool(spec.get("infra"))}
-    return [label for label, pattern, phase, condition in HABITUAL
-            if when[condition] and phase not in phases and not re.search(pattern, corpus)]
+    return [rule for rule in rules
+            if applies(rule, catalog.values(), option, bool(spec.get("infra")))
+            and rule.get("phase") not in phases and not re.search(rule["pattern"], corpus)]
 
 
-# Lots transverses du brouillon : (libellé, phase, profils, quand).
-TRANSVERSE = [
-    ("Cadrage et architecture détaillée", "cadrage", "toujours"),
-    ("Recette", "tests", "toujours"),
-    ("Tests de sécurité (test d'intrusion)", "tests", "securite"),
-    ("Mise en production", "deploiement", "toujours"),
-    ("Formation et conduite du changement", "conduite-changement", "toujours"),
-]
 DEFAULTS = {"pilotage": 12, "contingency": 10, "run": 15}
 MONEY = re.compile(r"(\d[\d  .]*)\s*(?:€|euros?|eur)\s*(?:par|/)\s*(mois|an)", re.I)
 
 
-def draft(path: Path, option_id: str | None, infra: Path | None) -> dict:
+def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dict]) -> dict:
     """Écrit le brouillon de chiffrage.json ; rapport court (lots, charges à estimer)."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -240,10 +231,10 @@ def draft(path: Path, option_id: str | None, infra: Path | None) -> dict:
         work.append({"id": "", "name": f"Intégration avec {comp['label']}" if external else comp["label"],
                      "phase": "integration" if external or comp.get("role") == "queue" else "realisation",
                      "component": comp["id"], "effort": {}})
-    security = any(r.get("category") == "securite" for r in catalog)
-    for label, phase, when in TRANSVERSE:
-        if when == "toujours" or security:
-            work.append({"id": "", "name": label, "phase": phase, "effort": {}})
+    work.append({"id": "", "name": "Cadrage et architecture détaillée", "phase": "cadrage", "effort": {}})
+    for rule in rules:
+        if rule.get("draft") and applies(rule, catalog, option, bool(lines)):
+            work.append({"id": "", "name": rule["draft"]["name"], "phase": rule["draft"]["phase"], "effort": {}})
     order = list(PHASES)
     work.sort(key=lambda w: order.index(w["phase"]))
     for n, task in enumerate(work, 1):
@@ -288,7 +279,7 @@ def three_points(value) -> tuple[float, float, float, float, float]:
 
 
 def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
-            errors: list[str], warnings: list[str]) -> dict:
+            errors: list[str], warnings: list[str], rules: list[dict]) -> dict:
     """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
     rates = spec.get("rates")  # sans taux : mode charges, jours et heures seulement
     if rates is not None and not rates:
@@ -436,10 +427,10 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
         warnings.append(f"option {option['id']} hébergée chez {option['provider']} sans ligne d'infrastructure cloud")
     if not spec.get("assumptions"):
         warnings.append("aucune hypothèse notée (assumptions)")
-    missing = [] if errors else forgotten(spec, catalog, option)
+    missing = [] if errors else forgotten(spec, catalog, option, rules)
     if missing:
-        warnings.append(f"poste(s) souvent oublié(s), absent(s) : {'; '.join(missing)} ; ajouter un lot ou une "
-                        "ligne, ou le noter dans assumptions ou exclusions")
+        warnings.append(f"poste(s) souvent oublié(s), absent(s) : {'; '.join(r['label'] for r in missing)} ; "
+                        "ajouter un lot ou une ligne, ou le noter dans assumptions ou exclusions")
 
     budget = spec.get("budget")
     over = []
@@ -455,7 +446,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
     totals["budget"] = None if not budget else {"over": over}
     totals["hosting"] = hosting
     found = {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
-             "uncovered": uncovered, "uncertain": uncertain}
+             "uncovered": uncovered, "uncertain": uncertain, "missing": [r["id"] for r in missing]}
     found["scenarios"] = scenarios(spec, found, profile, errors, warnings)
     if rates is None and spec.get("infra"):
         warnings.append("infra ignorée : sans rates, seules les charges (jours, heures) sont produites")
@@ -1082,8 +1073,13 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    # Postes attendus : règles livrées, de l'utilisateur et de la mission.
+    rules, _, invalid = workspace.rules("chiffrage", EXPECTED, [args.spec])
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+        return 1
     if args.draft:
-        report = draft(args.spec, args.option, args.infra)
+        report = draft(args.spec, args.option, args.infra, rules)
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
@@ -1113,7 +1109,7 @@ def main() -> int:
     catalog = {r["id"]: r for r in (cat or {}).get("requirements", []) if isinstance(r, dict) and "id" in r}
     option, status = pick_option(spec, arch, errors, warnings) if arch else (None, "")
     providers, checked = load_providers(base, spec, errors, warnings)
-    found = analyse(spec, catalog, option, providers, checked, errors, warnings) if option else None
+    found = analyse(spec, catalog, option, providers, checked, errors, warnings, rules) if option else None
     if args.vault and not args.vault.is_dir():
         errors.append(f"--vault : dossier introuvable {args.vault}")
     report = {"input": str(args.spec), "outputs": [], "option": option["id"] if option else None,
@@ -1130,7 +1126,7 @@ def main() -> int:
         del report["currency"]
     report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"), "charges": found["charges"],
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
-                   "uncertain": found["uncertain"]})
+                   "uncertain": found["uncertain"], "missing": found["missing"]})
 
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)

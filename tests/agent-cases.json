@@ -561,6 +561,12 @@
         }
       ],
       "output": "migration.md",
+      "_reference": "Mission de référence : migration (inventaire de 8 applications vers AWS).",
+      "checks": [
+        {"file": "migration.json", "json": "applications", "min": 8},
+        {"file": "migration.md", "matches": "APP-03"},
+        {"file": "workflow.json", "contains": ["\"evaluation\""]}
+      ],
       "rubric": [
         "migration.json a une entrée par application de l'inventaire (8), sans application inventée.",
         "Chaque application a une stratégie 6R avec sa raison en une phrase, un effort et un risque.",
@@ -941,6 +947,113 @@
         "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur.",
         "Revue et chiffrage ont été menés ensemble après les schémas.",
         "dossier-architecture.md rassemble exigences, options, ADR, schémas, revue et chiffrage."
+      ]
+    },
+    {
+      "id": "reference-ao-chiffrage",
+      "agent": "solution-estimator",
+      "_reference": "Mission de référence : appel d'offres public (RC, CCTP, BPU fictifs de la Métropole d'Aubrelac), chiffrage en charges sans taux.",
+      "prompt": "Avant-vente de la plateforme de rendez-vous d'Aubrelac : chiffre en charges, sans taux journaliers, l'option recommandée de options.json.",
+      "inputs": [
+        {
+          "from": "fixtures/references/ao/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/references/ao/options.json",
+          "to": "options.json"
+        },
+        {
+          "from": "fixtures/references/ao/sources/CCTP.md",
+          "to": "sources/CCTP.md"
+        },
+        {
+          "from": "fixtures/references/ao/sources/RC.md",
+          "to": "sources/RC.md"
+        },
+        {
+          "from": "fixtures/references/ao/sources/BPU.md",
+          "to": "sources/BPU.md"
+        }
+      ],
+      "output": "chiffrage.charges.md",
+      "checks": [
+        {
+          "file": "chiffrage.json",
+          "json": "option",
+          "equals": "A"
+        },
+        {
+          "file": "chiffrage.json",
+          "json": "work",
+          "min": 9
+        },
+        {
+          "file": "chiffrage.charges.md",
+          "contains": [
+            "charge",
+            "intrusion",
+            "formation"
+          ]
+        },
+        {
+          "file": "chiffrage.charges.md",
+          "matches": "reprise|migration"
+        },
+        {
+          "file": "chiffrage.charges.csv"
+        }
+      ],
+      "rubric": [
+        "Le plan de charge porte sur l'option A, sans montant ni taux journalier.",
+        "Il a un lot pour l'intégration avec le logiciel d'état civil et un lot pour l'annuaire, ou les traite dans un lot nommé.",
+        "Les tests de charge du pic des piscines (ENF-001) et le test d'intrusion (ENF-010) ont chacun leur lot.",
+        "La reprise des rendez-vous existants (ligne 2 du BPU) est chiffrée, ou exclue avec sa raison."
+      ]
+    },
+    {
+      "id": "reference-revue-dossier",
+      "agent": "architecture-reviewer",
+      "_reference": "Mission de référence : revue d'un dossier d'architecture reçu d'un prestataire (billettique fictive), sans catalogue d'exigences.",
+      "prompt": "Fais la revue d'architecture du dossier reçu du prestataire, dossier-architecture.md, dans revue/.",
+      "inputs": [
+        {
+          "from": "fixtures/references/dossier-recu/dossier-architecture.md",
+          "to": "dossier-architecture.md"
+        }
+      ],
+      "output": "revue/revue.md",
+      "checks": [
+        {
+          "file": "revue/revue.md",
+          "contains": [
+            "avis"
+          ]
+        },
+        {
+          "file": "revue/revue.json",
+          "json": "scenarios",
+          "min": 3
+        },
+        {
+          "file": "revue/revue.md",
+          "matches": "base (de données )?(billettique )?partagée|STR-02"
+        },
+        {
+          "file": "revue/revue.md",
+          "matches": "point unique|STR-08|une (seule )?instance"
+        },
+        {
+          "file": "revue/revue.md",
+          "matches": "synchrone"
+        }
+      ],
+      "rubric": [
+        "La revue donne un avis : favorable, favorable avec réserves ou défavorable.",
+        "Elle relève la base billettique partagée par l'API vente, l'API compte et l'outil décisionnel.",
+        "Elle relève l'API vente sur une seule instance malgré l'objectif de 99,9 %.",
+        "Elle relève la chaîne synchrone API vente, API compte, service de paiement au moment de la commande.",
+        "Elle écrit un scénario pour le pic de la rentrée (5 000 achats par minute) et le juge à risque ou à vérifier."
       ]
     }
   ]

@@ -1,0 +1,233 @@
+{
+ "title": "Exigences de la plateforme de rendez-vous d'Aubrelac",
+ "sources": "sources",
+ "requirements": [
+  {
+   "id": "EF-001",
+   "title": "Prendre un rendez-vous en ligne",
+   "text": "L'habitant prend, modifie et annule un rendez-vous en ligne sans compte.",
+   "domain": "Rendez-vous",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "L'habitant doit pouvoir prendre, modifier et annuler un rendez-vous en ligne, sans créer de compte."
+    }
+   ]
+  },
+  {
+   "id": "EF-002",
+   "title": "Confirmation et rappel",
+   "text": "Confirmation et rappel par courriel ou SMS la veille.",
+   "domain": "Rendez-vous",
+   "priority": "importante",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "L'habitant doit recevoir une confirmation et un rappel par courriel ou SMS la veille du rendez-vous."
+    }
+   ]
+  },
+  {
+   "id": "EF-003",
+   "title": "Gérer les plannings",
+   "text": "Les agents gèrent les plannings de chaque service et bloquent des créneaux.",
+   "domain": "Plannings",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Les agents doivent pouvoir gérer les plannings de chaque service et bloquer des créneaux."
+    }
+   ]
+  },
+  {
+   "id": "EF-004",
+   "title": "Transmettre à l'état civil",
+   "text": "Les rendez-vous d'état civil vont au logiciel d'état civil par son API.",
+   "domain": "Intégration",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "La plateforme doit transmettre les rendez-vous d'état civil au logiciel d'état civil existant par son API."
+    }
+   ]
+  },
+  {
+   "id": "EF-005",
+   "title": "Statistiques mensuelles",
+   "text": "Statistiques mensuelles de fréquentation par service.",
+   "domain": "Pilotage",
+   "priority": "souhaitable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "La plateforme doit produire des statistiques mensuelles de fréquentation par service."
+    }
+   ]
+  },
+  {
+   "id": "ENF-009",
+   "title": "Authentification des agents",
+   "text": "Les agents s'authentifient avec leur compte de l'annuaire de la Métropole.",
+   "category": "securite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Les agents doivent s'authentifier avec leur compte de l'annuaire de la Métropole."
+    }
+   ],
+   "metric": "100 % des agents authentifiés par l'annuaire"
+  },
+  {
+   "id": "ENF-001",
+   "title": "Pic des inscriptions aux piscines",
+   "text": "2 000 utilisateurs simultanés, 95 % des requêtes en moins de 2 s.",
+   "category": "performance",
+   "metric": "95 % des requêtes en moins de 2 s pour 2 000 utilisateurs simultanés",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "La plateforme doit supporter 2 000 utilisateurs simultanés lors de l'ouverture des inscriptions aux piscines, avec un temps de réponse inférieur à 2 secondes pour 95 % des requêtes."
+    }
+   ]
+  },
+  {
+   "id": "ENF-002",
+   "title": "Disponibilité",
+   "text": "Au moins 99,5 % par mois hors maintenance programmée.",
+   "category": "disponibilite",
+   "metric": "99,5 % par mois",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "La disponibilité doit être d'au moins 99,5 % par mois, hors maintenance programmée."
+    }
+   ]
+  },
+  {
+   "id": "ENF-003",
+   "title": "Hébergement SecNumCloud en France",
+   "text": "Données hébergées en France chez un hébergeur qualifié SecNumCloud.",
+   "category": "conformite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Les données doivent être hébergées en France, chez un hébergeur qualifié SecNumCloud."
+    }
+   ],
+   "metric": "hébergeur qualifié SecNumCloud, données en France"
+  },
+  {
+   "id": "ENF-004",
+   "title": "Accessibilité RGAA",
+   "text": "RGAA 4.1 niveau AA.",
+   "category": "utilisabilite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "La plateforme doit respecter le RGAA 4.1 au niveau AA."
+    }
+   ],
+   "metric": "audit RGAA 4.1 niveau AA conforme"
+  },
+  {
+   "id": "ENF-005",
+   "title": "Durée de conservation",
+   "text": "Données personnelles supprimées 12 mois après le rendez-vous.",
+   "category": "conformite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Les données personnelles des habitants doivent être supprimées 12 mois après le rendez-vous."
+    }
+   ],
+   "metric": "suppression à 12 mois"
+  },
+  {
+   "id": "ENF-010",
+   "title": "Test d'intrusion",
+   "text": "Test d'intrusion avant la mise en production, puis chaque année.",
+   "category": "securite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Le titulaire doit réaliser un test d'intrusion avant la mise en production, puis chaque année."
+    }
+   ],
+   "metric": "un test d'intrusion avant la mise en production, puis un par an"
+  },
+  {
+   "id": "ENF-006",
+   "title": "Coût d'hébergement",
+   "text": "Au plus 3 000 euros par mois.",
+   "category": "cout",
+   "metric": "3 000 euros par mois",
+   "priority": "importante",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Le coût d'hébergement ne doit pas dépasser 3 000 euros par mois."
+    }
+   ]
+  },
+  {
+   "id": "ENF-007",
+   "title": "Correction des anomalies bloquantes",
+   "text": "Anomalie bloquante corrigée en moins de 4 heures ouvrées.",
+   "category": "exploitabilite",
+   "metric": "4 heures ouvrées",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "Une anomalie bloquante doit être corrigée en moins de 4 heures ouvrées."
+    }
+   ]
+  },
+  {
+   "id": "ENF-008",
+   "title": "Réversibilité",
+   "text": "Données restituées dans un format ouvert et documenté, assistance de trois mois.",
+   "category": "portabilite",
+   "priority": "indispensable",
+   "sources": [
+    {
+     "doc": "CCTP.md",
+     "quote": "le titulaire doit restituer l'ensemble des données dans un format ouvert et documenté, et assister le nouveau titulaire pendant trois mois."
+    }
+   ],
+   "metric": "export complet au format ouvert, trois mois d'assistance"
+  }
+ ],
+ "glossary": [
+  {
+   "term": "Habitant",
+   "definition": "Personne qui prend un rendez-vous auprès d'un service de la Métropole."
+  },
+  {
+   "term": "Agent",
+   "definition": "Collaborateur de la Métropole qui gère les plannings d'un service."
+  }
+ ],
+ "ignored": [
+  {
+   "doc": "RC.md",
+   "quote": "Le candidat doit remettre :",
+   "reason": "pièce de la réponse, pas une exigence de la solution"
+  },
+  {
+   "doc": "RC.md",
+   "quote": "Le mémoire technique doit suivre l'ordre des sous-critères.",
+   "reason": "règle de forme de la réponse"
+  }
+ ]
+}

@@ -10,6 +10,7 @@ vault, le dossier des notes ni les dépôts de code à chaque appel.
     vault_target(vault, folder, [entrées])   -> (vault, dossier des notes, erreurs)
     repos(racine, mission)                   -> dépôts, chemins résolus
     inside(racine, chemin)                   -> le chemin reste dans la mission
+    rules("chiffrage", livrées, [entrées])   -> (règles de complétude, sources, erreurs)
 
 Cloisonnement : dans une mission, un script n'écrit que dans le vault de la
 mission ; un --vault qui en désigne un autre est refusé.
@@ -19,6 +20,8 @@ lisent ou écrivent le vault par scripts/build.py. Ne modifiez pas les copies.
 """
 
 import json
+import os
+import re
 from pathlib import Path
 
 from spec_schema import check
@@ -30,6 +33,11 @@ WORKFLOWS = {"avant-vente": "architecture", "revue": "revue-dossier"}
 _HERE = Path(__file__).resolve().parent
 _SCHEMA = next((p for p in (_HERE / "mission.schema.json", _HERE.parent / "schemas" / "mission.schema.json")
                 if p.is_file()), None)
+_RULES = next((p for p in (_HERE / "rules.schema.json", _HERE.parent / "schemas" / "rules.schema.json")
+               if p.is_file()), None)
+# Règles de complétude de l'utilisateur, communes à ses missions : ce fichier, ou ~/.myskills/regles.json
+# (vide : aucune).
+RULES_ENV = "MYSKILLS_REGLES"
 
 
 def schema() -> dict:
@@ -136,3 +144,48 @@ def vault_target(vault, folder, starts, default_folder: str | None = "Mission") 
     if folder is None:
         folder = workflow_folder(starts, root, vault) or default_folder
     return Path(vault), folder, []
+
+
+def user_rules() -> Path | None:
+    """Fichier des règles de complétude de l'utilisateur, s'il existe."""
+    value = os.environ.get(RULES_ENV)
+    path = Path(value) if value else None if value is not None else Path.home() / ".myskills" / "regles.json"
+    return path if path and path.is_file() else None
+
+
+def rules(kind: str, builtin: Path, starts=()) -> tuple[list[dict], list[str], list[str]]:
+    """Règles de complétude `kind` (chiffrage, revue) : celles livrées avec le skill, puis celles de
+    l'utilisateur, puis celles de la mission des entrées (references.regles). Une règle de même id
+    remplace la précédente ; {"id", "off": true} la retire. Renvoie (règles, fichiers lus, erreurs)."""
+    files = [Path(builtin)]
+    if user_rules():
+        files.append(user_rules())
+    root = find(*starts)
+    if root is not None:
+        mission, _ = load(root)
+        if mission and mission.get("references", {}).get("regles"):
+            files.append(Path(root) / mission["references"]["regles"])
+    merged: dict[str, dict] = {}
+    errors: list[str] = []
+    schema = json.loads(_RULES.read_text(encoding="utf-8"))
+    for path in files:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"règles {path} illisibles : {error}")
+            continue
+        invalid = check(data, schema)
+        for index, rule in enumerate(data.get(kind, []) if isinstance(data, dict) else []):
+            if isinstance(rule, dict) and isinstance(rule.get("pattern"), str):
+                try:
+                    re.compile(rule["pattern"])
+                except re.error as error:
+                    invalid.append(f"{kind}/{index}/pattern : expression invalide ({error})")
+        if invalid:
+            errors += [f"règles {path.name} : {e}" for e in invalid]
+            continue
+        for rule in data.get(kind, []):
+            merged.pop(rule["id"], None)
+            if not rule.get("off"):
+                merged[rule["id"]] = {**rule, "file": str(path)}
+    return list(merged.values()), [str(p) for p in files], errors

@@ -1,0 +1,7 @@
+{
+ "_doc": "Règles de complétude propres à la mission : un poste ajouté, un poste livré retiré.",
+ "chiffrage": [
+  {"id": "CHF-hypercare", "label": "hypercare (support renforcé après la mise en production)", "pattern": "hypercare|support renforce|garantie", "source": "retour D-004 de la mission Portail sinistres"},
+  {"id": "CHF-sauvegarde", "off": true, "source": "sauvegardes fournies par l'hébergeur du client"}
+ ]
+}

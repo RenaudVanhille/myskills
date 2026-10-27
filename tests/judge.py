@@ -18,6 +18,7 @@ Usage :
     uv run --with laya tests/judge.py triggers [--min-accuracy 0.8]
     uv run --with laya tests/judge.py outputs DOSSIER [--only ID[,ID]]
     uv run tests/judge.py --backend decision1 [--model ID] triggers|outputs ...
+    uv run tests/judge.py --backend checks outputs DOSSIER [--only ID[,ID]]
 
 - triggers : pour chaque demande de tests/triggers.json, le juge choisit un
   skill d'après les seules descriptions des SKILL.md. Mesure si les
@@ -25,7 +26,13 @@ Usage :
 - outputs : pour chaque cas de tests/agent-cases.json dont le fichier de
   sortie existe dans DOSSIER (le dossier de travail de l'agent), le juge
   vérifie chaque affirmation de la grille et, s'il y a un attendu, la
-  fidélité au texte attendu.
+  fidélité au texte attendu. Les contrôles `checks` du cas (fichier présent,
+  texte contenu ou motif, valeur ou nombre d'éléments d'un JSON) se vérifient
+  sans modèle ; `--backend checks` ne fait que ceux-là.
+
+La note d'un cas (`score`, de 0 à 1) est la part des contrôles et des
+affirmations vérifiés ; tests/cost.py --judge la garde dans costs.csv à côté
+du coût, pour suivre la qualité et le coût ensemble.
 """
 
 import argparse
@@ -53,6 +60,8 @@ DESCRIPTION = re.compile(r'^description:\s*"?(.*?)"?\s*$', re.M)
 class Judge:
     def __init__(self, backend: str, model: str | None):
         self.backend = backend
+        if backend == "checks":
+            return
         if backend == "laya":
             os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
             try:
@@ -145,6 +154,74 @@ def readable(path: Path) -> str:
     return text[:MAX_CHARS]
 
 
+def lookup(data, path: str):
+    for key in path.split(".") if path else []:
+        data = data[int(key)] if isinstance(data, list) else data[key]
+    return data
+
+
+def run_checks(case: dict, folder: Path) -> list[dict]:
+    """Contrôles sans modèle du cas : chacun {file, contains | matches | json + equals | min}."""
+    results = []
+    for check in case.get("checks", []):
+        path = folder / check["file"]
+        ok, detail = path.is_file(), ""
+        if not ok:
+            detail = "absent"
+        elif "contains" in check or "matches" in check:
+            text = path.read_text(encoding="utf-8", errors="replace")
+            missing = [c for c in check.get("contains", []) if c.lower() not in text.lower()]
+            if "matches" in check and not re.search(check["matches"], text, re.I | re.M):
+                missing.append(check["matches"])
+            ok, detail = not missing, "; ".join(f"« {m} » absent" for m in missing)
+        elif "json" in check:
+            try:
+                value = lookup(json.loads(path.read_text(encoding="utf-8")), check["json"])
+            except (ValueError, KeyError, IndexError, TypeError) as error:
+                ok, detail = False, f"{check['json']} illisible ({error})"
+            else:
+                if "equals" in check:
+                    ok, detail = value == check["equals"], f"{check['json']} = {value!r}"
+                if "min" in check:
+                    size = len(value) if isinstance(value, (list, dict, str)) else value
+                    ok = ok and isinstance(size, (int, float)) and size >= check["min"]
+                    detail = f"{check['json']} : {size}"
+        results.append({"check": check, "ok": ok, "detail": detail})
+    return results
+
+
+def score_case(judge: Judge, case: dict, folder: Path) -> dict:
+    """Note d'un cas : contrôles sans modèle, puis grille et fidélité si le juge est un modèle."""
+    result = {"id": case["id"], "agent": case["agent"]}
+    checks = run_checks(case, folder)
+    passed, total = sum(c["ok"] for c in checks), len(checks)
+    if checks:
+        result["controles"] = checks
+    output = folder / case["output"]
+    ok = all(c["ok"] for c in checks)
+    if judge.backend != "checks" and output.is_file():
+        state = {"obtenu": readable(output)}
+        questions = {f"r{i + 1}": {"type": "noul", "instructions": statement}
+                     for i, statement in enumerate(case["rubric"])}
+        if case.get("expected"):
+            state["attendu"] = (TESTS / "expected" / case["expected"]).read_text(encoding="utf-8")
+            questions["fidelite"] = {"type": "score", "criteria": FIDELITY_LEVELS, "instructions":
+                                     "Quelle part du contenu du texte attendu se retrouve dans le texte obtenu ?"}
+        answers = judge.ask(state, questions)
+        grid = [{"affirmation": statement, "p": round(float(answers[f"r{i + 1}"]["noul"]), 3)}
+                for i, statement in enumerate(case["rubric"])]
+        result["grille"] = grid
+        passed += sum(c["p"] >= RUBRIC_THRESHOLD for c in grid)
+        total += len(grid)
+        ok = ok and all(c["p"] >= RUBRIC_THRESHOLD for c in grid)
+        if "fidelite" in answers:
+            result["fidelite"] = round(float(answers["fidelite"]["score"]), 2)
+            ok = ok and result["fidelite"] >= FIDELITY_MIN
+    result["score"] = round(passed / total, 2) if total else None
+    result["ok"] = ok and output.is_file()
+    return result
+
+
 def run_outputs(judge: Judge, folder: Path, only: set | None) -> int:
     cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
     results, failed = [], False
@@ -155,23 +232,8 @@ def run_outputs(judge: Judge, folder: Path, only: set | None) -> int:
         if not output.is_file():
             results.append({"id": case["id"], "ok": None, "detail": f"{case['output']} absent"})
             continue
-        state = {"obtenu": readable(output)}
-        questions = {f"r{i + 1}": {"type": "noul", "instructions": statement}
-                     for i, statement in enumerate(case["rubric"])}
-        if case.get("expected"):
-            state["attendu"] = (TESTS / "expected" / case["expected"]).read_text(encoding="utf-8")
-            questions["fidelite"] = {"type": "score", "criteria": FIDELITY_LEVELS, "instructions":
-                                     "Quelle part du contenu du texte attendu se retrouve dans le texte obtenu ?"}
-        answers = judge.ask(state, questions)
-        checks = [{"affirmation": statement, "p": round(float(answers[f"r{i + 1}"]["noul"]), 3)}
-                  for i, statement in enumerate(case["rubric"])]
-        ok = all(c["p"] >= RUBRIC_THRESHOLD for c in checks)
-        result = {"id": case["id"], "agent": case["agent"], "grille": checks}
-        if "fidelite" in answers:
-            result["fidelite"] = round(float(answers["fidelite"]["score"]), 2)
-            ok = ok and result["fidelite"] >= FIDELITY_MIN
-        result["ok"] = ok
-        failed = failed or not ok
+        result = score_case(judge, case, folder)
+        failed = failed or not result["ok"]
         results.append(result)
     judged = [r for r in results if r["ok"] is not None]
     print(json.dumps({"reussis": sum(bool(r["ok"]) for r in judged), "notes": len(judged),
@@ -184,7 +246,8 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--backend", choices=["laya", "decision1"], default="laya")
+    parser.add_argument("--backend", choices=["laya", "decision1", "checks"], default="laya",
+                        help="checks : contrôles sans modèle seulement")
     parser.add_argument("--model", help="avec decision1 : identifiant OpenRouter du modèle")
     sub = parser.add_subparsers(dest="mode", required=True)
     triggers = sub.add_parser("triggers", help="le bon skill se déclenche-t-il ?")

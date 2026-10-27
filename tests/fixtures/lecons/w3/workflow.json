@@ -1,0 +1,52 @@
+{
+ "title": "Migration du SI RH",
+ "created": "2026-10-01T09:00:00",
+ "definition": {
+  "stages": [
+   {
+    "id": "exigences",
+    "skills": [
+     "requirements-catalog"
+    ]
+   },
+   {
+    "id": "revue",
+    "skills": [
+     "architecture-review",
+     "threat-model"
+    ]
+   },
+   {
+    "id": "chiffrage",
+    "skills": [
+     "solution-estimate",
+     "cloud-cost"
+    ]
+   }
+  ]
+ },
+ "stages": [
+  {
+   "id": "exigences",
+   "status": "validee"
+  },
+  {
+   "id": "revue",
+   "status": "validee"
+  },
+  {
+   "id": "chiffrage",
+   "status": "validee"
+  }
+ ],
+ "entries": [
+  {
+   "id": "D-001",
+   "date": "2026-10-20T10:00:00",
+   "stage": "revue",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Montée de version sans interruption à étudier"
+  }
+ ]
+}
