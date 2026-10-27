@@ -129,14 +129,15 @@ la demande ; les rendus passent par Playwright.
 
 Un répertoire = une mission : `mission.py init DOSSIER --nature avant-vente|revue --name NOM`
 (skill `mission-workspace`) crée `mission.json`, `documents/`, le vault de la mission
-(et `code/` pour une revue) et démarre le workflow de sa nature. Les skills restent
+(et `code/` pour une revue) et démarre le workflow de sa nature ; l'agent `orientation`
+le fait au démarrage. Les skills restent
 installés une fois pour toutes ; seules les données vivent dans la mission.
 
 ### Agents
 
 | Agent | Rôle |
 | --- | --- |
-| `orientation` | Point d'entrée quand on ne sait pas par où commencer : choisit l'agent ou le workflow (liste compacte de `route.py`) et lui passe la main par un message validé, sans travail métier, une question au plus |
+| `orientation` | Point d'entrée quand on ne sait pas par où commencer : ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (`mission.py init`), choisit l'agent ou le workflow (liste compacte de `route.py`) et lui passe la main par un message validé, sans travail métier, une question au plus |
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |

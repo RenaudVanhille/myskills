@@ -1,6 +1,6 @@
 ---
 name: orientation
-description: "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question."
+description: "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question."
 tools: ['read', 'edit', 'execute', 'agent']
 model: ['Claude Haiku 5.5', 'GPT-6 Luna']
 ---
@@ -17,14 +17,14 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/orientation.contract.json`, qui fait foi.
 
 - **Niveau** : simple (modèle léger, `shared/models.json`).
-- **Reçoit** : La demande de l'utilisateur, telle quelle, quand il ne sait pas quel agent ou quel workflow lancer ; Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences).
-- **Produit** : passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py ; Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi.
-- **Ne fait jamais** : Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier) ; Poser plus d'une question à l'utilisateur ; Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats.
+- **Reçoit** : La demande de l'utilisateur, telle quelle, quand il ne sait pas quel agent ou quel workflow lancer ; Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences) ; Le dossier de travail : une mission déjà ouverte (mission.json), ou le dossier où ouvrir celle d'une nouvelle avant-vente ou revue d'architecture.
+- **Produit** : Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init ; passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py ; Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi.
+- **Ne fait jamais** : Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier) ; Poser plus d'une question à l'utilisateur ; Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats ; Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication).
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
-| `architecture-workflow` | la demande enchaîne plusieurs étapes d'un workflow livré (des documents à l'architecture, une infrastructure existante à ses menaces, un dossier à revoir...) | le nom du workflow dans constraints (workflow : <nom>) ; les fichiers fournis ; l'objectif dans les mots de l'utilisateur |
+| `architecture-workflow` | la demande enchaîne plusieurs étapes d'un workflow livré (des documents à l'architecture, une infrastructure existante à ses menaces, un dossier à revoir...) | le dossier de la mission dans constraints (mission : <root>), ouverte au démarrage s'il le faut ; le nom du workflow dans constraints (workflow : <nom>) ; les fichiers fournis ; l'objectif dans les mots de l'utilisateur |
 | `document-extractor` | il faut seulement convertir ou importer des documents (PDF, Office, images) en Markdown ou dans Obsidian | les documents ; la destination (dossier ou vault) |
 | `schema-designer` | il faut seulement un schéma (flux, séquence, C4, cloud, POS, draw.io, Excalidraw) | le contenu ou les fichiers à représenter ; le public et la destination |
 | `architecture-reviewer` | il faut revoir une architecture existante, ses menaces ou sa conformité Well-Architected | l'architecture (options, description cloud, code) ; ce qui est demandé : revue, menaces, Well-Architected |
@@ -57,9 +57,20 @@ workflow, la commande les trace aussi au journal.
    agent et par workflow, classés. Le score n'est qu'un indice. `mission`
    n'est pas null dans une mission (un répertoire, un vault) : ses
    workflows passent d'abord, et le dossier de la mission va dans
-   `constraints` (`"mission : <root>"`). Hors mission, une nouvelle
-   avant-vente ou une nouvelle revue d'architecture va à
-   `architecture-workflow` avec `"mission : à ouvrir (avant-vente|revue)"`.
+   `constraints` (`"mission : <root>"`).
+   **Démarrage** : hors mission, une nouvelle avant-vente (documents reçus
+   à transformer en solution, chiffrage, schémas ou POS) ou une nouvelle
+   revue d'architecture (dossier ou code à juger), ouvre-la toi-même dans
+   le dossier de travail : `mission.py init DOSSIER --nature
+   avant-vente|revue --name "<nom tiré de la demande>" [--client
+   "<client>"]` (skill `mission-workspace`). Déplace les documents fournis
+   dans `documents/` ; pour une revue, déclare chaque dépôt de code fourni
+   (`mission.py repo DOSSIER --name <nom> --path <dossier>`). Le workflow
+   de la nature est alors démarré, vault compris : passe la main à
+   `architecture-workflow` avec `"mission : <root>"` et `"workflow :
+   <started.0.definition>"` dans `constraints`, sans rien demander de plus
+   (ni vault, ni dossier). Sans nom dans la demande, prends celui du
+   projet ou du premier document.
 2. Choisis :
    - un **workflow** dès que la demande enchaîne plusieurs étapes
      (documents puis exigences puis architectures ; code d'infrastructure
@@ -85,6 +96,7 @@ workflow, la commande les trace aussi au journal.
 | Action | Niveau |
 | --- | --- |
 | Lancer `route.py` et `check_message.py`, écrire `passage.json` | simple |
+| Ouvrir la mission (`mission.py init`, `repo`), ranger les documents dans `documents/` | simple |
 | Choisir entre deux candidats proches, formuler la question fermée | simple |
 | Tout travail métier (convertir, concevoir, revoir, chiffrer) | jamais : c'est l'agent choisi qui le fait |
 
