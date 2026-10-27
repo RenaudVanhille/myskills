@@ -45,7 +45,7 @@
         "exigences.csv"
       ],
       "checks": [
-        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
       ],
       "run": [
         {
@@ -56,7 +56,11 @@
           ]
         }
       ],
-      "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal."
+      "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
+      "optional": [
+        "exigences.candidats.json",
+        "exigences.tri.json"
+      ]
     },
     {
       "id": "revue",

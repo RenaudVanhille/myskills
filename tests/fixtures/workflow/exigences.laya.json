@@ -2,7 +2,7 @@
  "method": "laya (fictif, pour les tests)",
  "answers": {
   "exigence.v2:f6eb4906e56a7cea": {
-   "probability": 0.4
+   "probability": 0.2
   },
   "exigence.v2:437e4d26277b928a": {
    "probability": 0.85
@@ -13,68 +13,28 @@
   "exigence.v2:32ad639cb9548d30": {
    "probability": 0.05
   },
-  "nature.v2:89b5c476bd12883a": {
-   "choice": "fonctionnelle",
-   "confidence": 0.9
-  },
-  "nature.v2:9435c13f3d157a93": {
-   "choice": "fonctionnelle",
-   "confidence": 0.9
-  },
-  "nature.v2:2c17d48054ecdd30": {
-   "choice": "fonctionnelle",
-   "confidence": 0.9
-  },
-  "nature.v2:1ac7f43377f6c348": {
-   "choice": "non-fonctionnelle",
-   "confidence": 0.9
-  },
   "categorie.v2:1ac7f43377f6c348": {
    "choice": "performance",
-   "confidence": 0.9
-  },
-  "nature.v2:33f1a79f406dd2e4": {
-   "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
   "categorie.v2:33f1a79f406dd2e4": {
    "choice": "disponibilite",
    "confidence": 0.9
   },
-  "nature.v2:08e2ef361932480c": {
-   "choice": "non-fonctionnelle",
-   "confidence": 0.9
-  },
   "categorie.v2:08e2ef361932480c": {
    "choice": "securite",
    "confidence": 0.8
   },
-  "nature.v2:4d7fdcbf84d59004": {
-   "choice": "fonctionnelle",
-   "confidence": 0.75
-  },
   "categorie.v2:4d7fdcbf84d59004": {
    "choice": "securite",
-   "confidence": 0.9
-  },
-  "nature.v2:8b7e65da3bcf5d72": {
-   "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
   "categorie.v2:8b7e65da3bcf5d72": {
    "choice": "performance",
    "confidence": 0.55
   },
-  "nature.v2:5af33e6d33664543": {
-   "choice": "non-fonctionnelle",
-   "confidence": 0.9
-  },
   "categorie.v2:5af33e6d33664543": {
    "choice": "securite",
-   "confidence": 0.9
-  },
-  "nature.v2:a1e06c8b229e5a35": {
-   "choice": "non-fonctionnelle",
    "confidence": 0.9
   },
   "categorie.v2:a1e06c8b229e5a35": {
@@ -85,7 +45,7 @@
    "probability": 0.9
   },
   "exigence.v2:26a996baba85fd09": {
-   "probability": 0.3
+   "probability": 0.1
   },
   "exigence.v2:4ad346c2b7a2c675": {
    "probability": 0.9
@@ -111,28 +71,12 @@
   "exigence.v2:18aa47bd2b27d67c": {
    "probability": 0.9
   },
-  "nature.v2:995a8bd930303c35": {
-   "choice": "fonctionnelle",
-   "confidence": 0.9
-  },
-  "nature.v2:e783c75dc8b83d6a": {
-   "choice": "non-fonctionnelle",
-   "confidence": 0.9
-  },
   "categorie.v2:e783c75dc8b83d6a": {
    "choice": "performance",
    "confidence": 0.9
   },
-  "nature.v2:da5c073d1e0de78a": {
-   "choice": "non-fonctionnelle",
-   "confidence": 0.9
-  },
   "categorie.v2:da5c073d1e0de78a": {
    "choice": "securite",
-   "confidence": 0.9
-  },
-  "nature.v2:02dc87adaf13f5a3": {
-   "choice": "fonctionnelle",
    "confidence": 0.9
   }
  }
