@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "install-models.schema.json",
+  "title": "Modèles de l'abonnement pour install.py --models",
+  "description": "Par outil puis par niveau : un modèle, une liste de replis (Copilot la lit telle quelle, les autres outils prennent le premier) ou null (modèle de la session). Prioritaire sur shared/models.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "claude": {"$ref": "#/$defs/levels"},
+    "copilot": {"$ref": "#/$defs/levels"},
+    "opencode": {"$ref": "#/$defs/levels"},
+    "kiro": {"$ref": "#/$defs/levels"},
+    "hermes": {"$ref": "#/$defs/levels"}
+  },
+  "$defs": {
+    "levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "simple": {"$ref": "#/$defs/model"},
+        "moyen": {"$ref": "#/$defs/model"},
+        "complexe": {"$ref": "#/$defs/model"}
+      }
+    },
+    "model": {
+      "anyOf": [
+        {"type": "string", "minLength": 1},
+        {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        {"type": "null"}
+      ]
+    }
+  }
+}

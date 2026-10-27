@@ -61,6 +61,18 @@
   `architecture` et `migration-cloud`.
 - `route.py --laya` (agent-handoff) : Laya choisit parmi les six premiers
   candidats ; son choix passe en tête à partir de 0,6 de confiance.
+- `install.py sync` : installe et met à jour skills et agents pour Claude
+  Code, Copilot, OpenCode, Kiro et Hermes, en global (défaut) ou par projet,
+  depuis l'archive GitHub (jeton `gh auth token`, `GH_TOKEN`...), sans clone
+  ni identifiants git, ou depuis une copie locale (`--source` : dossier,
+  clone, ZIP téléchargé depuis GitHub) ; sans gh ni variable, le jeton est
+  demandé dans le terminal ; ne réécrit rien si la version n'a pas changé, retire
+  ce qui n'existe plus, garde l'état (`~/.myskills/state.json`,
+  `.myskills.json`) et une copie du script dans `~/.myskills/`.
+  `install.py status` : ce qui est installé, fichiers manquants, version
+  disponible. Rapport JSON (`shared/schemas/install-report.schema.json`),
+  `--models` validé contre `install-models.schema.json` (`--schema`). Cas
+  `synchro`, `synchro-globale`, `synchro-erreurs`.
 - `req_build.py --laya` (requirements-catalog) : le modèle local Laya
   (`req_laya.py`, dans son propre environnement) dit si chaque phrase non
   reprise des sources est une exigence, même sans verbe normatif, et
