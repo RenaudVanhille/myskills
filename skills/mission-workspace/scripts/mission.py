@@ -1,0 +1,420 @@
+# /// script
+# requires-python = ">=3.10"
+# ///
+"""Espace de travail d'une mission : un répertoire, un vault Obsidian, ses workflows et ses dépôts.
+
+Une mission est une avant-vente (documents reçus : définir la solution, et
+selon le cas son chiffrage, ses schémas, son POS) ou une revue d'architecture
+(documentation et code). `mission.json` à sa racine (schéma
+shared/schemas/mission.schema.json) dit sa nature, son vault, ses workflows,
+ses dépôts et ses référentiels ; les scripts des autres skills le trouvent en
+remontant depuis leurs fichiers et prennent alors le vault de la mission sans
+qu'on le leur donne.
+
+    uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--file MISSION.json]
+    uv run scripts/mission.py repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...]
+    uv run scripts/mission.py freeze [DOSSIER]
+    uv run scripts/mission.py status [DOSSIER]
+    uv run scripts/mission.py check [DOSSIER] [--fail-on haute|moyenne|basse|aucune]
+    uv run scripts/mission.py --schema
+
+- init crée mission.json, documents/, le vault (et code/ pour une revue),
+  puis lance le workflow de la nature (journal.py init du skill decision-log,
+  vault compris) ; refusé dans une mission existante (pas de mission dans une
+  mission).
+- repo ajoute ou met à jour un dépôt ; freeze note le commit courant de
+  chaque dépôt (git) : la revue porte sur un commit connu.
+- status fait le point (workflows, étape courante, dépôts, référentiels,
+  contrôles) et réécrit la note `Mission` du vault, conforme à l'ontologie.
+- check contrôle la cohérence entre livrables, sans modèle (règles MIS-xx,
+  écarts voulus dans `accept` de mission.json, avec leur raison).
+"""
+
+import argparse
+import json
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
+from skill_paths import run_script  # noqa: E402
+from spec_schema import check as check_schema, print_schema  # noqa: E402
+
+SEVERITIES = ("haute", "moyenne", "basse")
+RULES = {
+    "MIS-01": ("haute", "Exigence indispensable non couverte par l'option retenue",
+               "Couvrir l'exigence (refs d'un composant dans options.json) ou la déclasser avec l'utilisateur."),
+    "MIS-02": ("moyenne", "Composant de l'option retenue sans chiffrage",
+               "Ajouter le lot ou la ligne d'infrastructure du composant (component) dans chiffrage.json."),
+    "MIS-03": ("moyenne", "Exigence non fonctionnelle indispensable sans scénario de qualité",
+               "Ajouter un scénario qui la cite (refs) dans revue.json."),
+    "MIS-04": ("haute", "Livrable validé modifié depuis sa validation",
+               "Faire revoir l'étape (journal.py review ETAPE --decision retour) ou restaurer le fichier validé."),
+    "MIS-05": ("haute", "Livrable portant sur une autre option que celle retenue",
+               "Refaire la revue ou le chiffrage sur l'option de decision.json."),
+    "MIS-06": ("moyenne", "Dépôt de code introuvable",
+               "Cloner le dépôt dans son dossier (path, défaut code/<name>) ou le retirer de mission.json."),
+    "MIS-07": ("basse", "Dépôt hors du commit figé",
+               "Revenir au commit revu (git checkout) ou figer le nouveau (mission.py freeze)."),
+    "MIS-08": ("basse", "Référentiel de la mission introuvable",
+               "Déposer le fichier ou corriger references dans mission.json."),
+    "MIS-09": ("basse", "Dépôt revu sans commit figé",
+               "mission.py freeze : la revue porte alors sur un commit connu et se refait à l'identique."),
+}
+DELIVERABLES = ("exigences.json", "options.json", "decision.json", "revue.json", "chiffrage.json",
+                "dossier-architecture.md")
+NOTE = "Mission"
+
+
+def read_json(path: Path, errors: list[str]) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"{path.name} illisible : {error}")
+        return None
+
+
+def save(root: Path, mission: dict) -> None:
+    (root / workspace.MISSION).write_text(json.dumps(mission, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def git_head(path: Path) -> str | None:
+    if not (path / ".git").exists() or not shutil.which("git"):
+        return None
+    result = subprocess.run(["git", "-C", str(path), "rev-parse", "HEAD"], capture_output=True, text=True,
+                            encoding="utf-8")
+    return (result.stdout.strip() or None) if result.returncode == 0 else None
+
+
+def repo_rows(root: Path, mission: dict) -> list[dict]:
+    rows = []
+    for repo in workspace.repos(root, mission):
+        path = Path(repo["root"])
+        rows.append({"name": repo["name"], "path": path.relative_to(root.resolve()).as_posix(),
+                     "component": repo.get("component"), "present": path.is_dir(),
+                     "commit": repo.get("commit"), "head": git_head(path) if path.is_dir() else None})
+    return rows
+
+
+def init(args, errors: list[str], warnings: list[str]) -> dict:
+    root = args.folder.resolve()
+    parent = workspace.find(root)
+    if parent is not None:
+        errors.append(f"{root} est déjà dans la mission {parent} : une mission ne s'ouvre pas dans une autre")
+        return {}
+    mission = {}
+    if args.file:
+        mission = read_json(args.file, errors) or {}
+        if errors:
+            return {}
+    for key, value in (("name", args.name), ("nature", args.nature), ("client", args.client),
+                       ("echeance", args.echeance)):
+        if value:
+            mission[key] = value
+    mission.setdefault("statut", "en-cours")
+    invalid = check_schema(mission, workspace.schema())
+    if invalid:
+        errors += invalid
+        return {}
+    root.mkdir(parents=True, exist_ok=True)
+    save(root, mission)
+    mission, invalid = workspace.load(root)
+    if invalid:
+        (root / workspace.MISSION).unlink()
+        errors += invalid
+        return {}
+    created = []
+    folders = [workspace.path_of(root, mission, "documents"), workspace.path_of(root, mission, "vault")]
+    if mission["nature"] == "revue":
+        folders.append(root / "code")
+    for folder in folders:
+        if not folder.is_dir():
+            folder.mkdir(parents=True)
+            created.append(folder.relative_to(root).as_posix())
+    vault = workspace.path_of(root, mission, "vault")
+    started = []
+    for flow in workspace.workflows(mission):
+        folder = root / flow["folder"]
+        if (folder / workspace.STATE).is_file():
+            warnings.append(f"{flow['folder']} : workflow.json existe déjà, gardé")
+            continue
+        report = run_script("decision-log", "journal.py", ["init", folder, "--definition", flow["definition"],
+                                                           "--title", mission["name"], "--vault", vault])
+        errors += [f"workflow {flow['definition']} : {e}" for e in report.get("errors", [])]
+        started.append({"definition": flow["definition"], "folder": flow["folder"], "current": report.get("current")})
+    return {"created": created, "started": started}
+
+
+def repo(args, root: Path, mission: dict, errors: list[str]) -> dict:
+    entry = {"name": args.name, **{k: v for k, v in (("path", args.path), ("url", args.url),
+                                                     ("component", args.component)) if v}}
+    if args.alias:
+        entry["aliases"] = args.alias
+    repos = mission.setdefault("repos", [])
+    old = next((r for r in repos if r["name"] == args.name), None)
+    if old:
+        old.update(entry)
+    else:
+        repos.append(entry)
+    invalid = check_schema(mission, workspace.schema())
+    if invalid:
+        errors += invalid
+        return {}
+    save(root, mission)
+    _, invalid = workspace.load(root)
+    errors += invalid
+    return {"updated": bool(old)}
+
+
+def freeze(root: Path, mission: dict, errors: list[str], warnings: list[str]) -> dict:
+    frozen = []
+    for entry, row in zip(mission.get("repos", []), repo_rows(root, mission)):
+        if not row["present"]:
+            warnings.append(f"{row['name']} : dépôt introuvable ({row['path']}), commit non figé")
+        elif not row["head"]:
+            warnings.append(f"{row['name']} : pas un dépôt git (ou git absent), commit non figé")
+        else:
+            entry["commit"] = row["head"]
+            frozen.append(row["name"])
+    if not mission.get("repos"):
+        errors.append("mission.json : aucun dépôt (repos) ; ajoutez-les avec mission.py repo")
+    if frozen:
+        save(root, mission)
+    return {"frozen": frozen}
+
+
+def workflow_rows(root: Path, mission: dict, warnings: list[str]) -> list[dict]:
+    rows = []
+    for flow in workspace.workflows(mission):
+        folder = root / flow["folder"]
+        row = {"definition": flow["definition"], "folder": flow["folder"], "current": None, "stages": {},
+               "questions": 0, "modified": [], "files": [f for f in DELIVERABLES if (folder / f).is_file()],
+               "index": None}
+        if not (folder / workspace.STATE).is_file():
+            warnings.append(f"{flow['folder']} : workflow {flow['definition']} non démarré (journal.py init)")
+            rows.append(row)
+            continue
+        report = run_script("decision-log", "journal.py", ["status", folder])
+        warnings += [f"{flow['folder']} : {e}" for e in report.get("errors", [])]
+        row["current"], row["questions"] = report.get("current"), report.get("questions", 0)
+        for stage in report.get("stages", []):
+            row["stages"][stage["status"]] = row["stages"].get(stage["status"], 0) + 1
+        row["modified"] = [w for w in report.get("warnings", []) if "modifiés après validation" in w]
+        state = json.loads((folder / workspace.STATE).read_text(encoding="utf-8"))
+        row["title"] = state.get("title")
+        memory = state.get("memory") or {}
+        if memory.get("folder"):
+            row["index"] = f"{memory['folder']}/{index_name(Path(memory['vault']), memory['folder'])}"
+        rows.append(row)
+    return rows
+
+
+def index_name(vault: Path, folder: str) -> str | None:
+    """Note d'index du workflow (type workflow) dans son dossier du vault."""
+    for note in sorted((vault / folder).glob("*.md")):
+        meta = vault_ontology.parse(note.read_text(encoding="utf-8", errors="replace"))[0] or {}
+        if meta.get("type") == "workflow":
+            return note.stem
+    return None
+
+
+def coherence(root: Path, mission: dict, flows: list[dict], repos: list[dict], errors: list[str]) -> list[dict]:
+    findings: list[dict] = []
+    accept = mission.get("accept", {})
+
+    def add(rule, element, message, severity=None):
+        default, title, fix = RULES[rule]
+        severity = severity or default
+        reason = accept.get(f"{rule}@{element}") or accept.get(rule)
+        findings.append({"rule": rule, "severity": severity, "element": element, "message": f"{title} : {message}",
+                         "fix": fix, "accepted": reason})
+
+    several = len(flows) > 1
+    for flow in flows:
+        folder = root / flow["folder"]
+        where = f"{flow['folder']}:" if several else ""
+        catalog = read_json(folder / "exigences.json", errors) or {}
+        options = read_json(folder / "options.json", errors) or {}
+        decision = read_json(folder / "decision.json", errors) or {}
+        estimate = read_json(folder / "chiffrage.json", errors)
+        review = read_json(folder / "revue.json", errors)
+        requirements = catalog.get("requirements", [])
+        chosen = decision.get("option")
+        option = next((o for o in options.get("options", []) if o.get("id") == chosen), None)
+        if option:
+            covered = {ref for comp in option.get("components", []) for ref in comp.get("refs", [])}
+            for req in requirements:
+                if req.get("priority") == "indispensable" and req["id"] not in covered:
+                    add("MIS-01", where + req["id"], f"{req['id']} ({req.get('title', '')}) hors des refs de l'option {chosen}")
+            if estimate is not None:
+                costed = {line.get("component") for key in ("work", "infra") for line in estimate.get(key, [])}
+                for comp in option.get("components", []):
+                    if comp.get("role") == "person" or comp["id"] in costed:
+                        continue
+                    external = comp.get("role") == "external"
+                    add("MIS-02", where + comp["id"], f"{comp['id']} ({comp.get('label', '')})"
+                        + (", intégration au système externe" if external else ""), "basse" if external else None)
+        if chosen:
+            if estimate is not None and estimate.get("option") and estimate["option"] != chosen:
+                add("MIS-05", where + "chiffrage.json", f"option {estimate['option']} chiffrée, {chosen} retenue")
+            picked = ((review or {}).get("source") or {}).get("option")
+            if picked and picked != chosen:
+                add("MIS-05", where + "revue.json", f"option {picked} revue, {chosen} retenue")
+        if review is not None:
+            tested = {ref for sc in review.get("scenarios", []) for ref in sc.get("refs", [])}
+            for req in requirements:
+                nonfunctional = req.get("nature") == "non-fonctionnelle" or (
+                    req.get("category") and req.get("nature") != "fonctionnelle")
+                if nonfunctional and req.get("priority") == "indispensable" and req["id"] not in tested:
+                    add("MIS-03", where + req["id"], f"{req['id']} ({req.get('title', '')}) sans scénario dans revue.json")
+        for line in flow["modified"]:
+            add("MIS-04", where + line.split(" :", 1)[0], line)
+    for row in repos:
+        if not row["present"]:
+            add("MIS-06", row["name"], f"{row['path']} absent")
+        elif row["commit"] and row["head"] and not row["head"].startswith(row["commit"]):
+            add("MIS-07", row["name"], f"commit {row['head'][:12]}, {row['commit'][:12]} figé")
+        elif not row["commit"]:
+            add("MIS-09", row["name"], "aucun commit dans mission.json")
+    for key, value in mission.get("references", {}).items():
+        if not (root / value).exists():
+            add("MIS-08", key, f"{value} introuvable")
+    order = {s: i for i, s in enumerate(SEVERITIES)}
+    findings.sort(key=lambda f: (f["accepted"] is not None, order[f["severity"]], f["rule"], f["element"]))
+    return findings
+
+
+def counts(findings: list[dict]) -> dict:
+    result = {s: sum(1 for f in findings if f["severity"] == s and not f["accepted"]) for s in SEVERITIES}
+    result["acceptés"] = sum(1 for f in findings if f["accepted"])
+    return result
+
+
+def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], findings: list[dict],
+               errors: list[str]) -> str | None:
+    vault = workspace.path_of(root, mission, "vault")
+    if not vault.is_dir():
+        return None
+    notes = vault_ontology.Notes(vault, "mission-workspace")
+    props = {k: mission[k] for k in ("nature", "client", "statut", "echeance") if mission.get(k)}
+    props["constats"] = sum(1 for f in findings if not f["accepted"])
+    body = [f"# Mission {mission['name']}", ""]
+    body += [f"- {label} : {mission[key]}" for key, label in (("nature", "Nature"), ("client", "Client"),
+                                                              ("statut", "Statut"), ("echeance", "Échéance"))
+             if mission.get(key)]
+    body += ["", "## Workflows", "", "| Workflow | Dossier | Étape courante | Étapes | Questions |",
+             "| --- | --- | --- | --- | --- |"]
+    for flow in flows:
+        name = f"[[{flow['index']}\\|{flow.get('title') or flow['definition']}]]" if flow["index"] else flow["definition"]
+        stages = ", ".join(f"{n} {s}" for s, n in sorted(flow["stages"].items())) or "non démarré"
+        body.append(f"| {name} | {flow['folder']} | {flow['current'] or '-'} | {stages} | {flow['questions']} |")
+    if repos:
+        body += ["", "## Dépôts", "", "| Dépôt | Composant | Commit figé | Commit actuel |", "| --- | --- | --- | --- |"]
+        body += [f"| {r['name']} | {r['component'] or '-'} | {(r['commit'] or '-')[:12]} | "
+                 f"{(r['head'] or ('absent' if not r['present'] else '-'))[:12]} |" for r in repos]
+    if mission.get("references"):
+        body += ["", "## Référentiels", ""] + [f"- {k} : `{v}`" for k, v in mission["references"].items()]
+    body += ["", "## Contrôles de cohérence", ""]
+    if findings:
+        body += ["| Règle | Gravité | Élément | Constat |", "| --- | --- | --- | --- |"]
+        body += [f"| {f['rule']} | {f['severity'] if not f['accepted'] else 'accepté'} | {f['element']} | "
+                 f"{f['message']}" + (f" (accepté : {f['accepted']})" if f["accepted"] else "") + " |"
+                 for f in findings]
+    else:
+        body.append("Aucun écart entre les livrables.")
+    relations = {"workflows": [(f["index"], f.get("title") or f["definition"]) for f in flows if f["index"]]}
+    notes.add(NOTE, "mission", props, relations, body)
+    written = notes.write(errors)
+    return f"{NOTE}.md" if written is not None else None
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if sys.argv[1:] == ["--schema"]:
+        print_schema(__file__)
+        return 0
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    start = sub.add_parser("init", help="ouvre une mission dans un dossier")
+    start.add_argument("folder", type=Path)
+    start.add_argument("--nature", choices=sorted(workspace.WORKFLOWS))
+    start.add_argument("--name", help="nom court de la mission")
+    start.add_argument("--client")
+    start.add_argument("--echeance", help="date de remise ou de comité, AAAA-MM-JJ")
+    start.add_argument("--file", type=Path, help="description complète (mission.json), validée contre son schéma")
+    add_repo = sub.add_parser("repo", help="ajoute ou met à jour un dépôt de code")
+    add_repo.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
+    add_repo.add_argument("--name", required=True)
+    add_repo.add_argument("--path", help="dossier du dépôt (défaut : code/<name>)")
+    add_repo.add_argument("--url")
+    add_repo.add_argument("--component", help="composant de l'architecture que le dépôt réalise")
+    add_repo.add_argument("--alias", nargs="*", help="autres noms du service dans la configuration")
+    for name in ("freeze", "status", "check"):
+        command = sub.add_parser(name)
+        command.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
+        if name == "check":
+            command.add_argument("--fail-on", choices=SEVERITIES + ("aucune",), default="haute",
+                                 help="code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)")
+    args = parser.parse_args()
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    report = {"command": args.command, "mission": None, "nature": None, "vault": None, "workflows": [],
+              "repos": [], "findings": [], "counts": None, "note": None, "next": None}
+    root = None
+    if args.command == "init":
+        if not args.file and not (args.nature and args.name):
+            parser.error("--nature et --name attendus (ou --file)")
+        extra = init(args, errors, warnings)
+        if not errors:
+            root = args.folder.resolve()
+            report["created"], report["started"] = extra["created"], extra["started"]
+    else:
+        root = workspace.find(args.folder)
+        if root is None:
+            errors.append(f"aucune mission.json dans {args.folder.resolve()} ni au-dessus : mission.py init d'abord")
+    mission = None
+    if root is not None and not errors:
+        mission, invalid = workspace.load(root)
+        errors += invalid
+    if mission and args.command == "repo":
+        report.update(repo(args, root, mission, errors))
+    if mission and args.command == "freeze":
+        report.update(freeze(root, mission, errors, warnings))
+    if mission and not errors:
+        flows = workflow_rows(root, mission, warnings)
+        repos = repo_rows(root, mission)
+        findings = coherence(root, mission, flows, repos, errors)
+        report.update({"mission": str(root / workspace.MISSION), "nature": mission["nature"],
+                       "vault": str(workspace.path_of(root, mission, "vault")),
+                       "workflows": [{k: f[k] for k in ("definition", "folder", "current", "stages", "questions", "files")}
+                                     for f in flows],
+                       "repos": repos, "findings": findings, "counts": counts(findings)})
+        if args.command in ("init", "status", "check"):
+            report["note"] = write_note(root, mission, flows, repos, findings, errors)
+        current = next((f for f in flows if f["current"]), None)
+        open_ = [f for f in findings if not f["accepted"]]
+        if open_:
+            report["next"] = f"traiter les contrôles ouverts ({open_[0]['rule']} {open_[0]['element']} d'abord)"
+        elif current:
+            report["next"] = f"workflow {current['definition']} : étape {current['current']} (journal.py status {current['folder']})"
+        else:
+            report["next"] = "rien à faire"
+        if mission["nature"] == "revue" and not mission.get("repos"):
+            warnings.append("revue sans dépôt : ajoutez le code avec mission.py repo (un par service)")
+    failing = False
+    if args.command == "check" and report["counts"] and args.fail_on != "aucune":
+        limit = SEVERITIES.index(args.fail_on)
+        failing = any(report["counts"][s] for s in SEVERITIES[:limit + 1])
+    print(json.dumps({**report, "errors": errors, "warnings": warnings}, ensure_ascii=False))
+    return 1 if errors or failing else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

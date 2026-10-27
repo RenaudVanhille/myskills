@@ -15,7 +15,8 @@
         "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
         "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout",
         "Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux",
-        "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
+        "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)",
+        "Pour plusieurs dépôts (microservices) : les dépôts de la mission (mission.json, un par service, commit figé) ou code.repos"
       ],
       "produces": [
         "<sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code",
@@ -62,6 +63,7 @@
       "description": "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.",
       "skills": [
         "check-prerequisites",
+        "mission-workspace",
         "architecture-review",
         "threat-model",
         "well-architected-review",
@@ -79,7 +81,8 @@
         "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
         "Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
         "Le vault Obsidian qui sert de mémoire partagée",
-        "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
+        "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour",
+        "Ou le dossier d'une mission (mission.json, skill mission-workspace) : son vault, ses documents et ses dépôts, sans les redemander"
       ],
       "produces": [
         "sources/*.md : les documents en Markdown",
@@ -147,6 +150,7 @@
       "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.",
       "skills": [
         "check-prerequisites",
+        "mission-workspace",
         "decision-log",
         "agent-handoff",
         "doc-to-markdown",
@@ -260,22 +264,26 @@
       "level": "simple",
       "receives": [
         "La demande de l'utilisateur, telle quelle, quand il ne sait pas quel agent ou quel workflow lancer",
-        "Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences)"
+        "Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences)",
+        "Le dossier de travail : une mission déjà ouverte (mission.json), ou le dossier où ouvrir celle d'une nouvelle avant-vente ou revue d'architecture"
       ],
       "produces": [
+        "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
         "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
         "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
       ],
       "never": [
         "Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier)",
         "Poser plus d'une question à l'utilisateur",
-        "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats"
+        "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats",
+        "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)"
       ],
       "handoffs": [
         {
           "to": "architecture-workflow",
           "when": "la demande enchaîne plusieurs étapes d'un workflow livré (des documents à l'architecture, une infrastructure existante à ses menaces, un dossier à revoir...)",
           "send": [
+            "le dossier de la mission dans constraints (mission : <root>), ouverte au démarrage s'il le faut",
             "le nom du workflow dans constraints (workflow : <nom>)",
             "les fichiers fournis",
             "l'objectif dans les mots de l'utilisateur"
@@ -322,9 +330,10 @@
           ]
         }
       ],
-      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question.",
+      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question.",
       "skills": [
-        "agent-handoff"
+        "agent-handoff",
+        "mission-workspace"
       ]
     },
     {
@@ -521,7 +530,7 @@
         },
         {
           "name": "route.py",
-          "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
+          "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation ; dans une mission (mission.json), donne sa nature, ses workflows et son vault, et met ses workflows devant.",
           "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]] | --list [--kind ...]",
           "options": {
             "--query": "la demande de l'utilisateur, telle quelle",
@@ -547,6 +556,7 @@
                 "query",
                 "candidates",
                 "laya",
+                "mission",
                 "errors",
                 "warnings"
               ],
@@ -652,6 +662,44 @@
                           "type": "number",
                           "minimum": 0,
                           "maximum": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "mission": {
+                  "description": "Mission trouvée (mission.json au-dessus des fichiers ou du dossier courant), sinon null.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "root",
+                        "nature",
+                        "workflows",
+                        "vault"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "root": {
+                          "type": "string"
+                        },
+                        "nature": {
+                          "enum": [
+                            "avant-vente",
+                            "revue"
+                          ]
+                        },
+                        "workflows": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "vault": {
+                          "type": "string"
                         }
                       }
                     }
@@ -2336,7 +2384,7 @@
       "scripts": [
         {
           "name": "arch_review.py",
-          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture.",
+          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant.",
           "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | --rules | --schema",
           "options": {
             "REVUE.json": "description de la revue",
@@ -2399,9 +2447,6 @@
                 },
                 "code": {
                   "type": "object",
-                  "required": [
-                    "root"
-                  ],
                   "additionalProperties": false,
                   "patternProperties": {
                     "^_": {}
@@ -2409,11 +2454,11 @@
                   "properties": {
                     "root": {
                       "type": "string",
-                      "description": "Dossier du code, relatif à la description."
+                      "description": "Dossier du code, relatif à la description (un seul dépôt)."
                     },
                     "graph": {
                       "type": "string",
-                      "description": "graph.json de graphify déjà produit (par exemple par le skill graphify dans le harness) ; sinon le script lance graphify extract."
+                      "description": "graph.json de graphify déjà produit pour root (par exemple par le skill graphify dans le harness) ; sinon le script lance graphify extract."
                     },
                     "semantic": {
                       "enum": [
@@ -2422,8 +2467,54 @@
                         "ollama"
                       ],
                       "description": "Documents du dossier (README, docs/, ADR) lus aussi par un modèle : aucune (défaut, --code-only, analyse locale du code seul), claude (modèle du harness, ANTHROPIC_MODEL pour un modèle léger) ou ollama (modèle local). Les liens tirés des documents (INFERRED) n'entrent pas dans les contrôles du code ; ils enrichissent le graphe."
+                    },
+                    "repos": {
+                      "type": "array",
+                      "minItems": 1,
+                      "description": "Plusieurs dépôts (microservices) : un graphe par dépôt, fusionnés ; les fichiers d'un dépôt se nomment <name>/<chemin> dans les motifs code des composants.",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "name",
+                          "root"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+                            "description": "Nom du dépôt, préfixe de ses fichiers."
+                          },
+                          "root": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Dossier du dépôt, relatif à la description."
+                          },
+                          "graph": {
+                            "type": "string",
+                            "description": "graph.json de graphify déjà produit pour ce dépôt."
+                          },
+                          "commit": {
+                            "type": "string",
+                            "description": "Commit revu : le graphe produit est gardé pour ce commit."
+                          },
+                          "component": {
+                            "type": "string",
+                            "description": "Composant que le dépôt réalise (tout le dépôt, sans motif code)."
+                          },
+                          "aliases": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "Autres noms du service dans la configuration des autres dépôts (hôte, service Kubernetes)."
+                          }
+                        }
+                      }
                     }
-                  }
+                  },
+                  "description": "Code comparé à l'architecture : un dossier (root), plusieurs dépôts (repos, un par service), ou objet vide pour reprendre les dépôts de la mission (mission.json, skill mission-workspace)."
                 },
                 "layers": {
                   "type": "array",
@@ -3047,7 +3138,8 @@
                           ],
                           "properties": {
                             "graph": {
-                              "type": "string"
+                              "type": "string",
+                              "description": "graph.json lu (ou, avec plusieurs dépôts, la liste dépôt (graph.json))."
                             },
                             "files": {
                               "type": "integer",
@@ -3066,6 +3158,25 @@
                               "items": {
                                 "type": "string"
                               }
+                            },
+                            "repos": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "description": "Plusieurs dépôts : leur nombre."
+                            },
+                            "calls": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Appels entre services lus dans la configuration et les contrats : a>b (moyen)."
+                            },
+                            "shared_databases": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Bases citées par plusieurs dépôts."
                             }
                           }
                         }
@@ -3183,7 +3294,7 @@
         {
           "to": "graphify",
           "kind": "externe",
-          "when": "comparer le code à l'architecture : le script lance graphify extract sur code.root (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit le graphe"
+          "when": "comparer le code à l'architecture : le script lance graphify extract sur code.root, ou sur chaque dépôt de code.repos ou de la mission, en parallèle (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit les graphes"
         },
         {
           "to": "architecture-options",
@@ -8819,6 +8930,546 @@
       ],
       "description": "Évalue un portefeuille d'applications pour une migration vers le cloud (ou un autre hébergement) selon les 6R : réhéberger, replateformer, refondre, racheter, retirer ou conserver, avec la raison, l'effort et le risque de chaque choix. Le script contrôle les dépendances, les retraits, l'obsolescence et l'hébergeur cible, puis calcule les vagues de migration. À utiliser pour une étude de migration, un plan de sortie d'un datacenter, une rationalisation du portefeuille applicatif ou un inventaire à trier en 6R.",
       "path": "skills/migration-assessment"
+    },
+    {
+      "skill": "mission-workspace",
+      "level": "simple",
+      "inputs": [
+        "Un dossier par mission : avant-vente (documents reçus, souvent des PDF) ou revue d'architecture (documentation et code, un dépôt par service)",
+        "Facultatif : la description de la mission en JSON (nature, client, échéance, workflows, dépôts, référentiels, écarts acceptés), schéma shared/schemas/mission.schema.json"
+      ],
+      "outputs": [
+        "mission.json à la racine de la mission, documents/, le vault Obsidian de la mission (et code/ pour une revue), le workflow de la nature démarré (workflow.json)",
+        "Dans le vault : la note Mission (type mission) : workflows et étapes, dépôts et commits, référentiels, contrôles de cohérence",
+        "Rapport : état de la mission et contrôles de cohérence entre livrables (MIS-01 à MIS-09)"
+      ],
+      "scripts": [
+        {
+          "name": "mission.py",
+          "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie.",
+          "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | --schema",
+          "options": {
+            "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré",
+            "--nature": "avant-vente ou revue",
+            "--name": "nom court de la mission",
+            "--client": "client",
+            "--echeance": "date de remise ou de comité",
+            "--file": "description complète de la mission en JSON, validée contre son schéma (workflows, dépôts, référentiels, accept)",
+            "repo": "ajoute ou met à jour un dépôt (--name, --path défaut code/<name>, --url, --component, --alias)",
+            "freeze": "note dans mission.json le commit courant de chaque dépôt (git)",
+            "status": "point de la mission et note Mission du vault",
+            "check": "contrôles de cohérence entre livrables (accept de mission.json pour les écarts voulus)",
+            "--fail-on": "check : code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)",
+            "DOSSIER": "dossier de la mission ou un de ses sous-dossiers (défaut : dossier courant)",
+            "--schema": "affiche le schéma de mission.json sur une ligne"
+          },
+          "exit_codes": {
+            "0": "commande appliquée (check : aucun contrôle ouvert au niveau de --fail-on)",
+            "1": "mission introuvable ou invalide (chemin, valeur hors liste, chemin hors de la mission), mission dans une mission, workflow non démarré, ou check avec un contrôle ouvert au niveau de --fail-on"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description de la mission (init --file), même schéma que mission.json.",
+            "same_as": "shared/schemas/mission.schema.json",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/mission.schema.json",
+              "title": "Mission (mission.json)",
+              "description": "Fichier à la racine d'un espace de travail : un répertoire = une mission (avant-vente ou revue d'architecture), un vault Obsidian unique. Les scripts le trouvent en remontant depuis les fichiers qu'ils reçoivent (shared/scripts/workspace.py). Chemins relatifs à la racine de la mission, sans en sortir.",
+              "type": "object",
+              "required": [
+                "name",
+                "nature"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Nom court de la mission (titre des workflows et de la note du vault)."
+                },
+                "nature": {
+                  "enum": [
+                    "avant-vente",
+                    "revue"
+                  ],
+                  "description": "avant-vente : documents en entrée, solution, chiffrage, schémas, POS ; revue : documentation et code en entrée, avis d'architecture."
+                },
+                "client": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "statut": {
+                  "enum": [
+                    "en-cours",
+                    "remise",
+                    "gagnee",
+                    "perdue",
+                    "livree",
+                    "abandonnee"
+                  ],
+                  "description": "Défaut : en-cours."
+                },
+                "echeance": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "Date de remise ou de comité (AAAA-MM-JJ)."
+                },
+                "confidentialite": {
+                  "enum": [
+                    "interne",
+                    "confidentielle",
+                    "secrete"
+                  ],
+                  "description": "Rappel pour les agents : rien ne sort de la mission (AGENTS.md, section 5)."
+                },
+                "vault": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Vault Obsidian de la mission, dans la mission (défaut : vault)."
+                },
+                "documents": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Documents reçus (défaut : documents)."
+                },
+                "workflows": {
+                  "type": "array",
+                  "description": "Workflows de la mission (skill decision-log). Défaut : architecture pour une avant-vente, revue-dossier pour une revue, à la racine.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "definition"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "definition": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Workflow livré (architecture, revue-dossier...) ou fichier de définition."
+                      },
+                      "folder": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dossier du workflow (défaut : la racine, .)."
+                      }
+                    }
+                  }
+                },
+                "repos": {
+                  "type": "array",
+                  "description": "Dépôts de code revus (un par service en microservices).",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+                        "description": "Nom du dépôt, préfixe de ses fichiers dans la revue."
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dossier du dépôt (défaut : code/<name>)."
+                      },
+                      "url": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Origine du dépôt, pour mémoire (le script ne clone rien)."
+                      },
+                      "commit": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{7,40}$",
+                        "description": "Commit revu : revue figée et reproductible (mission.py freeze)."
+                      },
+                      "component": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Composant de l'architecture que le dépôt réalise."
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Autres noms du service dans la configuration des autres dépôts (nom d'hôte, nom de service Kubernetes)."
+                      }
+                    }
+                  }
+                },
+                "references": {
+                  "type": "object",
+                  "description": "Référentiels propres à la mission, à utiliser à la place des défauts : chemins de fichiers.",
+                  "additionalProperties": false,
+                  "properties": {
+                    "pos": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "POS du SI du client (urbanization-map)."
+                    },
+                    "principes": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Principes et standards d'architecture du client."
+                    },
+                    "gabarit-docx": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Modèle Word de la marque (markdown-publish)."
+                    },
+                    "gabarit-potx": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Modèle PowerPoint de la marque."
+                    },
+                    "gabarit-dossier": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Gabarit de sections du dossier (architecture-dossier)."
+                    },
+                    "hypotheses-ia": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Facteurs d'hypothèses IA du chiffrage (solution-estimate)."
+                    }
+                  }
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "Écarts voulus des contrôles de mission.py check : règle ou règle@élément vers la raison.",
+                  "patternProperties": {
+                    "^MIS-\\d{2}(@.+)?$": {
+                      "type": "string",
+                      "minLength": 3
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Mission, nature, vault, workflows (étape courante, étapes par statut, livrables présents), dépôts (commit figé et courant), contrôles et leurs compteurs, note du vault, prochaine action.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "command",
+                "mission",
+                "nature",
+                "vault",
+                "workflows",
+                "repos",
+                "findings",
+                "counts",
+                "note",
+                "next",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "command": {
+                  "enum": [
+                    "init",
+                    "repo",
+                    "freeze",
+                    "status",
+                    "check"
+                  ]
+                },
+                "mission": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Chemin de mission.json."
+                },
+                "nature": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "vault": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "init : dossiers créés."
+                },
+                "started": {
+                  "type": "array",
+                  "description": "init : workflows lancés (journal.py init) et leur première étape.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "definition",
+                      "folder",
+                      "current"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "definition": {
+                        "type": "string"
+                      },
+                      "folder": {
+                        "type": "string"
+                      },
+                      "current": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "updated": {
+                  "type": "boolean",
+                  "description": "repo : dépôt déjà présent, mis à jour."
+                },
+                "frozen": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "freeze : dépôts dont le commit est noté."
+                },
+                "workflows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "definition",
+                      "folder",
+                      "current",
+                      "stages",
+                      "questions",
+                      "files"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "definition": {
+                        "type": "string"
+                      },
+                      "folder": {
+                        "type": "string"
+                      },
+                      "current": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "stages": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "integer"
+                        },
+                        "description": "Nombre d'étapes par statut."
+                      },
+                      "questions": {
+                        "type": "integer"
+                      },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Livrables présents (exigences.json, options.json...)."
+                      }
+                    }
+                  }
+                },
+                "repos": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "path",
+                      "component",
+                      "present",
+                      "commit",
+                      "head"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "path": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "present": {
+                        "type": "boolean"
+                      },
+                      "commit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Commit figé."
+                      },
+                      "head": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Commit courant (git)."
+                      }
+                    }
+                  }
+                },
+                "findings": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "rule",
+                      "severity",
+                      "element",
+                      "message",
+                      "fix",
+                      "accepted"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "rule": {
+                        "type": "string",
+                        "pattern": "^MIS-\\d{2}$"
+                      },
+                      "severity": {
+                        "enum": [
+                          "haute",
+                          "moyenne",
+                          "basse"
+                        ]
+                      },
+                      "element": {
+                        "type": "string"
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "fix": {
+                        "type": "string"
+                      },
+                      "accepted": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "Raison de l'écart accepté (accept de mission.json), sinon null."
+                      }
+                    }
+                  }
+                },
+                "counts": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "haute": {
+                      "type": "integer"
+                    },
+                    "moyenne": {
+                      "type": "integer"
+                    },
+                    "basse": {
+                      "type": "integer"
+                    },
+                    "acceptés": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Note Mission.md écrite dans le vault."
+                },
+                "next": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Prochaine action."
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "decision-log",
+          "script": "journal.py",
+          "why": "démarrer le workflow de la mission (init) et lire son état (status)"
+        }
+      ],
+      "vault": {
+        "writes": [
+          "mission"
+        ],
+        "reads": true
+      },
+      "handoffs": [
+        {
+          "to": "architecture-workflow",
+          "kind": "agent",
+          "when": "la mission est ouverte : dérouler son workflow (architecture pour une avant-vente, revue-dossier pour une revue)"
+        },
+        {
+          "to": "architecture-reviewer",
+          "kind": "agent",
+          "when": "revue d'architecture de la mission, dépôts de code compris"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "un contrôle ouvert demande une décision : corriger le livrable, ou accepter l'écart avec sa raison (accept)"
+        }
+      ],
+      "description": "Ouvre et suit un espace de travail par mission : un répertoire, un vault Obsidian unique, pour une avant-vente (documents reçus, solution, chiffrage, schémas, POS) ou une revue d'architecture (documentation et code, un dépôt par service). Crée mission.json et l'arborescence, démarre le workflow de la nature, fige les commits revus, fait le point dans le vault et contrôle la cohérence entre livrables (exigences, option retenue, chiffrage, revue). À utiliser au début d'une mission, pour savoir où en est une mission ou avant de la livrer.",
+      "path": "skills/mission-workspace"
     },
     {
       "skill": "requirements-catalog",

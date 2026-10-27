@@ -13,7 +13,8 @@
       "rubric": [
         "passage.json est un message de passage vers architecture-workflow, avec le workflow architecture dans constraints.",
         "Les deux documents fournis figurent dans files.",
-        "L'agent n'a ni converti les documents, ni écrit d'exigences ou d'options."
+        "L'agent n'a ni converti les documents, ni écrit d'exigences ou d'options.",
+        "La mission est ouverte en avant-vente (mission.json, documents rangés dans documents/, vault) et son dossier figure dans constraints."
       ]
     },
     {
@@ -179,6 +180,22 @@
         "Le journal montre l'étape documents en revue et les étapes exigences, architectures et schemas à faire.",
         "Le journal contient une entrée de soumission de l'étape documents.",
         "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "mission-avant-vente",
+      "agent": "architecture-workflow",
+      "prompt": "Nouvelle avant-vente « Portail sinistres » pour la Mutuelle exemple : ouvre la mission dans ce dossier (les documents reçus sont dans documents/) et mène la première étape jusqu'à sa revue.",
+      "inputs": [
+        {"from": "fixtures/workflow/sources/cahier-des-charges.md", "to": "documents/cahier-des-charges.md"},
+        {"from": "fixtures/workflow/sources/compte-rendu-atelier.md", "to": "documents/compte-rendu-atelier.md"}
+      ],
+      "output": "mission.json",
+      "rubric": [
+        "mission.json décrit une mission de nature avant-vente nommée Portail sinistres, client Mutuelle exemple.",
+        "Le vault de la mission existe avec une note Mission et la note d'index du workflow architecture.",
+        "L'étape documents est soumise à la revue (journal.md) et les documents sont en Markdown dans sources/.",
+        "L'agent n'a pas demandé quel vault utiliser ni passé de vault à la main : c'est celui de la mission."
       ]
     },
     {

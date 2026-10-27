@@ -5,7 +5,8 @@
     "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
     "Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
     "Le vault Obsidian qui sert de mémoire partagée",
-    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
+    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour",
+    "Ou le dossier d'une mission (mission.json, skill mission-workspace) : son vault, ses documents et ses dépôts, sans les redemander"
   ],
   "produces": [
     "sources/*.md : les documents en Markdown",

@@ -24,6 +24,8 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                   "drawio-diagram"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
+# Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
+WORKSPACE_USERS = ["agent-handoff"]
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
 DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
                                  "migration-assessment",
@@ -56,6 +58,14 @@ def generated_libs() -> dict[Path, str]:
         if contract.get("vault"):
             files[REPO / "skills" / name / "scripts" / "lib" / "vault-ontology.json"] = ontology
             files[REPO / "skills" / name / "scripts" / "lib" / "vault_ontology.py"] = module
+    # Espace de travail (mission.json et son schéma), pour les skills du vault et le routage.
+    workspace = (shared / "workspace.py").read_text(encoding="utf-8")
+    mission = (SCHEMAS / "mission.schema.json").read_text(encoding="utf-8")
+    for name, contract in skill_contracts().items():
+        if contract.get("vault") or name in WORKSPACE_USERS:
+            files[REPO / "skills" / name / "scripts" / "lib" / "workspace.py"] = workspace
+            files[REPO / "skills" / name / "scripts" / "lib" / "mission.schema.json"] = mission
+            files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     # Accès déclaré aux scripts des autres skills (champ requires du contrat).
     paths = (shared / "skill_paths.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
@@ -90,9 +100,12 @@ def shared_inputs() -> dict[Path, str]:
             source = (script.get("input") or {}).get("same_as")
             if not source:
                 continue
-            skill, _, file = source.partition("/")
-            origin = next((s for s in contracts.get(skill, {}).get("scripts", []) if s["name"] == file), None)
-            schema_ = ((origin or {}).get("input") or {}).get("schema")
+            if source.startswith("shared/schemas/"):
+                schema_ = json.loads((REPO / source).read_text(encoding="utf-8"))
+            else:
+                skill, _, file = source.partition("/")
+                origin = next((s for s in contracts.get(skill, {}).get("scripts", []) if s["name"] == file), None)
+                schema_ = ((origin or {}).get("input") or {}).get("schema")
             if schema_ is not None and script["input"].get("schema") != schema_:
                 script["input"]["schema"], changed = schema_, True
         if changed:

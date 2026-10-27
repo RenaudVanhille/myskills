@@ -26,7 +26,7 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
 - **Niveau** : moyen (modèle standard, `shared/models.json`).
-- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
+- **Reçoit** : Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images) ; Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale ; Le vault Obsidian qui sert de mémoire partagée ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour ; Ou le dossier d'une mission (mission.json, skill mission-workspace) : son vault, ses documents et ses dépôts, sans les redemander.
 - **Produit** : sources/*.md : les documents en Markdown ; exigences.json, exigences.md, exigences.csv : catalogue des exigences fonctionnelles et non fonctionnelles, sources vérifiées ; options.json, options.md : 2 ou 3 options comparées et recommandation ; decision.json et adr-architecture.md : le choix de l'utilisateur ; schemas/architectures.drawio et un PNG par option ; avec un POS, le POS cible de chaque option (schemas/pos-option-<id>.drawio) ; Au choix de l'utilisateur (étapes facultatives) : revue.json et revue.md, revue d'architecture de l'option retenue ; chiffrage.json, chiffrage.md et chiffrage.csv, son chiffrage ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : une note par exigence, option et décision, l'ADR et une note d'index, reliées par des wikilinks.
 - **Ne fait jamais** : Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative) ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
 - **Passe la main** :
@@ -63,10 +63,20 @@ Le dossier du workflow est celui que donne l'utilisateur, sinon le dossier
 courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
 `next` du rapport de `journal.py`.
 
-1. **Reprendre** : `journal.py status DOSSIER`. S'il n'y a pas de
-   `workflow.json`, `journal.py init DOSSIER --definition <workflow>
-   --title "<projet>" [--vault VAULT --folder <dossier>]` ; le dossier du
-   vault se choisit avec `vault_profile.py` (skill `markdown-to-obsidian`).
+1. **Reprendre** : `journal.py status DOSSIER`. Dans une mission
+   (`mission.json` au-dessus du dossier, skill `mission-workspace`), le
+   vault, les documents et les dépôts sont les siens : ne les demande pas,
+   et ne passe pas `--vault` ni `--folder` aux scripts, ils les trouvent
+   seuls. Pour une nouvelle avant-vente ou une nouvelle revue hors mission,
+   ouvre-la d'abord : `mission.py init DOSSIER --nature avant-vente|revue
+   --name "<projet>"` démarre le workflow de sa nature, vault compris.
+   Sinon, s'il n'y a pas de `workflow.json`, `journal.py init DOSSIER
+   --definition <workflow> --title "<projet>" [--vault VAULT --folder
+   <dossier>]` ; le dossier du vault se choisit avec `vault_profile.py`
+   (skill `markdown-to-obsidian`). Avant de livrer un dossier ou une offre
+   d'une mission, `mission.py check DOSSIER` : contrôles de cohérence entre
+   livrables, à corriger ou à faire accepter (avec la raison de
+   l'utilisateur).
    Le champ `ask` du rapport liste ce qu'il faut demander avant de
    commencer (vault, POS...) : cherche-le d'abord dans les documents et le
    vault, puis pose en une seule question ce qui manque. Note au journal ce

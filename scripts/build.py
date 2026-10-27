@@ -12,6 +12,7 @@ le résultat : les outils installent le plugin depuis le dépôt.
     skills/*/scripts/lib/spec_schema.py   validateur des descriptions JSON (shared/scripts/), si un script a un `input`
     skills/*/scripts/lib/local_tools.py   emplacements des outils locaux (shared/scripts/), skills de LIB_USERS
     skills/*/scripts/lib/skill_paths.py   accès aux scripts des autres skills, si le contrat a un `requires`
+    skills/*/scripts/lib/workspace.py     espace de travail (mission.json et son schéma), skills à champ vault
     skills/*/contract.json : input.schema  copie du schéma du script nommé dans input.same_as
     shared/schemas/*.schema.json          liste des agents permis (enum), depuis src/agents/*.contract.json
     agents : champ model                  depuis le niveau du contrat et shared/models.json

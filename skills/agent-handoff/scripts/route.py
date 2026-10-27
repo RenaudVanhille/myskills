@@ -18,6 +18,10 @@ description ; son choix passe en tête quand sa confiance est d'au moins
 LAYA_CONFIDENT, sinon il est seulement donné dans `laya`. Réponses en cache,
 classement par mots gardé si Laya est indisponible.
 
+Dans une mission (mission.json, skill mission-workspace, trouvé au-dessus
+des fichiers fournis ou du dossier courant), le rapport donne sa nature, ses
+workflows et son vault, et ses workflows passent devant à score proche.
+
     uv run scripts/route.py --query "TEXTE" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]]
     uv run scripts/route.py --list [--kind ...]
 """
@@ -34,7 +38,12 @@ import tempfile
 import unicodedata
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import workspace  # noqa: E402
+
 ROUTES = Path(__file__).resolve().parent / "lib" / "routes.json"
+# Bonus d'un workflow de la mission (mission.json au-dessus des fichiers ou du dossier courant).
+MISSION_BONUS = 2.0
 LAYA = Path(__file__).resolve().parent / "route_laya.py"
 # Candidats soumis à Laya (les premiers du classement par mots), et confiance qui fait passer son choix en tête.
 LAYA_CANDIDATES, LAYA_CONFIDENT = 6, 0.6
@@ -119,7 +128,16 @@ def main() -> int:
     args = parser.parse_args()
     errors: list[str] = []
     warnings: list[str] = []
-    report = {"query": args.query, "candidates": [], "laya": None, "errors": errors, "warnings": warnings}
+    report = {"query": args.query, "candidates": [], "laya": None, "mission": None, "errors": errors,
+              "warnings": warnings}
+    root = workspace.find(*args.files, Path.cwd())
+    if root is not None:
+        mission, invalid = workspace.load(root)
+        warnings += invalid
+        if mission:
+            report["mission"] = {"root": str(root), "nature": mission["nature"],
+                                 "workflows": [w["definition"] for w in workspace.workflows(mission)],
+                                 "vault": str(workspace.path_of(root, mission, "vault"))}
     if not args.query and not args.list:
         errors.append("--query TEXTE (la demande) ou --list")
     try:
@@ -152,6 +170,8 @@ def main() -> int:
             named = words(entry["name"].replace("-", " "))
             item["score"] = round(sum(math.log((len(entries) + 1) / frequency.get(w, 1)) + (w in named)
                                       for w in common), 2)
+            if kind == "workflows" and report["mission"] and entry["name"] in report["mission"]["workflows"]:
+                item["score"] = round(item["score"] + MISSION_BONUS, 2)
             item["matched"] = common
         scored.append(item)
     if args.list:

@@ -69,6 +69,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
 
 Z90 = 1.2816  # quantile 90 % de la loi normale : fourchette P10-P90
 PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réalisation",
@@ -1085,6 +1086,11 @@ def main() -> int:
         report = draft(args.spec, args.option, args.infra)
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
+    # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
+    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
+    if scoped:
+        print(json.dumps({"input": str(args.spec), "errors": scoped, "warnings": []}, ensure_ascii=False))
+        return 1
     if bool(args.vault) != bool(args.folder):
         parser.error("--vault et --folder vont ensemble")
     try:

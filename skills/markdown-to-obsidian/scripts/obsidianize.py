@@ -35,6 +35,7 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
 from script_report import print_report  # noqa: E402
 from skill_paths import absent, find_script, load_module  # noqa: E402
 
@@ -203,6 +204,12 @@ def main() -> int:
                         help="ajouter nature et domaine au frontmatter (modèle local Laya)")
     parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
     args = parser.parse_args()
+    # Dans une mission (mission.json au-dessus des notes) : son vault par défaut, dossier Documents.
+    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, args.files,
+                                                             default_folder="Documents")
+    if scoped:
+        print_report([], scoped)
+        return 1
     if args.vault:
         args.vault = args.vault.resolve()
 

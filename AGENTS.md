@@ -79,8 +79,11 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   wikilinks, tags normalisés `type/<type>` et facettes). Le skill déclare
   `vault` dans son contrat (`writes` : types écrits, `reads`) ; les types
   existent et le script vérifie ses notes avec `scripts/lib/vault_ontology.py`
-  avant d'écrire **(vérifiée)**. Un nouveau type ou une nouvelle relation
-  s'ajoute dans l'ontologie, sans code. `vault_check.py`
+  avant d'écrire **(vérifiée)**. Dans une mission (un répertoire,
+  `mission.json`, skill `mission-workspace`), un script qui écrit dans le
+  vault prend celui de la mission par défaut et refuse tout autre, par
+  `scripts/lib/workspace.py` (`vault_target`) **(vérifiée)**. Un nouveau
+  type ou une nouvelle relation s'ajoute dans l'ontologie, sans code. `vault_check.py`
   (`markdown-to-obsidian`) vérifie un vault et exporte son graphe typé.
 - **Workflows** : un workflow est une définition JSON
   (`skills/decision-log/workflows/`), seule source des étapes, des skills,

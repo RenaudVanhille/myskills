@@ -1,0 +1,12 @@
+asyncapi: 3.0.0
+info:
+  title: Stock
+  version: 1.0.0
+channels:
+  creees:
+    address: commandes.creees
+operations:
+  recevoirCommande:
+    action: receive
+    channel:
+      $ref: '#/channels/creees'

@@ -1,0 +1,5 @@
+paiement:
+  url: http://payments:8080/v1
+spring:
+  datasource:
+    url: jdbc:postgresql://db-commandes:5432/commandes

@@ -127,11 +127,17 @@ la demande ; les rendus passent par Playwright.
 
 ## Contenu
 
+Un répertoire = une mission : `mission.py init DOSSIER --nature avant-vente|revue --name NOM`
+(skill `mission-workspace`) crée `mission.json`, `documents/`, le vault de la mission
+(et `code/` pour une revue) et démarre le workflow de sa nature ; l'agent `orientation`
+le fait au démarrage. Les skills restent
+installés une fois pour toutes ; seules les données vivent dans la mission.
+
 ### Agents
 
 | Agent | Rôle |
 | --- | --- |
-| `orientation` | Point d'entrée quand on ne sait pas par où commencer : choisit l'agent ou le workflow (liste compacte de `route.py`) et lui passe la main par un message validé, sans travail métier, une question au plus |
+| `orientation` | Point d'entrée quand on ne sait pas par où commencer : ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (`mission.py init`), choisit l'agent ou le workflow (liste compacte de `route.py`) et lui passe la main par un message validé, sans travail métier, une question au plus |
 | `schema-designer` | Choisit le format de schéma selon le contexte, le public et la destination, puis valide le rendu |
 | `document-extractor` | Import : convertit PDF, Office et images en Markdown ou Obsidian, puis valide le Markdown |
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
@@ -158,6 +164,7 @@ lire par un autre agent ou outil qui appelle myskills.
 
 | Skill | Rôle |
 | --- | --- |
+| `mission-workspace` | Espace de travail par mission : un répertoire, un vault Obsidian unique, pour une avant-vente (documents reçus) ou une revue d'architecture (documentation et code, un dépôt par service) ; ouvre la mission et démarre le workflow de sa nature, déclare les dépôts et fige leurs commits, fait le point dans le vault, contrôle la cohérence entre livrables sans modèle (`mission.py`) ; les scripts du vault trouvent seuls le vault de la mission et refusent tout autre |
 | `check-prerequisites` | Vérifie les outils locaux et indique comment installer les manquants ; prépare le mode hors ligne (`--prefetch`, empreintes vérifiées) |
 | `doc-to-markdown` | Document vers Markdown (MarkItDown, Docling, vision), tri optionnel par type et domaine avec le modèle local Laya |
 | `markdown-to-obsidian` | Markdown vers format Obsidian, vérification d'un vault contre l'ontologie commune et export de son graphe typé (`vault_check.py`) |
@@ -181,7 +188,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow ; liste compacte des agents et workflows classés pour une demande (`route.py`) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, vue des menaces ; description tirée de Terraform, docker-compose ou Kubernetes |
 | `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie ; flux chiffrés proposés comme traités ; décisions du modèle (règles groupées, mesure retenue, statut, raison) reportées par script depuis un court JSON (`threat_review.py`) |
-| `architecture-review` | Revue d'architecture logicielle ou solution à la manière d'ATAM : arbre d'utilité (scénarios de qualité évalués), risques, sensibilités, compromis, décisions ; structure, traçabilité des exigences et avis calculés par script ; code comparé à l'architecture avec graphify (code analysé en local) ; piliers Well-Architected d'une option cloud ; revue versée au vault Obsidian (notes typées de l'ontologie) |
+| `architecture-review` | Revue d'architecture logicielle ou solution à la manière d'ATAM : arbre d'utilité (scénarios de qualité évalués), risques, sensibilités, compromis, décisions ; structure, traçabilité des exigences et avis calculés par script ; code comparé à l'architecture avec graphify (code analysé en local), y compris plusieurs dépôts (microservices : appels entre services lus dans la configuration et les contrats, base partagée, flux sans trace) ; piliers Well-Architected d'une option cloud ; revue versée au vault Obsidian (notes typées de l'ontologie) |
 | `well-architected-review` | Revue Well-Architected (AWS, Azure, Google Cloud) des six piliers et des conventions de schéma des fournisseurs, constats acceptés avec leur raison |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |

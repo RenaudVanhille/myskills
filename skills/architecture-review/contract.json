@@ -15,7 +15,7 @@
   "scripts": [
     {
       "name": "arch_review.py",
-      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture.",
+      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant.",
       "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | --rules | --schema",
       "options": {
         "REVUE.json": "description de la revue",
@@ -78,9 +78,6 @@
             },
             "code": {
               "type": "object",
-              "required": [
-                "root"
-              ],
               "additionalProperties": false,
               "patternProperties": {
                 "^_": {}
@@ -88,11 +85,11 @@
               "properties": {
                 "root": {
                   "type": "string",
-                  "description": "Dossier du code, relatif à la description."
+                  "description": "Dossier du code, relatif à la description (un seul dépôt)."
                 },
                 "graph": {
                   "type": "string",
-                  "description": "graph.json de graphify déjà produit (par exemple par le skill graphify dans le harness) ; sinon le script lance graphify extract."
+                  "description": "graph.json de graphify déjà produit pour root (par exemple par le skill graphify dans le harness) ; sinon le script lance graphify extract."
                 },
                 "semantic": {
                   "enum": [
@@ -101,8 +98,54 @@
                     "ollama"
                   ],
                   "description": "Documents du dossier (README, docs/, ADR) lus aussi par un modèle : aucune (défaut, --code-only, analyse locale du code seul), claude (modèle du harness, ANTHROPIC_MODEL pour un modèle léger) ou ollama (modèle local). Les liens tirés des documents (INFERRED) n'entrent pas dans les contrôles du code ; ils enrichissent le graphe."
+                },
+                "repos": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Plusieurs dépôts (microservices) : un graphe par dépôt, fusionnés ; les fichiers d'un dépôt se nomment <name>/<chemin> dans les motifs code des composants.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "root"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+                        "description": "Nom du dépôt, préfixe de ses fichiers."
+                      },
+                      "root": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dossier du dépôt, relatif à la description."
+                      },
+                      "graph": {
+                        "type": "string",
+                        "description": "graph.json de graphify déjà produit pour ce dépôt."
+                      },
+                      "commit": {
+                        "type": "string",
+                        "description": "Commit revu : le graphe produit est gardé pour ce commit."
+                      },
+                      "component": {
+                        "type": "string",
+                        "description": "Composant que le dépôt réalise (tout le dépôt, sans motif code)."
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Autres noms du service dans la configuration des autres dépôts (hôte, service Kubernetes)."
+                      }
+                    }
+                  }
                 }
-              }
+              },
+              "description": "Code comparé à l'architecture : un dossier (root), plusieurs dépôts (repos, un par service), ou objet vide pour reprendre les dépôts de la mission (mission.json, skill mission-workspace)."
             },
             "layers": {
               "type": "array",
@@ -726,7 +769,8 @@
                       ],
                       "properties": {
                         "graph": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "graph.json lu (ou, avec plusieurs dépôts, la liste dépôt (graph.json))."
                         },
                         "files": {
                           "type": "integer",
@@ -745,6 +789,25 @@
                           "items": {
                             "type": "string"
                           }
+                        },
+                        "repos": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "description": "Plusieurs dépôts : leur nombre."
+                        },
+                        "calls": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Appels entre services lus dans la configuration et les contrats : a>b (moyen)."
+                        },
+                        "shared_databases": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Bases citées par plusieurs dépôts."
                         }
                       }
                     }
@@ -862,7 +925,7 @@
     {
       "to": "graphify",
       "kind": "externe",
-      "when": "comparer le code à l'architecture : le script lance graphify extract sur code.root (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit le graphe"
+      "when": "comparer le code à l'architecture : le script lance graphify extract sur code.root, ou sur chaque dépôt de code.repos ou de la mission, en parallèle (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit les graphes"
     },
     {
       "to": "architecture-options",

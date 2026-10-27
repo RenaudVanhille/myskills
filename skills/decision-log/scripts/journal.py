@@ -79,6 +79,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
+from lib import workspace  # noqa: E402  (après vault_sync, qui met lib/ dans le chemin)
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 
@@ -494,6 +495,11 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                  "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
         if definition:
             state["definition"] = definition
+        # Dans une mission (mission.json au-dessus du dossier), son vault par défaut, et aucun autre.
+        args.vault, _, scoped = workspace.vault_target(args.vault, None, [folder], default_folder=None)
+        if scoped:
+            errors += scoped
+            return None, None
         if args.vault:
             if not args.vault.is_dir():
                 errors.append(f"vault introuvable : {args.vault}")

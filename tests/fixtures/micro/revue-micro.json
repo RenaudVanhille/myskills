@@ -1,0 +1,84 @@
+{
+ "title": "Plateforme de commandes",
+ "context": "Revue de la plateforme en microservices, un dépôt par service.",
+ "code": {
+  "repos": [
+   {
+    "name": "commandes",
+    "root": "code/commandes",
+    "graph": "graphs/commandes.json",
+    "component": "commandes"
+   },
+   {
+    "name": "paiement",
+    "root": "code/paiement",
+    "graph": "graphs/paiement.json",
+    "aliases": [
+     "payments"
+    ]
+   },
+   {
+    "name": "stock",
+    "root": "code/stock",
+    "graph": "graphs/stock.json",
+    "component": "stock"
+   },
+   {
+    "name": "outils-batch",
+    "root": "code/outils-batch",
+    "graph": "graphs/outils-batch.json"
+   }
+  ]
+ },
+ "components": [
+  {
+   "id": "commandes",
+   "label": "Service commandes"
+  },
+  {
+   "id": "paiement",
+   "label": "Service paiement",
+   "code": [
+    "paiement/src/**"
+   ]
+  },
+  {
+   "id": "stock",
+   "label": "Service stock"
+  },
+  {
+   "id": "base-commandes",
+   "label": "Base des commandes",
+   "role": "db"
+  },
+  {
+   "id": "bus",
+   "label": "Bus d'événements",
+   "role": "queue"
+  }
+ ],
+ "flows": [
+  {
+   "from": "commandes",
+   "to": "paiement"
+  },
+  {
+   "from": "commandes",
+   "to": "base-commandes"
+  },
+  {
+   "from": "commandes",
+   "to": "bus",
+   "style": "async"
+  },
+  {
+   "from": "bus",
+   "to": "stock",
+   "style": "async"
+  },
+  {
+   "from": "stock",
+   "to": "paiement"
+  }
+ ]
+}

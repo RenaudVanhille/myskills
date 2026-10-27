@@ -1,0 +1,25 @@
+{
+ "directed": false,
+ "nodes": [
+  {
+   "id": "n0",
+   "label": "api",
+   "file_type": "code",
+   "source_file": "src/commandes/api.py"
+  },
+  {
+   "id": "n1",
+   "label": "service",
+   "file_type": "code",
+   "source_file": "src/commandes/service.py"
+  }
+ ],
+ "links": [
+  {
+   "source": "n0",
+   "target": "n1",
+   "relation": "calls",
+   "confidence": "EXTRACTED"
+  }
+ ]
+}

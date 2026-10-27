@@ -1,0 +1,9 @@
+{
+ "name": "Portail sinistres",
+ "nature": "avant-vente",
+ "client": "Mutuelle exemple",
+ "statut": "en-cours",
+ "accept": {
+  "MIS-02@gestion": "intégration chiffrée par l'éditeur de l'outil de gestion"
+ }
+}

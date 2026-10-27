@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
@@ -556,6 +557,11 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
+    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
+    if scoped:
+        print(json.dumps({"input": str(args.spec), "errors": scoped, "warnings": []}, ensure_ascii=False))
+        return 1
     if bool(args.vault) != bool(args.folder):
         parser.error("--vault et --folder vont ensemble")
     if args.vault and not args.vault.is_dir():
