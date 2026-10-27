@@ -12,9 +12,12 @@ met en tête les flux qui traversent une frontière, et écrit
 <sujet>.threats.md : frontières, flux à risque, puis une ligne par menace
 avec une mesure type et une colonne Statut à compléter. Les numéros de flux
 (F1, F2...) sont ceux du schéma `cloud_build.py --view threats`. Il écrit
-aussi <sujet>.threats.json, les mêmes menaces en données : le modèle n'y
+aussi <sujet>.threats.json, les mêmes menaces en données (nature, type,
+flux, chiffrement, frontière : de quoi écrire des règles) : le modèle n'y
 répond que par un court fichier de décisions, que threat_review.py reporte
-dans le tableau (pas de réécriture du Markdown).
+dans le tableau (pas de réécriture du Markdown). Ce que la description prouve
+déjà est proposé comme traité (`suggested`) : altération et interception
+d'un flux chiffré (encrypted, HTTPS, TLS...).
 
     uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows]
                              [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]]
@@ -77,6 +80,21 @@ def cell(text: str) -> str:
     return str(text).replace("|", "/").replace("\n", " ")
 
 
+def encryption(f: dict) -> tuple[bool | None, str]:
+    """Chiffrement déclaré du flux (encrypted, sinon protocole) et protocole affiché."""
+    proto = " ".join(str(f[k]) for k in ("protocol", "port") if f[k])
+    tls = any(t in proto.upper() for t in ("HTTPS", "TLS", "MTLS", "SSH", "IPSEC"))
+    return (f["encrypted"] if f["encrypted"] is not None else (True if tls else None)), proto
+
+
+def suggestion(category: str, row: dict) -> dict | None:
+    """Mesure que la description prouve déjà : proposée comme traitée, le modèle peut la revoir."""
+    if row["kind"] == "flow" and category in "TI" and row.get("encrypted"):
+        how = row.get("protocol") or "chiffrement déclaré"
+        return {"status": "traitee", "measure": f"Flux chiffré en transit ({how}), d'après la description."}
+    return None
+
+
 def model(spec: dict, all_flows: bool) -> tuple[str, dict, list[dict]]:
     _, pages, errors, warnings = CLOUD.build(spec, "threats")
     lines = [f"# Modèle de menaces STRIDE : {spec.get('title', 'architecture')}", "",
@@ -98,9 +116,7 @@ def model(spec: dict, all_flows: bool) -> tuple[str, dict, list[dict]]:
         lines += ["## Flux qui traversent une frontière", "",
                   "| Flux | De | Vers | Frontière | Protocole | Chiffré |", "| --- | --- | --- | --- | --- | --- |"]
         for f in crossing:
-            proto = " ".join(str(f[k]) for k in ("protocol", "port") if f[k])
-            tls = any(t in proto.upper() for t in ("HTTPS", "TLS", "MTLS", "SSH", "IPSEC"))
-            encrypted = f["encrypted"] if f["encrypted"] is not None else (True if tls else None)
+            encrypted, proto = encryption(f)
             enc = {True: "oui", False: "non"}.get(encrypted, "?")
             lines.append(f"| F{f['n']} | {cell(label[f['from']])} | {cell(label[f['to']])} | "
                          f"{cell(', '.join(f['crosses']))} | {cell(proto)} | {enc} |")
@@ -120,23 +136,35 @@ def model(spec: dict, all_flows: bool) -> tuple[str, dict, list[dict]]:
                                                b.nodes.get(f["from"], {}).get("kind") == "external" for f in flows):
                 warnings.append(f"{name} : {node['label']} (stockage) est atteint directement depuis l'extérieur")
             for category in APPLIES.get(node["kind"], "STRIDE"):
-                rows.append((0 if node["path"] == () else 1, f"{node['label']}", node["kind"], category))
+                rows.append((0 if node["path"] == () else 1, f"{node['label']}", node["kind"], category,
+                             {"kind": node["kind"], "type": node["type"]}))
         for f in flows:
             counts["flows"] += 1
             if f["crosses"] or all_flows:
+                encrypted, proto = encryption(f)
+                info = {"kind": "flow", "flow": f"F{f['n']}", "crossing": bool(f["crosses"]),
+                        "encrypted": encrypted, "protocol": proto or None}
                 for category in APPLIES["flow"]:
                     rows.append((-1 if f["crosses"] else 2, f"F{f['n']} {label[f['from']]} → {label[f['to']]}",
-                                 "flow", category))
+                                 "flow", category, info))
     counts["by_stride"] = {c: sum(r[3] == c for r in rows) for c in CATEGORIES}
     rows.sort(key=lambda r: r[0])
     lines += ["## Menaces", "", "| ID | Élément | STRIDE | Menace | Mesure type | Mesure retenue | Statut |",
               "| --- | --- | --- | --- | --- | --- | --- |"]
     threats = []
-    for index, (_, name, nature, category) in enumerate(rows, 1):
+    counts["suggested"] = 0
+    for index, (_, name, nature, category, info) in enumerate(rows, 1):
         text, measure = threat(category, "process" if nature == "network" else nature, name)
-        threats.append({"id": f"M{index:03d}", "element": name, "stride": category, "threat": text, "measure": measure})
+        item = {"id": f"M{index:03d}", "element": name, "stride": category, "threat": text, "measure": measure,
+                **{k: v for k, v in info.items() if v is not None}}
+        proposed = suggestion(category, info)
+        if proposed:
+            item["suggested"] = proposed
+            counts["suggested"] += 1
+        threats.append(item)
         lines.append(f"| M{index:03d} | {cell(name)} | {category} : {CATEGORIES[category]} | {cell(text)} | "
-                     f"{cell(measure)} |  | à analyser |")
+                     f"{cell(measure)} | {cell(proposed['measure']) if proposed else ''} | "
+                     f"{'traitée (proposé)' if proposed else 'à analyser'} |")
     counts["threats"] = len(rows)
     return "\n".join(lines) + "\n", {**counts, "errors": errors, "warnings": warnings}, threats
 

@@ -4564,17 +4564,18 @@
       "scripts": [
         {
           "name": "dpia_build.py",
-          "role": "Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD.",
-          "usage": "uv run scripts/dpia_build.py AIPD.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+          "role": "Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD ; propose ce qui se déduit sans jugement : critères du CEPD tirés des données, et pour chaque risque sources, impacts et mesures (exigences de sécurité, conformité, disponibilité ; menaces STRIDE des flux du traitement et des stockages) quand la description ne les donne pas.",
+          "usage": "uv run scripts/dpia_build.py AIPD.json [--draft] [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
           "options": {
             "AIPD.json": "description des traitements et des risques",
+            "--draft": "écrire seulement <nom>.draft.json : un risque par traitement et événement redouté encore sans risque, avec sources, impacts et mesures proposés, à coter",
             "--out-dir": "dossier du registre et de l'AIPD (défaut : celui du .json)",
             "--vault": "vault Obsidian où écrire une note traitement par traitement et une note risque par risque",
             "--folder": "dossier des notes dans le vault, celui du workflow ; avec --vault",
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
           },
           "exit_codes": {
-            "0": "registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts)",
+            "0": "registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts) ; avec --draft, propositions écrites",
             "1": "description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit"
           },
           "input": {
@@ -4790,10 +4791,12 @@
                         "type": "array",
                         "items": {
                           "type": "string"
-                        }
+                        },
+                        "description": "proposées par le script si absentes"
                       },
                       "impacts": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "proposés par le script si absents"
                       },
                       "gravity": {
                         "type": "integer",
@@ -4830,7 +4833,8 @@
                               }
                             }
                           }
-                        }
+                        },
+                        "description": "proposées par le script si absentes (exigences et menaces)"
                       },
                       "residual": {
                         "type": "object",
@@ -4882,7 +4886,11 @@
                 "transfers_out",
                 "vault",
                 "errors",
-                "warnings"
+                "warnings",
+                "proposed",
+                "criteria_added",
+                "draft",
+                "to_rate"
               ],
               "properties": {
                 "input": {
@@ -4961,6 +4969,30 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "proposed": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "champs de risque (sources, impacts, measures) remplis par proposition"
+                },
+                "criteria_added": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "critères du CEPD déduits des données et ajoutés"
+                },
+                "draft": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "<nom>.draft.json avec --draft"
+                },
+                "to_rate": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "risques proposés par --draft, à coter"
                 }
               }
             }
@@ -9342,11 +9374,14 @@
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux.",
-          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost) pour que le modèle n'écrive que les charges.",
+          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--draft": "écrire le brouillon de la description, sans réécrire un fichier existant : un lot par composant de l'option, lots transverses, pilotage, provision et run usuels, budget tiré des exigences de coût ; charges (effort) à estimer",
+            "--option": "avec --draft : option à chiffrer (défaut : décision, sinon recommandation)",
+            "--infra": "avec --draft : lignes d'infrastructure écrites par cost_build.py --infra (skill cloud-cost)",
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
             "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
             "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
@@ -9966,7 +10001,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements.",
+            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -10741,6 +10776,58 @@
                   "additionalProperties": false,
                   "required": [
                     "input",
+                    "outputs",
+                    "option",
+                    "lots",
+                    "to_estimate",
+                    "errors",
+                    "warnings"
+                  ],
+                  "description": "avec --draft",
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "option": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "lots": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "to_estimate": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "lots dont la charge est à estimer"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input",
                     "errors",
                     "warnings"
                   ],
@@ -10875,7 +10962,7 @@
       "scripts": [
         {
           "name": "stride.py",
-          "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
+          "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter ; propose comme traité ce que la description prouve déjà (flux chiffré), et donne à chaque menace sa nature, son type, son flux et son chiffrement pour les règles de threat_review.py.",
           "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
@@ -11239,7 +11326,8 @@
                     "crossing",
                     "threats",
                     "errors",
-                    "warnings"
+                    "warnings",
+                    "suggested"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -11323,6 +11411,11 @@
                         "null"
                       ],
                       "description": "<sujet>.threats.json : les menaces en données, pour threat_review.py"
+                    },
+                    "suggested": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "menaces proposées comme traitées d'après la description (flux chiffré)"
                     }
                   }
                 },
@@ -11362,10 +11455,10 @@
         },
         {
           "name": "threat_review.py",
-          "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser.",
+          "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON : règles groupées (catégorie, nature, type, élément, flux traversant ou chiffré) et décisions par menace (statut, mesure retenue, menace précisée, raison), plus les propositions de stride.py ; vérifie chaque décision et règle, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut, par règle et celles encore à analyser.",
           "usage": "uv run scripts/threat_review.py DECISIONS.json [--out SUJET.threats.md] [--fail-undecided] | --schema",
           "options": {
-            "DECISIONS.json": "décisions : model (le .threats.json de stride.py) et threats, par identifiant M001...",
+            "DECISIONS.json": "décisions : model (le .threats.json de stride.py), rules (décisions groupées par critères), threats (par identifiant M001...), suggested",
             "--out": "modèle Markdown réécrit (défaut : celui de model, en .md)",
             "--fail-undecided": "erreur s'il reste des menaces à analyser",
             "--schema": "affiche le schéma JSON des décisions sur une ligne, puis s'arrête"
@@ -11377,8 +11470,7 @@
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
               "required": [
-                "model",
-                "threats"
+                "model"
               ],
               "additionalProperties": false,
               "patternProperties": {
@@ -11392,7 +11484,7 @@
                 },
                 "threats": {
                   "type": "object",
-                  "description": "une entrée par menace décidée, par identifiant (M001...) ; les autres restent à analyser",
+                  "description": "une entrée par menace décidée à part, par identifiant (M001...) ; elle l'emporte sur les règles",
                   "propertyNames": {
                     "pattern": "^M\\d{3,}$"
                   },
@@ -11432,6 +11524,98 @@
                       }
                     }
                   }
+                },
+                "rules": {
+                  "type": "array",
+                  "description": "décisions groupées : la première règle qui correspond s'applique aux menaces sans décision par identifiant",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "match",
+                      "status"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "match": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": false,
+                        "description": "critères, tous remplis",
+                        "properties": {
+                          "stride": {
+                            "type": "string",
+                            "pattern": "^[STRIDE]+$",
+                            "description": "catégories, par exemple TI"
+                          },
+                          "kind": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "enum": [
+                                "external",
+                                "process",
+                                "store",
+                                "network",
+                                "flow"
+                              ]
+                            }
+                          },
+                          "type": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "description": "types de service (aws:rds ou rds)"
+                          },
+                          "element": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "texte contenu dans le nom de l'élément, sans casse"
+                          },
+                          "crossing": {
+                            "type": "boolean",
+                            "description": "flux qui traverse une frontière"
+                          },
+                          "encrypted": {
+                            "type": "boolean",
+                            "description": "flux chiffré d'après la description"
+                          },
+                          "ids": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^M\\d{3,}$"
+                            }
+                          }
+                        }
+                      },
+                      "status": {
+                        "enum": [
+                          "a-traiter",
+                          "traitee",
+                          "acceptee",
+                          "ecartee"
+                        ]
+                      },
+                      "measure": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "mesure retenue (obligatoire si traitee)"
+                      },
+                      "why": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "raison, obligatoire si acceptee (celle de l'utilisateur) ou ecartee"
+                      }
+                    }
+                  }
+                },
+                "suggested": {
+                  "type": "boolean",
+                  "description": "reprendre les propositions de stride.py (défaut true)"
                 }
               }
             }
@@ -11450,7 +11634,9 @@
                 "undecided",
                 "by_status",
                 "errors",
-                "warnings"
+                "warnings",
+                "by_rule",
+                "suggested"
               ],
               "additionalProperties": false,
               "properties": {
@@ -11514,6 +11700,19 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "by_rule": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "description": "menaces couvertes par chaque règle"
+                },
+                "suggested": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "menaces décidées par une proposition de stride.py"
                 }
               }
             }

@@ -36,6 +36,18 @@ leur base : aucun tarif n'est consulté en ligne.
 
     uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema
 
+Avec `--draft`, le script écrit d'abord la description à compléter (il ne
+réécrit jamais un fichier existant) : un lot par composant de l'option à
+construire ou à intégrer, avec ses exigences, les lots transverses (cadrage,
+recette, tests de sécurité si des exigences de sécurité existent, mise en
+production, formation), pilotage, provision et run aux valeurs usuelles
+(`_draft` les liste), budget tiré des exigences de coût et lignes
+d'infrastructure de cloud-cost (`--infra <nom>.infra.json`). Le modèle n'y
+écrit que les charges (`effort`, vide dans chaque lot), les taux et ce qu'il
+corrige.
+
+    uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json]
+
 Avec `--vault`, le chiffrage va aussi dans le vault Obsidian du workflow, selon
 son ontologie : une note chiffrage (coût total, charge, budget, hébergeur ;
 relation evalue vers la note de l'option) et une note par lot (porte-sur ses
@@ -185,6 +197,87 @@ def forgotten(spec: dict, catalog: dict, option: dict) -> list[str]:
             if when[condition] and phase not in phases and not re.search(pattern, corpus)]
 
 
+# Lots transverses du brouillon : (libellé, phase, profils, quand).
+TRANSVERSE = [
+    ("Cadrage et architecture détaillée", "cadrage", "toujours"),
+    ("Recette", "tests", "toujours"),
+    ("Tests de sécurité (test d'intrusion)", "tests", "securite"),
+    ("Mise en production", "deploiement", "toujours"),
+    ("Formation et conduite du changement", "conduite-changement", "toujours"),
+]
+DEFAULTS = {"pilotage": 12, "contingency": 10, "run": 15}
+MONEY = re.compile(r"(\d[\d  .]*)\s*(?:€|euros?|eur)\s*(?:par|/)\s*(mois|an)", re.I)
+
+
+def draft(path: Path, option_id: str | None, infra: Path | None) -> dict:
+    """Écrit le brouillon de chiffrage.json ; rapport court (lots, charges à estimer)."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    report = {"input": str(path), "outputs": [], "option": None, "lots": 0, "to_estimate": 0,
+              "errors": errors, "warnings": warnings}
+    if path.exists():
+        errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
+        return report
+    base = path.parent
+    arch = load_json(base, "options.json", "architecture", "architecture-options", "options_build.py", errors, warnings)
+    cat = load_json(base, "exigences.json", "requirements", "requirements-catalog", "req_build.py", errors, warnings)
+    option, _ = pick_option({"option": option_id} if option_id else {}, arch, errors, warnings) if arch else (None, "")
+    lines = []
+    if infra:
+        try:
+            lines = json.loads(infra.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"--infra : {infra} illisible ({error})")
+    if errors or not option:
+        return report
+    catalog = [r for r in (cat or {}).get("requirements", []) if r.get("status") != "retiree"]
+    work = []
+    for comp in option["components"]:
+        if comp.get("role") == "person":
+            continue
+        external = comp.get("role") == "external"
+        work.append({"id": "", "name": f"Intégration avec {comp['label']}" if external else comp["label"],
+                     "phase": "integration" if external or comp.get("role") == "queue" else "realisation",
+                     "component": comp["id"], "effort": {}})
+    security = any(r.get("category") == "securite" for r in catalog)
+    for label, phase, when in TRANSVERSE:
+        if when == "toujours" or security:
+            work.append({"id": "", "name": label, "phase": phase, "effort": {}})
+    order = list(PHASES)
+    work.sort(key=lambda w: order.index(w["phase"]))
+    for n, task in enumerate(work, 1):
+        task["id"] = f"L{n}"
+    spec = {"title": f"Chiffrage : {option['name']}", "option": option["id"], "work": work,
+            "overheads": [{"id": "P1", "name": "Pilotage", "percent": DEFAULTS["pilotage"],
+                           "profile": "chef-de-projet"}],
+            "contingency": DEFAULTS["contingency"],
+            "run": [{"id": "R1", "name": "Maintenance corrective et évolutive",
+                     "percent_of_build": DEFAULTS["run"]}],
+            "assumptions": [], "exclusions": [],
+            "_draft": f"Brouillon de estimate_build.py --draft : charges (effort) à estimer, taux (rates) à donner ; "
+                      f"valeurs usuelles à revoir : pilotage {DEFAULTS['pilotage']} %, provision "
+                      f"{DEFAULTS['contingency']} %, run {DEFAULTS['run']} % de la réalisation."}
+    if lines:
+        spec["infra"] = lines
+    budget, refs = {}, []
+    for r in catalog:
+        if r.get("category") != "cout":
+            continue
+        for amount, period in MONEY.findall(f"{r.get('metric', '')} {r.get('text', '')}"):
+            value = int(re.sub(r"[  .]", "", amount))
+            budget.setdefault("monthly" if period.lower() == "mois" else "build", value)
+            refs.append(r["id"])
+    if budget:
+        spec["budget"] = {**budget, "refs": sorted(set(refs))}
+    invalid = validate({**spec, "work": [{**w, "effort": {"x": 1}} for w in work]}, __file__)
+    if invalid:
+        errors.extend(invalid)
+        return report
+    path.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    report.update(outputs=[str(path)], option=option["id"], lots=len(work), to_estimate=len(work))
+    return report
+
+
 def three_points(value) -> tuple[float, float, float, float, float]:
     """(mini, probable, maxi, espérance, écart type) d'une charge en jours."""
     if isinstance(value, list):
@@ -234,7 +327,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
         component(task.get("component"), where)
         refs(task.get("refs", []), f"{where}/refs")
         if not task["effort"]:
-            errors.append(f"{where}/effort : au moins un profil attendu")
+            errors.append(f"{where}/effort : charge à estimer, en jours par profil (au moins un)")
         for name, value in task["effort"].items():
             rate = profile(name, f"{where}/effort/{name}")
             low, likely, high, expected, sd = three_points(value)
@@ -976,6 +1069,10 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
     parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire le chiffrage (notes typées)")
     parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
+    parser.add_argument("--draft", action="store_true",
+                        help="écrire le brouillon de la description (lots, transverses, budget), charges à estimer")
+    parser.add_argument("--option", help="avec --draft : option à chiffrer (défaut : décision, sinon recommandation)")
+    parser.add_argument("--infra", type=Path, help="avec --draft : lignes d'infrastructure de cost_build.py --infra")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -984,6 +1081,10 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if args.draft:
+        report = draft(args.spec, args.option, args.infra)
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if report["errors"] else 0
     if bool(args.vault) != bool(args.folder):
         parser.error("--vault et --folder vont ensemble")
     try:

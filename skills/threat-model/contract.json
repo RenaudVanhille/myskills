@@ -12,7 +12,7 @@
   "scripts": [
     {
       "name": "stride.py",
-      "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter.",
+      "role": "Prépare le modèle de menaces STRIDE à partir de la même description : frontières de confiance, flux qui les traversent, une menace type par catégorie applicable, avec mesure type et statut à compléter ; propose comme traité ce que la description prouve déjà (flux chiffré), et donne à chaque menace sa nature, son type, son flux et son chiffrement pour les règles de threat_review.py.",
       "usage": "uv run scripts/stride.py SUJET.json [--out SUJET.threats.md] [--all-flows] [--vault VAULT --folder DOSSIER_DU_VAULT [--option ID]] | --schema",
       "options": {
         "SUJET.json": "description de l'architecture (celle de cloud_build.py)",
@@ -376,7 +376,8 @@
                 "crossing",
                 "threats",
                 "errors",
-                "warnings"
+                "warnings",
+                "suggested"
               ],
               "additionalProperties": false,
               "properties": {
@@ -460,6 +461,11 @@
                     "null"
                   ],
                   "description": "<sujet>.threats.json : les menaces en données, pour threat_review.py"
+                },
+                "suggested": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "menaces proposées comme traitées d'après la description (flux chiffré)"
                 }
               }
             },
@@ -499,10 +505,10 @@
     },
     {
       "name": "threat_review.py",
-      "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON (statut, mesure retenue, menace précisée, raison) : vérifie chaque décision, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut et celles encore à analyser.",
+      "role": "Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON : règles groupées (catégorie, nature, type, élément, flux traversant ou chiffré) et décisions par menace (statut, mesure retenue, menace précisée, raison), plus les propositions de stride.py ; vérifie chaque décision et règle, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut, par règle et celles encore à analyser.",
       "usage": "uv run scripts/threat_review.py DECISIONS.json [--out SUJET.threats.md] [--fail-undecided] | --schema",
       "options": {
-        "DECISIONS.json": "décisions : model (le .threats.json de stride.py) et threats, par identifiant M001...",
+        "DECISIONS.json": "décisions : model (le .threats.json de stride.py), rules (décisions groupées par critères), threats (par identifiant M001...), suggested",
         "--out": "modèle Markdown réécrit (défaut : celui de model, en .md)",
         "--fail-undecided": "erreur s'il reste des menaces à analyser",
         "--schema": "affiche le schéma JSON des décisions sur une ligne, puis s'arrête"
@@ -514,8 +520,7 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
           "required": [
-            "model",
-            "threats"
+            "model"
           ],
           "additionalProperties": false,
           "patternProperties": {
@@ -529,7 +534,7 @@
             },
             "threats": {
               "type": "object",
-              "description": "une entrée par menace décidée, par identifiant (M001...) ; les autres restent à analyser",
+              "description": "une entrée par menace décidée à part, par identifiant (M001...) ; elle l'emporte sur les règles",
               "propertyNames": {
                 "pattern": "^M\\d{3,}$"
               },
@@ -569,6 +574,98 @@
                   }
                 }
               }
+            },
+            "rules": {
+              "type": "array",
+              "description": "décisions groupées : la première règle qui correspond s'applique aux menaces sans décision par identifiant",
+              "items": {
+                "type": "object",
+                "required": [
+                  "match",
+                  "status"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "match": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": false,
+                    "description": "critères, tous remplis",
+                    "properties": {
+                      "stride": {
+                        "type": "string",
+                        "pattern": "^[STRIDE]+$",
+                        "description": "catégories, par exemple TI"
+                      },
+                      "kind": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "enum": [
+                            "external",
+                            "process",
+                            "store",
+                            "network",
+                            "flow"
+                          ]
+                        }
+                      },
+                      "type": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "types de service (aws:rds ou rds)"
+                      },
+                      "element": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "texte contenu dans le nom de l'élément, sans casse"
+                      },
+                      "crossing": {
+                        "type": "boolean",
+                        "description": "flux qui traverse une frontière"
+                      },
+                      "encrypted": {
+                        "type": "boolean",
+                        "description": "flux chiffré d'après la description"
+                      },
+                      "ids": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^M\\d{3,}$"
+                        }
+                      }
+                    }
+                  },
+                  "status": {
+                    "enum": [
+                      "a-traiter",
+                      "traitee",
+                      "acceptee",
+                      "ecartee"
+                    ]
+                  },
+                  "measure": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "mesure retenue (obligatoire si traitee)"
+                  },
+                  "why": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "raison, obligatoire si acceptee (celle de l'utilisateur) ou ecartee"
+                  }
+                }
+              }
+            },
+            "suggested": {
+              "type": "boolean",
+              "description": "reprendre les propositions de stride.py (défaut true)"
             }
           }
         }
@@ -587,7 +684,9 @@
             "undecided",
             "by_status",
             "errors",
-            "warnings"
+            "warnings",
+            "by_rule",
+            "suggested"
           ],
           "additionalProperties": false,
           "properties": {
@@ -651,6 +750,19 @@
               "items": {
                 "type": "string"
               }
+            },
+            "by_rule": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "description": "menaces couvertes par chaque règle"
+            },
+            "suggested": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "menaces décidées par une proposition de stride.py"
             }
           }
         }

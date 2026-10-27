@@ -17,11 +17,14 @@
   "scripts": [
     {
       "name": "estimate_build.py",
-      "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux.",
-      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+      "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost) pour que le modèle n'écrive que les charges.",
+      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] | --schema",
       "options": {
         "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--draft": "écrire le brouillon de la description, sans réécrire un fichier existant : un lot par composant de l'option, lots transverses, pilotage, provision et run usuels, budget tiré des exigences de coût ; charges (effort) à estimer",
+        "--option": "avec --draft : option à chiffrer (défaut : décision, sinon recommandation)",
+        "--infra": "avec --draft : lignes d'infrastructure écrites par cost_build.py --infra (skill cloud-cost)",
         "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
         "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
         "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault"
@@ -641,7 +644,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements.",
+        "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
@@ -1104,7 +1107,9 @@
                   ]
                 },
                 "mode": {
-                  "enum": ["chiffrage"]
+                  "enum": [
+                    "chiffrage"
+                  ]
                 },
                 "charges": {
                   "type": "object",
@@ -1403,7 +1408,61 @@
                   ]
                 },
                 "mode": {
-                  "enum": ["charges"]
+                  "enum": [
+                    "charges"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "option",
+                "lots",
+                "to_estimate",
+                "errors",
+                "warnings"
+              ],
+              "description": "avec --draft",
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "option": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lots": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "to_estimate": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "lots dont la charge est à estimer"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             },

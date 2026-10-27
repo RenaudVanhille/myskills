@@ -4,14 +4,22 @@
 """Reporte les décisions sur les menaces dans le modèle STRIDE préparé par stride.py.
 
 Le modèle n'écrit pas le tableau des menaces : il répond par un fichier de
-décisions court, une entrée par menace qu'il garde, précise, accepte ou
-écarte (identifiants M001... de <sujet>.threats.json). Le script :
-- vérifie chaque décision (menace connue, élément cohérent, mesure pour une
-  menace traitée, raison pour une menace acceptée ou écartée) ;
+décisions court, des règles qui couvrent d'un coup toutes les menaces d'une
+même sorte (catégorie STRIDE, nature, type de service, élément, flux qui
+traverse une frontière) et une entrée par menace qu'il garde, précise,
+accepte ou écarte autrement (identifiants M001... de <sujet>.threats.json).
+Une décision par identifiant l'emporte sur les règles, la première règle qui
+correspond sur les suivantes, et une règle sur ce que stride.py a proposé
+d'après la description (`suggested`, repris sauf `"suggested": false`).
+Le script :
+- vérifie chaque décision et chaque règle (menace connue, élément cohérent,
+  mesure pour une menace traitée, raison pour une menace acceptée ou
+  écartée, règle qui ne couvre aucune menace) ;
 - réécrit <sujet>.threats.md depuis <sujet>.threats.json : menace précisée,
   mesure retenue et statut dans le tableau, menaces écartées à part avec
   leur raison ;
-- compte les menaces par statut et celles encore à analyser.
+- compte les menaces par statut, par règle, celles reprises de stride.py et
+  celles encore à analyser.
 
     uv run scripts/threat_review.py DECISIONS.json [--out SUJET.threats.md] [--fail-undecided] | --schema
 """
@@ -34,6 +42,34 @@ def cell(text: str) -> str:
     return str(text).replace("|", "/").replace("\n", " ")
 
 
+def matches(rule: dict, item: dict) -> bool:
+    """Une menace correspond à une règle si elle remplit chacun de ses critères."""
+    match = rule["match"]
+    if "ids" in match and item["id"] not in match["ids"]:
+        return False
+    if "stride" in match and item["stride"] not in match["stride"]:
+        return False
+    if "kind" in match and item.get("kind") not in match["kind"]:
+        return False
+    if "type" in match and item.get("type") not in match["type"] and \
+            str(item.get("type", "")).split(":")[-1] not in match["type"]:
+        return False
+    if "element" in match and match["element"].lower() not in item["element"].lower():
+        return False
+    for key in ("crossing", "encrypted"):
+        if key in match and bool(item.get(key)) != match[key]:
+            return False
+    return True
+
+
+def check(decision: dict, where: str, errors: list[str]) -> None:
+    if decision["status"] == "traitee" and not decision.get("measure"):
+        errors.append(f"{where}/measure : mesure retenue attendue pour une menace traitée")
+    if decision["status"] in ("acceptee", "ecartee") and not decision.get("why"):
+        errors.append(f"{where}/why : raison attendue pour une menace {STATUS[decision['status']]} "
+                      "(celle de l'utilisateur pour une acceptation)")
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -50,7 +86,7 @@ def main() -> int:
     if not args.spec:
         parser.error("fichier de décisions JSON attendu")
     report = {"input": str(args.spec), "output": None, "threats": 0, "decided": 0, "undecided": 0,
-              "by_status": {s: 0 for s in STATUS}, "errors": [], "warnings": []}
+              "by_status": {s: 0 for s in STATUS}, "by_rule": [], "suggested": 0, "errors": [], "warnings": []}
 
     def stop() -> int:
         print(json.dumps(report, ensure_ascii=False))
@@ -72,8 +108,8 @@ def main() -> int:
         report["errors"].append(f"model : {spec['model']} illisible ({error}) ; lancez d'abord stride.py")
         return stop()
 
-    decisions = spec["threats"]
-    for key, decision in decisions.items():
+    explicit = spec.get("threats", {})
+    for key, decision in explicit.items():
         where = f"threats/{key}"
         if key not in threats:
             close = difflib.get_close_matches(key, list(threats), n=1)
@@ -84,13 +120,34 @@ def main() -> int:
             report["errors"].append(f"{where}/element : « {decision['element']} », mais {key} porte sur "
                                     f"« {threats[key]['element']} » : la description a changé, relancez stride.py "
                                     "et revoyez les identifiants")
-        if decision["status"] == "traitee" and not decision.get("measure"):
-            report["errors"].append(f"{where}/measure : mesure retenue attendue pour une menace traitée")
-        if decision["status"] in ("acceptee", "ecartee") and not decision.get("why"):
-            report["errors"].append(f"{where}/why : raison attendue pour une menace {STATUS[decision['status']]} "
-                                    "(celle de l'utilisateur pour une acceptation)")
+        check(decision, where, report["errors"])
+    rules = spec.get("rules", [])
+    for index, rule in enumerate(rules):
+        check(rule, f"rules/{index}", report["errors"])
+        for key in rule["match"].get("ids", []):
+            if key not in threats:
+                report["errors"].append(f"rules/{index}/match/ids : menace inconnue « {key} »")
     if report["errors"]:
         return stop()
+
+    # Décision de chaque menace : par identifiant, sinon première règle, sinon proposition de stride.py.
+    decisions, by_rule = {}, [0] * len(rules)
+    for key, item in threats.items():
+        if key in explicit:
+            decisions[key] = explicit[key]
+            continue
+        index = next((i for i, rule in enumerate(rules) if matches(rule, item)), None)
+        if index is not None:
+            by_rule[index] += 1
+            decisions[key] = {k: v for k, v in rules[index].items() if k != "match"}
+        elif item.get("suggested") and spec.get("suggested", True):
+            decisions[key] = item["suggested"]
+            report["suggested"] += 1
+    for index, count in enumerate(by_rule):
+        if not count:
+            report["warnings"].append(f"rules/{index} : ne couvre aucune menace (critères trop étroits, "
+                                      "ou menaces déjà décidées par identifiant)")
+    report["by_rule"] = by_rule
 
     lines = [model.get("head", "").rstrip(), "", "## Menaces", "",
              "| ID | Élément | STRIDE | Menace | Mesure type | Mesure retenue | Statut |",

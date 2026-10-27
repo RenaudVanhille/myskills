@@ -56,14 +56,17 @@ workflow, la commande les trace aussi au journal.
    architecture. Lis `options.md` une fois (option retenue, composants,
    écarts, risques) et les exigences de l'option, pas les documents
    sources.
-3. Découpe la solution en lots (skill `solution-estimate`, section 2) : un
-   lot par composant à construire ou à modifier, plus les lots transverses.
-   Estime chaque lot en jours par profil, à trois points dès que la charge
+3. Pour une option cloud, décris d'abord ses consommations dans
+   `couts.json` (skill `cloud-cost`) et lance `cost_build.py couts.json
+   --infra <option>`. Puis `estimate_build.py chiffrage.json --draft`
+   (avec `--infra couts.infra.json`) : le brouillon porte déjà un lot par
+   composant, les lots transverses, les valeurs usuelles, le budget et
+   l'infrastructure ; complète-le sans le réécrire (skill
+   `solution-estimate`, section 2) et ne change un lot ou une valeur
+   usuelle qu'avec une raison. Estime chaque lot en jours par profil, à trois points dès que la charge
    n'est pas sûre. Pose une ligne d'infrastructure par poste, chacune avec
    sa base de prix ; sans grille ni devis fourni, c'est une hypothèse de
-   dimensionnement, dite comme telle. Pour une option cloud, décris ses
-   consommations dans `couts.json` (skill `cloud-cost`) et reprends les
-   lignes de `cost_build.py couts.json --infra <option>`.
+   dimensionnement, dite comme telle.
    Le script compare toujours trois hypothèses (sans IA, avec IA, dev IA
    natif) : tes charges sont celles d'une équipe sans IA. Donne un
    facteur propre (`ai`) aux seuls lots où l'IA aide nettement moins ou

@@ -12,17 +12,18 @@
   "scripts": [
     {
       "name": "dpia_build.py",
-      "role": "Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD.",
-      "usage": "uv run scripts/dpia_build.py AIPD.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+      "role": "Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD ; propose ce qui se déduit sans jugement : critères du CEPD tirés des données, et pour chaque risque sources, impacts et mesures (exigences de sécurité, conformité, disponibilité ; menaces STRIDE des flux du traitement et des stockages) quand la description ne les donne pas.",
+      "usage": "uv run scripts/dpia_build.py AIPD.json [--draft] [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
       "options": {
         "AIPD.json": "description des traitements et des risques",
+        "--draft": "écrire seulement <nom>.draft.json : un risque par traitement et événement redouté encore sans risque, avec sources, impacts et mesures proposés, à coter",
         "--out-dir": "dossier du registre et de l'AIPD (défaut : celui du .json)",
         "--vault": "vault Obsidian où écrire une note traitement par traitement et une note risque par risque",
         "--folder": "dossier des notes dans le vault, celui du workflow ; avec --vault",
         "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
       },
       "exit_codes": {
-        "0": "registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts)",
+        "0": "registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts) ; avec --draft, propositions écrites",
         "1": "description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit"
       },
       "input": {
@@ -238,10 +239,12 @@
                     "type": "array",
                     "items": {
                       "type": "string"
-                    }
+                    },
+                    "description": "proposées par le script si absentes"
                   },
                   "impacts": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "proposés par le script si absents"
                   },
                   "gravity": {
                     "type": "integer",
@@ -278,7 +281,8 @@
                           }
                         }
                       }
-                    }
+                    },
+                    "description": "proposées par le script si absentes (exigences et menaces)"
                   },
                   "residual": {
                     "type": "object",
@@ -330,7 +334,11 @@
             "transfers_out",
             "vault",
             "errors",
-            "warnings"
+            "warnings",
+            "proposed",
+            "criteria_added",
+            "draft",
+            "to_rate"
           ],
           "properties": {
             "input": {
@@ -409,6 +417,30 @@
               "items": {
                 "type": "string"
               }
+            },
+            "proposed": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "champs de risque (sources, impacts, measures) remplis par proposition"
+            },
+            "criteria_added": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "critères du CEPD déduits des données et ajoutés"
+            },
+            "draft": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "<nom>.draft.json avec --draft"
+            },
+            "to_rate": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "risques proposés par --draft, à coter"
             }
           }
         }

@@ -1,0 +1,20 @@
+{
+  "model": "aws.threats.json",
+  "rules": [
+    {
+      "match": {
+        "stride": "R"
+      },
+      "status": "traitee"
+    },
+    {
+      "match": {
+        "ids": [
+          "M999"
+        ]
+      },
+      "status": "ecartee",
+      "why": "hors périmètre"
+    }
+  ]
+}
