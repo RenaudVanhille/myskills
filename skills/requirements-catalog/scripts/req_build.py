@@ -14,13 +14,18 @@ dossier `sources`. Le script, et non le modèle :
 - signale une exigence renumérotée alors que sa source porte déjà un
   identifiant, et un identifiant repris absent des sources ;
 - signale doublons, exigences non mesurables et questions ouvertes ;
+- avec --candidates, écrit toutes les phrases non reprises pour un tri par
+  un modèle léger (sous-agent de niveau simple) ; avec son tri (`<nom>.tri.json`,
+  lu d'office), seules les phrases qu'il tient pour des exigences sont
+  signalées, au lieu de la liste de verbes ;
 - avec --laya, demande au modèle local Laya (req_laya.py) si chaque phrase
-  non reprise exprime une exigence, au lieu de la seule liste de verbes, et
-  si la nature et la catégorie déclarées lui semblent justes (avertissements
-  seulement) ; réponses gardées en cache, repli sur la regex sans Laya ;
+  non reprise exprime une exigence, en plus de la liste de verbes, et si la
+  catégorie déclarée lui semble juste (avertissements seulement) ; réponses
+  gardées en cache, repli sur la regex sans Laya ;
 - écrit `exigences.md` (revue) et `exigences.csv` (tableur, séparateur ;).
 
-    uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--laya [--laya-cache FICHIER]] | --schema
+    uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER]
+        [--laya [--laya-cache FICHIER]] | --schema
 """
 
 import argparse
@@ -37,7 +42,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import check as check_schema, print_schema, validate  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -53,12 +58,23 @@ MAX_LISTED = 20
 LAYA = Path(__file__).resolve().parent / "req_laya.py"
 # Probabilité à partir de laquelle Laya tient une phrase pour une exigence. Laya ne fait qu'ajouter des
 # phrases à celles de la regex : mesuré par tests/laya_eval.py, il n'écarte pas assez bien une phrase
-# normative pour qu'on la taise sur son avis.
-LAYA_REQUIREMENT = 0.5
+# normative pour qu'on la taise sur son avis, et 0.3 donne le meilleur F1 (il suit surtout les verbes modaux).
+LAYA_REQUIREMENT = 0.3
 # Version des consignes de req_laya.py, dans la clé du cache : la changer quand elles changent.
 LAYA_PROMPT = 2
-# Confiance à partir de laquelle un désaccord de Laya sur la nature ou la catégorie est signalé.
+# Confiance à partir de laquelle un désaccord de Laya sur la catégorie est signalé. La nature n'est pas
+# contrôlée : mesurée par tests/laya_eval.py, Laya y fait moins bien qu'une réponse fixe.
 LAYA_DISAGREE = 0.7
+# Tri des phrases non reprises par un modèle léger (sous-agent de niveau simple) : consigne écrite dans le
+# fichier des candidats, pour que le sous-agent n'ait besoin de rien d'autre. Mesurée par tests/laya_eval.py.
+TRIAGE_INSTRUCTIONS = (
+    "Pour chaque phrase de items, tirée des documents d'un projet informatique, dis si elle exprime une exigence "
+    "sur le système ou la solution à construire : une fonction, une règle de gestion, une qualité ou une "
+    "contrainte, même écrite au présent de l'indicatif (« le système envoie... », « les données sont "
+    "chiffrées... »). Ce n'est pas une exigence : un constat sur l'existant, du contexte, une opinion, une "
+    "décision ou une organisation de réunion, une tâche pour des personnes du projet. Écris dans le fichier "
+    "output un objet JSON key -> true ou false, pour toutes les phrases, sans autre texte.")
+TRIAGE_SCHEMA = {"type": "object", "additionalProperties": {"type": "boolean"}}
 # Identifiant d'exigence dans un document : REQ-012, EX_F_03, RG.45, RF12...
 SOURCE_ID = re.compile(r"\b[A-Z]{1,6}(?:[-_.][A-Z]{1,6}){0,2}[-_.]?\d{1,4}\b")
 GENERATED_ID = re.compile(r"^(EF|ENF)-\d{3}$")
@@ -150,6 +166,10 @@ def sentences(lines: list[str], every: bool = False):
 
 def laya_key(question: str, text: str) -> str:
     return f"{question}.v{LAYA_PROMPT}:{hashlib.sha1(normalize(text).encode('utf-8')).hexdigest()[:16]}"
+
+
+def triage_key(text: str) -> str:
+    return f"tri:{hashlib.sha1(normalize(text).encode('utf-8')).hexdigest()[:16]}"
 
 
 def flagged(normative: bool, said: dict | None) -> bool:
@@ -247,7 +267,8 @@ def write_csv(path: Path, items: list[dict]) -> None:
 
 
 def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
-          laya_cache: Path | None = None) -> tuple[list, list, dict]:
+          laya_cache: Path | None = None, triage: dict | None = None,
+          candidates_out: Path | None = None) -> tuple[list, list, dict]:
     folder = (base / spec.get("sources", "sources")).resolve()
     if not folder.is_dir():
         errors.append(f"sources : dossier introuvable {folder}")
@@ -348,26 +369,19 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
 
     candidates = [(doc, number, sentence, normative)
                   for doc, lines in sources.items()
-                  for number, sentence, normative in sentences(lines, every=laya_cache is not None)
+                  for number, sentence, normative in sentences(
+                      lines, every=laya_cache is not None or triage is not None or candidates_out is not None)
                   if not any(q and (q in normalize(sentence) or normalize(sentence) in q) for q in quotes)]
     answers, method, dismissed, disagreements = {}, "regles", 0, 0
     if laya_cache is not None:
         kept = [(f"requirements/{i} ({r['id']})", r) for i, r in enumerate(spec["requirements"])
                 if r.get("status", "retenue") == "retenue" and nature(r)]
         asked = [{"key": laya_key("exigence", c[2]), "question": "exigence", "text": c[2]} for c in candidates]
-        for _, r in kept:
-            text = f"{r['title']}. {r['text']}"
-            asked.append({"key": laya_key("nature", text), "question": "nature", "text": text})
-            if r.get("category"):
-                asked.append({"key": laya_key("categorie", text), "question": "categorie", "text": text})
+        asked += [{"key": laya_key("categorie", f"{r['title']}. {r['text']}"), "question": "categorie",
+                   "text": f"{r['title']}. {r['text']}"} for _, r in kept if r.get("category")]
         answers, method = ask_laya(asked, laya_cache, warnings)
         for where, r in kept:
             text = f"{r['title']}. {r['text']}"
-            said = answers.get(laya_key("nature", text), {})
-            if said.get("choice") not in (None, nature(r)) and said.get("confidence", 0) >= LAYA_DISAGREE:
-                disagreements += 1
-                warnings.append(f"{where} : Laya y voit plutôt une exigence {said['choice']} "
-                                f"({said['confidence']}), à vérifier")
             said = answers.get(laya_key("categorie", text), {}) if r.get("category") else {}
             if (said.get("choice") not in (None, r.get("category"), "autre")
                     and said.get("confidence", 0) >= LAYA_DISAGREE):
@@ -375,10 +389,31 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
                 warnings.append(f"{where} : Laya y voit plutôt la catégorie {said['choice']} "
                                 f"({said['confidence']}) que {r['category']}, à vérifier")
 
+    triage = triage or {}
+    if triage and any(triage_key(c[2]) in triage for c in candidates):
+        method = "tri" if method == "regles" else f"tri, {method}"
+    pending = [{"key": triage_key(sentence), "where": f"{doc}:{number}", "text": sentence}
+               for doc, number, sentence, _ in candidates if triage_key(sentence) not in triage]
+    if candidates_out is not None:
+        candidates_out.parent.mkdir(parents=True, exist_ok=True)
+        output = candidates_out.with_name(candidates_out.name.replace(".candidats.json", "") + ".tri.json") \
+            if candidates_out.name.endswith(".candidats.json") else candidates_out.with_suffix(".tri.json")
+        candidates_out.write_text(json.dumps({"instructions": TRIAGE_INSTRUCTIONS, "output": output.name,
+                                              "items": pending}, ensure_ascii=False, indent=1) + "\n",
+                                  encoding="utf-8")
+
     uncovered = []
     for doc, number, sentence, normative in candidates:
         said = answers.get(laya_key("exigence", sentence))
-        if normative:
+        sorted_as = triage.get(triage_key(sentence))
+        if sorted_as is not None:
+            # Tri d'un modèle léger : il décide seul, regex et Laya ne servent qu'aux phrases non triées.
+            if sorted_as:
+                uncovered.append(f"phrase d'exigence non reprise ni écartée (tri) : {doc}:{number} "
+                                 f"« {sentence[:120]} »")
+            else:
+                dismissed += normative or (said is not None and said["probability"] >= LAYA_REQUIREMENT)
+        elif normative:
             uncovered.append(f"phrase normative non reprise ni écartée : {doc}:{number} « {sentence[:120]} »")
             # Phrase que Laya ne tient pas pour une exigence : signalée quand même, comptée à part.
             dismissed += said is not None and said["probability"] < LAYA_REQUIREMENT
@@ -389,7 +424,8 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
     if len(uncovered) > MAX_LISTED:
         warnings.append(f"... et {len(uncovered) - MAX_LISTED} autres phrases d'exigence non reprises")
     return items, ignored, {"documents": len(sources), "uncovered": len(uncovered), "glossary": glossary,
-                            "method": method, "dismissed": dismissed, "disagreements": disagreements}
+                            "method": method, "dismissed": dismissed, "disagreements": disagreements,
+                            "candidates": len(pending) if candidates_out is not None else 0}
 
 
 def main() -> int:
@@ -400,8 +436,12 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier de exigences.md et .csv (défaut : celui du .json)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    parser.add_argument("--candidates", type=Path, nargs="?", const=True,
+                        help="écrit les phrases non reprises à trier (défaut : <nom>.candidats.json à côté du .json)")
+    parser.add_argument("--triage", type=Path,
+                        help="tri des phrases par un modèle léger (défaut : <nom>.tri.json à côté du .json, s'il existe)")
     parser.add_argument("--laya", action="store_true",
-                        help="phrases d'exigence, nature et catégorie contrôlées par le modèle local Laya")
+                        help="phrases d'exigence et catégorie contrôlées par le modèle local Laya")
     parser.add_argument("--laya-cache", type=Path,
                         help="cache des réponses de Laya (défaut : .myskills-tmp/<nom>.laya.json à côté du .json)")
     args = parser.parse_args()
@@ -422,11 +462,20 @@ def main() -> int:
 
     errors: list[str] = []
     warnings: list[str] = []
-    cache = None
+    cache, triage, stem = None, None, args.spec.name.removesuffix(".json")
     if args.laya or args.laya_cache:
-        stem = args.spec.name.removesuffix(".json")
         cache = args.laya_cache or args.spec.parent / ".myskills-tmp" / f"{stem}.laya.json"
-    items, ignored, counts = check(spec, args.spec.parent, errors, warnings, cache)
+    triage_path = args.triage or args.spec.parent / f"{stem}.tri.json"
+    if args.triage or triage_path.is_file():
+        try:
+            triage = json.loads(triage_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"tri : {triage_path} illisible : {error}")
+        else:
+            errors += [f"tri : {e}" for e in check_schema(triage, TRIAGE_SCHEMA)][:10]
+    candidates = args.spec.parent / f"{stem}.candidats.json" if args.candidates is True else args.candidates
+    items, ignored, counts = check(spec, args.spec.parent, errors, warnings, cache,
+                                   triage if not errors else None, candidates)
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     report = {"input": str(args.spec), "outputs": [],
               "functional": sum(nature(r) == "fonctionnelle" for r in kept),
@@ -436,7 +485,7 @@ def main() -> int:
               "documents": counts.get("documents", 0), "uncovered": counts.get("uncovered", 0),
               "glossary": len(spec.get("glossary", [])),
               "method": counts.get("method", "regles"), "dismissed": counts.get("dismissed", 0),
-              "disagreements": counts.get("disagreements", 0),
+              "disagreements": counts.get("disagreements", 0), "candidates": counts.get("candidates", 0),
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))

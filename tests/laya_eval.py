@@ -10,14 +10,16 @@ catégorie. Le script pose à Laya les questions de req_build.py --laya (par
 - exigence : précision, rappel et F1 de Laya au seuil de req_build.py
   (LAYA_REQUIREMENT), ceux de la regex NORMATIVE, ceux de la règle de
   req_build.py (regex ou Laya), et le seuil qui donne le meilleur F1 ;
-- nature et catégorie : part de bonnes réponses, et part des désaccords que
-  req_build.py signalerait à tort (confiance >= LAYA_DISAGREE).
+- catégorie : part de bonnes réponses, et désaccords que req_build.py
+  signalerait à tort (confiance >= LAYA_DISAGREE) ;
+- avec --triage, le tri des phrases par un modèle léger (req_build.py
+  --candidates, puis <nom>.tri.json) : précision, rappel et F1, comme Laya.
 
 Laya est gardé dans req_build.py si la règle regex ou Laya dépasse la regex seule.
 Premier lancement long (PyTorch CPU puis le modèle, ~1,5 Go) ; les réponses
 restent dans le cache. Ce script sert aux tests du dépôt (CI : job laya).
 
-    uv run tests/laya_eval.py [--phrases FICHIER] [--cache FICHIER] [--markdown FICHIER] [--min-gain 0]
+    uv run tests/laya_eval.py [--phrases FICHIER] [--cache FICHIER] [--triage FICHIER] [--markdown FICHIER] [--min-gain 0]
 """
 
 import argparse
@@ -57,12 +59,14 @@ def main() -> int:
     parser.add_argument("--phrases", type=Path, default=ROOT / "tests" / "fixtures" / "laya" / "phrases.json")
     parser.add_argument("--cache", type=Path, default=ROOT / ".myskills-tmp" / "laya-eval.laya.json",
                         help="cache des réponses de Laya (même format que req_build.py --laya-cache)")
+    parser.add_argument("--triage", type=Path, default=ROOT / "tests" / "fixtures" / "laya" / "tri-haiku.json",
+                        help="tri des phrases par un modèle léger, clé de req_build.triage_key -> booléen")
     parser.add_argument("--markdown", type=Path, help="écrit aussi le résultat en Markdown (résumé de CI)")
     parser.add_argument("--min-gain", type=float,
                         help="code 1 si le F1 de la règle regex ou Laya ne dépasse pas celui de la regex d'au moins cette valeur")
     args = parser.parse_args()
 
-    report = {"phrases": 0, "method": None, "exigence": None, "nature": None, "categorie": None,
+    report = {"phrases": 0, "method": None, "exigence": None, "categorie": None, "triage": None,
               "best_threshold": None, "mistakes": [], "errors": [], "warnings": []}
     try:
         phrases = json.loads(args.phrases.read_text(encoding="utf-8"))["phrases"]
@@ -74,7 +78,7 @@ def main() -> int:
     key = rb.laya_key
     asked = [{"key": key("exigence", p["text"]), "question": "exigence", "text": p["text"]} for p in phrases]
     asked += [{"key": key(q, p["text"]), "question": q, "text": p["text"]} for p in phrases
-              for q in ("nature", "categorie") if p.get(q)]
+              for q in ("categorie",) if p.get(q)]
     answers, method = rb.ask_laya(asked, args.cache, report["warnings"])
     report["phrases"], report["method"] = len(phrases), method
     if method == "regles":
@@ -97,7 +101,19 @@ def main() -> int:
             report["mistakes"].append({"question": "exigence", "text": p["text"][:100], "expected": p["exigence"],
                                        "laya": x, "regex": r})
 
-    for question in ("nature", "categorie"):
+    try:
+        sorted_as = json.loads(args.triage.read_text(encoding="utf-8")) if args.triage else {}
+    except (OSError, ValueError) as error:
+        sorted_as = {}
+        report["warnings"].append(f"tri illisible : {error}")
+    if sorted_as:
+        said = [sorted_as.get(rb.triage_key(p["text"])) for p in phrases]
+        report["triage"] = {"file": args.triage.name, "sorted": sum(s is not None for s in said),
+                            **scores([bool(s) for s in said], expected)}
+        report["mistakes"] += [{"question": "tri", "text": p["text"][:100], "expected": p["exigence"], "laya": s}
+                               for p, s in zip(phrases, said) if bool(s) != p["exigence"]]
+
+    for question in ("categorie",):
         labelled = [p for p in phrases if p.get(question)]
         said = [answers.get(key(question, p["text"]), {}) for p in labelled]
         right = sum(s.get("choice") == p[question] for p, s in zip(labelled, said))
@@ -116,12 +132,14 @@ def main() -> int:
                  *(f"| exigence, {label} | {e['laya'][k]} | {e['regex'][k]} | {e['rule'][k]} |"
                    for label, k in ((f"F1 (seuil {e['threshold']})", "f1"), ("précision", "precision"),
                                     ("rappel", "recall"))),
-                 f"| nature, bonnes réponses | {report['nature']['accuracy']} | (déclarée) | |",
                  f"| catégorie, bonnes réponses | {report['categorie']['accuracy']} | (déclarée) | |", "",
                  f"Meilleur seuil pour exigence : {best} (F1 {report['best_threshold']['f1']}). "
-                 f"Fausses alertes de req_build.py : nature {report['nature']['false_alarms']}, "
-                 f"catégorie {report['categorie']['false_alarms']}.", "", "## Erreurs de Laya", "",
-                 "| Question | Phrase | Attendu | Laya |", "| --- | --- | --- | --- |"]
+                 f"Fausses alertes de req_build.py : catégorie {report['categorie']['false_alarms']}.", "",
+                 *([f"Tri par un modèle léger ({report['triage']['file']}, {report['triage']['sorted']} phrases) : "
+                    f"F1 {report['triage']['f1']}, précision {report['triage']['precision']}, "
+                    f"rappel {report['triage']['recall']}.", ""] if report["triage"] else []),
+                 "## Erreurs de Laya et du tri", "",
+                 "| Question | Phrase | Attendu | Réponse |", "| --- | --- | --- | --- |"]
         lines += [f"| {m['question']} | {m['text'].replace('|', '/')} | {m['expected']} | {m['laya']} |"
                   for m in report["mistakes"]]
         args.markdown.write_text("\n".join(lines) + "\n", encoding="utf-8")

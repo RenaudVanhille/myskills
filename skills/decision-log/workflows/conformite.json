@@ -28,12 +28,14 @@
         "exigences.md"
       ],
       "optional": [
-        "sources/*.md",
-        "exigences.csv"
+        "exigences.candidats.json",
+        "exigences.csv",
+        "exigences.tri.json",
+        "sources/*.md"
       ],
       "checks": [
         "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
-        "requirements-catalog : req_build.py exigences.json, zéro erreur et zéro phrase normative non reprise"
+        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
       ],
       "run": [
         {

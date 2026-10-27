@@ -16,7 +16,6 @@ Laya est un petit modèle de décision (licence Apache-2.0) qui tourne sur CPU,
 sans service en ligne. Pour chaque élément de la description, il répond à
 une question :
 - `exigence` : la phrase exprime-t-elle une exigence ? (probabilité de oui) ;
-- `nature` : fonctionnelle ou non-fonctionnelle (choix et confiance) ;
 - `categorie` : catégorie de qualité d'une exigence non fonctionnelle.
 
 req_build.py --laya le lance dans son propre environnement (dépendances
@@ -40,10 +39,6 @@ MAX_CHARS = 2000
 # Consignes en anglais, questions qui citent le champ `phrase` : la forme des exemples de Laya, qui
 # répond mieux ainsi sur des phrases françaises. Changer une consigne : incrémenter LAYA_PROMPT de
 # req_build.py, pour que les réponses en cache ne servent plus.
-NATURES = {"fonctionnelle": "what the system does for its users: a function, a service, a business rule, "
-                            "data it records or shows, a message it sends",
-           "non-fonctionnelle": "how well the system works or a constraint on it: performance, security, "
-                                "availability, compliance, operations, maintainability, portability, cost"}
 CATEGORIES = {"performance": "response time, throughput, volume, load",
               "disponibilite": "availability, continuity, disaster recovery, backup",
               "securite": "authentication, access rights, encryption, audit trail, protection",
@@ -61,8 +56,6 @@ QUESTIONS = {
                  "instructions": "Does `phrase` state a requirement on the system or solution to be built?",
                  "criteria": {"true": "a function, rule, quality or constraint the system must meet",
                               "false": "a fact, context, opinion, meeting, or a task for people, not for the system"}},
-    "nature": {"type": "choice", "instructions": "Is the requirement in `phrase` functional or non-functional?",
-               "criteria": NATURES},
     "categorie": {"type": "choice", "instructions": "Which quality of the system does the requirement in `phrase` "
                                                     "address?", "criteria": CATEGORIES},
 }
