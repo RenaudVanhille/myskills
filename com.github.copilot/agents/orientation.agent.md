@@ -54,7 +54,12 @@ workflow, la commande les trace aussi au journal.
 1. Liste les fichiers fournis (noms seulement, sans les ouvrir), puis
    lance une fois `route.py --query "<la demande telle quelle>" --files
    <fichiers>` (skill `agent-handoff`). Lis le rapport : une phrase par
-   agent et par workflow, classés. Le score n'est qu'un indice.
+   agent et par workflow, classés. Le score n'est qu'un indice. `mission`
+   n'est pas null dans une mission (un répertoire, un vault) : ses
+   workflows passent d'abord, et le dossier de la mission va dans
+   `constraints` (`"mission : <root>"`). Hors mission, une nouvelle
+   avant-vente ou une nouvelle revue d'architecture va à
+   `architecture-workflow` avec `"mission : à ouvrir (avant-vente|revue)"`.
 2. Choisis :
    - un **workflow** dès que la demande enchaîne plusieurs étapes
      (documents puis exigences puis architectures ; code d'infrastructure

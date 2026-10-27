@@ -6,7 +6,8 @@
     "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
     "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout",
     "Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux",
-    "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
+    "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)",
+    "Pour plusieurs dépôts (microservices) : les dépôts de la mission (mission.json, un par service, commit figé) ou code.repos"
   ],
   "produces": [
     "<sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code",

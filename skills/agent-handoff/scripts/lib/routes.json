@@ -10,7 +10,8 @@
     "La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py)",
     "Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout",
     "Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux",
-    "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)"
+    "Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison)",
+    "Pour plusieurs dépôts (microservices) : les dépôts de la mission (mission.json, un par service, commit figé) ou code.repos"
    ],
    "match": "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts."
   },
@@ -22,7 +23,8 @@
     "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
     "Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
     "Le vault Obsidian qui sert de mémoire partagée",
-    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
+    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour",
+    "Ou le dossier d'une mission (mission.json, skill mission-workspace) : son vault, ses documents et ses dépôts, sans les redemander"
    ],
    "match": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
   },
@@ -381,6 +383,16 @@
     "Facultatif : exigences.json (requirements-catalog), cité par les applications ; l'hébergeur cible (shared/providers.json)"
    ],
    "match": "Évalue un portefeuille d'applications pour une migration vers le cloud (ou un autre hébergement) selon les 6R : réhéberger, replateformer, refondre, racheter, retirer ou conserver, avec la raison, l'effort et le risque de chaque choix. Le script contrôle les dépendances, les retraits, l'obsolescence et l'hébergeur cible, puis calcule les vagues de migration. À utiliser pour une étude de migration, un plan de sortie d'un datacenter, une rationalisation du portefeuille applicatif ou un inventaire à trier en 6R."
+  },
+  {
+   "name": "mission-workspace",
+   "level": "simple",
+   "description": "Ouvre et suit un espace de travail par mission : un répertoire, un vault Obsidian unique, pour une avant-vente (documents reçus, solution, chiffrage, schémas, POS) ou une revue d'architecture (documentation et code, un dépôt par service).",
+   "inputs": [
+    "Un dossier par mission : avant-vente (documents reçus, souvent des PDF) ou revue d'architecture (documentation et code, un dépôt par service)",
+    "Facultatif : la description de la mission en JSON (nature, client, échéance, workflows, dépôts, référentiels, écarts acceptés), schéma shared/schemas/mission.schema.json"
+   ],
+   "match": "Ouvre et suit un espace de travail par mission : un répertoire, un vault Obsidian unique, pour une avant-vente (documents reçus, solution, chiffrage, schémas, POS) ou une revue d'architecture (documentation et code, un dépôt par service). Crée mission.json et l'arborescence, démarre le workflow de la nature, fige les commits revus, fait le point dans le vault et contrôle la cohérence entre livrables (exigences, option retenue, chiffrage, revue). À utiliser au début d'une mission, pour savoir où en est une mission ou avant de la livrer."
   },
   {
    "name": "requirements-catalog",

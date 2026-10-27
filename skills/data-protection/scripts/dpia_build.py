@@ -50,6 +50,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
@@ -442,9 +443,11 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
+    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
     if bool(args.vault) != bool(args.folder):
         parser.error("--vault et --folder vont ensemble")
-    errors: list[str] = []
+    errors: list[str] = scoped
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "treatments": 0, "risks": 0, "aipd": None,
               "residual_high": 0, "transfers_out": 0, "proposed": 0, "criteria_added": [], "draft": None,

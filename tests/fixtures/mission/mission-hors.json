@@ -1,0 +1,5 @@
+{
+ "name": "Portail sinistres",
+ "nature": "avant-vente",
+ "vault": "../vault-commun"
+}

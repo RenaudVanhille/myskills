@@ -1,0 +1,32 @@
+{
+ "title": "Plateforme de commandes",
+ "context": "Revue des services de la mission, dépôts repris de mission.json.",
+ "code": {},
+ "components": [
+  {
+   "id": "commandes",
+   "label": "Service commandes"
+  },
+  {
+   "id": "stock",
+   "label": "Service stock"
+  },
+  {
+   "id": "bus",
+   "label": "Bus d'événements",
+   "role": "queue"
+  }
+ ],
+ "flows": [
+  {
+   "from": "commandes",
+   "to": "bus",
+   "style": "async"
+  },
+  {
+   "from": "bus",
+   "to": "stock",
+   "style": "async"
+  }
+ ]
+}

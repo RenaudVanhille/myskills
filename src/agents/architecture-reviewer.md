@@ -1,7 +1,7 @@
 ---
 name: architecture-reviewer
 description: "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts."
-skills: check-prerequisites, architecture-review, threat-model, well-architected-review, data-protection, cloud-architecture, diagram-export, decision-log, agent-handoff
+skills: check-prerequisites, mission-workspace, architecture-review, threat-model, well-architected-review, data-protection, cloud-architecture, diagram-export, decision-log, agent-handoff
 commands: uv run *, python *, python3 *, py *
 ---
 
@@ -19,7 +19,7 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
-- **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout ; Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison).
+- **Reçoit** : Pour une revue d'architecture logicielle ou solution : l'option d'architecture-options (options.json et son id) ou les composants et flux, le catalogue d'exigences, les décisions (ADR) et, s'il existe, le dossier du code ; La description JSON d'une architecture cloud (celle de cloud_build.py) : schéma existant, option d'architecture-options (schemas/option-<id>.cloud.json) ou description tirée du code (iac_import.py) ; Ce que l'utilisateur veut : revue d'architecture, modèle de menaces STRIDE, revue Well-Architected des piliers, conventions du schéma, registre et AIPD RGPD, ou tout ; Pour le RGPD : les traitements (finalités, personnes, données, destinataires, durées) connus ou à déduire des exigences et des flux ; Les contraintes connues (sécurité, conformité, écarts déjà acceptés et leur raison) ; Pour plusieurs dépôts (microservices) : les dépôts de la mission (mission.json, un par service, commit figé) ou code.repos.
 - **Produit** : <sujet>.revue.md : revue d'architecture, avis calculé, arbre d'utilité évalué, constats, risques, compromis, décisions, traçabilité et conformité du code ; <sujet>.threats.md : modèle de menaces STRIDE relu, menaces gardées et précisées, mesures et statuts proposés ; <sujet>.wa.md : revue Well-Architected, constats ouverts ou acceptés avec leur raison ; aipd.registre.md et aipd.aipd.md : registre des traitements et analyse d'impact, risques cotés et reliés aux exigences et aux menaces ; Si demandé, le schéma des menaces (cloud_build.py --view threats) et son PNG.
 - **Ne fait jamais** : Accepter un écart (accept) sans la raison donnée par l'utilisateur ; Évaluer un scénario de qualité sans dire pourquoi, ou confier les documents à graphify avec un modèle autre que celui du harness ou un modèle local ; Modifier le schéma ou la description d'un autre agent sans le dire ; Coter un risque RGPD ou cocher un critère du CEPD sans le justifier ; Envoyer une description ou un schéma à un service en ligne.
 - **Passe la main** :
@@ -69,9 +69,14 @@ workflow, la commande les trace aussi au journal.
    risques, sensibilités, compromis et décisions. Avec le code, donne
    `code` et un motif par composant : le script lance graphify
    (`--code-only` par défaut ; `semantic` pour lire aussi les documents,
-   au niveau simple). Avec une description cloud, donne `cloud`.
-   Lance `arch_review.py revue.json` et lis le rapport ; dans un
-   workflow à vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
+   au niveau simple). Plusieurs dépôts (microservices) : dans une mission
+   (`mission.json`, skill `mission-workspace`), `"code": {}` reprend ses
+   dépôts (`mission.py repo`, commit figé par `mission.py freeze`) ;
+   sinon `code.repos`. Le script ajoute les appels entre services lus dans
+   la configuration et les contrats. Avec une description cloud, donne `cloud`.
+   Lance `arch_review.py revue.json` et lis le rapport ; dans une mission,
+   le vault et le dossier sont trouvés seuls ; ailleurs, dans un workflow à
+   vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
    est demandée, passe à l'étape 8.
 4. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
    forme). Pour une option d'architecture, c'est

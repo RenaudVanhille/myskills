@@ -1,0 +1,12 @@
+{
+ "directed": false,
+ "nodes": [
+  {
+   "id": "n0",
+   "label": "purge",
+   "file_type": "code",
+   "source_file": "src/purge.py"
+  }
+ ],
+ "links": []
+}

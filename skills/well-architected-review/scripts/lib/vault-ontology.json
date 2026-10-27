@@ -17,6 +17,20 @@
     "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}"}
   },
   "types": {
+    "mission": {
+      "label": "Mission",
+      "description": "Note d'index d'une mission (un répertoire, un vault) : nature, client, statut, workflows et leurs étapes, dépôts revus, contrôles de cohérence ; écrite par mission.py (mission-workspace).",
+      "folder": "",
+      "required": ["nature"],
+      "properties": {
+        "nature": {"enum": ["avant-vente", "revue"]},
+        "client": {"type": "string"},
+        "statut": {"enum": ["en-cours", "remise", "gagnee", "perdue", "livree", "abandonnee"]},
+        "echeance": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+        "constats": {"type": "integer", "minimum": 0, "description": "Contrôles de cohérence ouverts (mission.py check)."}
+      },
+      "facets": ["nature", "statut"]
+    },
     "workflow": {
       "label": "Workflow",
       "description": "Note d'index d'un workflow : étapes, statuts, liens vers tout ce qu'il a produit.",
@@ -243,6 +257,7 @@
     "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot", "traitement"], "to": ["exigence", "option-architecture", "application", "adr", "traitement"], "many": true},
     "issu-de": {"label": "issu de", "from": ["constat", "risque", "menace", "lot"], "to": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "many": false},
     "attenue-par": {"label": "atténué par", "from": ["risque", "menace"], "to": ["decision", "adr"], "many": true},
+    "workflows": {"label": "mène le workflow", "from": ["mission"], "to": ["workflow"], "many": true},
     "remplace": {"label": "remplace", "from": ["adr", "application"], "to": ["adr", "application"], "many": true, "same_type": true}
   }
 }

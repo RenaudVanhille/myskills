@@ -33,8 +33,8 @@
             "properties": {
               "format": {"enum": ["json"]},
               "description": {"type": "string"},
-              "same_as": {"type": "string", "pattern": "^[a-z0-9-]+/[\\w-]+\\.py$",
-                          "description": "Même entrée qu'un script d'un autre skill (<skill>/<script>) : scripts/build.py recopie son schéma ici."},
+              "same_as": {"type": "string", "pattern": "^([a-z0-9-]+/[\\w-]+\\.py|shared/schemas/[\\w.-]+\\.schema\\.json)$",
+                          "description": "Même entrée qu'un script d'un autre skill (<skill>/<script>) ou qu'un schéma partagé (shared/schemas/<nom>.schema.json) : scripts/build.py recopie son schéma ici."},
               "schema": {"type": "object", "description": "JSON Schema de la description en entrée."}
             }
           },

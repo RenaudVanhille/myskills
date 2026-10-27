@@ -90,10 +90,13 @@ def lookup(data, dotted: str):
 
 
 def run_step(step: dict, out: Path, failures: list[str]) -> None:
-    if "copy" in step:  # prépare un fichier de travail : {"copy": [source, destination]}
+    if "copy" in step:  # prépare un fichier ou un dossier de travail : {"copy": [source, destination]}
         source, target = (Path(expand(p, out)) for p in step["copy"])
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        if source.is_dir():
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        else:
+            shutil.copyfile(source, target)
         return
     script = expand(step["script"], out)
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
@@ -219,7 +222,10 @@ def check_contracts() -> dict:
                 failures.append(f"{name} : requires vise {need['skill']}/{need['script']}, absent de son contrat")
         for script in contract.get("scripts", []):
             source = (script.get("input") or {}).get("same_as")
-            if source and tuple(source.split("/", 1)) not in required:
+            if source and source.startswith("shared/schemas/"):
+                if not (ROOT / source).is_file():
+                    failures.append(f"{name}/{script['name']} : input.same_as « {source} » introuvable")
+            elif source and tuple(source.split("/", 1)) not in required:
                 failures.append(f"{name}/{script['name']} : input.same_as « {source} » absent de requires")
         for handoff in contract.get("handoffs", []):
             known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
@@ -407,6 +413,13 @@ def check_rules() -> dict:
                 re.search(VAULT_IMPORT, p.read_text(encoding="utf-8"), re.M)
                 for p in (ROOT / "skills" / name / "scripts").glob("*.py")):
             failures.append(f"{name} : écrit dans le vault (vault.writes) sans vérifier ses notes avec vault_ontology")
+        # Un script qui écrit dans le vault (option --vault) prend celui de la mission par défaut, et aucun autre.
+        if contract.get("vault", {}).get("writes"):
+            for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):
+                code = path.read_text(encoding="utf-8")
+                if re.search(r'add_argument\("--vault"', code) and "vault_target(" not in code and "def sync(" not in code:
+                    failures.append(f"{name}/scripts/{path.name} : option --vault sans workspace.vault_target "
+                                    "(vault de la mission par défaut)")
     for name, contract in contracts.items():
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):

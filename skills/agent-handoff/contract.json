@@ -82,7 +82,7 @@
     },
     {
       "name": "route.py",
-      "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation.",
+      "role": "Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation ; dans une mission (mission.json), donne sa nature, ses workflows et son vault, et met ses workflows devant.",
       "usage": "uv run scripts/route.py --query \"TEXTE\" [--files F1 F2...] [--kind agents|workflows|skills|all] [--top N] [--laya [--laya-cache F]] | --list [--kind ...]",
       "options": {
         "--query": "la demande de l'utilisateur, telle quelle",
@@ -108,6 +108,7 @@
             "query",
             "candidates",
             "laya",
+            "mission",
             "errors",
             "warnings"
           ],
@@ -213,6 +214,44 @@
                       "type": "number",
                       "minimum": 0,
                       "maximum": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "mission": {
+              "description": "Mission trouvée (mission.json au-dessus des fichiers ou du dossier courant), sinon null.",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "root",
+                    "nature",
+                    "workflows",
+                    "vault"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "root": {
+                      "type": "string"
+                    },
+                    "nature": {
+                      "enum": [
+                        "avant-vente",
+                        "revue"
+                      ]
+                    },
+                    "workflows": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "vault": {
+                      "type": "string"
                     }
                   }
                 }

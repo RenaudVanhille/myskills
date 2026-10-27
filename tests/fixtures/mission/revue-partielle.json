@@ -1,0 +1,158 @@
+{
+ "title": "Portail de sinistres, option A",
+ "context": "Revue de l'option retenue avant le lancement des développements.",
+ "source": {
+  "options": "options.json",
+  "option": "A"
+ },
+ "layers": [
+  "presentation",
+  "application",
+  "integration"
+ ],
+ "components": [
+  {
+   "id": "portail",
+   "label": "Portail web",
+   "layer": "presentation",
+   "code": [
+    "src/portail/**"
+   ]
+  },
+  {
+   "id": "api",
+   "label": "API déclarations",
+   "layer": "application",
+   "count": 2,
+   "code": [
+    "src/api"
+   ]
+  },
+  {
+   "id": "file",
+   "label": "File de déclarations",
+   "role": "queue",
+   "layer": "integration",
+   "code": [
+    "src/messagerie/*.py"
+   ]
+  },
+  {
+   "id": "outils",
+   "label": "Utilitaires",
+   "layer": "application",
+   "code": [
+    "src/outils/**"
+   ]
+  }
+ ],
+ "scenarios": [
+  {
+   "id": "QS-01",
+   "attribute": "performance",
+   "importance": "haute",
+   "difficulty": "moyenne",
+   "stimulus": "10 000 assurés déclarent après une tempête",
+   "environment": "pic",
+   "response": "les déclarations sont enregistrées",
+   "measure": "95 % en moins de 2 s",
+   "refs": [
+    "ENF-001"
+   ],
+   "components": [
+    "api",
+    "file"
+   ],
+   "status": "satisfait",
+   "note": "mise à l'échelle automatique, file vers la gestion"
+  },
+  {
+   "id": "QS-02",
+   "attribute": "disponibilite",
+   "stimulus": "l'annuaire des assurés ne répond plus",
+   "response": "l'assuré est prévenu et peut revenir plus tard",
+   "refs": [
+    "ENF-002"
+   ],
+   "components": [
+    "api"
+   ],
+   "status": "risque",
+   "note": "aucun mode dégradé prévu"
+  },
+  {
+   "id": "QS-03",
+   "attribute": "securite",
+   "stimulus": "un tiers tente de se connecter avec un mot de passe volé",
+   "response": "la connexion est refusée sans le second facteur",
+   "measure": "100 % des tentatives",
+   "refs": [
+    "ENF-004",
+    "SEC-01"
+   ],
+   "status": "non-satisfait",
+   "note": "MFA non activée par l'annuaire"
+  }
+ ],
+ "risks": [
+  {
+   "id": "R-01",
+   "text": "la connexion bloque si l'annuaire tombe",
+   "severity": "haute",
+   "scenarios": [
+    "QS-02"
+   ]
+  }
+ ],
+ "sensitivities": [
+  {
+   "text": "taille de la file de déclarations",
+   "components": [
+    "file"
+   ],
+   "scenarios": [
+    "QS-01"
+   ]
+  }
+ ],
+ "tradeoffs": [
+  {
+   "text": "file asynchrone : charge absorbée, transmission différée",
+   "attributes": [
+    "performance",
+    "utilisabilite"
+   ],
+   "decision": "ADR-001"
+  },
+  {
+   "text": "MFA : sécurité contre facilité d'accès",
+   "attributes": [
+    "securite",
+    "utilisabilite"
+   ]
+  }
+ ],
+ "decisions": [
+  {
+   "id": "ADR-001",
+   "title": "Option A retenue",
+   "status": "acceptee",
+   "refs": [
+    "ENF-001"
+   ],
+   "file": "adr-architecture.md"
+  },
+  {
+   "id": "ADR-002",
+   "title": "File de messages managée",
+   "status": "proposee",
+   "components": [
+    "file"
+   ]
+  }
+ ],
+ "accept": {
+  "STR-08@portail": "CDN managé, redondant par construction",
+  "OPS-01": "supervision par l'outil central"
+ }
+}

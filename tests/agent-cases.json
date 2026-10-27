@@ -182,6 +182,22 @@
       ]
     },
     {
+      "id": "mission-avant-vente",
+      "agent": "architecture-workflow",
+      "prompt": "Nouvelle avant-vente « Portail sinistres » pour la Mutuelle exemple : ouvre la mission dans ce dossier (les documents reçus sont dans documents/) et mène la première étape jusqu'à sa revue.",
+      "inputs": [
+        {"from": "fixtures/workflow/sources/cahier-des-charges.md", "to": "documents/cahier-des-charges.md"},
+        {"from": "fixtures/workflow/sources/compte-rendu-atelier.md", "to": "documents/compte-rendu-atelier.md"}
+      ],
+      "output": "mission.json",
+      "rubric": [
+        "mission.json décrit une mission de nature avant-vente nommée Portail sinistres, client Mutuelle exemple.",
+        "Le vault de la mission existe avec une note Mission et la note d'index du workflow architecture.",
+        "L'étape documents est soumise à la revue (journal.md) et les documents sont en Markdown dans sources/.",
+        "L'agent n'a pas demandé quel vault utiliser ni passé de vault à la main : c'est celui de la mission."
+      ]
+    },
+    {
       "id": "workflow-cloud-existant",
       "agent": "architecture-workflow",
       "prompt": "Lance le workflow cloud-existant sur le Terraform de infra/, sans vault Obsidian.",

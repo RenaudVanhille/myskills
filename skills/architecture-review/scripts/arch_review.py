@@ -1,5 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
+# dependencies = ["pyyaml>=6"]
 # ///
 """Revue d'une architecture logicielle ou solution décrite en JSON, à la manière d'ATAM.
 
@@ -18,7 +19,12 @@ modèle :
   graphify (skill externe, `graphify extract --code-only` : analyse locale,
   sans modèle ; avec `semantic`, les documents sont lus aussi par le modèle
   du harness ou un modèle local) : dépendances du code absentes des flux,
-  cycles entre composants, fichiers non rattachés ;
+  cycles entre composants, fichiers non rattachés ; avec plusieurs dépôts
+  (`code.repos`, ou ceux de la mission quand `code` est vide), un graphe par
+  dépôt, en parallèle et gardé par commit, et les appels entre services lus
+  dans la configuration et les contrats (URL d'un autre service, base de
+  données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré
+  sans trace, base partagée, dépôt sans composant ;
 - calcule l'avis (défavorable dès un constat haut ouvert, avec réserves dès
   un constat moyen ouvert) et écrit <sujet>.revue.md. Chaque risque noté et
   chaque scénario non satisfait est un constat de sa gravité (RSK-03,
@@ -43,11 +49,13 @@ import json
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
 import vault_ontology  # noqa: E402
+import workspace  # noqa: E402
 from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -101,6 +109,18 @@ RULES = {
                 "Principe des dépendances acycliques (R. C. Martin)"),
     "CODE-03": ("code", "basse", "Code non rattaché à un composant",
                 "Rattacher les fichiers à un composant (code) ou les exclure (.graphifyignore).",
+                "arc42 §5 : correspondance entre briques et code"),
+    "CODE-04": ("code", "moyenne", "Appel entre services absent de l'architecture",
+                "Déclarer le flux s'il est voulu (style async pour un canal), sinon retirer l'appel de la configuration.",
+                "Modèle de réflexion (Murphy, Notkin) : divergence ; microservices.io : communication entre services"),
+    "CODE-05": ("code", "basse", "Flux déclaré sans trace dans le code ni la configuration",
+                "Vérifier le flux (appel par une adresse calculée, passerelle) ou le retirer de l'architecture.",
+                "Modèle de réflexion (Murphy, Notkin) : absence"),
+    "CODE-06": ("code", "moyenne", "Base de données partagée par plusieurs services",
+                "Une base par service propriétaire ; les autres passent par son API ou ses événements.",
+                "Database per service (microservices.io)"),
+    "CODE-07": ("code", "basse", "Dépôt rattaché à aucun composant",
+                "Relier le dépôt à son composant (component du dépôt ou motifs code <dépôt>/...).",
                 "arc42 §5 : correspondance entre briques et code"),
     "TRA-01": ("tracabilite", "haute", "Exigence indispensable sans support",
                "Rattacher l'exigence à un composant (refs), une décision ou un scénario, ou la traiter comme écart.",
@@ -290,58 +310,243 @@ def glob_regex(pattern: str) -> re.Pattern:
     return re.compile(out)
 
 
-def code_graph(base: Path, spec: dict, out_dir: Path, errors: list[str], warnings: list[str]) -> tuple[dict, str] | None:
-    """Graphe du code : graph.json donné, sinon graphify extract (--code-only par défaut)."""
-    code = spec["code"]
-    root = base / code["root"]
+def graph_of(root: Path, given: Path | None, out_dir: Path, semantic: str, label: str,
+             errors: list[str], warnings: list[str]) -> tuple[dict, str] | None:
+    """Graphe d'un dossier de code : graph.json donné, sinon graphify extract (--code-only par défaut)."""
     contract = external_skill.contract("graphify")
-    if code.get("graph"):
-        path = base / code["graph"]
+    if given is not None:
+        path = given
     else:
         contract, entry = external_skill.locate("graphify")
         if entry is None:
-            errors.append("code : " + external_skill.missing_message(contract))
+            errors.append(f"{label} : " + external_skill.missing_message(contract))
             return None
         if not root.is_dir():
-            errors.append(f"code/root : dossier introuvable {root}")
+            errors.append(f"{label} : dossier introuvable {root}")
             return None
         _, warning = external_skill.version(contract, entry)
-        if warning:
+        if warning and warning not in warnings:
             warnings.append(warning)
         # Documents lus par un modèle seulement sur demande : celui du harness (claude) ou un local (ollama),
         # jamais un autre fournisseur (AGENTS.md, section 5).
-        semantic = code.get("semantic", "aucune")
         mode = ["--code-only"] if semantic == "aucune" else ["--backend", semantic] + (
             ["--max-concurrency", "1"] if semantic == "ollama" else [])
-        if semantic != "aucune":
-            warnings.append(f"code : documents de {code['root']} lus par le modèle {semantic} "
-                            "(liens INFERRED, hors des contrôles du code)")
         result = subprocess.run([str(entry), "extract", str(root), *mode, "--out", str(out_dir)],
                                 capture_output=True, text=True, encoding="utf-8", errors="replace")
         path = out_dir / "graphify-out" / "graph.json"
         if result.returncode != 0 or not path.is_file():
             tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["sans message"]
-            errors.append(f"code : graphify extract en échec (code {result.returncode}) : {tail[0]}")
+            errors.append(f"{label} : graphify extract en échec (code {result.returncode}) : {tail[0]}")
             return None
-    graph = load_json(path, "code/graph", errors)
+    graph = load_json(path, f"{label}/graph", errors)
     if graph is None:
         return None
     invalid = check(graph, contract["output_schema"])
     if not invalid and not isinstance(graph.get("links", graph.get("edges")), list):
         invalid = ["racine : liste links ou edges attendue"]
     if invalid:
-        errors += [f"code/graph : {path.name} non conforme au contrat de graphify : {e}" for e in invalid[:5]]
+        errors += [f"{label}/graph : {path.name} non conforme au contrat de graphify : {e}" for e in invalid[:5]]
         return None
     return graph, str(path)
 
 
-def code_review(graph: dict, comps: list[dict], declared: set[tuple[str, str]], add, errors: list[str]) -> dict:
-    """Dépendances du code ramenées aux composants (motifs code) et comparées aux flux déclarés."""
+def code_repos(base: Path, spec: dict, errors: list[str]) -> list[dict] | None:
+    """Dépôts revus : code.repos, sinon ceux de la mission (mission.json) quand code n'a ni root ni repos ;
+    None pour un seul dossier de code (code.root)."""
+    code = spec["code"]
+    if code.get("root") and code.get("repos"):
+        errors.append("code : root ou repos, pas les deux")
+        return []
+    if code.get("root"):
+        return None
+    if code.get("repos"):
+        return [{**r, "root": str(base / r["root"]), "graph": str(base / r["graph"]) if r.get("graph") else None}
+                for r in code["repos"]]
+    root = workspace.find(base)
+    mission, invalid = workspace.load(root) if root else (None, [])
+    errors += invalid
+    repos = workspace.repos(root, mission) if mission else []
+    if not repos and not invalid:
+        errors.append("code : ni root, ni repos, et aucun dépôt dans mission.json (mission.py repo)")
+    return repos
+
+
+def code_graph(base: Path, spec: dict, repos: list[dict] | None, out_dir: Path, errors: list[str],
+               warnings: list[str]) -> tuple[dict, str] | None:
+    """Graphe du code. Plusieurs dépôts : un graphe par dépôt (graphify en parallèle, gardé par commit sous
+    graphify/<dépôt>/), fusionnés avec le nom du dépôt en préfixe des fichiers (<dépôt>/src/...)."""
+    code = spec["code"]
+    semantic = code.get("semantic", "aucune")
+    if semantic != "aucune":
+        warnings.append(f"code : documents lus par le modèle {semantic} (liens INFERRED, hors des contrôles du code)")
+    if repos is None:
+        return graph_of(base / code["root"], base / code["graph"] if code.get("graph") else None, out_dir,
+                        semantic, "code", errors, warnings)
+
+    # graphify absent : une seule erreur pour tous les dépôts à analyser.
+    pending = [r["name"] for r in repos if not r.get("graph")]
+    if pending:
+        contract, entry = external_skill.locate("graphify")
+        if entry is None:
+            errors.append(f"code ({', '.join(pending)}) : " + external_skill.missing_message(contract))
+            return None
+
+    def one(repo):
+        folder = out_dir / "graphify" / repo["name"]
+        given = Path(repo["graph"]) if repo.get("graph") else None
+        marker = folder / "commit.txt"
+        cached = folder / "graphify-out" / "graph.json"
+        if given is None and repo.get("commit") and cached.is_file() and marker.is_file() \
+                and marker.read_text(encoding="utf-8").strip() == repo["commit"]:
+            given = cached
+        local_errors: list[str] = []
+        found = graph_of(Path(repo["root"]), given, folder, semantic, f"code/{repo['name']}", local_errors, warnings)
+        if found and given is None and repo.get("commit"):
+            marker.write_text(repo["commit"] + "\n", encoding="utf-8")
+        return found, local_errors
+
+    with ThreadPoolExecutor(max_workers=min(4, len(repos)) or 1) as pool:
+        results = list(pool.map(one, repos))
+    nodes, links = [], []
+    for repo, (found, local_errors) in zip(repos, results):
+        errors += local_errors
+        if not found:
+            continue
+        graph = found[0]
+        name = repo["name"]
+        for node in graph["nodes"]:
+            source = (node.get("source_file") or "").replace("\\", "/").removeprefix("./")
+            nodes.append({**node, "id": f"{name}:{node['id']}", "source_file": f"{name}/{source}" if source else ""})
+        for link in graph.get("links", graph.get("edges", [])):
+            links.append({**link, "source": f"{name}:{link['source']}", "target": f"{name}:{link['target']}"})
+    if errors:
+        return None
+    return {"nodes": nodes, "links": links}, ", ".join(f"{r['name']} ({p[0][1]})" for r, p in zip(repos, results))
+
+
+CONFIG_SUFFIXES = {".yaml", ".yml", ".json", ".env", ".properties", ".toml", ".ini", ".conf", ".cfg", ".xml", ".tf",
+                   ".hcl"}
+CONFIG_NAMES = re.compile(r"^(dockerfile|(docker-)?compose[\w.-]*|\.env[\w.-]*)$", re.I)
+SKIP_DIRS = {".git", "node_modules", "vendor", "target", "build", "dist", ".venv", "venv", "__pycache__",
+             "graphify-out", ".idea", ".vscode", ".terraform"}
+URL = re.compile(r"\b(?:jdbc:)?([a-z][a-z0-9+.-]*)://(?:[^\s/@\"'<>]*@)?([A-Za-z0-9_-][A-Za-z0-9_.-]*)(?::\d+)?"
+                 r"(/[A-Za-z0-9_.-]*)?", re.I)
+DB_SCHEMES = {"postgres", "postgresql", "mysql", "mariadb", "mongodb", "mongodb+srv", "sqlserver", "oracle",
+              "cockroachdb"}
+ASYNC_SCHEMES = {"amqp", "amqps", "kafka", "nats", "mqtt"}
+MAX_FILES, MAX_BYTES = 3000, 512_000
+
+
+def config_files(root: Path):
+    count = 0
+    for path in sorted(root.rglob("*")):
+        if count >= MAX_FILES:
+            return
+        if any(part in SKIP_DIRS for part in path.relative_to(root).parts[:-1]) or not path.is_file():
+            continue
+        if path.suffix.lower() in CONFIG_SUFFIXES or CONFIG_NAMES.match(path.name):
+            if path.stat().st_size <= MAX_BYTES:
+                count += 1
+                yield path
+
+
+def asyncapi_channels(doc: dict) -> tuple[set[str], set[str]]:
+    """Canaux envoyés et reçus d'un document AsyncAPI 2 (subscribe : l'application envoie) ou 3 (action)."""
+    sends, receives = set(), set()
+    channels = doc.get("channels") or {}
+    if str(doc.get("asyncapi", "")).startswith("2"):
+        for name, channel in channels.items():
+            if isinstance(channel, dict):
+                (sends if "subscribe" in channel else set()).add(name)
+                (receives if "publish" in channel else set()).add(name)
+        return sends, receives
+    for operation in (doc.get("operations") or {}).values():
+        if not isinstance(operation, dict):
+            continue
+        ref = ((operation.get("channel") or {}).get("$ref") or "").rsplit("/", 1)[-1]
+        channel = channels.get(ref) or {}
+        name = channel.get("address") or ref
+        if name:
+            (sends if operation.get("action") == "send" else receives).add(name)
+    return sends, receives
+
+
+def service_calls(repos: list[dict], comps: list[dict], warnings: list[str]) -> tuple[list[dict], dict, dict]:
+    """Appels entre services lus dans la configuration et les contrats de chaque dépôt : URL vers un autre
+    service ou un composant (hôte = dépôt, alias ou identifiant de composant), canaux AsyncAPI ; bases de
+    données citées. Rend les appels, les bases (clé -> dépôts) et le composant de chaque dépôt."""
+    ids = {c["id"].lower(): c["id"] for c in comps}
+    owner = {}
+    for repo in repos:
+        owner[repo["name"]] = repo.get("component") or ids.get(repo["name"].lower())
+    names: dict[str, str] = dict(ids)
+    for repo in repos:
+        if owner[repo["name"]]:
+            for alias in [repo["name"], *repo.get("aliases", [])]:
+                names[alias.lower()] = owner[repo["name"]]
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+        warnings.append("code : pyyaml absent, canaux AsyncAPI non lus (uv run installe pyyaml)")
+    calls: dict[tuple, dict] = {}
+    databases: dict[str, set[str]] = {}
+    sends: dict[str, set[str]] = {}
+    receives: dict[str, set[str]] = {}
+    for repo in repos:
+        root = Path(repo["root"])
+        if not root.is_dir():
+            continue
+        source = owner[repo["name"]]
+        for path in config_files(root):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            where = f"{repo['name']}/{path.relative_to(root).as_posix()}"
+            for match in URL.finditer(text):
+                scheme, host, base_path = match.group(1).lower(), match.group(2).lower(), match.group(3) or ""
+                if scheme in DB_SCHEMES:
+                    databases.setdefault(f"{host}{base_path}", set()).add(repo["name"])
+                target = names.get(host) or names.get(host.split(".")[0])
+                if source and target and target != source:
+                    style = "async" if scheme in ASYNC_SCHEMES else "sync"
+                    calls.setdefault((source, target), {"from": source, "to": target, "style": style,
+                                                        "via": f"{scheme}://{host}", "file": where})
+            if yaml is not None and path.suffix.lower() in (".yaml", ".yml", ".json") and "asyncapi" in text[:2000]:
+                try:
+                    doc = yaml.safe_load(text)
+                except yaml.YAMLError:
+                    continue
+                if isinstance(doc, dict) and doc.get("asyncapi"):
+                    out, inn = asyncapi_channels(doc)
+                    for name in out:
+                        sends.setdefault(name, set()).add(repo["name"])
+                    for name in inn:
+                        receives.setdefault(name, set()).add(repo["name"])
+    for channel, producers in sorted(sends.items()):
+        for producer in sorted(producers):
+            for consumer in sorted(receives.get(channel, set())):
+                a, b = owner.get(producer), owner.get(consumer)
+                if a and b and a != b:
+                    calls.setdefault((a, b), {"from": a, "to": b, "style": "async", "via": f"canal {channel}",
+                                              "file": f"{producer} > {consumer}"})
+    return list(calls.values()), databases, owner
+
+
+def code_review(graph: dict, comps: list[dict], flows: list[dict], repos: list[dict] | None, add,
+                errors: list[str], warnings: list[str]) -> dict:
+    """Dépendances du code ramenées aux composants (motifs code) et comparées aux flux déclarés ; avec
+    plusieurs dépôts, aussi les appels entre services de la configuration."""
+    multi = repos is not None
     patterns = [(c["id"], glob_regex(p)) for c in comps for p in c.get("code", [])]
+    calls, databases, owner = service_calls(repos, comps, warnings) if multi else ([], {}, {})
+    if multi:
+        # Un dépôt relié à un composant sans motif code : tout le dépôt est à lui.
+        patterned = {cid for cid, _ in patterns}
+        patterns += [(cid, glob_regex(f"{name}/**")) for name, cid in owner.items() if cid and cid not in patterned]
     if not patterns:
-        errors.append("code : aucun composant n'a de motif code (fichiers du composant)")
+        errors.append("code : aucun composant n'a de motif code (fichiers du composant)"
+                      + (" ni de dépôt relié (component)" if multi else ""))
         return {}
-    owner: dict[str, str | None] = {}
+    owners: dict[str, str | None] = {}
     files: dict[str, str | None] = {}
     for node in graph["nodes"]:
         source = (node.get("source_file") or "").replace("\\", "/").removeprefix("./")
@@ -349,27 +554,59 @@ def code_review(graph: dict, comps: list[dict], declared: set[tuple[str, str]], 
             continue
         if source not in files:
             files[source] = next((cid for cid, rx in patterns if rx.fullmatch(source)), None)
-        owner[node["id"]] = files[source]
+        owners[node["id"]] = files[source]
     deps: dict[tuple[str, str], int] = {}
     for link in graph.get("links", graph.get("edges", [])):
         if link.get("relation") not in DEPENDS or link.get("confidence", "EXTRACTED") != "EXTRACTED":
             continue
-        a, b = owner.get(link["source"]), owner.get(link["target"])
+        a, b = owners.get(link["source"]), owners.get(link["target"])
         if a and b and a != b:
             deps[(a, b)] = deps.get((a, b), 0) + 1
-    # Un flux déclaré, dans un sens ou dans l'autre, couvre la dépendance du code (appel ou réponse).
-    undeclared = [(a, b) for (a, b) in deps if (a, b) not in declared and (b, a) not in declared]
+    declared = {(f["from"], f["to"]) for f in flows}
+    role = {c["id"]: c.get("role", "system") for c in comps}
+    # Un flux déclaré, dans un sens ou dans l'autre, couvre la dépendance (appel ou réponse) ; un appel par
+    # canal est couvert aussi par un passage par une file déclarée (a > file > b).
+    queued = {(a, c) for a, b in declared for b2, c in declared if b == b2 and role.get(b) == "queue"}
+
+    def covered(a, b):
+        return (a, b) in declared or (b, a) in declared or (a, b) in queued
+
+    undeclared = [(a, b) for (a, b) in deps if not covered(a, b)]
     for a, b in undeclared:
         add("CODE-01", f"{a}>{b}", f"{deps[(a, b)]} dépendance(s) de {a} vers {b} dans le code, aucun flux déclaré")
+    for call in calls:
+        a, b = call["from"], call["to"]
+        if not covered(a, b) and (a, b) not in deps:
+            add("CODE-04", f"{a}>{b}", f"{a} appelle {b} ({call['via']}, {call['file']}), aucun flux déclaré")
     ids = [c["id"] for c in comps]
-    for group in cycles(ids, set(deps)):
-        add("CODE-02", ">".join(group + group[:1]), "composants dépendants les uns des autres dans le code")
+    sync_calls = {(c["from"], c["to"]) for c in calls if c["style"] == "sync"}
+    for group in cycles(ids, set(deps) | sync_calls):
+        add("CODE-02", ">".join(group + group[:1]), "composants dépendants les uns des autres dans le code"
+            + (" ou la configuration" if multi else ""))
     unmapped = sorted(f for f, cid in files.items() if cid is None)
     if unmapped:
         shown = ", ".join(unmapped[:5]) + (" ..." if len(unmapped) > 5 else "")
         add("CODE-03", "code", f"{len(unmapped)} fichier(s) sur {len(files)} : {shown}")
-    return {"files": len(files), "unmapped": len(unmapped), "dependencies": len(deps),
-            "undeclared": [f"{a}>{b}" for a, b in undeclared]}
+    result = {"files": len(files), "unmapped": len(unmapped), "dependencies": len(deps),
+              "undeclared": [f"{a}>{b}" for a, b in undeclared]}
+    if not multi:
+        return result
+    traced = set(deps) | {(c["from"], c["to"]) for c in calls}
+    owned = {cid for cid in owner.values() if cid} | {cid for cid, rx in patterns
+                                                      if any(rx.fullmatch(f) for f in files)}
+    for a, b in sorted(declared, key=lambda e: (ids.index(e[0]) if e[0] in ids else 0, e[1])):
+        if a in owned and b in owned and a != b and (a, b) not in traced and (b, a) not in traced:
+            add("CODE-05", f"{a}>{b}", f"flux {a} > {b} déclaré, aucun appel trouvé entre leurs dépôts")
+    shared = {key: sorted(users) for key, users in databases.items() if len(users) > 1}
+    for key, users in sorted(shared.items()):
+        add("CODE-06", key, f"{key} citée par {', '.join(users)}")
+    for repo in repos:
+        name = repo["name"]
+        if not owner[name] and not any(cid for f, cid in files.items() if f.startswith(f"{name}/") and cid):
+            add("CODE-07", name, f"{name} ({repo['root']}) : ni component, ni motif code qui le vise")
+    result.update({"repos": len(repos), "calls": [f"{c['from']}>{c['to']} ({c['via']})" for c in calls],
+                   "shared_databases": [f"{k} : {', '.join(v)}" for k, v in sorted(shared.items())]})
+    return result
 
 
 def review(spec: dict, base: Path, out_dir: Path) -> dict:
@@ -559,7 +796,7 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
         if not risk.get("owner"):
             add("RSK-02", risk["id"], risk["text"])
 
-    rules = len(RULES) - (0 if spec.get("code") else 3)
+    rules = len(RULES) - (0 if spec.get("code") is not None else sum(1 for r in RULES.values() if r[0] == "code"))
     # Piliers Well-Architected de la description cloud (skill well-architected-review).
     cloud = None
     if spec.get("cloud"):
@@ -585,10 +822,11 @@ def review(spec: dict, base: Path, out_dir: Path) -> dict:
                 cloud = str(path)
 
     code = None
-    if spec.get("code") and not errors:
-        found = code_graph(base, spec, out_dir, errors, warnings)
+    if spec.get("code") is not None and not errors:
+        repos = code_repos(base, spec, errors)
+        found = code_graph(base, spec, repos, out_dir, errors, warnings) if not errors else None
         if found:
-            code = {"graph": found[1], **code_review(found[0], comps, all_edges, add, errors)}
+            code = {"graph": found[1], **code_review(found[0], comps, flows, repos, add, errors, warnings)}
     return {"findings": findings, "comps": comps, "flows": flows, "scenarios": scenarios, "decisions": decisions,
             "catalog": catalog, "trace": trace, "code": code, "cloud": cloud, "rules": rules,
             "errors": errors, "warnings": warnings}
@@ -772,6 +1010,12 @@ def markdown(spec: dict, found: dict, verdict: str) -> str:
                   f"{code['files']} fichier(s), dont {code['unmapped']} non rattaché(s) ; "
                   f"{code['dependencies']} dépendance(s) entre composants, dont {len(code['undeclared'])} "
                   "absente(s) de l'architecture."]
+        if "repos" in code:
+            lines += ["", f"{code['repos']} dépôt(s). Appels entre services lus dans la configuration et les contrats "
+                      f"(URL d'un autre service, canaux AsyncAPI) : {len(code['calls'])}.", ""]
+            lines += [f"- {cell(c)}" for c in code["calls"]] or ["- aucun"]
+            if code["shared_databases"]:
+                lines += ["", "Bases citées par plusieurs dépôts :", ""] + [f"- {cell(s)}" for s in code["shared_databases"]]
     lines += ["", "## À vérifier hors de la description", ""]
     lines += [f"- **{k}** : {v}." for k, v in OFF_DESCRIPTION.items()]
     return "\n".join(lines) + "\n"
@@ -803,6 +1047,11 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
+    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
+    if scoped:
+        print(json.dumps({"input": str(args.spec), "errors": scoped, "warnings": []}, ensure_ascii=False))
+        return 1
     if bool(args.vault) != bool(args.folder):
         parser.error("--vault et --folder vont ensemble")
     if args.vault and not args.vault.is_dir():
