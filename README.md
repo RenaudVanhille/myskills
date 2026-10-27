@@ -267,6 +267,15 @@ dans un sous-agent du niveau de son travail, avec un contexte court.
 
 Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 
+### Titres de PR et versions
+
+Chaque PR a un titre [Conventional Commits](https://www.conventionalcommits.org/fr/)
+(`feat(cloud-cost): grille GCP`, `fix: ...`), vérifié en CI par
+`uv run scripts/check_commit.py "TITRE"`, et se fusionne en squash.
+[release-please](https://github.com/googleapis/release-please) en tire la
+version suivante et `CHANGELOG.md`, dans une PR de release qu'il tient à jour
+sur `main` ; on ne les modifie jamais à la main (AGENTS.md, section 9).
+
 ## Organisation du dépôt
 
 | Chemin | Rôle |
@@ -283,6 +292,8 @@ Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |
 | `scripts/build.py` | Régénère les fichiers générés ; à lancer avant chaque commit (`uv run scripts/build.py`) |
+| `scripts/check_commit.py` | Vérifie un titre de PR ou un message de commit (Conventional Commits), lu par release-please |
+| `release-please-config.json`, `.release-please-manifest.json` | Release automatisée : sections du journal, fichiers dont la version monte, version publiée |
 | `scripts/install.py` | Installation et synchronisation depuis GitHub (`sync`, `status`) pour les cinq outils, en global ou par projet |
 | `tests/` | Documents de test, résultats attendus, `run.py` (scripts), `judge.py` (agents et déclenchement des skills) et `cost.py` (coût des agents, historique dans `costs.csv`) |
 

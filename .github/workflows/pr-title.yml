@@ -1,0 +1,24 @@
+# Titre de PR au format Conventional Commits (scripts/check_commit.py) : en
+# squash, il devient le commit de main que release-please lit pour la version
+# et CHANGELOG.md.
+name: titre-pr
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Titre de la PR
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: uv run scripts/check_commit.py "$TITLE"

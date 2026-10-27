@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "commit-report.schema.json",
+  "title": "Rapport de check_commit.py",
+  "type": "object",
+  "required": ["title", "type", "scope", "breaking", "bump", "errors", "warnings"],
+  "additionalProperties": false,
+  "properties": {
+    "title": {"type": "string", "description": "Première ligne vérifiée."},
+    "type": {"type": ["string", "null"], "description": "Type Conventional Commits (feat, fix...)."},
+    "scope": {"type": ["string", "null"], "description": "Portée entre parenthèses, en général le skill ou l'agent."},
+    "breaking": {"type": "boolean", "description": "Rupture : « ! » ou pied BREAKING CHANGE."},
+    "bump": {"enum": ["major", "minor", "patch", "none"], "description": "Montée de version induite (avant 1.0, major monte le chiffre du milieu)."},
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

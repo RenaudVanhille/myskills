@@ -1,0 +1,26 @@
+# Release automatisée : release-please lit les titres des commits de main
+# (Conventional Commits, un par PR fusionnée en squash), tient à jour une PR
+# « chore(main): release X.Y.Z » qui écrit CHANGELOG.md et la version des
+# manifestes (plugin.json, .claude-plugin/*.json) ; la fusionner crée le tag
+# vX.Y.Z et la release GitHub. Personne n'écrit CHANGELOG.md à la main.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Un jeton personnel (secret RELEASE_PLEASE_TOKEN) fait tourner les
+          # tests sur la PR de release ; GITHUB_TOKEN suffit sinon.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
