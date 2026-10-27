@@ -67,7 +67,11 @@ composants, ses flux, ses écarts et son catalogue d'exigences.
   risque, non-satisfait, a-verifier) et dites pourquoi dans `note` :
   c'est le cœur de la revue, le seul jugement que le script ne fait pas.
 - **Risques** : chaque scénario à risque ou non satisfait a son risque
-  (`scenarios`), avec atténuation et responsable.
+  (`scenarios`), avec atténuation et responsable. Un risque noté reste un
+  constat de sa gravité (RSK-03), et un scénario non satisfait un constat de
+  son importance (QUA-05), tant que l'utilisateur ne l'a pas accepté
+  (`accept`, par exemple `"RSK-03@R-01"`) : une atténuation prévue ne suffit
+  pas à rendre l'avis favorable.
 - **Sensibilités et compromis** : un point de sensibilité est un choix dont
   dépend un attribut (`sensitivities`) ; un compromis en oppose deux
   (`tradeoffs`) et se rattache à la décision qui l'assume.
@@ -107,11 +111,12 @@ uv run scripts/arch_review.py revue.json [--fail-on moyenne]
 | Structure | cycle d'appels synchrones, base partagée par plusieurs composants, dépendance vers une couche supérieure, composant pivot (6 voisins ou plus), chaîne de plus de 4 appels synchrones, dépendance synchrone à un externe sur le parcours utilisateur, point unique de défaillance quand la disponibilité est exigée, composant sans flux |
 | Code | dépendance du code absente de l'architecture, cycle entre composants dans le code, code non rattaché |
 | Traçabilité | exigence indispensable sans composant, décision ni scénario (ou non couverte par l'option), exigence non fonctionnelle sans scénario, composant sans exigence ni décision |
-| Scénarios | non satisfait ou à risque sans risque noté, sans mesure, à vérifier |
-| Décisions et risques | aucune décision, décision proposée, compromis sans décision, risque haut sans atténuation, risque sans responsable |
+| Scénarios | non satisfait ou à risque sans risque noté, non satisfait (gravité : son importance), sans mesure, à vérifier |
+| Décisions et risques | aucune décision, décision proposée, compromis sans décision, risque haut sans atténuation, risque ouvert (gravité : la sienne), risque sans responsable |
 
 Le rapport donne l'avis (`défavorable` dès un constat haut ouvert,
-`favorable avec réserves` dès un constat moyen), les compteurs et les
+`favorable avec réserves` dès un constat moyen ; risques et scénarios non
+satisfaits compris), les compteurs et les
 constats ; `REVUE.revue.md` (ou `revue.md`) reprend l'avis, la synthèse par
 axe, l'arbre d'utilité, les constats, risques, compromis, décisions, la
 traçabilité et ce qui ne se vérifie pas sur une description. Lisez le
