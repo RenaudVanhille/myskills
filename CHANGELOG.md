@@ -1,5 +1,22 @@
 # Journal des versions
 
+## [0.8.0](https://github.com/RenaudVanhille/myskills/compare/v0.7.0...v0.8.0) (2026-10-27)
+
+
+### Ajouts
+
+* **requirements-catalog:** tri des phrases non reprises par un modèle léger, Laya recadré ([#37](https://github.com/RenaudVanhille/myskills/issues/37)) ([88aa9ef](https://github.com/RenaudVanhille/myskills/commit/88aa9efa451b47e5a914f128618e1a51cc7f92f3))
+
+
+### Corrections
+
+* **architecture-review:** risques et scénarios non satisfaits comptés dans la synthèse et l'avis ([#36](https://github.com/RenaudVanhille/myskills/issues/36)) ([094af70](https://github.com/RenaudVanhille/myskills/commit/094af70b8fb900cdca79cb0071a1ecb059e977cb))
+
+
+### Coût et performances
+
+* brouillons et règles pour les menaces, l'AIPD et le chiffrage ([#34](https://github.com/RenaudVanhille/myskills/issues/34)) ([e343575](https://github.com/RenaudVanhille/myskills/commit/e343575902a4de9d3e3f7603a4f05d492c9bef59))
+
 ## 0.7.0 (2026-10-26)
 
 ### Fiabilité
