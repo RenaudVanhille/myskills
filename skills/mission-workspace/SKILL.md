@@ -66,6 +66,10 @@ uv run scripts/mission.py status DOSSIER
 uv run scripts/mission.py check DOSSIER --fail-on haute
 ```
 
+Les règles de complétude propres à la mission (postes attendus du
+chiffrage, scénarios attendus de la revue) vont dans `references.regles`,
+lues par `estimate_build.py` et `arch_review.py`.
+
 Lisez `next`, `counts` et les `findings` du rapport, pas la note du
 vault. Un contrôle ouvert se corrige dans le livrable qu'il cite (la
 correction dans `fix`), ou s'accepte dans `accept` de `mission.json`

@@ -61,10 +61,12 @@ def generated_libs() -> dict[Path, str]:
     # Espace de travail (mission.json et son schéma), pour les skills du vault et le routage.
     workspace = (shared / "workspace.py").read_text(encoding="utf-8")
     mission = (SCHEMAS / "mission.schema.json").read_text(encoding="utf-8")
+    completeness = (SCHEMAS / "rules.schema.json").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
         if contract.get("vault") or name in WORKSPACE_USERS:
             files[REPO / "skills" / name / "scripts" / "lib" / "workspace.py"] = workspace
             files[REPO / "skills" / name / "scripts" / "lib" / "mission.schema.json"] = mission
+            files[REPO / "skills" / name / "scripts" / "lib" / "rules.schema.json"] = completeness
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     # Accès déclaré aux scripts des autres skills (champ requires du contrat).
     paths = (shared / "skill_paths.py").read_text(encoding="utf-8")

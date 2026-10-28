@@ -1,0 +1,76 @@
+{
+ "title": "Portail sinistres",
+ "created": "2026-10-01T09:00:00",
+ "definition": {
+  "stages": [
+   {
+    "id": "exigences",
+    "skills": [
+     "requirements-catalog"
+    ]
+   },
+   {
+    "id": "revue",
+    "skills": [
+     "architecture-review",
+     "threat-model"
+    ]
+   },
+   {
+    "id": "chiffrage",
+    "skills": [
+     "solution-estimate",
+     "cloud-cost"
+    ]
+   }
+  ]
+ },
+ "stages": [
+  {
+   "id": "exigences",
+   "status": "validee"
+  },
+  {
+   "id": "revue",
+   "status": "validee"
+  },
+  {
+   "id": "chiffrage",
+   "status": "validee"
+  }
+ ],
+ "entries": [
+  {
+   "id": "D-001",
+   "date": "2026-10-20T10:00:00",
+   "stage": "chiffrage",
+   "kind": "soumission",
+   "by": "utilisateur",
+   "text": "chiffrage soumis"
+  },
+  {
+   "id": "D-002",
+   "date": "2026-10-20T10:00:00",
+   "stage": "chiffrage",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Il manque les tests de charge dans le chiffrage"
+  },
+  {
+   "id": "D-003",
+   "date": "2026-10-20T10:00:00",
+   "stage": "chiffrage",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Prévoir l'hypercare de deux semaines après la bascule"
+  },
+  {
+   "id": "D-004",
+   "date": "2026-10-20T10:00:00",
+   "stage": "revue",
+   "kind": "retour",
+   "by": "utilisateur",
+   "text": "Le scénario de montée de version sans interruption n'est pas étudié"
+  }
+ ]
+}

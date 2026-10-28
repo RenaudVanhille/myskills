@@ -1,0 +1,83 @@
+{
+ "_doc": "Scénarios de qualité attendus d'une revue (schéma shared/schemas/rules.schema.json, règle QUA-06 d'arch_review.py). Un scénario manque quand sa condition vaut (exigence non fonctionnelle indispensable ou importante de la catégorie) et qu'aucun scénario de son attribut ne suit son motif (pattern, sans accents ni majuscules) dans le stimulus, l'environnement ou la réponse. draft : stimulus du squelette proposé par --draft.",
+ "revue": [
+  {
+   "id": "REV-pointe",
+   "label": "charge de pointe",
+   "attribute": "performance",
+   "pattern": "pic|pointe|charge|simultan|afflux|\\d[\\d  ]* (utilisateurs|assures|requetes|clients|demandes)",
+   "draft": "Pic de charge : N utilisateurs simultanés sur le parcours principal",
+   "when": {
+    "categories": [
+     "performance"
+    ]
+   },
+   "source": "méthode ATAM (SEI) : scénarios de croissance et d'exploration ; campagne de comparaison des modèles (octobre 2026)"
+  },
+  {
+   "id": "REV-panne",
+   "label": "panne d'un composant ou d'une dépendance",
+   "attribute": "disponibilite",
+   "pattern": "panne|defaillance|indisponib|ne repond plus|perte|coupure|tombe",
+   "draft": "Panne du composant le plus sollicité ou d'une dépendance externe",
+   "when": {
+    "categories": [
+     "disponibilite"
+    ]
+   },
+   "source": "méthode ATAM (SEI)"
+  },
+  {
+   "id": "REV-reprise",
+   "label": "reprise après sinistre (perte d'une zone ou d'un site)",
+   "attribute": "disponibilite",
+   "pattern": "sinistre|zone|site|region|datacenter|restauration|\\bpra\\b|\\brpo\\b|\\brto\\b",
+   "draft": "Perte d'une zone ou d'un site d'hébergement",
+   "when": {
+    "categories": [
+     "disponibilite"
+    ]
+   },
+   "source": "méthode ATAM (SEI)"
+  },
+  {
+   "id": "REV-attaque",
+   "label": "attaque ou accès non autorisé",
+   "attribute": "securite",
+   "pattern": "attaqu|intrus|malveillan|non autoris|usurp|vol|fuite|injection|compromi",
+   "draft": "Un attaquant tente d'accéder aux données d'un autre utilisateur",
+   "when": {
+    "categories": [
+     "securite"
+    ]
+   },
+   "source": "méthode ATAM (SEI)"
+  },
+  {
+   "id": "REV-croissance",
+   "label": "croissance du volume ou des utilisateurs",
+   "attribute": "evolutivite",
+   "pattern": "croissance|doubl|tripl|x ?\\d|\\d+ ?%|montee en charge|volume|nouveaux? (clients|pays|utilisateurs)",
+   "draft": "Le nombre d'utilisateurs est multiplié par 3 en un an",
+   "when": {
+    "categories": [
+     "evolutivite"
+    ]
+   },
+   "source": "méthode ATAM (SEI)"
+  },
+  {
+   "id": "REV-exploitation",
+   "label": "incident ou mise à jour en exploitation",
+   "attribute": "exploitabilite",
+   "pattern": "incident|mise a jour|deploi|alerte|diagnosti|supervision|version",
+   "draft": "Un incident de production doit être diagnostiqué par l'exploitation",
+   "when": {
+    "categories": [
+     "exploitabilite"
+    ]
+   },
+   "source": "méthode ATAM (SEI)"
+  }
+ ]
+}

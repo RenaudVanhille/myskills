@@ -56,7 +56,8 @@
         "gabarit-docx": {"type": "string", "minLength": 1, "description": "Modèle Word de la marque (markdown-publish)."},
         "gabarit-potx": {"type": "string", "minLength": 1, "description": "Modèle PowerPoint de la marque."},
         "gabarit-dossier": {"type": "string", "minLength": 1, "description": "Gabarit de sections du dossier (architecture-dossier)."},
-        "hypotheses-ia": {"type": "string", "minLength": 1, "description": "Facteurs d'hypothèses IA du chiffrage (solution-estimate)."}
+        "hypotheses-ia": {"type": "string", "minLength": 1, "description": "Facteurs d'hypothèses IA du chiffrage (solution-estimate)."},
+        "regles": {"type": "string", "minLength": 1, "description": "Règles de complétude de la mission (shared/schemas/rules.schema.json) : postes attendus du chiffrage, scénarios attendus de la revue ; écrites par lessons.py --apply (decision-log)."}
       }
     },
     "accept": {

@@ -1,0 +1,11 @@
+{
+ "chiffrage": [
+  {
+   "id": "CHF-hypercare",
+   "label": "hypercare (support renforcé après la mise en production)",
+   "pattern": "hypercare|support renforce",
+   "phase": "deploiement",
+   "source": "retours D-003 (Portail sinistres), D-001 (Espace adhérents)"
+  }
+ ]
+}

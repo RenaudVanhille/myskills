@@ -55,14 +55,28 @@ un dossier de travail, lancez l'agent avec le prompt, puis notez le résultat :
 
 ```bash
 uv run --with laya tests/judge.py outputs DOSSIER_DE_TRAVAIL
+uv run tests/judge.py --backend checks outputs DOSSIER_DE_TRAVAIL
 ```
+
+Un cas peut aussi porter des contrôles sans modèle (`checks` : fichier
+présent, texte ou motif contenu, valeur ou nombre d'éléments d'un JSON) ;
+`--backend checks` ne fait que ceux-là. La note du cas (`score`, de 0 à 1)
+est la part des contrôles et des affirmations vérifiés.
+
+Les cas `reference-*` (et `migration-evaluation`) sont des missions de
+référence, sur des documents fictifs mais complets : un appel d'offres
+public (`fixtures/references/ao/` : RC, CCTP, BPU, exigences et options),
+un dossier d'architecture reçu d'un prestataire
+(`fixtures/references/dossier-recu/`) et une migration. On les rejoue à
+chaque PR qui touche le chiffrage, la revue ou les workflows.
 
 ### 3. Coût des agents (Claude Code)
 
 `cost.py` joue les cas de `agent-cases.json` dans Claude Code (`claude -p`,
 plugin chargé depuis le dépôt, modèle fixe) et ajoute à `costs.csv` une ligne
 par cas : coût, tokens, nombre de tours, sous-agents lancés, fichier produit
-ou non. Lancez-le avant et après une modification des agents ou des skills
+ou non, et la note de l'exécution (`score` : contrôles du cas par défaut,
+grille avec `--judge laya`) : la qualité se suit avec le coût. Lancez-le avant et après une modification des agents ou des skills
 pour en chiffrer l'effet :
 
 ```bash

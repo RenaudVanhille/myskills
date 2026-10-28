@@ -1,0 +1,10 @@
+{
+ "chiffrage": [
+  {
+   "id": "CHF-x",
+   "label": "x",
+   "pattern": "(hyper",
+   "phase": "bascule"
+  }
+ ]
+}

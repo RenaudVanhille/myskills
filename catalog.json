@@ -2375,7 +2375,8 @@
         "Facultatif : le catalogue d'exigences (exigences.json de requirements-catalog), pour la traçabilité",
         "Facultatif : la description cloud de la même architecture (schemas/option-<id>.cloud.json), pour les piliers Well-Architected",
         "Facultatif : le code source, ou le graph.json déjà produit par graphify, pour comparer le code à l'architecture",
-        "Facultatif : accept, les écarts acceptés avec leur raison"
+        "Facultatif : accept, les écarts acceptés avec leur raison",
+        "Règles de complétude (scénarios attendus) : references/scenarios-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json"
       ],
       "outputs": [
         "<sujet>.revue.md : avis, synthèse par axe, arbre d'utilité (scénarios de qualité et leur évaluation), constats, risques, points de sensibilité et compromis, décisions, traçabilité des exigences, conformité du code, points à vérifier hors de la description",
@@ -2384,7 +2385,7 @@
       "scripts": [
         {
           "name": "arch_review.py",
-          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant.",
+          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure, scénario attendu absent selon les règles de complétude : pointe de charge, panne, sinistre, attaque, croissance, incident), décisions et risques ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant.",
           "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | --rules | --schema",
           "options": {
             "REVUE.json": "description de la revue",
@@ -5148,12 +5149,14 @@
       "inputs": [
         "Dossier du workflow",
         "Commande : init, start, log, check, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
-        "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur"
+        "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur",
+        "Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json)"
       ],
       "outputs": [
         "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
-        "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)"
+        "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)",
+        "lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur"
       ],
       "scripts": [
         {
@@ -5840,6 +5843,394 @@
             "0": "notes écrites, tous les liens résolus",
             "1": "workflow.json ou vault introuvable, fichier lu non conforme au schéma du skill qui l'écrit (workflow.json, exigences.json, options.json, decision.json), note hors ontologie du vault (rien n'est écrit), ou lien cassé"
           }
+        },
+        {
+          "name": "lessons.py",
+          "role": "Capitalise les retours de revue sans modèle : lit les retours du journal de chaque workflow des missions données, les regroupe par mission et par étape en rapprochant ceux qui disent la même chose (mots significatifs communs), repère ceux qui reviennent dans plusieurs missions et, pour une étape de chiffrage ou de revue, propose la règle de complétude qui les attraperait (poste attendu de solution-estimate, scénario attendu d'architecture-review) sauf si une règle en place les couvre déjà ; écrit lecons.md et lecons.json, relus. Avec --apply, ajoute les règles retenues par l'utilisateur au fichier de règles de la mission (references.regles de mission.json) ou de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json), validé avant l'écriture.",
+          "usage": "uv run scripts/lessons.py DOSSIER [DOSSIER...] [--min-missions 2] [--out-dir DOSSIER] | --apply retenues.json --to mission|utilisateur [--mission DOSSIER] | --schema",
+          "options": {
+            "DOSSIER": "racine d'une mission (tous ses workflows) ou dossier d'un workflow (workflow.json)",
+            "--min-missions": "nombre de missions où un retour doit revenir pour proposer une règle (défaut : 2)",
+            "--out-dir": "dossier de lecons.md et lecons.json (défaut : le premier DOSSIER)",
+            "--apply": "règles retenues par l'utilisateur, relues et corrigées depuis lecons.json, au schéma des règles de complétude",
+            "--to": "avec --apply : mission (règles de la mission) ou utilisateur (communes à ses missions)",
+            "--mission": "avec --apply --to mission : dossier de la mission (défaut : celui du fichier des règles retenues)",
+            "--schema": "affiche le schéma JSON des règles retenues sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Règles retenues (--apply), même schéma que les règles de complétude ; validées avant tout traitement, expressions régulières compilées, fichier cible revalidé avant l'écriture.",
+            "same_as": "shared/schemas/rules.schema.json",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "Règles de complétude",
+              "description": "Postes attendus d'un chiffrage (solution-estimate) et scénarios attendus d'une revue (architecture-review). Les règles livrées sont dans le references/ de chaque skill ; celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) puis celles de la mission (references.regles de mission.json) s'y ajoutent, et une règle de même id remplace la précédente ({\"id\", \"off\": true} la retire). Écrit par lessons.py --apply (decision-log) ou à la main.",
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "chiffrage": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/off"
+                      },
+                      {
+                        "$ref": "#/$defs/poste"
+                      }
+                    ]
+                  }
+                },
+                "revue": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/off"
+                      },
+                      {
+                        "$ref": "#/$defs/scenario"
+                      }
+                    ]
+                  }
+                }
+              },
+              "$defs": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                },
+                "off": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "off"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "off": {
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "when": {
+                  "type": "object",
+                  "description": "Conditions, toutes requises (aucune : toujours).",
+                  "additionalProperties": false,
+                  "properties": {
+                    "categories": {
+                      "type": "array",
+                      "minItems": 1,
+                      "description": "Une exigence retenue de l'une de ces catégories existe (pour une revue : non fonctionnelle, indispensable ou importante).",
+                      "items": {
+                        "enum": [
+                          "performance",
+                          "disponibilite",
+                          "securite",
+                          "conformite",
+                          "exploitabilite",
+                          "maintenabilite",
+                          "evolutivite",
+                          "interoperabilite",
+                          "utilisabilite",
+                          "portabilite",
+                          "cout",
+                          "autre"
+                        ]
+                      }
+                    },
+                    "roles": {
+                      "type": "array",
+                      "minItems": 1,
+                      "description": "Un composant de l'architecture a l'un de ces rôles.",
+                      "items": {
+                        "enum": [
+                          "person",
+                          "system",
+                          "external",
+                          "db",
+                          "queue"
+                        ]
+                      }
+                    },
+                    "infra": {
+                      "type": "boolean",
+                      "description": "Chiffrage : des lignes d'infrastructure existent."
+                    },
+                    "cloud": {
+                      "type": "boolean",
+                      "description": "Chiffrage : l'option est hébergée chez un fournisseur cloud et chiffrée avec son infrastructure."
+                    }
+                  }
+                },
+                "poste": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "pattern"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Poste attendu, tel qu'il apparaît dans l'avertissement."
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Expression régulière cherchée, sans accents ni majuscules, dans les lots, l'infrastructure, les hypothèses et les exclusions."
+                    },
+                    "phase": {
+                      "enum": [
+                        "cadrage",
+                        "conception",
+                        "realisation",
+                        "integration",
+                        "tests",
+                        "deploiement",
+                        "migration",
+                        "conduite-changement",
+                        "pilotage"
+                      ],
+                      "description": "Phase dont un lot suffit à couvrir le poste."
+                    },
+                    "draft": {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "phase"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Lot transverse que --draft ajoute quand la règle s'applique.",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "phase": {
+                          "enum": [
+                            "cadrage",
+                            "conception",
+                            "realisation",
+                            "integration",
+                            "tests",
+                            "deploiement",
+                            "migration",
+                            "conduite-changement",
+                            "pilotage"
+                          ]
+                        }
+                      }
+                    },
+                    "when": {
+                      "$ref": "#/$defs/when"
+                    },
+                    "source": {
+                      "type": "string",
+                      "description": "D'où vient la règle : revue passée, retour du journal, référentiel."
+                    }
+                  }
+                },
+                "scenario": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label",
+                    "attribute",
+                    "pattern"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "$ref": "#/$defs/id"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Scénario attendu, tel qu'il apparaît dans le constat."
+                    },
+                    "attribute": {
+                      "enum": [
+                        "performance",
+                        "disponibilite",
+                        "securite",
+                        "conformite",
+                        "exploitabilite",
+                        "maintenabilite",
+                        "evolutivite",
+                        "interoperabilite",
+                        "utilisabilite",
+                        "portabilite",
+                        "cout",
+                        "autre"
+                      ],
+                      "description": "Attribut des scénarios où le chercher."
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Expression régulière cherchée, sans accents ni majuscules, dans le stimulus, l'environnement et la réponse."
+                    },
+                    "draft": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Stimulus du squelette de scénario que --draft propose quand la règle s'applique."
+                    },
+                    "when": {
+                      "$ref": "#/$defs/when"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Missions, retours et leçons comptés, leçons récurrentes, règles proposées et leçons déjà couvertes, fichiers écrits ; avec --apply : fichier de règles visé, règles ajoutées et remplacées.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "missions",
+                    "retours",
+                    "lessons",
+                    "recurring",
+                    "proposed",
+                    "covered",
+                    "outputs",
+                    "errors",
+                    "warnings"
+                  ],
+                  "properties": {
+                    "missions": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "retours": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "lessons": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "recurring": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Leçons qui reviennent dans au moins --min-missions missions."
+                    },
+                    "proposed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Id des règles proposées."
+                    },
+                    "covered": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Leçon récurrente et règle en place qui la couvre déjà."
+                    },
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "input",
+                    "target",
+                    "added",
+                    "replaced",
+                    "errors",
+                    "warnings"
+                  ],
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "target": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "added": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "replaced": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "leçons écrites, ou règles retenues ajoutées",
+            "1": "dossier sans mission ni workflow, journal illisible, règles en place invalides, ou règles retenues invalides (chemin, valeur, expression) : rien n'est écrit"
+          }
         }
       ],
       "requires": [
@@ -5853,6 +6244,18 @@
           "skill": "architecture-options",
           "script": "options_build.py",
           "why": "valider options.json et decision.json avant d'en écrire les notes",
+          "optional": true
+        },
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "why": "lire les postes attendus en place pour ne pas reproposer une règle qui couvre déjà un retour",
+          "optional": true
+        },
+        {
+          "skill": "architecture-review",
+          "script": "arch_review.py",
+          "why": "lire les scénarios attendus en place pour ne pas reproposer une règle qui couvre déjà un retour",
           "optional": true
         }
       ],
@@ -9139,6 +9542,11 @@
                       "type": "string",
                       "minLength": 1,
                       "description": "Facteurs d'hypothèses IA du chiffrage (solution-estimate)."
+                    },
+                    "regles": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Règles de complétude de la mission (shared/schemas/rules.schema.json) : postes attendus du chiffrage, scénarios attendus de la revue ; écrites par lessons.py --apply (decision-log)."
                     }
                   }
                 },
@@ -10020,7 +10428,8 @@
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
         "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions",
         "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
-        "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script"
+        "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
+        "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json"
       ],
       "outputs": [
         "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
@@ -10031,7 +10440,7 @@
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes souvent oubliés (tests de sécurité, hors production, réseau, recette, mise en production, formation), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost) pour que le modèle n'écrive que les charges.",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost) pour que le modèle n'écrive que les charges.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
@@ -11221,6 +11630,13 @@
                           }
                         }
                       }
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Postes attendus absents : id des règles de complétude (references/postes-attendus.json, règles de l'utilisateur et de la mission)."
                     }
                   }
                 },
@@ -11425,6 +11841,13 @@
                       "enum": [
                         "charges"
                       ]
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Postes attendus absents : id des règles de complétude (references/postes-attendus.json, règles de l'utilisateur et de la mission)."
                     }
                   }
                 },

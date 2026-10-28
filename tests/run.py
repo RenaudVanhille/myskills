@@ -511,6 +511,8 @@ def run_case(case: dict, keep: bool) -> dict:
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+    # Règles de complétude de l'utilisateur (~/.myskills/regles.json) ignorées : résultats reproductibles.
+    os.environ["MYSKILLS_REGLES"] = ""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="identifiants des cas, séparés par des virgules")
     parser.add_argument("--slow", action="store_true", help="lancer aussi les cas lents")

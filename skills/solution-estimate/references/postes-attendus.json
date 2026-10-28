@@ -1,0 +1,132 @@
+{
+ "_doc": "Postes souvent oubliés d'un chiffrage (schéma shared/schemas/rules.schema.json). Un poste manque quand sa condition (when) vaut, qu'aucun lot de sa phase n'existe et que son motif (pattern, sans accents ni majuscules) n'apparaît dans aucun lot, ligne d'infrastructure, hypothèse ni exclusion. draft : lot transverse que --draft ajoute. Les règles de l'utilisateur et de la mission s'y ajoutent.",
+ "chiffrage": [
+  {
+   "id": "CHF-securite",
+   "label": "tests de sécurité (test d'intrusion, audit)",
+   "pattern": "intrusion|pentest|audit de securite|tests? de securite",
+   "draft": {
+    "name": "Tests de sécurité (test d'intrusion)",
+    "phase": "tests"
+   },
+   "when": {
+    "categories": [
+     "securite"
+    ]
+   },
+   "source": "postes oubliés relevés par la campagne de comparaison des modèles (octobre 2026)"
+  },
+  {
+   "id": "CHF-hors-production",
+   "label": "environnements hors production (recette, préproduction)",
+   "pattern": "hors.production|recette|preprod|qualification",
+   "when": {
+    "infra": true
+   },
+   "source": "postes oubliés relevés par la campagne de comparaison des modèles (octobre 2026)"
+  },
+  {
+   "id": "CHF-reseau",
+   "label": "réseau (interconnexion, VPN, pare-feu, trafic sortant)",
+   "pattern": "reseau|vpn|pare.feu|firewall|\\bwaf\\b|\\bnat\\b|egress|sortant|interconnexion|bande passante",
+   "when": {
+    "cloud": true
+   },
+   "source": "postes oubliés relevés par la campagne de comparaison des modèles (octobre 2026)"
+  },
+  {
+   "id": "CHF-recette",
+   "label": "recette",
+   "pattern": "recette|tests? fonctionnel",
+   "phase": "tests",
+   "draft": {
+    "name": "Recette",
+    "phase": "tests"
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-mise-en-production",
+   "label": "mise en production",
+   "pattern": "mise en production|deploiement|bascule",
+   "phase": "deploiement",
+   "draft": {
+    "name": "Mise en production",
+    "phase": "deploiement"
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-formation",
+   "label": "formation et conduite du changement",
+   "pattern": "formation|conduite du changement|accompagnement",
+   "phase": "conduite-changement",
+   "draft": {
+    "name": "Formation et conduite du changement",
+    "phase": "conduite-changement"
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-charge",
+   "label": "tests de charge et de performance",
+   "pattern": "tests? de (charge|performance|montee en charge)|\\bstress\\b|tir de (charge|performance)",
+   "draft": {
+    "name": "Tests de charge et de performance",
+    "phase": "tests"
+   },
+   "when": {
+    "categories": [
+     "performance"
+    ]
+   },
+   "source": "postes oubliés relevés par la campagne de comparaison des modèles (octobre 2026)"
+  },
+  {
+   "id": "CHF-sauvegarde",
+   "label": "sauvegarde, restauration et plan de reprise",
+   "pattern": "sauvegarde|backup|\\bpra\\b|\\bpca\\b|reprise d.activite|restauration",
+   "when": {
+    "categories": [
+     "disponibilite"
+    ]
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-supervision",
+   "label": "supervision et exploitation (journaux, alertes, tableaux de bord)",
+   "pattern": "supervision|monitoring|observabilit|journalisation|alertes?|exploitation",
+   "when": {
+    "categories": [
+     "exploitabilite"
+    ]
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-integration",
+   "label": "intégration et tests des interfaces avec les systèmes externes",
+   "pattern": "integration|interface|connecteur|raccordement",
+   "phase": "integration",
+   "when": {
+    "roles": [
+     "external"
+    ]
+   },
+   "source": "pratique de chiffrage"
+  },
+  {
+   "id": "CHF-donnees",
+   "label": "reprise ou initialisation des données",
+   "pattern": "reprise (des|de) donnees|migration (des|de) donnees|initialisation (des|de) donnees|chargement initial|import (des|de) donnees",
+   "phase": "migration",
+   "when": {
+    "roles": [
+     "db"
+    ]
+   },
+   "source": "pratique de chiffrage"
+  }
+ ]
+}
