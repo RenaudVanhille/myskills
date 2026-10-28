@@ -153,18 +153,20 @@ def user_rules() -> Path | None:
     return path if path and path.is_file() else None
 
 
-def rules(kind: str, builtin: Path, starts=()) -> tuple[list[dict], list[str], list[str]]:
-    """Règles de complétude `kind` (chiffrage, revue) : celles livrées avec le skill, puis celles de
-    l'utilisateur, puis celles de la mission des entrées (references.regles). Une règle de même id
-    remplace la précédente ; {"id", "off": true} la retire. Renvoie (règles, fichiers lus, erreurs)."""
-    files = [Path(builtin)]
+def rules(kind: str, builtin: Path | None, starts=()) -> tuple[list[dict], list[str], list[str]]:
+    """Règles `kind` (chiffrage, revue, principes) : celles livrées avec le skill (builtin, s'il y en a),
+    puis celles de l'utilisateur, puis celles de la mission des entrées (references.regles, puis
+    references.principes). Une règle de même id remplace la précédente ; {"id", "off": true} la retire.
+    Renvoie (règles, fichiers lus, erreurs)."""
+    files = [Path(builtin)] if builtin else []
     if user_rules():
         files.append(user_rules())
     root = find(*starts)
     if root is not None:
         mission, _ = load(root)
-        if mission and mission.get("references", {}).get("regles"):
-            files.append(Path(root) / mission["references"]["regles"])
+        for key in ("regles", "principes") if kind == "principes" else ("regles",):
+            if mission and mission.get("references", {}).get(key):
+                files.append(Path(root) / mission["references"][key])
     merged: dict[str, dict] = {}
     errors: list[str] = []
     schema = json.loads(_RULES.read_text(encoding="utf-8"))

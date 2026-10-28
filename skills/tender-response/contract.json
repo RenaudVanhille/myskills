@@ -5,12 +5,14 @@
     "Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown)",
     "Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft",
     "Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence)",
-    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal"
+    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal",
+    "Pour la qualification : qualification.json (note et raison par critère de la grille, décision de l'utilisateur) ; facultatif, une grille propre à l'organisation"
   ],
   "outputs": [
     "ao.md : dépouillement (calendrier et échéances, critères pondérés, pièces à fournir à cocher, format de réponse, clauses à risque par niveau)",
     "conformite.md, conformite.csv et conformite.xlsx : matrice de conformité (réponse par exigence, justification, composants, source)",
-    "questions-client.md : questions à poser avant la date limite ; registre.md et registre.csv : hypothèses, exclusions, prérequis et réponses du client, à reprendre dans l'offre"
+    "questions-client.md : questions à poser avant la date limite ; registre.md et registre.csv : hypothèses, exclusions, prérequis et réponses du client, à reprendre dans l'offre",
+    "qualification.md : grille notée, note sur 100, recommandation go / no-go et décision, tracée au journal"
   ],
   "scripts": [
     {
@@ -947,6 +949,344 @@
           ]
         }
       }
+    },
+    {
+      "name": "qualify.py",
+      "role": "Qualifie un appel d'offres sur une grille pondérée (go / no-go) : valide la grille, exige une note de 0 à 5 justifiée par critère, calcule la note sur 100 et la recommandation (seuils de la grille, critère éliminatoire), exige la raison d'une décision contraire, trace la décision au journal du workflow (--log) ; avec --draft, écrit la grille à noter avec les indices du dépouillement.",
+      "usage": "uv run scripts/qualify.py qualification.json [--out-dir DOSSIER] [--log ETAPE] [--today AAAA-MM-JJ] | qualification.json --draft [--today AAAA-MM-JJ] | --schema",
+      "options": {
+        "qualification.json": "notes par critère et décision ; grid et ao.json relatifs à ce fichier",
+        "--out-dir": "dossier de <nom>.md (défaut : celui du .json)",
+        "--log": "trace la décision au journal du workflow du dossier, à cette étape (journal.py log de decision-log)",
+        "--today": "date du jour pour les indices (défaut : aujourd'hui)",
+        "--draft": "écrit le brouillon (un critère par ligne de la grille, indices du dépouillement), jamais par-dessus un fichier existant",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "qualification écrite (décision absente ou non tracée en avertissement)",
+        "1": "description ou grille invalide, critère non noté ou sans raison, décision contraire sans raison"
+      },
+      "input": {
+        "format": "json",
+        "description": "Notes par critère de la grille et décision de l'utilisateur.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scores"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "_draft": {
+              "type": "string"
+            },
+            "tender": {
+              "type": "string",
+              "description": "dépouillement (ao.json)"
+            },
+            "grid": {
+              "type": "string",
+              "description": "grille propre à l'organisation (défaut : references/grille-qualification.json)"
+            },
+            "scores": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "score": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5
+                  },
+                  "why": {
+                    "type": "string",
+                    "description": "raison de la note (jugement du modèle)"
+                  },
+                  "hint": {
+                    "type": "string",
+                    "description": "indice écrit par --draft"
+                  }
+                }
+              }
+            },
+            "decision": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "choice"
+              ],
+              "properties": {
+                "choice": {
+                  "enum": [
+                    "go",
+                    "go-conditions",
+                    "no-go"
+                  ]
+                },
+                "by": {
+                  "enum": [
+                    "utilisateur",
+                    "agent"
+                  ]
+                },
+                "why": {
+                  "type": "string",
+                  "description": "les mots de l'utilisateur ; obligatoire contre la recommandation"
+                },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "date": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "$defs": {
+            "grid": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "thresholds",
+                "criteria"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "scale": {
+                  "type": "string"
+                },
+                "thresholds": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "go",
+                    "conditions"
+                  ],
+                  "properties": {
+                    "go": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    },
+                    "conditions": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100
+                    }
+                  }
+                },
+                "criteria": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "label",
+                      "weight"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "weight": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "eliminatory": {
+                        "type": "boolean",
+                        "description": "note de 1 ou moins : no-go"
+                      },
+                      "question": {
+                        "type": "string"
+                      },
+                      "hint": {
+                        "enum": [
+                          "remise",
+                          "clauses",
+                          "pieces",
+                          "criteres"
+                        ],
+                        "description": "indice tiré du dépouillement par --draft"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Note sur 100, recommandation, critères éliminatoires, décision et entrée du journal ; ou, avec --draft, critères et indices.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "output",
+                "total",
+                "recommendation",
+                "eliminatory",
+                "decision",
+                "logged",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "total": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "recommendation": {
+                  "enum": [
+                    "go",
+                    "go-conditions",
+                    "no-go",
+                    null
+                  ]
+                },
+                "eliminatory": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "decision": {
+                  "enum": [
+                    "go",
+                    "go-conditions",
+                    "no-go",
+                    null
+                  ]
+                },
+                "logged": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "criteria",
+                "hints",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "criteria": {
+                  "type": "integer"
+                },
+                "hints": {
+                  "type": "integer"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
     }
   ],
   "requires": [
@@ -960,6 +1300,12 @@
       "skill": "architecture-options",
       "script": "options_build.py",
       "why": "valider options.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "decision-log",
+      "script": "journal.py",
+      "why": "tracer la décision go / no-go au journal du workflow (--log)",
       "optional": true
     }
   ],

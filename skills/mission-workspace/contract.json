@@ -185,7 +185,7 @@
                 "principes": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Principes et standards d'architecture du client."
+                  "description": "Principes d'architecture du client (liste principes de shared/schemas/rules.schema.json), vérifiés par la revue (arch_review.py) comme des règles en plus."
                 },
                 "gabarit-docx": {
                   "type": "string",
@@ -211,6 +211,33 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Règles de complétude de la mission (shared/schemas/rules.schema.json) : postes attendus du chiffrage, scénarios attendus de la revue ; écrites par lessons.py --apply (decision-log)."
+                }
+              }
+            },
+            "analogues": {
+              "type": "array",
+              "description": "Missions passées désignées pour calibrer le chiffrage par analogie (solution-estimate) : seul leur chiffrage.json est lu, jamais copié. Rien sans ce champ : chaque mission choisit, pour la confidentialité.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "path"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Dossier de la mission passée (absolu, ou relatif à cette mission), ou son chiffrage.json."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Nom court cité dans le rapport, à la place du chemin."
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "Pourquoi elle est comparable, ou ce qui diffère."
+                  }
                 }
               }
             },

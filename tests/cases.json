@@ -1201,12 +1201,46 @@
       {"script": "{skills}/architecture-dossier/scripts/dossier_build.py", "args": ["{out}/m", "--template", "memoire", "--tender", "{out}/m/ao-court.json", "--out", "{out}/m/court.md", "--strict"], "exit": 1, "report": {"page_budget": 1}, "report_contains": {"errors": "pages pour 1 au plus (annexes exclues)"}}
     ], "files": ["m/memoire-technique.md"], "contains": {"m/memoire-technique.md": ["## 2. Solution proposée", "> Répond au critère C-03 « Architecture proposée et réponse aux exigences du CCTP » (25 %).", "## 5. Maintenance et niveaux de service", "## 6. Hypothèses, exclusions et prérequis", "PRE-01"]}},
     {"id": "workflow-avant-vente", "skill": "decision-log", "_note": "Workflow avant-vente : après les documents, dépouillement (facultatif) et exigences prêts en même temps ; une mission d'avant-vente démarre ce workflow.", "steps": [
-      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "avant-vente", "--title", "Rendez-vous Aubrelac"], "exit": 0, "report": {"errors": [], "current": "documents", "stages.10.id": "soutenance"}},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--definition", "avant-vente", "--title", "Rendez-vous Aubrelac"], "exit": 0, "report": {"errors": [], "current": "documents", "stages.11.id": "soutenance"}},
       {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0},
       {"copy": ["{fixtures}/references/ao/sources/RC.md", "{out}/w/sources/RC.md"]},
       {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "documents"], "exit": 0},
       {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/w", "documents", "--decision", "valide", "--text", "ok"], "exit": 0, "report": {"errors": [], "ready": ["depouillement", "exigences"]}},
       {"script": "{skills}/mission-workspace/scripts/mission.py", "args": ["init", "{out}/av", "--nature", "avant-vente", "--name", "Rendez-vous Aubrelac"], "exit": 0, "report": {"started.0.definition": "avant-vente"}}
+    ]},
+    {"id": "principes-client", "skill": "architecture-review", "_note": "Principes d'architecture du client tirés de la mission (references.principes) : contrôlés comme des règles en plus (PRI-01, gravité du principe), fichier de principes invalide refusé avec suggestions.", "steps": [
+      {"copy": ["{fixtures}/principes/mission.json", "{out}/m/mission.json"]},
+      {"copy": ["{fixtures}/principes/principes.json", "{out}/m/principes.json"]},
+      {"copy": ["{fixtures}/principes/revue.json", "{out}/m/revue.json"]},
+      {"copy": ["{fixtures}/tender/options.json", "{out}/m/options.json"]},
+      {"copy": ["{fixtures}/references/ao/exigences.json", "{out}/m/exigences.json"]},
+      {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{out}/m/revue.json", "--out", "{out}/m/revue.md", "--fail-on", "aucune"], "exit": 0, "report": {"errors": [], "principles": 4, "verdict": "défavorable", "findings.0.rule": "PRI-01", "findings.0.element": "PA-02/api>etatcivil", "findings.0.severity": "haute", "findings.3.element": "PA-03/front", "findings.3.severity": "moyenne"}},
+      {"copy": ["{fixtures}/principes/principes-invalide.json", "{out}/m/principes.json"]},
+      {"script": "{skills}/architecture-review/scripts/arch_review.py", "args": ["{out}/m/revue.json", "--out", "{out}/m/r2.md"], "exit": 1, "report_contains": {"errors": "principes/0/target : « composant » non permis", "errors.1": "principes/0/require : clé inconnue « techno » ; vouliez-vous « tech » ?"}}
+    ], "files": ["m/revue.md"], "contains": {"m/revue.md": ["| Principes du client | 2 | 2 | 0 | 0 |", "| PA-02/api>etatcivil |", "(2 instances au moins, 1 décrite(s))"]}},
+    {"id": "qualification", "skill": "tender-response", "_note": "Qualification go / no-go : note calculée sur la grille (go à 65), décision tracée au journal de l'étape qualification ; critère éliminatoire qui force le no-go, décision contraire sans raison refusée ; critère inconnu, raison manquante et critère non noté signalés d'un coup.", "steps": [
+      {"copy": ["{fixtures}/tender/qualification.json", "{out}/q/qualification.json"]},
+      {"copy": ["{fixtures}/tender/ao.json", "{out}/q/ao.json"]},
+      {"copy": ["{fixtures}/references/ao/sources/RC.md", "{out}/q/sources/RC.md"]},
+      {"script": "{skills}/tender-response/scripts/qualify.py", "args": ["{out}/q/qualification.json", "--draft"], "exit": 1, "report_contains": {"errors": "--draft ne réécrit pas une qualification"}},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/q", "--definition", "avant-vente", "--title", "Rendez-vous Aubrelac"], "exit": 0},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/q", "documents"], "exit": 0},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/q", "documents"], "exit": 0},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["review", "{out}/q", "documents", "--decision", "valide", "--text", "ok"], "exit": 0},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["skip", "{out}/q", "depouillement", "--text", "dossier court"], "exit": 0, "report": {"ready": ["qualification", "exigences"]}},
+      {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/q", "qualification"], "exit": 0},
+      {"script": "{skills}/tender-response/scripts/qualify.py", "args": ["{out}/q/qualification.json", "--log", "qualification", "--today", "2026-10-28"], "exit": 0, "report": {"errors": [], "warnings": [], "total": 69.0, "recommendation": "go", "decision": "go", "eliminatory": []}, "report_contains": {"logged": "D-"}},
+      {"script": "{skills}/tender-response/scripts/qualify.py", "args": ["{fixtures}/tender/qualification-delai.json", "--out-dir", "{out}/d"], "exit": 1, "report": {"total": 63.0, "recommendation": "no-go", "eliminatory": ["delai"]}, "report_contains": {"errors": "decision : go contre la recommandation no-go sans why"}},
+      {"script": "{skills}/tender-response/scripts/qualify.py", "args": ["{fixtures}/tender/qualification-invalide.json", "--out-dir", "{out}/i"], "exit": 1, "report_contains": {"errors": "adequat", "errors.1": "why", "errors.2": "critères non notés : adequation"}}
+    ], "files": ["q/qualification.md"], "contains": {"q/qualification.md": ["**Note : 69 / 100.** Seuils : go à 65, sous conditions à 50.", "**Recommandation : Go.**", "| Capacité à faire (éliminatoire) | 15 | 4/5 | 12 |"]}},
+    {"id": "analogie", "skill": "solution-estimate", "_note": "Calibration par analogie : parts de charge par phase comparées à celles des missions passées désignées dans mission.json (analogues) ; phase hors fourchette et chiffrage passé introuvable en avertissements, seuls les noms des missions dans le rapport ; hors mission, pas de calibration.", "steps": [
+      {"copy": ["{fixtures}/analogie/passees", "{out}/passees"]},
+      {"copy": ["{fixtures}/analogie/mission/mission.json", "{out}/m/mission.json"]},
+      {"copy": ["{fixtures}/workflow/chiffrage.json", "{out}/m/chiffrage.json"]},
+      {"copy": ["{fixtures}/workflow/options.json", "{out}/m/options.json"]},
+      {"copy": ["{fixtures}/workflow/exigences.json", "{out}/m/exigences.json"]},
+      {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/m/chiffrage.json"], "exit": 0, "report": {"errors": [], "analogy.missions": ["Sinistres 2024", "Sinistres 2025"], "analogy.phases.tests.share": 0.138, "analogy.phases.tests.range": [0.212, 0.235], "analogy.phases.realisation.share": 0.539, "analogy.deviations": ["tests"]}, "report_contains": {"warnings": "analogie : phase tests à 14% de la charge, 21% à 24% dans les missions comparées", "warnings.4": "analogues/2 : chiffrage illisible « ../passees/absente »"}},
+      {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage.json", "--out-dir", "{out}/hors"], "exit": 0, "report": {"errors": [], "analogy": null}}
     ]}
   ]
 }

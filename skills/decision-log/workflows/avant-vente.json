@@ -1,7 +1,7 @@
 {
   "name": "avant-vente",
   "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
-  "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) mené en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+  "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
@@ -63,6 +63,40 @@
         }
       ],
       "instructions": "Étape facultative, à faire dès qu'un règlement de consultation est fourni (sinon skip, avec les mots de l'utilisateur). tender_build.py --draft écrit dates, critères pondérés, pièces, format et clauses à risque avec leurs citations ; corriger le thème de chaque critère (il range le mémoire), noter chaque clause (pourquoi, que faire) et ajuster son niveau. À la revue, donner d'abord les jours restants avant la date limite des questions et la remise (deadlines du rapport). Une clause acceptée en l'état se note au journal."
+    },
+    {
+      "id": "qualification",
+      "label": "Qualification go / no-go",
+      "level": "complexe",
+      "after": [
+        "depouillement"
+      ],
+      "facultative": true,
+      "skills": [
+        "tender-response",
+        "decision-log"
+      ],
+      "inputs": [
+        "ao.json",
+        "ao.md"
+      ],
+      "deliverables": [
+        "qualification.json",
+        "qualification.md"
+      ],
+      "checks": [
+        "tender-response : qualify.py qualification.json --draft, notes et raisons, puis qualify.py qualification.json --log qualification une fois la décision de l'utilisateur écrite (note et recommandation calculées, décision tracée au journal)"
+      ],
+      "run": [
+        {
+          "skill": "tender-response",
+          "script": "qualify.py",
+          "args": [
+            "qualification.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, juste après le dépouillement : décider s'il faut répondre avant d'engager le travail. Le brouillon reprend la grille et les indices du dépouillement (jours avant la remise, clauses à risque, pièces, critères) ; noter chaque critère de 0 à 5 avec sa raison. À la revue, présenter la note, la recommandation et les critères faibles ; la décision est celle de l'utilisateur (decision : choice, by, why avec ses mots, conditions). Un no-go arrête le workflow : sauter les étapes suivantes avec ses mots."
     },
     {
       "id": "exigences",
@@ -136,7 +170,11 @@
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire.",
+      "after": [
+        "exigences",
+        "qualification"
+      ]
     },
     {
       "id": "schemas",

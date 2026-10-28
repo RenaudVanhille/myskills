@@ -1,0 +1,20 @@
+{
+ "name": "Portail sinistres 2026",
+ "nature": "avant-vente",
+ "client": "Mutuelle d'Aubrelac",
+ "analogues": [
+  {
+   "path": "../passees/sinistres-2024",
+   "name": "Sinistres 2024",
+   "note": "même client, même périmètre"
+  },
+  {
+   "path": "../passees/sinistres-2025/chiffrage.json",
+   "name": "Sinistres 2025"
+  },
+  {
+   "path": "../passees/absente",
+   "name": "Absente"
+  }
+ ]
+}

@@ -63,7 +63,7 @@ from spec_schema import check, print_schema, validate  # noqa: E402
 SEVERITIES = ("haute", "moyenne", "basse")
 AXES = {"structure": "Structure", "code": "Code et architecture", "tracabilite": "Traçabilité des exigences",
         "qualite": "Scénarios de qualité", "decisions": "Décisions", "risques": "Risques",
-        "well-architected": "Well-Architected (cloud)"}
+        "well-architected": "Well-Architected (cloud)", "principes": "Principes du client"}
 ATTRIBUTES = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
               "conformite": "Conformité", "exploitabilite": "Exploitabilité", "maintenabilite": "Maintenabilité",
               "evolutivite": "Évolutivité", "interoperabilite": "Interopérabilité", "utilisabilite": "Utilisabilité",
@@ -161,6 +161,10 @@ RULES = {
     "RSK-01": ("risques", "haute", "Risque haut sans mesure d'atténuation",
                "Donner la mesure d'atténuation (mitigation) ou changer l'architecture.", f"arc42 §11 ; {ATAM}"),
     "RSK-02": ("risques", "basse", "Risque sans responsable", "Nommer le responsable (owner).", "arc42 §11"),
+    # Gravité variable : celle du principe (references.principes de la mission).
+    "PRI-01": ("principes", "gravité du principe", "Principe d'architecture du client non respecté",
+               "Respecter le principe, ou faire accepter l'écart (accept) avec la raison du client.",
+               "principes d'architecture du client (references.principes de mission.json)"),
     # Gravité variable : celle du risque.
     "RSK-03": ("risques", "gravité du risque", "Risque ouvert",
                "Traiter le risque (changer l'architecture) ou le faire accepter (accept) avec sa raison.",
@@ -621,6 +625,55 @@ def plain(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
+def count_of(comp: dict) -> int:
+    """Nombre d'instances d'un composant : count (2, « 2-10 » : le minimum), 1 par défaut."""
+    found = re.match(r"\s*(\d+)", str(comp.get("count", 1)))
+    return int(found.group(1)) if found else 1
+
+
+def fits(item: dict, field: str, value) -> bool:
+    if field == "count_min":
+        return count_of(item) >= value
+    if field == "style":
+        return item.get("style", "sync") == value
+    return bool(re.search(value, plain(item.get(field, ""))))
+
+
+def said(item: dict, field: str, value, required: bool) -> str:
+    """Écart à un principe, en clair : ce qui est exigé ou interdit, et ce que l'élément a."""
+    if field == "count_min":
+        return f"{value} instances au moins, {count_of(item)} décrite(s)"
+    if field == "style":
+        return f"flux {value} " + ("exigé" if required else "interdit")
+    have = item.get(field) or "absent"
+    return f"{field} « {have} » " + (f"hors de « {value} »" if required else f"interdit (« {value} »)")
+
+
+def principles(rules: list[dict], comps: list[dict], flows: list[dict]) -> list[tuple[str, str, str]]:
+    """(principe/élément, message, gravité) des écarts aux principes d'architecture du client."""
+    roles = {c["id"]: c.get("role", "system") for c in comps}
+    broken = []
+    for rule in rules:
+        select = rule.get("select", {})
+        if rule["target"] == "composants":
+            items = [(c["id"], c) for c in comps
+                     if (not select.get("roles") or c.get("role", "system") in select["roles"])]
+        else:
+            items = [(f"{f['from']}>{f['to']}", f) for f in flows
+                     if (not select.get("from_roles") or roles.get(f["from"]) in select["from_roles"])
+                     and (not select.get("to_roles") or roles.get(f["to"]) in select["to_roles"])
+                     and (not select.get("style") or f.get("style", "sync") == select["style"])]
+        for element, item in items:
+            if any(not fits(item, key, select[key]) for key in ("tech", "label") if select.get(key)):
+                continue
+            why = [said(item, k, v, True) for k, v in rule.get("require", {}).items() if not fits(item, k, v)]
+            why += [said(item, k, v, False) for k, v in rule.get("forbid", {}).items() if fits(item, k, v)]
+            if why:
+                broken.append((f"{rule['id']}/{element}", f"{rule['label']} ({', '.join(why)})",
+                               rule.get("severity", "moyenne")))
+    return broken
+
+
 def expected(rules: list[dict], catalog: dict, comps: list[dict], scenarios) -> list[dict]:
     """Règles de scénario attendu qui s'appliquent (exigence non fonctionnelle indispensable ou importante de
     la catégorie, rôle de composant) et qu'aucun scénario de leur attribut ne suit."""
@@ -706,7 +759,8 @@ def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
     return report
 
 
-def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None) -> dict:
+def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None,
+           client: list[dict] | None = None) -> dict:
     errors: list[str] = []
     warnings: list[str] = []
     findings: list[dict] = []
@@ -879,6 +933,8 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
     if catalog:
         for rule in expected(rules or [], catalog, comps, scenarios.values()):
             add("QUA-06", rule["id"], f"{rule['label']} ({ATTRIBUTES.get(rule['attribute'], rule['attribute'])})")
+    for element, message, severity in principles(client or [], comps, flows):
+        add("PRI-01", element, message, severity)
     if not decisions:
         add("DEC-01", "architecture", "aucune décision dans decisions")
     for dec in decisions.values():
@@ -896,7 +952,8 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
         if not risk.get("owner"):
             add("RSK-02", risk["id"], risk["text"])
 
-    rules = len(RULES) - (0 if spec.get("code") is not None else sum(1 for r in RULES.values() if r[0] == "code"))
+    rules = len(RULES) - (0 if spec.get("code") is not None else sum(1 for r in RULES.values() if r[0] == "code")) \
+        - (0 if client else 1) + len(client or [])
     # Piliers Well-Architected de la description cloud (skill well-architected-review).
     cloud = None
     if spec.get("cloud"):
@@ -929,6 +986,7 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
             code = {"graph": found[1], **code_review(found[0], comps, flows, repos, add, errors, warnings)}
     return {"findings": findings, "comps": comps, "flows": flows, "scenarios": scenarios, "decisions": decisions,
             "catalog": catalog, "trace": trace, "code": code, "cloud": cloud, "rules": rules,
+            "principles": len(client or []),
             "errors": errors, "warnings": warnings}
 
 
@@ -1179,12 +1237,14 @@ def main() -> int:
         return 1
     # Scénarios attendus : règles livrées, de l'utilisateur et de la mission.
     rules, _, invalid = workspace.rules("revue", EXPECTED, [args.spec])
-    if invalid:
-        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+    # Principes d'architecture du client (mission : references.principes), vérifiés comme des règles en plus.
+    client, _, wrong = workspace.rules("principes", None, [args.spec])
+    if invalid or wrong:
+        print(json.dumps({"input": str(args.spec), "errors": invalid + wrong, "warnings": []}, ensure_ascii=False))
         return 1
     stem = args.spec.name.removesuffix(".json")
     out = args.out or args.spec.with_name(stem + (".md" if stem.endswith("revue") else ".revue.md"))
-    found = review(spec, args.spec.parent, out.parent, rules)
+    found = review(spec, args.spec.parent, out.parent, rules, client)
     if "findings" not in found:
         print(json.dumps({"input": str(args.spec), "errors": found["errors"], "warnings": found["warnings"]},
                          ensure_ascii=False))
@@ -1199,7 +1259,7 @@ def main() -> int:
     trace = {k: v for k, v in found["trace"].items() if k != "rows"} if found["trace"] else None
     result = {"input": str(args.spec), "output": None, "verdict": verdict, "components": len(found["comps"]),
               "flows": len(found["flows"]), "scenarios": len(found["scenarios"]), "risks": len(spec.get("risks", [])),
-              "rules": found["rules"], "counts": counts, "findings": findings, "trace": trace, "code": found["code"],
+              "rules": found["rules"], "principles": found["principles"], "counts": counts, "findings": findings, "trace": trace, "code": found["code"],
               "cloud": found["cloud"], "vault": None, "errors": errors, "warnings": warnings}
     if not errors:
         out.parent.mkdir(parents=True, exist_ok=True)
