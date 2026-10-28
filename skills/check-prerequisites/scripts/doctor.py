@@ -32,9 +32,13 @@ GROUPS = {
     "extraction": [
         UV,
         ("MarkItDown installé à part (sinon fourni par uv)", "facultatif",
-         lambda: shutil.which("markitdown") is not None, 'uv tool install "markitdown[all]"'),
+         lambda: shutil.which("markitdown") is not None, 'uv tool install "markitdown[docx,pptx,xlsx,xls,pdf,outlook]"'),
         ("Docling installé à part (sinon lancé par uvx, ~2 Go au premier lancement)", "facultatif",
          lambda: shutil.which("docling") is not None, "uv tool install docling"),
+        ("Tesseract (OCR local des PDF scannés ; sinon transcription par la vision)", "facultatif",
+         lambda: shutil.which("tesseract") is not None,
+         "winget install UB-Mannheim.TesseractOCR | brew install tesseract tesseract-lang | "
+         "apt install tesseract-ocr tesseract-ocr-fra"),
     ],
     "schemas": [
         UV,

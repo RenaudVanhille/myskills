@@ -57,13 +57,20 @@ Le script choisit le moteur (`--engine auto`, par défaut) :
 | --- | --- | --- |
 | DOCX, PPTX, XLSX | MarkItDown | Rapide, garde titres, tableaux et images |
 | PDF avec texte | MarkItDown | Rapide |
-| PDF scanné (pages sans texte) | Docling | OCR ; repli sur MarkItDown si Docling échoue |
+| PDF scanné (pages sans texte) | Docling avec Tesseract | OCR local ; sans Tesseract ou si Docling échoue, MarkItDown et vision |
 | Image | Copie dans `attachments/` | Contenu à transcrire par vision (étape 3) |
 
 Avec `--classify`, un PDF que Laya juge riche en tableaux ou en colonnes part
 aussi sur Docling. Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
 colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
 (~2 Go de modèles téléchargés une fois).
+
+L'OCR de Docling est toujours Tesseract installé en local (langues `fra`,
+`eng`), jamais RapidOCR, son choix par défaut, qui télécharge ses modèles
+depuis ModelScope (modelscope.cn). N'appelez pas `docling` ni `markitdown`
+directement sur un document : passez par `convert.py`. Audio et vidéo sont
+refusés : Docling les transcrit avec des modèles téléchargés et MarkItDown
+envoie le son à un service de reconnaissance vocale en ligne.
 
 Le script écrit `DOSSIER/<nom>.md`, extrait les images dans
 `DOSSIER/attachments/` et affiche un rapport JSON par fichier : `engine`,

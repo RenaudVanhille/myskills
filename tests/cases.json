@@ -74,6 +74,17 @@
       ]
     },
     {
+      "id": "video-refusee",
+      "skill": "doc-to-markdown",
+      "_note": "Audio et vidéo refusés : ni transcription Docling (modèles téléchargés) ni MarkItDown (reconnaissance vocale en ligne).",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/demo.mp4", "--out", "{out}"],
+         "exit": 1, "report_contains": {"results.0.error": "audio ou vidéo non pris en charge"}}
+      ],
+      "absent": ["demo.md"]
+    },
+    {
       "id": "pdf-scanne-docling",
       "skill": "doc-to-markdown",
       "slow": true,

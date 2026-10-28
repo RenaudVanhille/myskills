@@ -19,6 +19,13 @@ Moteurs :
     docling     PDF scannés (OCR) ou riches en tableaux ; lancé via `uvx`
                 s'il n'est pas installé (premier lancement long : ~2 Go)
 
+L'OCR de Docling passe par Tesseract installé en local, jamais par son
+choix automatique : RapidOCR, qu'il prend par défaut, télécharge ses modèles
+depuis ModelScope (modelscope.cn). Sans Tesseract, Docling tourne sans OCR et
+les pages scannées vont à la vision. Les fichiers audio et vidéo sont refusés
+(Docling les transcrit avec des modèles téléchargés, MarkItDown les envoie à
+un service de reconnaissance vocale en ligne).
+
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
 ou en colonnes part sur Docling en mode auto.
@@ -64,6 +71,10 @@ from script_report import print_report  # noqa: E402
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+# Audio et vidéo : non pris en charge (transcription par modèle ou service en ligne).
+MEDIA = {".mp4", ".m4a", ".mov", ".avi", ".mkv", ".webm", ".mp3", ".wav", ".ogg", ".flac"}
+# Langues OCR de Tesseract essayées, dans l'ordre (fichiers .traineddata).
+OCR_LANGS = ("fra", "eng")
 # Documents pris dans un dossier passé en argument.
 CONVERTIBLE = OFFICE | IMAGES | {".pdf", ".html", ".htm", ".csv", ".epub"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
@@ -219,6 +230,27 @@ def docling_command() -> list[str] | None:
     return None
 
 
+def tesseract_langs() -> list[str]:
+    """Langues de OCR_LANGS installées pour Tesseract ; vide sans Tesseract."""
+    if not shutil.which("tesseract"):
+        return []
+    try:
+        listed = subprocess.run(["tesseract", "--list-langs"], capture_output=True,
+                                text=True, encoding="utf-8", timeout=30).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [lang for lang in OCR_LANGS if lang in listed]
+
+
+def docling_ocr_args() -> list[str]:
+    """OCR de Docling : Tesseract local, sinon aucun. Jamais le choix
+    automatique, qui prend RapidOCR et télécharge ses modèles sur ModelScope."""
+    langs = tesseract_langs()
+    if not langs:
+        return ["--no-ocr"]
+    return ["--ocr-engine", "tesseract_cli", "--ocr-lang", ",".join(langs)]
+
+
 # Docling prend déjà tous les cœurs et beaucoup de mémoire : un document à la fois.
 DOCLING_SLOT = threading.Semaphore(1)
 
@@ -228,9 +260,10 @@ def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
     if command is None:
         raise RuntimeError("Docling introuvable : installez-le (uv tool install docling).")
     with tempfile.TemporaryDirectory() as tmp:
+        env = {**os.environ, "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
         subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
-                                  "referenced", "--output", tmp],
-                       check=True, capture_output=True, text=True)
+                                  "referenced", *docling_ocr_args(), "--output", tmp],
+                       check=True, capture_output=True, text=True, env=env)
         tmp_dir = Path(tmp)
         markdown = next(tmp_dir.glob("*.md")).read_text(encoding="utf-8")
         count = 0
@@ -304,6 +337,9 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         report["classification"] = {key: classification[key] for key in
                                     ("type", "domaine", "tables", "engine", "method", "warnings")}
 
+    if suffix in MEDIA:
+        raise ValueError("audio ou vidéo non pris en charge : la transcription locale n'est pas "
+                         "fournie (Docling télécharge des modèles, MarkItDown appelle un service en ligne)")
     if suffix in IMAGES:
         report["type"], report["engine"] = "image", "copie"
         attachments.mkdir(parents=True, exist_ok=True)
@@ -322,8 +358,13 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
             if profile["scanned_pages"]:
                 report["warnings"].append(
                     f"Pages sans texte (scannées ?) : {profile['scanned_pages']}")
-                if engine == "auto":
+                ocr = bool(tesseract_langs())
+                if engine == "auto" and ocr:
                     engine = "docling"
+                elif not ocr:
+                    report["warnings"].append(
+                        "OCR local absent (Tesseract) : pages scannées à transcrire par la vision")
+                    report["needs_vision"] = True
             if engine == "auto" and classification and classification["engine"] == "docling":
                 report["warnings"].append(
                     f"Tableaux ou colonnes probables ({classification['tables']}) : Docling")

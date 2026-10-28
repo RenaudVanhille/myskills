@@ -59,6 +59,10 @@ workflow, la commande les trace aussi au journal.
    ajoute `--classify` : le modèle local Laya trie les documents sans
    dépenser tes tokens. Pour reprendre un lot déjà en partie converti,
    ajoute `--skip-existing`, qui garde les Markdown déjà corrigés.
+   N'appelle jamais `docling` ni `markitdown` directement : `convert.py`
+   impose l'OCR local (Tesseract), sans téléchargement de modèles depuis
+   ModelScope. Une vidéo ou un fichier audio n'est pas pris en charge :
+   mets-le dans `todo`, sans chercher d'autre outil.
 4. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
    niveau de chaque correction avec la grille ci-dessous. Fais toutes les
    corrections d'un fichier, puis relance `validate.py` une fois ; 3 essais
