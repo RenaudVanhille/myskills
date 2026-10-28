@@ -76,7 +76,7 @@
     {
       "id": "video-images-cles",
       "skill": "doc-to-markdown",
-      "_note": "Vidéo de démo (3 écrans) par convert.py puis video.py (flux réseau filtrés), une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
+      "_note": "Vidéo (3 écrans successifs) par convert.py puis video.py (flux réseau filtrés), une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/demo-portail.mp4", "--out", "{out}"], "env": {"MYSKILLS_MODELS": "{out}/modeles"},

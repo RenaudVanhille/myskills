@@ -1,6 +1,6 @@
 ---
 name: doc-to-markdown
-description: "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown."
+description: "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (atelier, kick-off, présentation, démonstration...) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown."
 ---
 
 # doc-to-markdown
@@ -73,7 +73,8 @@ directement sur un document : passez par `convert.py`.
 
 ### Vidéo ou audio
 
-`convert.py` confie une vidéo (démo applicative...) ou un audio à
+`convert.py` confie une vidéo (atelier, kick-off, présentation,
+démonstration...) ou un audio à
 `scripts/video.py`, qu'on peut aussi lancer seul :
 
 ```bash
@@ -83,7 +84,7 @@ uv run scripts/video.py VIDEO [...] --out DOSSIER [--language fr] [--no-audio]
 Tout reste sur la machine : le script limite ses flux réseau aux hôtes
 identifiés (`model-sources.json`, proxy, machine locale ; tout autre flux est
 refusé et listé dans `warnings`) avant tout travail,
-garde une image à chaque changement d'écran (`DOSSIER/attachments/<nom>-NN.png`,
+garde une image à chaque changement de l'image (diapositive, écran, tableau) (`DOSSIER/attachments/<nom>-NN.png`,
 listées dans `vision_pages`) et transcrit la parole avec faster-whisper et le
 modèle `whisper-small` du cache local, rangée sous l'image affichée à ce
 moment. Le modèle se télécharge une fois, seulement depuis sa source épinglée

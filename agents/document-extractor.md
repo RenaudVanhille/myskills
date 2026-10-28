@@ -1,6 +1,6 @@
 ---
 name: document-extractor
-description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo de démo, vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
+description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo (atelier, réunion, présentation), vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 tools: Read, Write, Edit, Bash, Skill, Agent
 model: sonnet
 ---

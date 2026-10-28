@@ -2,7 +2,7 @@
 # requires-python = ">=3.10,<3.15"
 # dependencies = ["av>=12,<17", "faster-whisper>=1.1,<2", "numpy>=1.24", "pillow>=10"]
 # ///
-"""Convertit une vidéo (démo applicative...) ou un enregistrement audio en Markdown, en local.
+"""Convertit une vidéo (atelier, kick-off, présentation...) ou un enregistrement audio en Markdown, en local.
 
 Rien ne sort de la machine : avant tout travail, le script limite ses flux
 réseau aux hôtes identifiés (model_store.guard_network : model-sources.json,
@@ -13,7 +13,7 @@ source épinglée de model-sources.json (`doctor.py video --prefetch`, skill
 check-prerequisites). Jamais ModelScope, jamais un service de transcription
 en ligne.
 
-Les images clés (changement d'écran) sont extraites dans
+Les images clés (changement d'image : diapositive, écran, tableau...) sont extraites dans
 <sortie>/attachments/<nom>-NN.png et listées dans `vision_pages` : la vision
 du modèle du harness les décrit ensuite. La transcription est rangée sous
 l'image affichée pendant qu'elle est dite.
@@ -113,7 +113,7 @@ def markdown(path: Path, stem: str, frames: list[dict], segments: list[dict], du
         said = [s["text"] for s in segments if start <= s["start"] < end]
         lines += [f"## {stamp(frame['time'])}", "",
                   f"![{stamp(frame['time'])}](attachments/{frame['path'].name})", "",
-                  "<!-- vision : décrire l'écran (application, action montrée, données visibles) -->", ""]
+                  "<!-- vision : décrire l'image (diapositive, écran, schéma, texte visible) -->", ""]
         if said:
             lines += ["> " + " ".join(said), ""]
     return "\n".join(lines).rstrip() + "\n"

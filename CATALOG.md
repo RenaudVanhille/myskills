@@ -58,7 +58,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
 ### `document-extractor`
 
-Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo de démo, vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
+Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo (atelier, réunion, présentation), vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
 
 **Skills** : `check-prerequisites`, `doc-to-markdown`, `markdown-to-obsidian`, `agent-handoff`
 
@@ -403,7 +403,7 @@ Résumé de [`contract.json`](skills/diagram-export/contract.json), qui fait foi
 
 ### `doc-to-markdown`
 
-Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.
+Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (atelier, kick-off, présentation, démonstration...) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.
 
 Résumé de [`contract.json`](skills/doc-to-markdown/contract.json), qui fait foi (champs des rapports en JSON Schema).
 

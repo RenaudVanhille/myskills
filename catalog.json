@@ -210,7 +210,7 @@
           ]
         }
       ],
-      "description": "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo de démo, vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.",
+      "description": "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo (atelier, réunion, présentation), vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.",
       "skills": [
         "check-prerequisites",
         "doc-to-markdown",
@@ -7719,7 +7719,7 @@
           "when": "un schéma en image doit devenir modifiable"
         }
       ],
-      "description": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.",
+      "description": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (atelier, kick-off, présentation, démonstration...) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.",
       "path": "skills/doc-to-markdown"
     },
     {
