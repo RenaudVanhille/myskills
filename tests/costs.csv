@@ -264,3 +264,15 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-28T02:50:54,lot2b-nom,b72c7ad,reference-revue-dossier,architecture-reviewer,agent,True,9,0.7365,13,52466,237156,13453,0,128,1.0
 2026-10-28T02:50:54,lot2b-nom,b72c7ad,reference-revue-dossier,architecture-reviewer,agent,True,10,0.6702,17,43416,315680,12972,0,130,1.0
 2026-10-28T02:50:54,lot2b-nom,b72c7ad,reference-revue-dossier,architecture-reviewer,agent,True,11,0.6653,19,42045,380202,12632,0,124,1.0
+2026-10-28T02:57:49,base-lot2b,0098d84,schema-cloud,schema-designer,agent,True,8,0.1421,15,24174,240091,2120,0,23,
+2026-10-28T02:57:49,base-lot2b,0098d84,schema-cloud,schema-designer,agent,True,9,0.1356,15,22623,230929,2189,0,25,
+2026-10-28T02:57:49,base-lot2b,0098d84,schema-cloud,schema-designer,agent,True,8,0.1271,11,22590,174254,1914,0,22,
+2026-10-28T02:57:49,base-lot2b,0098d84,revue-architecture,architecture-reviewer,agent,True,11,0.5485,17,38046,346093,8737,0,92,
+2026-10-28T02:57:49,base-lot2b,0098d84,revue-architecture,architecture-reviewer,agent,True,12,0.6412,19,41990,379125,11457,0,119,
+2026-10-28T02:57:49,base-lot2b,0098d84,revue-architecture,architecture-reviewer,agent,True,9,0.5281,13,38253,252415,8572,0,88,
+2026-10-28T07:16:00,lot2b-main,a6b0050,schema-cloud,schema-designer,agent,True,9,0.1836,13,36036,197556,1951,0,34,
+2026-10-28T07:16:00,lot2b-main,a6b0050,schema-cloud,schema-designer,agent,True,8,0.1319,13,23208,199613,1899,0,47,
+2026-10-28T07:16:00,lot2b-main,a6b0050,schema-cloud,schema-designer,agent,True,7,0.1163,13,19471,189965,1926,0,34,
+2026-10-28T07:16:00,lot2b-main,a6b0050,revue-architecture,architecture-reviewer,agent,True,10,0.6688,15,53206,285497,9295,0,100,
+2026-10-28T07:16:00,lot2b-main,a6b0050,revue-architecture,architecture-reviewer,agent,True,10,0.6305,15,42591,300271,11477,0,118,
+2026-10-28T07:16:00,lot2b-main,a6b0050,revue-architecture,architecture-reviewer,agent,True,12,0.657,19,42150,399781,11974,0,123,
