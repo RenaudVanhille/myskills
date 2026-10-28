@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10,<3.15"
-# dependencies = ["av>=12", "faster-whisper>=1.1,<2", "numpy>=1.24", "pillow>=10"]
+# dependencies = ["av>=12,<17", "faster-whisper>=1.1,<2", "numpy>=1.24", "pillow>=10"]
 # ///
 """Convertit une vidéo (démo applicative...) ou un enregistrement audio en Markdown, en local.
 
