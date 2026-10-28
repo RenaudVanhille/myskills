@@ -1,0 +1,27 @@
+{
+  "title": "Mémoire technique",
+  "sections": [
+    {"id": "comprehension", "title": "Compréhension du besoin", "sources": ["memoire/comprehension.md"], "required": true,
+     "help": "contexte, enjeux et attentes de l'acheteur, en une ou deux pages, écrits pour l'offre"},
+    {"id": "solution", "title": "Solution proposée", "topic": "solution", "sources": ["memoire/solution.md"], "required": true,
+     "help": "option retenue racontée pour l'acheteur, à partir d'options.md et de l'ADR"},
+    {"id": "schemas", "title": "Schémas de la solution", "topic": "solution", "kind": "images", "sources": ["schemas/*.png"],
+     "help": "diagram-export : export.py des schémas en PNG"},
+    {"id": "conformite", "title": "Synthèse de la conformité", "topic": "solution", "sources": ["memoire/conformite.md"],
+     "help": "taux de conformité et réponses partielles, la matrice complète en annexe"},
+    {"id": "securite", "title": "Sécurité, hébergement et protection des données", "topic": "securite",
+     "sources": ["memoire/securite.md"]},
+    {"id": "methode", "title": "Méthodologie et planning", "topic": "methode", "sources": ["memoire/methodologie.md", "planning.md"]},
+    {"id": "maintenance", "title": "Maintenance et niveaux de service", "topic": "maintenance",
+     "sources": ["memoire/maintenance.md"]},
+    {"id": "equipe", "title": "Équipe et organisation", "topic": "equipe", "sources": ["memoire/equipe.md"]},
+    {"id": "environnement", "title": "Démarche environnementale", "topic": "environnement",
+     "sources": ["memoire/environnement.md"]},
+    {"id": "hypotheses", "title": "Hypothèses, exclusions et prérequis", "sources": ["registre.md"], "required": true,
+     "help": "tender-response : assumptions.py registre.json"},
+    {"id": "matrice", "title": "Annexe : matrice de conformité", "annex": true, "sources": ["conformite.md"],
+     "help": "tender-response : compliance_build.py conformite.json"},
+    {"id": "annexes", "title": "Annexe : pièces jointes", "kind": "files", "annex": true,
+     "sources": ["conformite.xlsx", "schemas/*.drawio"]}
+  ]
+}

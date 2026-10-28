@@ -29,7 +29,7 @@ from spec_schema import check
 MISSION = "mission.json"
 STATE = "workflow.json"
 DEFAULTS = {"vault": "vault", "documents": "documents"}
-WORKFLOWS = {"avant-vente": "architecture", "revue": "revue-dossier"}
+WORKFLOWS = {"avant-vente": "avant-vente", "revue": "revue-dossier"}
 _HERE = Path(__file__).resolve().parent
 _SCHEMA = next((p for p in (_HERE / "mission.schema.json", _HERE.parent / "schemas" / "mission.schema.json")
                 if p.is_file()), None)

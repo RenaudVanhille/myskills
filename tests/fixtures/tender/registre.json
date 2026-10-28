@@ -1,0 +1,51 @@
+{
+ "title": "Hypothèses et questions : rendez-vous d'Aubrelac",
+ "tender": "ao.json",
+ "requirements": "exigences.json",
+ "items": [
+  {
+   "id": "HYP-01",
+   "kind": "hypothese",
+   "text": "Le logiciel d'état civil expose son API REST documentée, sans développement de son éditeur.",
+   "refs": [
+    "EF-004"
+   ],
+   "impact": "chiffrage"
+  },
+  {
+   "id": "EXC-01",
+   "kind": "exclusion",
+   "text": "La reprise des rendez-vous existants est limitée aux douze derniers mois.",
+   "impact": "chiffrage"
+  },
+  {
+   "id": "PRE-01",
+   "kind": "prerequis",
+   "text": "Un accès de recette à l'annuaire Active Directory est fourni au démarrage.",
+   "refs": [
+    "ENF-009"
+   ],
+   "impact": "planning"
+  },
+  {
+   "id": "QUE-01",
+   "kind": "question",
+   "text": "Le plafond des pénalités de 10 % s'entend-il par année ou sur la durée du marché ?",
+   "refs": [
+    "R-02"
+   ],
+   "impact": "contractuel",
+   "status": "a-envoyer"
+  },
+  {
+   "id": "QUE-02",
+   "kind": "question",
+   "text": "Combien de rendez-vous existants faut-il reprendre ?",
+   "refs": [
+    "P-03"
+   ],
+   "status": "repondue",
+   "answer": "Environ 40 000, sur les douze derniers mois."
+  }
+ ]
+}

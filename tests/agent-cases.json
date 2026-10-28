@@ -193,7 +193,7 @@
       "output": "mission.json",
       "rubric": [
         "mission.json décrit une mission de nature avant-vente nommée Portail sinistres, client Mutuelle exemple.",
-        "Le vault de la mission existe avec une note Mission et la note d'index du workflow architecture.",
+        "Le vault de la mission existe avec une note Mission et la note d'index du workflow avant-vente.",
         "L'étape documents est soumise à la revue (journal.md) et les documents sont en Markdown dans sources/.",
         "L'agent n'a pas demandé quel vault utiliser ni passé de vault à la main : c'est celui de la mission."
       ]

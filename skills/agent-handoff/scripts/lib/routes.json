@@ -93,6 +93,29 @@
    "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate cloud-cost Dossier d'architecture technique architecture-dossier"
   },
   {
+   "name": "avant-vente",
+   "agent": "architecture-workflow",
+   "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
+   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) mené en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+   "stages": [
+    "documents",
+    "depouillement (facultative)",
+    "exigences",
+    "architectures",
+    "schemas",
+    "conformite (facultative)",
+    "chiffrage (facultative)",
+    "revue (facultative)",
+    "registre",
+    "memoire (facultative)",
+    "soutenance (facultative)"
+   ],
+   "inputs": [
+    "documents/*"
+   ],
+   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+  },
+  {
    "name": "cloud-existant",
    "agent": "architecture-workflow",
    "title": "Schémas et menaces d'une infrastructure existante",
@@ -200,7 +223,8 @@
     "Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal)",
     "synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier",
     "Facultatif : un gabarit de sections (JSON) propre à l'organisation",
-    "Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON"
+    "Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON",
+    "Pour un mémoire technique : le dépouillement ao.json (tender-response) et les sections écrites dans memoire/ (gabarit memoire)"
    ],
    "match": "Assemble le dossier d'architecture technique (DAT) d'un projet à partir des livrables validés d'un workflow : synthèse, exigences, options, décision (ADR), schémas, revue d'architecture, menaces, Well-Architected, chiffrage et journal, selon un gabarit de sections. Signale les pièces manquantes et vérifie les liens. À utiliser pour préparer un comité d'architecture ou livrer le dossier d'un projet."
   },
@@ -419,6 +443,18 @@
     "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json"
    ],
    "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA."
+  },
+  {
+   "name": "tender-response",
+   "level": "moyen",
+   "description": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite.",
+   "inputs": [
+    "Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown)",
+    "Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft",
+    "Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence)",
+    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal"
+   ],
+   "match": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite. Les scripts écrivent les brouillons, le modèle relit et juge. À utiliser en avant-vente, avant le chiffrage et le mémoire technique."
   },
   {
    "name": "threat-model",

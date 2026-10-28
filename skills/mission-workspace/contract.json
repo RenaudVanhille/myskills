@@ -105,7 +105,7 @@
             },
             "workflows": {
               "type": "array",
-              "description": "Workflows de la mission (skill decision-log). Défaut : architecture pour une avant-vente, revue-dossier pour une revue, à la racine.",
+              "description": "Workflows de la mission (skill decision-log). Défaut : avant-vente pour une avant-vente, revue-dossier pour une revue, à la racine.",
               "items": {
                 "type": "object",
                 "required": [
@@ -527,7 +527,7 @@
     {
       "to": "architecture-workflow",
       "kind": "agent",
-      "when": "la mission est ouverte : dérouler son workflow (architecture pour une avant-vente, revue-dossier pour une revue)"
+      "when": "la mission est ouverte : dérouler son workflow (avant-vente pour une avant-vente, revue-dossier pour une revue)"
     },
     {
       "to": "architecture-reviewer",

@@ -1,0 +1,70 @@
+{
+ "title": "Matrice de conformité",
+ "requirements": "exigences.json",
+ "architecture": "options.json",
+ "option": "A",
+ "answers": [
+  {
+   "id": "EF-001",
+   "status": "conforme"
+  },
+  {
+   "id": "EF-002",
+   "status": "conforme"
+  },
+  {
+   "id": "EF-003",
+   "status": "conforme"
+  },
+  {
+   "id": "EF-004",
+   "status": "conforme"
+  },
+  {
+   "id": "EF-005",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-009",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-001",
+   "status": "partiel",
+   "hint": "pic des piscines à confirmer par un test de charge chez l'hébergeur",
+   "justification": "Mise à l'échelle des conteneurs dimensionnée pour 2 000 utilisateurs ; test de charge prévu avant la mise en production."
+  },
+  {
+   "id": "ENF-002",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-003",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-004",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-005",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-010",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-006",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-007",
+   "status": "conforme"
+  },
+  {
+   "id": "ENF-008",
+   "status": "conforme"
+  }
+ ]
+}
