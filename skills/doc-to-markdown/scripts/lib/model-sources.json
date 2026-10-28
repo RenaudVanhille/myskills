@@ -1,0 +1,5 @@
+{
+  "_doc": "Seules sources de modèles autorisées (schéma : shared/schemas/model-sources.schema.json). Révision et empreintes épinglées par scripts/pin_model.py, vérifiées en CI. Ajouter un modèle ou un hôte ici est une décision de sécurité : à relire.",
+  "hosts": ["huggingface.co", "*.huggingface.co", "*.hf.co"],
+  "models": {}
+}

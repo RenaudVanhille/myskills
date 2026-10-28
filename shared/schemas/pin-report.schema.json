@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pin-report.schema.json",
+  "title": "Rapport de pin_model.py",
+  "type": "object",
+  "required": ["models", "errors", "warnings"],
+  "additionalProperties": false,
+  "properties": {
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "revision", "files", "ok"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "revision": {"type": "string", "description": "Commit de la source."},
+          "files": {"type": "integer", "minimum": 0, "description": "Fichiers épinglés."},
+          "ok": {"type": "boolean"},
+          "entry": {"type": "object", "description": "Entrée à mettre dans shared/model-sources.json."}
+        }
+      }
+    },
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

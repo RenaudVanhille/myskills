@@ -74,15 +74,24 @@
       ]
     },
     {
-      "id": "video-refusee",
+      "id": "video-images-cles",
       "skill": "doc-to-markdown",
-      "_note": "Audio et vidéo refusés : ni transcription Docling (modèles téléchargés) ni MarkItDown (reconnaissance vocale en ligne).",
+      "_note": "Vidéo de démo (3 écrans) par convert.py puis video.py : réseau coupé, une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
-         "args": ["{samples}/demo.mp4", "--out", "{out}"],
-         "exit": 1, "report_contains": {"results.0.error": "audio ou vidéo non pris en charge"}}
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}"], "env": {"MYSKILLS_MODELS": "{out}/modeles"},
+         "exit": 0, "report": {"results.0.type": "video", "results.0.engine": "images", "results.0.images": 3,
+                               "results.0.needs_vision": true, "results.0.validation.ok": true},
+         "report_contains": {"results.0.warnings": "absent du cache local"}},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}/seul", "--no-audio"], "exit": 0,
+         "report": {"results.0.images": 3, "results.0.segments": 0}},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}", "--model", "whisper-smal"], "exit": 1,
+         "report_contains": {"errors": "inconnu"}}
       ],
-      "absent": ["demo.md"]
+      "files": ["demo-portail.md", "attachments/demo-portail-01.png", "attachments/demo-portail-03.png"],
+      "contains": {"demo-portail.md": ["## 00:02", "<!-- vision"]}
     },
     {
       "id": "pdf-scanne-docling",
@@ -165,7 +174,12 @@
       "skill": "check-prerequisites",
       "steps": [
         {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["inconnu"], "exit": 1,
-         "report_contains": {"errors": "groupe inconnu"}}
+         "report_contains": {"errors": "groupe inconnu"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video"], "exit": 1,
+         "env": {"MYSKILLS_MODELS": "{out}/modeles", "MYSKILLS_OFFLINE": "1"},
+         "report_contains": {"errors": "doctor.py video --prefetch"}},
+        {"script": "{root}/scripts/pin_model.py", "args": ["whisper-small"], "exit": 1,
+         "report_contains": {"errors": "--repo"}}
       ]
     },
     {

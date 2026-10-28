@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sources autorisées des modèles locaux",
+  "description": "Seule liste des modèles que les scripts de myskills peuvent télécharger : hôtes autorisés, révision épinglée, empreinte SHA-256 de chaque fichier. Mise à jour par scripts/pin_model.py.",
+  "type": "object",
+  "required": ["hosts", "models"],
+  "additionalProperties": false,
+  "properties": {
+    "_doc": {"type": "string"},
+    "hosts": {
+      "type": "array", "minItems": 1, "items": {"type": "string", "minLength": 3},
+      "description": "Hôtes HTTPS autorisés, motifs permis (*.hf.co), redirections comprises."
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["purpose", "license", "source", "files"],
+        "additionalProperties": false,
+        "properties": {
+          "purpose": {"type": "string", "minLength": 3},
+          "license": {"type": "string", "minLength": 2},
+          "source": {
+            "type": "object",
+            "required": ["provider", "repo", "revision"],
+            "additionalProperties": false,
+            "properties": {
+              "provider": {"enum": ["huggingface"]},
+              "repo": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+              "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+            }
+          },
+          "files": {
+            "type": "object", "minProperties": 1,
+            "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      }
+    }
+  }
+}

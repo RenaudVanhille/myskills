@@ -39,6 +39,9 @@ TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" 
           "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
 MIN_RATIO = 0.9
+# Dépendances et extras interdits dans les scripts des skills (cas regles).
+FORBIDDEN_DEPS = ("modelscope", "rapidocr", "rapidocr-onnxruntime", "easyocr", "paddleocr", "funasr")
+FORBIDDEN_EXTRAS = ("all", "audio-transcription", "az-doc-intel", "youtube-transcription")
 sys.path.insert(0, str(ROOT / "scripts"))
 import contracts_lib  # noqa: E402
 from jsonschema import Draft202012Validator  # noqa: E402
@@ -50,6 +53,7 @@ CONTRACTS = {script["name"]: script["report"].get("schema")
              for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
 CONTRACTS["install.py"] = contracts_lib.schema("install-report")
 CONTRACTS["check_commit.py"] = contracts_lib.schema("commit-report")
+CONTRACTS["pin_model.py"] = contracts_lib.schema("pin-report")
 # Schéma d'entrée (description JSON) de chaque script qui en déclare un.
 INPUTS = {script["name"]: script["input"]["schema"]
           for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
@@ -491,6 +495,20 @@ def check_rules() -> dict:
         if path.is_file() and path.suffix in {".md", ".py", ".json"}:
             if "puppeteer" in path.read_text(encoding="utf-8", errors="replace").lower():
                 failures.append(f"{path.relative_to(ROOT)} : Puppeteer, utilisez Playwright")
+    # Aucun envoi ni téléchargement non maîtrisé : pas de bibliothèque qui tire ses modèles d'une source non
+    # épinglée (ModelScope...) ni d'extra MarkItDown qui envoie le contenu à un service ; un script de modèle
+    # local (faster-whisper) coupe le réseau.
+    for path in sorted((ROOT / "skills").glob("*/scripts/*.py")):
+        code = path.read_text(encoding="utf-8")
+        header = re.search(r"^# /// script\n(.*?)^# ///", code, re.M | re.S)
+        deps = header.group(1).lower() if header else ""
+        where = path.relative_to(ROOT).as_posix()
+        failures += [f"{where} : dépendance {dep} interdite (modèles téléchargés hors des sources épinglées)"
+                     for dep in FORBIDDEN_DEPS if re.search(rf'"{re.escape(dep)}[\[<>=~!"]', deps)]
+        failures += [f"{where} : extra markitdown[{extra}] interdit (contenu envoyé à un service)"
+                     for extra in FORBIDDEN_EXTRAS if re.search(rf"markitdown\[[^\]]*\b{extra}\b", deps)]
+        if re.search(r'"(faster-whisper|ctranslate2)', deps) and "model_store.forbid_network()" not in code:
+            failures.append(f"{where} : modèle local sans model_store.forbid_network() (réseau à couper)")
     return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 

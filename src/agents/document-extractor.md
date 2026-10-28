@@ -1,6 +1,6 @@
 ---
 name: document-extractor
-description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
+description: "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo de démo, vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 skills: check-prerequisites, doc-to-markdown, markdown-to-obsidian, agent-handoff
 commands: python *, python3 *, py *, uv run *, uvx *
 ---
@@ -61,8 +61,10 @@ workflow, la commande les trace aussi au journal.
    ajoute `--skip-existing`, qui garde les Markdown déjà corrigés.
    N'appelle jamais `docling` ni `markitdown` directement : `convert.py`
    impose l'OCR local (Tesseract), sans téléchargement de modèles depuis
-   ModelScope. Une vidéo ou un fichier audio n'est pas pris en charge :
-   mets-le dans `todo`, sans chercher d'autre outil.
+   ModelScope. Une vidéo ou un audio passe aussi par `convert.py` (réseau
+   coupé, transcription locale, images clés dans `vision_pages`) ; si le
+   modèle manque, applique `check-prerequisites` (groupe `video`). Jamais
+   d'autre outil ni de service en ligne pour une vidéo.
 4. Corrige selon la section 3 du skill `doc-to-markdown`, en choisissant le
    niveau de chaque correction avec la grille ci-dessous. Fais toutes les
    corrections d'un fichier, puis relance `validate.py` une fois ; 3 essais

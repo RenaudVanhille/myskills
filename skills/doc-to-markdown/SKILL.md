@@ -1,6 +1,6 @@
 ---
 name: doc-to-markdown
-description: "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le texte, les tableaux ou les images d'un document vers du Markdown."
+description: "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown."
 ---
 
 # doc-to-markdown
@@ -15,9 +15,10 @@ installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les a
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers.
-- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
+- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, réseau coupé) ; Dossiers.
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/attachments/<nom>-NN.png : images clés d'une vidéo, à décrire par vision ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (error dans son résultat, repris dans errors).
+- **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local et réseau coupé : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
@@ -68,9 +69,29 @@ colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
 L'OCR de Docling est toujours Tesseract installé en local (langues `fra`,
 `eng`), jamais RapidOCR, son choix par défaut, qui télécharge ses modèles
 depuis ModelScope (modelscope.cn). N'appelez pas `docling` ni `markitdown`
-directement sur un document : passez par `convert.py`. Audio et vidéo sont
-refusés : Docling les transcrit avec des modèles téléchargés et MarkItDown
-envoie le son à un service de reconnaissance vocale en ligne.
+directement sur un document : passez par `convert.py`.
+
+### Vidéo ou audio
+
+`convert.py` confie une vidéo (démo applicative...) ou un audio à
+`scripts/video.py`, qu'on peut aussi lancer seul :
+
+```bash
+uv run scripts/video.py VIDEO [...] --out DOSSIER [--language fr] [--no-audio]
+```
+
+Tout reste sur la machine : le script coupe le réseau avant tout travail,
+garde une image à chaque changement d'écran (`DOSSIER/attachments/<nom>-NN.png`,
+listées dans `vision_pages`) et transcrit la parole avec faster-whisper et le
+modèle `whisper-small` du cache local, rangée sous l'image affichée à ce
+moment. Le modèle se télécharge une fois, seulement depuis sa source épinglée
+(`shared/model-sources.json` : révision et empreintes vérifiées) :
+`uv run scripts/doctor.py video --prefetch` (skill `check-prerequisites`), ou
+`--models-from DOSSIER` sur une machine sans accès. Sans modèle, le rapport
+le dit et seules les images clés sont extraites. Décrivez ensuite chaque
+image par vision à l'emplacement du marqueur `<!-- vision -->` (étape 3).
+Jamais Docling ni MarkItDown sur une vidéo : ils téléchargeraient des modèles
+non épinglés ou enverraient le son à un service en ligne.
 
 Le script écrit `DOSSIER/<nom>.md`, extrait les images dans
 `DOSSIER/attachments/` et affiche un rapport JSON par fichier : `engine`,

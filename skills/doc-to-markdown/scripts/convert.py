@@ -12,7 +12,7 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]
+        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
@@ -22,9 +22,12 @@ Moteurs :
 L'OCR de Docling passe par Tesseract installé en local, jamais par son
 choix automatique : RapidOCR, qu'il prend par défaut, télécharge ses modèles
 depuis ModelScope (modelscope.cn). Sans Tesseract, Docling tourne sans OCR et
-les pages scannées vont à la vision. Les fichiers audio et vidéo sont refusés
-(Docling les transcrit avec des modèles téléchargés, MarkItDown les envoie à
-un service de reconnaissance vocale en ligne).
+les pages scannées vont à la vision.
+
+Une vidéo ou un enregistrement audio passe par video.py (réseau coupé,
+transcription Whisper locale, images clés pour la vision), jamais par Docling
+ni MarkItDown, qui téléchargeraient des modèles ou enverraient le son à un
+service en ligne.
 
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
@@ -71,12 +74,14 @@ from script_report import print_report  # noqa: E402
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
-# Audio et vidéo : non pris en charge (transcription par modèle ou service en ligne).
-MEDIA = {".mp4", ".m4a", ".mov", ".avi", ".mkv", ".webm", ".mp3", ".wav", ".ogg", ".flac"}
+# Vidéo et audio : confiés à video.py (réseau coupé, modèles locaux épinglés).
+MEDIA = {".mp4", ".m4v", ".mov", ".avi", ".mkv", ".webm", ".wmv",
+         ".m4a", ".mp3", ".wav", ".ogg", ".flac", ".aac", ".wma"}
+VIDEO_SCRIPT = Path(__file__).with_name("video.py")
 # Langues OCR de Tesseract essayées, dans l'ordre (fichiers .traineddata).
 OCR_LANGS = ("fra", "eng")
 # Documents pris dans un dossier passé en argument.
-CONVERTIBLE = OFFICE | IMAGES | {".pdf", ".html", ".htm", ".csv", ".epub"}
+CONVERTIBLE = OFFICE | IMAGES | MEDIA | {".pdf", ".html", ".htm", ".csv", ".epub"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
 MIN_CHARS_PER_PAGE = 30
 # Côté le plus long d'une page rendue pour la vision : au-delà, le modèle la
@@ -253,6 +258,8 @@ def docling_ocr_args() -> list[str]:
 
 # Docling prend déjà tous les cœurs et beaucoup de mémoire : un document à la fois.
 DOCLING_SLOT = threading.Semaphore(1)
+# La transcription aussi : une vidéo à la fois.
+MEDIA_SLOT = threading.Semaphore(1)
 
 
 def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
@@ -325,8 +332,27 @@ def expand(paths: list[Path], out: Path) -> list[Path]:
     return list(dict.fromkeys(files))
 
 
+def run_video(path: Path, out: Path, stem: str, language: str | None) -> dict:
+    """Vidéo ou audio : video.py, dans son propre environnement ; une à la fois."""
+    command = (["uv", "run", "--quiet", str(VIDEO_SCRIPT)] if shutil.which("uv")
+               else [sys.executable, str(VIDEO_SCRIPT)])
+    command += [str(path), "--out", str(out), "--stem", stem] + (["--language", language] if language else [])
+    with MEDIA_SLOT:
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        lines = (result.stderr or "sortie vide").strip().splitlines()
+        raise RuntimeError(f"video.py : {lines[-1][:300] if lines else '?'}") from None
+    if report["results"]:
+        if "error" in report["results"][0]:
+            raise RuntimeError(report["results"][0]["error"])
+        return report["results"][0]
+    raise RuntimeError("; ".join(report["errors"]) or "video.py sans résultat")
+
+
 def convert(path: Path, out: Path, engine: str, classification: dict | None = None,
-            clean: bool = True, stem: str | None = None) -> dict:
+            clean: bool = True, stem: str | None = None, language: str | None = None) -> dict:
     suffix = path.suffix.lower()
     stem = stem or path.stem
     attachments = out / "attachments"
@@ -338,8 +364,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
                                     ("type", "domaine", "tables", "engine", "method", "warnings")}
 
     if suffix in MEDIA:
-        raise ValueError("audio ou vidéo non pris en charge : la transcription locale n'est pas "
-                         "fournie (Docling télécharge des modèles, MarkItDown appelle un service en ligne)")
+        return run_video(path, out, stem, language)
     if suffix in IMAGES:
         report["type"], report["engine"] = "image", "copie"
         attachments.mkdir(parents=True, exist_ok=True)
@@ -422,6 +447,7 @@ def main() -> int:
                         help="ne pas reconvertir un document dont le Markdown est plus récent")
     parser.add_argument("--no-clean", action="store_true",
                         help="ne pas nettoyer le texte des PDF (paragraphes, césures, en-têtes)")
+    parser.add_argument("--language", help="vidéo ou audio : langue parlée (fr, en...) ; défaut : détectée")
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
                         help="documents convertis en même temps (défaut : jusqu'à 4 ; 1 : un par un)")
     args = parser.parse_args()
@@ -432,7 +458,7 @@ def main() -> int:
     classifications, classify_warning = {}, None
     if args.classify:
         existing = [path.resolve() for path in files
-                    if path.is_file() and path.suffix.lower() not in IMAGES]
+                    if path.is_file() and path.suffix.lower() not in IMAGES | MEDIA]
         if existing:
             classifications, classify_warning = run_classifier(existing, args.domains)
     def one(path: Path) -> tuple[dict, bool]:
@@ -444,7 +470,8 @@ def main() -> int:
             return {"input": str(path), "output": str(target), "skipped": True}, False
         try:
             report = convert(path.resolve(), args.out.resolve(), args.engine,
-                             classifications.get(path.resolve()), not args.no_clean, stems[path])
+                             classifications.get(path.resolve()), not args.no_clean, stems[path],
+                             args.language)
             if stems[path] != path.stem:
                 report["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
             return report, False

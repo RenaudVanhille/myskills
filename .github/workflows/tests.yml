@@ -30,6 +30,15 @@ jobs:
   # Cas lents de run.py (navigateur, Pandoc, Docling, Laya) et export réel par
   # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
   # pas télécharger.
+  epinglage-temporaire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv run scripts/pin_model.py whisper-small --repo Systran/faster-whisper-small --purpose x --license MIT
+
   rendus:
     runs-on: ubuntu-latest
     steps:

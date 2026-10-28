@@ -58,7 +58,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
 ### `document-extractor`
 
-Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
+Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo de démo, vers Markdown ou Obsidian. Choisit l'outil (MarkItDown, Docling, Whisper local, vision), adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
 
 **Skills** : `check-prerequisites`, `doc-to-markdown`, `markdown-to-obsidian`, `agent-handoff`
 
@@ -290,9 +290,9 @@ Vérifie que les outils locaux nécessaires aux skills de myskills sont install�
 Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Un groupe : extraction, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne.
-- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills.
-- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
+- **Entrées** : Un groupe : extraction, video, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne ; Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier.
+- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupe video) dans le cache de myskills.
+- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec le groupe video, télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json). Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
 
 ### `cloud-architecture`
@@ -403,14 +403,15 @@ Résumé de [`contract.json`](skills/diagram-export/contract.json), qui fait foi
 
 ### `doc-to-markdown`
 
-Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/. À utiliser pour extraire le texte, les tableaux ou les images d'un document vers du Markdown.
+Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.
 
 Résumé de [`contract.json`](skills/doc-to-markdown/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Dossiers.
-- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
+- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, réseau coupé) ; Dossiers.
+- **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/attachments/<nom>-NN.png : images clés d'une vidéo, à décrire par vision ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (error dans son résultat, repris dans errors).
+- **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local et réseau coupé : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.

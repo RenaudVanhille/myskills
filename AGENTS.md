@@ -147,6 +147,16 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   un script peut leur confier un travail de modèle, de préférence au niveau
   simple. Un modèle local (Ollama) reste possible ; tout autre fournisseur
   de modèle est un service tiers.
+- **Non négociable** : aucun document, même en partie (texte, image, son),
+  ne part ailleurs que vers les modèles du harness. Un modèle local ne se
+  télécharge que depuis une source de `shared/model-sources.json` (hôte
+  autorisé, révision épinglée, empreintes SHA-256 vérifiées, entrée ajoutée
+  par `scripts/pin_model.py` et relue en PR), par
+  `scripts/lib/model_store.py` ; le script qui s'en sert coupe le réseau
+  (`model_store.forbid_network()`) avant de lire le document. Jamais de
+  bibliothèque qui tire ses modèles d'ailleurs (ModelScope, RapidOCR,
+  EasyOCR...) ni d'extra MarkItDown qui envoie le contenu à un service
+  (`all`, `audio-transcription`, `az-doc-intel`) **(vérifiée)**.
 - Rendus de navigateur avec Playwright, jamais Puppeteer **(vérifiée)**, et
   pas de serveur MCP Playwright.
 - Un agent ne publie rien en ligne : il produit des fichiers.
