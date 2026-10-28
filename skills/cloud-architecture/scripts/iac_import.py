@@ -4,7 +4,8 @@
 # ///
 """Écrit la description d'un schéma cloud (pour cloud_build.py) depuis le code d'infrastructure.
 
-Lit des fichiers Terraform (.tf : AWS, Azure, Google), des fichiers
+Lit des fichiers Terraform (.tf : AWS, Azure, Google), des gabarits
+CloudFormation (AWS, YAML ou JSON) et Bicep (Azure), des fichiers
 docker-compose et des manifestes Kubernetes, fichiers ou dossiers. Les
 ressources connues deviennent des services aux types de cloud_build.py, les
 réseaux des groupes (VPC, VNet, sous-réseaux, namespaces), les références
@@ -253,6 +254,172 @@ def build_terraform(resources: dict, model: Model) -> None:
             model.ignored[res["kind"]] += 1
 
 
+# --- CloudFormation et Bicep -------------------------------------------------
+# Lus comme des ressources Terraform équivalentes : même placement, mêmes flux, mêmes types.
+CFN_KINDS = {
+    "AWS::Lambda::Function": "aws_lambda_function", "AWS::SQS::Queue": "aws_sqs_queue",
+    "AWS::SNS::Topic": "aws_sns_topic", "AWS::S3::Bucket": "aws_s3_bucket", "AWS::RDS::DBInstance": "aws_db_instance",
+    "AWS::RDS::DBCluster": "aws_rds_cluster", "AWS::DynamoDB::Table": "aws_dynamodb_table",
+    "AWS::ECS::Service": "aws_ecs_service", "AWS::EKS::Cluster": "aws_eks_cluster", "AWS::EC2::Instance": "aws_instance",
+    "AWS::ElasticLoadBalancingV2::LoadBalancer": "aws_lb", "AWS::ElasticLoadBalancing::LoadBalancer": "aws_elb",
+    "AWS::ElasticLoadBalancingV2::Listener": "aws_lb_listener",
+    "AWS::ElasticLoadBalancingV2::ListenerRule": "aws_lb_listener_rule",
+    "AWS::ElasticLoadBalancingV2::TargetGroup": "aws_lb_target_group",
+    "AWS::CloudFront::Distribution": "aws_cloudfront_distribution", "AWS::ApiGateway::RestApi": "aws_api_gateway_rest_api",
+    "AWS::ApiGatewayV2::Api": "aws_apigatewayv2_api", "AWS::ElastiCache::CacheCluster": "aws_elasticache_cluster",
+    "AWS::ElastiCache::ReplicationGroup": "aws_elasticache_replication_group", "AWS::Kinesis::Stream": "aws_kinesis_stream",
+    "AWS::Cognito::UserPool": "aws_cognito_user_pool", "AWS::SecretsManager::Secret": "aws_secretsmanager_secret",
+    "AWS::KMS::Key": "aws_kms_key", "AWS::Route53::HostedZone": "aws_route53_zone", "AWS::WAFv2::WebACL": "aws_wafv2_web_acl",
+    "AWS::EC2::NatGateway": "aws_nat_gateway", "AWS::EC2::InternetGateway": "aws_internet_gateway",
+    "AWS::StepFunctions::StateMachine": "aws_sfn_state_machine", "AWS::Events::Rule": "aws_cloudwatch_event_rule",
+    "AWS::EFS::FileSystem": "aws_efs_file_system", "AWS::ECR::Repository": "aws_ecr_repository",
+    "AWS::MSK::Cluster": "aws_msk_cluster", "AWS::OpenSearchService::Domain": "aws_opensearch_domain",
+    "AWS::Redshift::Cluster": "aws_redshift_cluster", "AWS::DocDB::DBCluster": "aws_docdb_cluster",
+    "AWS::Batch::JobQueue": "aws_batch_job_queue", "AWS::EC2::VPC": "aws_vpc", "AWS::EC2::Subnet": "aws_subnet",
+    "AWS::Lambda::EventSourceMapping": "aws_lambda_event_source_mapping",
+    "AWS::SNS::Subscription": "aws_sns_topic_subscription", "AWS::Lambda::Permission": "aws_lambda_permission",
+}
+BICEP_KINDS = {
+    "Microsoft.Web/sites": "azurerm_linux_web_app", "Microsoft.ContainerService/managedClusters": "azurerm_kubernetes_cluster",
+    "Microsoft.Sql/servers/databases": "azurerm_mssql_database", "Microsoft.DocumentDB/databaseAccounts": "azurerm_cosmosdb_account",
+    "Microsoft.Storage/storageAccounts": "azurerm_storage_account", "Microsoft.ServiceBus/namespaces": "azurerm_servicebus_namespace",
+    "Microsoft.EventHub/namespaces": "azurerm_eventhub_namespace", "Microsoft.KeyVault/vaults": "azurerm_key_vault",
+    "Microsoft.Cache/redis": "azurerm_redis_cache", "Microsoft.DBforPostgreSQL/flexibleServers": "azurerm_postgresql_flexible_server",
+    "Microsoft.DBforMySQL/flexibleServers": "azurerm_mysql_flexible_server", "Microsoft.ApiManagement/service": "azurerm_api_management",
+    "Microsoft.Network/applicationGateways": "azurerm_application_gateway", "Microsoft.Cdn/profiles": "azurerm_cdn_frontdoor_profile",
+    "Microsoft.Compute/virtualMachines": "azurerm_linux_virtual_machine", "Microsoft.ContainerRegistry/registries": "azurerm_container_registry",
+    "Microsoft.ContainerInstance/containerGroups": "azurerm_container_group", "Microsoft.Web/staticSites": "azurerm_static_web_app",
+    "Microsoft.Logic/workflows": "azurerm_logic_app_workflow", "Microsoft.Network/virtualNetworks": "azurerm_virtual_network",
+    "Microsoft.Network/virtualNetworks/subnets": "azurerm_subnet", "Microsoft.Resources/resourceGroups": "azurerm_resource_group",
+}
+CFN_NAMES = ("FunctionName", "QueueName", "TopicName", "BucketName", "TableName", "DBInstanceIdentifier",
+             "DBClusterIdentifier", "ClusterName", "ServiceName", "Name", "StreamName", "UserPoolName", "DomainName",
+             "RepositoryName", "StateMachineName")
+BICEP_RESOURCE = re.compile(r"^\s*resource\s+([A-Za-z_]\w*)\s+'([^'@]+)@[^']*'\s*(?:existing\s*)?=\s*(?:\[[^\]\n]*?:\s*)?\{",
+                            re.M)
+
+
+class CfnLoader(yaml.SafeLoader):
+    """YAML CloudFormation : les balises courtes (!Ref, !GetAtt, !Sub...) deviennent leur forme longue."""
+
+
+def _cfn_tag(loader, suffix, node):
+    if isinstance(node, yaml.ScalarNode):
+        value = loader.construct_scalar(node)
+    elif isinstance(node, yaml.SequenceNode):
+        value = loader.construct_sequence(node, deep=True)
+    else:
+        value = loader.construct_mapping(node, deep=True)
+    return {"Ref": value} if suffix == "Ref" else {f"Fn::{suffix}": value}
+
+
+CfnLoader.add_multi_constructor("!", _cfn_tag)
+
+
+def cfn_refs(value, names: set) -> list[str]:
+    """Ressources du gabarit citées par Ref, GetAtt, Sub ou DependsOn, dans l'ordre."""
+    found: list[str] = []
+
+    def add(name):
+        name = str(name).split(".")[0]
+        if name in names and name not in found:
+            found.append(name)
+
+    def walk(item):
+        if isinstance(item, dict):
+            for key, inner in item.items():
+                if key == "Ref":
+                    add(inner)
+                elif key == "Fn::GetAtt":
+                    add(inner[0] if isinstance(inner, list) else inner)
+                elif key == "Fn::Sub":
+                    text = inner[0] if isinstance(inner, list) else inner
+                    for ref in re.findall(r"\$\{([A-Za-z0-9]+)", str(text)):
+                        add(ref)
+                    walk(inner[1] if isinstance(inner, list) and len(inner) > 1 else None)
+                else:
+                    walk(inner)
+        elif isinstance(item, list):
+            for inner in item:
+                walk(inner)
+    walk(value)
+    return found
+
+
+def snake(name: str) -> str:
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower()
+
+
+def read_cloudformation(path: Path, data: dict, model: Model, resources: dict) -> None:
+    """Ressources d'un gabarit CloudFormation, réécrites en corps Terraform équivalents."""
+    template = data.get("Resources") or {}
+    names = set(template)
+    for logical, res in template.items():
+        if not isinstance(res, dict):
+            continue
+        kind = CFN_KINDS.get(str(res.get("Type")))
+        if not kind:
+            model.ignored[str(res.get("Type"))] += 1
+            continue
+        props = res.get("Properties") or {}
+        lines = []
+        for key in CFN_NAMES:
+            if isinstance(props.get(key), str):
+                lines.append(f'name = "{props[key]}"')
+                break
+        for key, value in props.items():
+            refs = cfn_refs(value, names)
+            if refs:
+                lines.append(f"{snake(key)} = " + " ".join(f"{CFN_KINDS.get(template[r].get('Type'), 'x_x')}.{r}"
+                                                          for r in refs))
+        for key in ("DesiredCount", "NumCacheNodes", "InstanceCount"):
+            if isinstance(props.get(key), int):
+                lines.append(f"count = {props[key]}")
+        if props.get("MapPublicIpOnLaunch") is True:
+            lines.append("map_public_ip_on_launch = true")
+        key = f"{kind}.{logical}"
+        if key in resources:
+            model.errors.append(f"{path.name} : ressource « {logical} » déclarée deux fois")
+            continue
+        resources[key] = {"kind": kind, "name": logical, "body": "\n".join(lines), "file": path.name}
+
+
+def read_bicep(path: Path, model: Model, resources: dict) -> None:
+    """Ressources d'un fichier Bicep (Azure), réécrites en corps Terraform équivalents."""
+    text = path.read_text(encoding="utf-8")
+    found = []
+    for match in BICEP_RESOURCE.finditer(text):
+        found.append((match.group(1), match.group(2), block_body(text, match.end())))
+    symbols = {sym: kind for sym, kind, _ in found}
+    for sym, kind, body in found:
+        tf = BICEP_KINDS.get(kind)
+        if kind == "Microsoft.Web/sites" and re.search(r"^\s*kind:\s*'[^']*functionapp", body, re.M):
+            tf = "azurerm_linux_function_app"
+        if not tf:
+            model.ignored[kind] += 1
+            continue
+        lines = []
+        name = re.search(r"^\s*name:\s*'([^'$]*)'\s*$", body, re.M)
+        if name:
+            lines.append(f'name = "{name.group(1)}"')
+        location = re.search(r"^\s*location:\s*'([a-z0-9]+)'\s*$", body, re.M)
+        if location:
+            model.regions.append(("azure", location.group(1)))
+        for other, other_kind in symbols.items():
+            if other != sym and BICEP_KINDS.get(other_kind) and re.search(rf"\b{other}\b(?=\.|\s*$|\s*[,}}\]])", body, re.M):
+                target = BICEP_KINDS[other_kind]
+                attr = "subnet_id" if target in ("azurerm_subnet", "azurerm_virtual_network") else "ref"
+                lines.append(f"{attr} = {target}.{other}")
+        key = f"{tf}.{sym}"
+        resources[key] = {"kind": tf, "name": sym, "body": "\n".join(lines), "file": path.name}
+
+
+def is_cloudformation(data) -> bool:
+    return isinstance(data, dict) and (
+        "AWSTemplateFormatVersion" in data or any(isinstance(r, dict) and str(r.get("Type", "")).startswith("AWS::")
+                                                  for r in (data.get("Resources") or {}).values()))
+
+
 # --- docker-compose ----------------------------------------------------------
 def read_compose(path: Path, data: dict, model: Model) -> None:
     services = data.get("services")
@@ -384,7 +551,9 @@ def expand(paths: list[Path]) -> list[Path]:
     files = []
     for path in paths:
         if path.is_dir():
-            files += sorted(p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in (".tf", ".yaml", ".yml")
+            files += sorted(p for p in path.rglob("*") if p.is_file()
+                            and (p.suffix.lower() in (".tf", ".yaml", ".yml", ".bicep")
+                                 or p.suffix.lower() == ".json" and "AWS::" in p.read_text(encoding="utf-8", errors="replace"))
                             and not any(part.startswith(".") for part in p.relative_to(path).parts))
         else:
             files.append(path)
@@ -401,15 +570,36 @@ def read_sources(paths: list[Path], model: Model) -> dict:
             read["terraform"] += 1
             read_terraform(path, model, resources)
             continue
+        if path.suffix.lower() == ".bicep":
+            read["bicep"] += 1
+            read_bicep(path, model, resources)
+            continue
+        if path.suffix.lower() == ".json":
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except ValueError as error:
+                model.errors.append(f"{path.name} : JSON illisible ({error})")
+                continue
+            if not is_cloudformation(data):
+                model.errors.append(f"{path.name} : JSON qui n'est pas un gabarit CloudFormation")
+                continue
+            read["cloudformation"] += 1
+            read_cloudformation(path, data, model, resources)
+            continue
         if path.suffix.lower() not in (".yaml", ".yml"):
-            model.errors.append(f"{path.name} : format non reconnu (.tf, docker-compose ou manifeste Kubernetes .yaml)")
+            model.errors.append(f"{path.name} : format non reconnu (.tf, .bicep, CloudFormation, docker-compose ou "
+                                "manifeste Kubernetes .yaml)")
             continue
         try:
-            docs = [d for d in yaml.safe_load_all(path.read_text(encoding="utf-8")) if d]
+            docs = [d for d in yaml.load_all(path.read_text(encoding="utf-8"), Loader=CfnLoader) if d]
         except yaml.YAMLError as error:
             mark = getattr(error, "problem_mark", None)
             where = f", ligne {mark.line + 1}" if mark else ""
             model.warnings.append(f"{path.name} : YAML illisible{where} (gabarit Helm ?), fichier ignoré")
+            continue
+        if len(docs) == 1 and is_cloudformation(docs[0]):
+            read["cloudformation"] += 1
+            read_cloudformation(path, docs[0], model, resources)
             continue
         if COMPOSE_NAMES.match(path.name) or (len(docs) == 1 and isinstance(docs[0], dict) and "services" in docs[0]
                                              and "kind" not in docs[0]):
@@ -479,7 +669,8 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("sources", type=Path, nargs="+", help="fichiers .tf, docker-compose, manifestes, ou dossiers")
+    parser.add_argument("sources", type=Path, nargs="+",
+                        help="fichiers .tf, .bicep, CloudFormation, docker-compose, manifestes, ou dossiers")
     parser.add_argument("--out", type=Path, help="description écrite (défaut : <première source>.cloud.json)")
     parser.add_argument("--title", help="titre du schéma (défaut : nom de la première source)")
     args = parser.parse_args()

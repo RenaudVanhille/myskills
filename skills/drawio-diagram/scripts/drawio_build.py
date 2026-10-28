@@ -172,7 +172,7 @@ def main() -> int:
     if not errors:
         write(mxfile, out)
         checked = check(out)
-        report.update(output=str(out), shapes=checked["shapes"])
+        report.update(output=str(out), shapes=checked["shapes"], review_image=checked["review_image"])
         report["errors"] += checked["errors"]
         report["warnings"] += checked["warnings"]
     if args.export and not report["errors"]:

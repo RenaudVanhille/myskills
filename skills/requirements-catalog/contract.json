@@ -12,8 +12,8 @@
   "scripts": [
     {
       "name": "req_build.py",
-      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences ; avec --laya, celles du modèle local Laya et ses désaccords sur la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV.",
-      "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER] [--laya [--laya-cache FICHIER]] | --schema",
+      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences ; avec --laya, celles du modèle local Laya et ses désaccords sur la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
+      "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER] [--laya [--laya-cache FICHIER]] | exigences.json --draft [--sources DOSSIER] | --schema",
       "options": {
         "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
@@ -21,7 +21,9 @@
         "--laya": "phrases d'exigence et catégorie contrôlées par le modèle local Laya (req_laya.py), avertissements seulement ; repli sur la regex sans Laya",
         "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/<nom>.laya.json à côté du .json) ; implique --laya",
         "--candidates": "écrit les phrases non reprises, avec la consigne de tri, pour un sous-agent de niveau simple (défaut : <nom>.candidats.json à côté du .json)",
-        "--triage": "tri de ces phrases, objet JSON clé -> true (exigence) ou false, validé (défaut : <nom>.tri.json à côté du .json, lu s'il existe) ; il décide seul pour les phrases triées"
+        "--triage": "tri de ces phrases, objet JSON clé -> true (exigence) ou false, validé (défaut : <nom>.tri.json à côté du .json, lu s'il existe) ; il décide seul pour les phrases triées",
+        "--draft": "écrire le brouillon de la description, sans réécrire un fichier existant : une exigence par phrase normative des sources, à trier",
+        "--sources": "avec --draft : dossier des sources, relatif au .json (défaut : sources)"
       },
       "input": {
         "format": "json",
@@ -362,6 +364,60 @@
               "properties": {
                 "input": {
                   "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "requirements",
+                "functional",
+                "non_functional",
+                "documents",
+                "errors",
+                "warnings"
+              ],
+              "description": "Avec --draft : brouillon écrit.",
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "requirements": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "functional": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "non_functional": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "documents": {
+                  "type": "integer",
+                  "minimum": 0
                 },
                 "errors": {
                   "type": "array",

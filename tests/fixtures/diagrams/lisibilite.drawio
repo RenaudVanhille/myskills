@@ -1,0 +1,11 @@
+<mxfile><diagram name="Lisibilité"><mxGraphModel><root>
+<mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="titre" value="Schéma peu lisible" style="text;html=1;fontSize=20;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="300" height="30" as="geometry"/></mxCell>
+<mxCell id="a" value="Service de gestion des déclarations de sinistres et des pièces justificatives" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;" vertex="1" parent="1"><mxGeometry x="0" y="100" width="120" height="40" as="geometry"/></mxCell>
+<mxCell id="b" value="B" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="400" y="100" width="120" height="40" as="geometry"/></mxCell>
+<mxCell id="c" value="C" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="200" y="0" width="120" height="40" as="geometry"/></mxCell>
+<mxCell id="d" value="D" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="200" y="250" width="120" height="40" as="geometry"/></mxCell>
+<mxCell id="m" value="Milieu" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1"><mxGeometry x="220" y="160" width="80" height="40" as="geometry"/></mxCell>
+<mxCell id="e1" style="html=1;" edge="1" parent="1" source="a" target="b"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e2" style="html=1;" edge="1" parent="1" source="c" target="d"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>

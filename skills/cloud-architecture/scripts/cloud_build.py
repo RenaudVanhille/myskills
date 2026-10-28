@@ -638,6 +638,7 @@ def main() -> int:
         check = load_check()
         if check:
             checked = check(out)
+            report["review_image"] = checked["review_image"]
             report["errors"] += checked["errors"]
             report["warnings"] += checked["warnings"]
         else:

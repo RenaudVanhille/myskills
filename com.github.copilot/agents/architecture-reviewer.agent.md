@@ -62,10 +62,14 @@ workflow, la commande les trace aussi au journal.
    Toi, tu gardes les étapes 8 et 9. Une seule analyse, ou pas de
    sous-agent : fais les étapes toi-même, dans l'ordre.
 3. Revue d'architecture (skill `architecture-review`), quand elle est
-   demandée : écris `revue.json` (`arch_review.py --schema`), avec `source`
-   pour une option d'`architecture-options` plutôt que de recopier ses
-   composants. Écris un scénario de qualité par exigence non fonctionnelle
-   indispensable ou importante, évalue-le et dis pourquoi ; note les
+   demandée : écris `revue.json` (toujours ce nom, dans le dossier de la
+   revue ; `arch_review.py --schema`). Pour une option
+   d'`architecture-options`, `arch_review.py revue.json --draft` l'écrit
+   d'abord, avec `source` plutôt que ses composants recopiés et un squelette
+   de scénario par exigence non fonctionnelle indispensable ou importante et
+   par scénario attendu ; pour un dossier reçu, décris toi-même ses
+   composants et ses flux. Complète chaque scénario (stimulus,
+   réponse, mesure), évalue-le et dis pourquoi ; note les
    risques, sensibilités, compromis et décisions. Avec le code, donne
    `code` et un motif par composant : le script lance graphify
    (`--code-only` par défaut ; `semantic` pour lire aussi les documents,

@@ -46,7 +46,7 @@
           ]
         }
       ],
-      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
+      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json (req_build.py exigences.json --draft en donne le brouillon, une exigence par phrase normative, à trier) en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
     },
     {
       "id": "description",

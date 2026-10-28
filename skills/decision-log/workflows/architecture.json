@@ -59,7 +59,7 @@
           ]
         }
       ],
-      "instructions": "Lire chaque sources/*.md une seule fois et écrire exigences.json, en gardant la numérotation des documents quand elle existe, avec le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
+      "instructions": "req_build.py exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
       "optional": [
         "exigences.candidats.json",
         "exigences.tri.json"

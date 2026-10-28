@@ -68,4 +68,5 @@ Le script affiche un rapport JSON par source : fichiers produits
 Code de sortie 1 si une source échoue. Si un outil manque, le message dit
 lequel : appliquez `check-prerequisites` (groupe `schemas`).
 
-Après l'export, ouvrez l'image pour la relire avant de la livrer.
+Après l'export, ouvrez l'image pour la relire avant de la livrer, sauf si
+le script de construction a dit `review_image: false` (lisibilité contrôlée).
