@@ -1,5 +1,16 @@
 # Journal des versions
 
+## [0.9.0](https://github.com/RenaudVanhille/myskills/compare/v0.8.0...v0.9.0) (2026-10-28)
+
+
+### Ajouts
+
+* brouillons d'exigences et de scénarios, lisibilité des schémas, CloudFormation et Bicep ([#41](https://github.com/RenaudVanhille/myskills/issues/41)) ([0bdeb95](https://github.com/RenaudVanhille/myskills/commit/0bdeb9594470b12832ad62f07fc4d09475c443b0))
+* **mission-workspace:** un répertoire par mission, vault unique et revue multi-dépôts ([#38](https://github.com/RenaudVanhille/myskills/issues/38)) ([c0aa232](https://github.com/RenaudVanhille/myskills/commit/c0aa2323004bc6b9a0e157cee6b47435a7389f96))
+* règles de complétude, leçons des revues et missions de référence notées ([#40](https://github.com/RenaudVanhille/myskills/issues/40)) ([63871a8](https://github.com/RenaudVanhille/myskills/commit/63871a8a454c88a0309492801c7de7e93ca10e56))
+* **tender-response:** appel d'offres, matrice de conformité, hypothèses et mémoire technique ([#42](https://github.com/RenaudVanhille/myskills/issues/42)) ([1db20e4](https://github.com/RenaudVanhille/myskills/commit/1db20e49b1f60d315d2c36cbd76412968a20c4c6))
+* **tender-response:** qualification go / no-go, principes du client et calibration par analogie ([#43](https://github.com/RenaudVanhille/myskills/issues/43)) ([f4ae9d9](https://github.com/RenaudVanhille/myskills/commit/f4ae9d98b01c61c0a7c1e9ff4ba8cb15a6b2d77b))
+
 ## [0.8.0](https://github.com/RenaudVanhille/myskills/compare/v0.7.0...v0.8.0) (2026-10-27)
 
 
