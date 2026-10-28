@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import model_store  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 # Le modèle lit environ 1 000 tokens : une exigence tient largement.
@@ -75,6 +76,7 @@ def main() -> int:
     if not args.spec:
         parser.error("description JSON attendue")
     report = {"input": str(args.spec), "method": None, "answers": {}, "errors": [], "warnings": []}
+    model_store.guard_network(report["warnings"])
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

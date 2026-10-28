@@ -27,7 +27,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
 # Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
 WORKSPACE_USERS = ["agent-handoff"]
 # Modèles locaux : sources autorisées (shared/model-sources.json), son schéma et model_store.py.
-MODEL_USERS = ["doc-to-markdown", "check-prerequisites"]
+MODEL_USERS = ["doc-to-markdown", "check-prerequisites", "requirements-catalog", "agent-handoff"]
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
 DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
                                  "migration-assessment",
@@ -70,7 +70,7 @@ def generated_libs() -> dict[Path, str]:
             files[REPO / "skills" / name / "scripts" / "lib" / "mission.schema.json"] = mission
             files[REPO / "skills" / name / "scripts" / "lib" / "rules.schema.json"] = completeness
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
-    # Modèles locaux : sources épinglées, cache vérifié, réseau coupé à l'exécution.
+    # Modèles locaux : sources épinglées, cache vérifié, flux réseau filtrés à l'exécution.
     for name in MODEL_USERS:
         lib = REPO / "skills" / name / "scripts" / "lib"
         files[lib / "model_store.py"] = (shared / "model_store.py").read_text(encoding="utf-8")

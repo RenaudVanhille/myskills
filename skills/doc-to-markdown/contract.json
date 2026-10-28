@@ -4,7 +4,7 @@
   "inputs": [
     "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
     "Images PNG, JPG, GIF, BMP, TIFF, WEBP",
-    "Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, réseau coupé)",
+    "Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, flux réseau limités aux hôtes identifiés)",
     "Dossiers"
   ],
   "outputs": [
@@ -360,7 +360,7 @@
     },
     {
       "name": "video.py",
-      "role": "Convertit une vidéo ou un audio en Markdown, en local et réseau coupé : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache.",
+      "role": "Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache.",
       "usage": "uv run scripts/video.py FICHIER [...] [--out DOSSIER] [--language fr] [--model whisper-small] [--no-audio] [--interval 1.0] [--threshold 0.06] [--max-frames 40]",
       "options": {
         "FICHIER": "vidéos ou enregistrements audio",

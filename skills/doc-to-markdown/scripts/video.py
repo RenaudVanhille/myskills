@@ -4,12 +4,14 @@
 # ///
 """Convertit une vidéo (démo applicative...) ou un enregistrement audio en Markdown, en local.
 
-Rien ne sort de la machine : le réseau du processus est coupé avant tout
-travail (model_store.forbid_network), la vidéo est lue par PyAV (FFmpeg
-embarqué), la parole transcrite par faster-whisper avec un modèle du cache
-local, téléchargé avant depuis une source épinglée de model-sources.json
-(`doctor.py video --prefetch`, skill check-prerequisites). Jamais
-ModelScope, jamais un service de transcription en ligne.
+Rien ne sort de la machine : avant tout travail, le script limite ses flux
+réseau aux hôtes identifiés (model_store.guard_network : model-sources.json,
+proxy, machine locale ; tout autre flux est refusé et listé dans `warnings`).
+La vidéo est lue par PyAV (FFmpeg embarqué), la parole transcrite par
+faster-whisper avec un modèle du cache local, téléchargé avant depuis une
+source épinglée de model-sources.json (`doctor.py video --prefetch`, skill
+check-prerequisites). Jamais ModelScope, jamais un service de transcription
+en ligne.
 
 Les images clés (changement d'écran) sont extraites dans
 <sortie>/attachments/<nom>-NN.png et listées dans `vision_pages` : la vision
@@ -31,7 +33,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import model_store  # noqa: E402
 
-model_store.forbid_network()
+NETWORK_WARNINGS: list[str] = []
+model_store.guard_network(NETWORK_WARNINGS)
 
 from script_report import print_report  # noqa: E402
 from validate import check  # noqa: E402
@@ -186,7 +189,7 @@ def main() -> int:
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             results.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
-    print_report(results)
+    print_report(results, warnings=NETWORK_WARNINGS)
     return 1 if failed else 0
 
 

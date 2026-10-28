@@ -1,10 +1,12 @@
-"""Modèles locaux (transcription...) : sources autorisées, cache vérifié, réseau coupé.
+"""Modèles locaux (transcription...) : sources autorisées, cache vérifié, flux réseau filtrés.
 
 Un modèle ne vient que d'une source de model-sources.json : hôte autorisé,
 révision épinglée (commit), empreinte SHA-256 de chaque fichier. Il se
 télécharge une fois (doctor.py --prefetch, skill check-prerequisites) ou se
-copie depuis un dossier (--models-from) ; ensuite le script qui s'en sert
-coupe le réseau (forbid_network) : aucun contenu de document ne peut partir.
+copie depuis un dossier (--models-from). Un script qui traite des documents
+appelle guard_network() : seuls les hôtes identifiés (model-sources.json,
+MYSKILLS_ALLOWED_HOSTS), la machine et le proxy restent joignables ; tout
+autre flux est refusé et listé dans son rapport.
 
 Cache : <cache de myskills>/models/<id>/<révision>/, ou MYSKILLS_MODELS.
 
@@ -26,6 +28,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SOURCES = HERE / "model-sources.json"
 SCHEMA = HERE / "model-sources.schema.json"
+if not SOURCES.is_file():  # source du dépôt (shared/scripts/), pas une copie dans lib/
+    SOURCES, SCHEMA = HERE.parent / "model-sources.json", HERE.parent / "schemas" / "model-sources.schema.json"
 CHUNK = 1 << 20
 
 
@@ -151,37 +155,93 @@ def fetch(model: str, from_dir: Path | None = None) -> Path:
     return found
 
 
-def _local(address) -> bool:
-    if not isinstance(address, tuple):
-        return True  # socket Unix
+# Flux refusés depuis guard_network(), pour le rapport du script.
+BLOCKED: list[str] = []
+
+
+def _ip(value: str):
     try:
-        return ipaddress.ip_address(address[0]).is_loopback
+        return ipaddress.ip_address(value.split("%")[0])
     except ValueError:
-        return address[0] == "localhost"
+        return None
 
 
-def forbid_network() -> None:
-    """Coupe toute connexion réseau sortante du processus Python (boucle locale
-    permise) et met les bibliothèques de modèles en mode hors ligne."""
-    for name in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE", "HF_DATASETS_OFFLINE", "HF_HUB_DISABLE_TELEMETRY",
-                 "DO_NOT_TRACK", "MYSKILLS_OFFLINE"):
-        os.environ[name] = "1"
-    # Pas de proxy : un proxy local (boucle locale permise) laisserait sortir les données.
-    for name in list(os.environ):
-        if name.lower() in ("http_proxy", "https_proxy", "all_proxy", "ftp_proxy"):
-            del os.environ[name]
-    os.environ["NO_PROXY"] = os.environ["no_proxy"] = "*"
-    urllib.request.getproxies = dict
+def allowed_hosts() -> list[str]:
+    """Hôtes joignables : ceux de model-sources.json, plus MYSKILLS_ALLOWED_HOSTS
+    (motifs séparés par des virgules)."""
+    extra = [h.strip() for h in os.environ.get("MYSKILLS_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    return list(sources()["hosts"]) + extra
+
+
+def guard_network(warnings: list[str] | None = None) -> list[str]:
+    """Limite les connexions du processus aux flux identifiés : hôtes de
+    model-sources.json (et MYSKILLS_ALLOWED_HOSTS), la machine elle-même et le
+    proxy configuré. Toute autre destination est refusée, notée dans BLOCKED et,
+    si `warnings` est donnée (celle du rapport), signalée dans cette liste.
+    Couvre le code Python (sockets, résolution de noms, tunnels de proxy
+    http.client) ; pas une bibliothèque native qui ouvrirait ses propres
+    connexions."""
+    import http.client
+
+    patterns = allowed_hosts()
+    proxies = {urllib.parse.urlsplit(url).hostname for url in urllib.request.getproxies().values()
+               if isinstance(url, str) and "://" in url} - {None}
+    resolved: set[str] = set()
+    os.environ["HF_HUB_DISABLE_TELEMETRY"] = os.environ["DO_NOT_TRACK"] = "1"
+
+    def host_ok(host: str) -> bool:
+        host = host.strip("[]").lower().rstrip(".")
+        address = _ip(host)
+        if host == "localhost" or (address and address.is_loopback) or host in proxies:
+            return True
+        return any(fnmatch.fnmatch(host, pattern.lower()) for pattern in patterns)
+
+    def refuse(destination: str):
+        if destination not in BLOCKED:
+            BLOCKED.append(destination)
+            if warnings is not None:
+                warnings.append(f"Flux non identifié refusé : {destination}")
+        raise ConnectionRefusedError(f"flux non identifié refusé par myskills : {destination} "
+                                     "(hôtes autorisés : shared/model-sources.json, MYSKILLS_ALLOWED_HOSTS)")
+
+    original_getaddrinfo = socket.getaddrinfo
+
+    def getaddrinfo(host, port, *args, **kwargs):
+        name = host.decode() if isinstance(host, bytes) else host
+        if name and not _ip(name.strip("[]")):
+            if not host_ok(name):
+                refuse(name)
+            result = original_getaddrinfo(host, port, *args, **kwargs)
+            resolved.update(str(entry[4][0]) for entry in result)
+            return result
+        return original_getaddrinfo(host, port, *args, **kwargs)
+
+    def checked(address) -> None:
+        if not isinstance(address, tuple):
+            return  # socket Unix
+        host = str(address[0])
+        if host in resolved or host_ok(host):
+            return
+        refuse(host)
+
     original_connect, original_connect_ex = socket.socket.connect, socket.socket.connect_ex
 
     def connect(self, address):
-        if not _local(address):
-            raise ConnectionRefusedError(f"réseau coupé par myskills : connexion vers {address[0]} refusée")
+        checked(address)
         return original_connect(self, address)
 
     def connect_ex(self, address):
-        if not _local(address):
-            raise ConnectionRefusedError(f"réseau coupé par myskills : connexion vers {address[0]} refusée")
+        checked(address)
         return original_connect_ex(self, address)
 
+    original_tunnel = http.client.HTTPConnection.set_tunnel
+
+    def set_tunnel(self, host, *args, **kwargs):
+        if not host_ok(host.rsplit(":", 1)[0] if host.count(":") == 1 else host):
+            refuse(host)
+        return original_tunnel(self, host, *args, **kwargs)
+
+    socket.getaddrinfo = getaddrinfo
     socket.socket.connect, socket.socket.connect_ex = connect, connect_ex
+    http.client.HTTPConnection.set_tunnel = set_tunnel
+    return BLOCKED

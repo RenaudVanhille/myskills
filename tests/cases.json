@@ -76,7 +76,7 @@
     {
       "id": "video-images-cles",
       "skill": "doc-to-markdown",
-      "_note": "Vidéo de démo (3 écrans) par convert.py puis video.py : réseau coupé, une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
+      "_note": "Vidéo de démo (3 écrans) par convert.py puis video.py (flux réseau filtrés), une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/demo-portail.mp4", "--out", "{out}"], "env": {"MYSKILLS_MODELS": "{out}/modeles"},
@@ -97,13 +97,24 @@
       "id": "video-transcription",
       "skill": "doc-to-markdown",
       "slow": true,
-      "_note": "Modèle whisper-small téléchargé depuis sa source épinglée (empreintes vérifiées), puis vidéo transcrite réseau coupé.",
+      "_note": "Modèle whisper-small téléchargé depuis sa source épinglée (empreintes vérifiées), puis vidéo transcrite avec les flux réseau filtrés.",
       "steps": [
         {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video", "--prefetch"], "exit": 0},
         {"script": "{skills}/doc-to-markdown/scripts/video.py",
          "args": ["{samples}/demo-portail.mp4", "--out", "{out}", "--language", "fr"], "exit": 0,
          "report": {"results.0.engine": "whisper", "results.0.model": "whisper-small", "results.0.images": 3,
                     "results.0.language": "fr"}}
+      ]
+    },
+    {
+      "id": "docling-flux-filtres",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Docling lancé derrière guard_network() (uvx) : ses modèles viennent d'hôtes autorisés (Hugging Face), aucun repli sur MarkItDown.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-texte.pdf", "--out", "{out}", "--engine", "docling"],
+         "exit": 0, "report": {"results.0.engine": "docling"}}
       ]
     },
     {

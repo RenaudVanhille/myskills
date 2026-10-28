@@ -24,10 +24,15 @@ choix automatique : RapidOCR, qu'il prend par défaut, télécharge ses modèles
 depuis ModelScope (modelscope.cn). Sans Tesseract, Docling tourne sans OCR et
 les pages scannées vont à la vision.
 
-Une vidéo ou un enregistrement audio passe par video.py (réseau coupé,
+Une vidéo ou un enregistrement audio passe par video.py (flux réseau filtrés,
 transcription Whisper locale, images clés pour la vision), jamais par Docling
 ni MarkItDown, qui téléchargeraient des modèles ou enverraient le son à un
 service en ligne.
+
+Les flux réseau du script, de Docling et de video.py sont limités aux hôtes
+identifiés (model_store.guard_network : model-sources.json,
+MYSKILLS_ALLOWED_HOSTS, proxy, machine locale) ; un autre flux, par exemple
+vers ModelScope, est refusé et listé dans `warnings`.
 
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
@@ -69,12 +74,14 @@ from pathlib import Path
 
 from validate import check
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+LIB = Path(__file__).resolve().parent / "lib"
+sys.path.insert(0, str(LIB))
+import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
-# Vidéo et audio : confiés à video.py (réseau coupé, modèles locaux épinglés).
+# Vidéo et audio : confiés à video.py (flux filtrés, modèles locaux épinglés).
 MEDIA = {".mp4", ".m4v", ".mov", ".avi", ".mkv", ".webm", ".wmv",
          ".m4a", ".mp3", ".wav", ".ogg", ".flac", ".aac", ".wma"}
 VIDEO_SCRIPT = Path(__file__).with_name("video.py")
@@ -227,12 +234,23 @@ def run_markitdown(path: Path) -> str:
     return promote_empty_headers(text)
 
 
-def docling_command() -> list[str] | None:
-    if shutil.which("docling"):
-        return ["docling"]
+# Docling lancé derrière model_store.guard_network() : seuls les flux identifiés passent,
+# les autres sont refusés et listés sur la sortie d'erreur (ligne MYSKILLS_BLOCKED).
+DOCLING_GUARDED = (
+    "import atexit, sys; sys.path.insert(0, sys.argv.pop(1)); import model_store; "
+    "blocked = model_store.guard_network(); "
+    "atexit.register(lambda: blocked and print('MYSKILLS_BLOCKED ' + ' '.join(blocked), file=sys.stderr)); "
+    "from docling.cli.main import app; sys.argv[0] = 'docling'; app()")
+BLOCKED_LINE = re.compile(r"^MYSKILLS_BLOCKED (.+)$", re.M)
+
+
+def docling_command() -> tuple[list[str] | None, bool]:
+    """Commande Docling, et si ses flux réseau sont filtrés (uvx) ou non (docling installé seul)."""
     if shutil.which("uvx"):
-        return ["uvx", "--from", "docling", "docling"]
-    return None
+        return ["uvx", "--from", "docling", "python", "-c", DOCLING_GUARDED, str(LIB)], True
+    if shutil.which("docling"):
+        return ["docling"], False
+    return None, False
 
 
 def tesseract_langs() -> list[str]:
@@ -262,15 +280,20 @@ DOCLING_SLOT = threading.Semaphore(1)
 MEDIA_SLOT = threading.Semaphore(1)
 
 
-def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
-    command = docling_command()
+def run_docling(path: Path, attachments: Path, stem: str, warnings: list[str]) -> tuple[str, int]:
+    command, guarded = docling_command()
     if command is None:
-        raise RuntimeError("Docling introuvable : installez-le (uv tool install docling).")
+        raise RuntimeError("Docling introuvable : installez uv (uvx), ou Docling (uv tool install docling).")
+    if not guarded:
+        warnings.append("Docling lancé sans filtre des flux réseau (uvx absent)")
     with tempfile.TemporaryDirectory() as tmp:
         env = {**os.environ, "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
-        subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
-                                  "referenced", *docling_ocr_args(), "--output", tmp],
-                       check=True, capture_output=True, text=True, env=env)
+        done = subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
+                                         "referenced", *docling_ocr_args(), "--output", tmp],
+                              capture_output=True, text=True, encoding="utf-8", env=env)
+        for line in BLOCKED_LINE.findall(done.stderr or ""):
+            warnings.append(f"Flux non identifiés refusés (Docling) : {line.strip()}")
+        done.check_returncode()
         tmp_dir = Path(tmp)
         markdown = next(tmp_dir.glob("*.md")).read_text(encoding="utf-8")
         count = 0
@@ -347,6 +370,7 @@ def run_video(path: Path, out: Path, stem: str, language: str | None) -> dict:
     if report["results"]:
         if "error" in report["results"][0]:
             raise RuntimeError(report["results"][0]["error"])
+        report["results"][0]["warnings"] += report["warnings"]
         return report["results"][0]
     raise RuntimeError("; ".join(report["errors"]) or "video.py sans résultat")
 
@@ -404,7 +428,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         if engine == "docling":
             try:
                 with DOCLING_SLOT:
-                    markdown, report["images"] = run_docling(path, attachments, stem)
+                    markdown, report["images"] = run_docling(path, attachments, stem, report["warnings"])
             except (RuntimeError, subprocess.CalledProcessError) as error:
                 detail = (getattr(error, "stderr", "") or str(error)).strip().splitlines()
                 last = detail[-1] if detail else "erreur inconnue"
@@ -451,6 +475,8 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
                         help="documents convertis en même temps (défaut : jusqu'à 4 ; 1 : un par un)")
     args = parser.parse_args()
+    network_warnings: list[str] = []
+    model_store.guard_network(network_warnings)
 
     reports, failed = [], False
     files = expand(args.files, args.out.resolve())
@@ -482,7 +508,7 @@ def main() -> int:
         for report, error in pool.map(one, files):
             reports.append(report)
             failed = failed or error
-    print_report(reports, warnings=[classify_warning] if classify_warning else [])
+    print_report(reports, warnings=([classify_warning] if classify_warning else []) + network_warnings)
     return 1 if failed else 0
 
 

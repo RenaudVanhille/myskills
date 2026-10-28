@@ -347,7 +347,7 @@
    "inputs": [
     "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
     "Images PNG, JPG, GIF, BMP, TIFF, WEBP",
-    "Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, réseau coupé)",
+    "Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, flux réseau limités aux hôtes identifiés)",
     "Dossiers"
    ],
    "match": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (démo applicative) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown."

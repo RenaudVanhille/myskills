@@ -152,8 +152,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   télécharge que depuis une source de `shared/model-sources.json` (hôte
   autorisé, révision épinglée, empreintes SHA-256 vérifiées, entrée ajoutée
   par `scripts/pin_model.py` et relue en PR), par
-  `scripts/lib/model_store.py` ; le script qui s'en sert coupe le réseau
-  (`model_store.forbid_network()`) avant de lire le document. Jamais de
+  `scripts/lib/model_store.py`. Un script qui lit un document avec une
+  bibliothèque de modèle ou de conversion (faster-whisper, Laya, MarkItDown,
+  Docling) appelle d'abord `model_store.guard_network()` : seuls les hôtes
+  identifiés (`model-sources.json`, `MYSKILLS_ALLOWED_HOSTS`), le proxy et
+  la machine restent joignables, tout autre flux est refusé et signalé dans
+  le rapport **(vérifiée)**. Jamais de
   bibliothèque qui tire ses modèles d'ailleurs (ModelScope, RapidOCR,
   EasyOCR...) ni d'extra MarkItDown qui envoie le contenu à un service
   (`all`, `audio-transcription`, `az-doc-intel`) **(vérifiée)**.

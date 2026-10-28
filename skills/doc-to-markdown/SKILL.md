@@ -15,10 +15,10 @@ installent eux-mêmes leurs dépendances via `uv run` ; à défaut, lancez-les a
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, réseau coupé) ; Dossiers.
+- **Entrées** : Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT ; Images PNG, JPG, GIF, BMP, TIFF, WEBP ; Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, flux réseau limités aux hôtes identifiés) ; Dossiers.
 - **Sorties** : DOSSIER/<nom>.md ; DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown ; DOSSIER/attachments/<nom>-NN.png : images clés d'une vidéo, à décrire par vision ; DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite.
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (error dans son résultat, repris dans errors).
-- **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local et réseau coupé : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
+- **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
@@ -80,7 +80,9 @@ directement sur un document : passez par `convert.py`.
 uv run scripts/video.py VIDEO [...] --out DOSSIER [--language fr] [--no-audio]
 ```
 
-Tout reste sur la machine : le script coupe le réseau avant tout travail,
+Tout reste sur la machine : le script limite ses flux réseau aux hôtes
+identifiés (`model-sources.json`, proxy, machine locale ; tout autre flux est
+refusé et listé dans `warnings`) avant tout travail,
 garde une image à chaque changement d'écran (`DOSSIER/attachments/<nom>-NN.png`,
 listées dans `vision_pages`) et transcrit la parole avec faster-whisper et le
 modèle `whisper-small` du cache local, rangée sous l'image affichée à ce
