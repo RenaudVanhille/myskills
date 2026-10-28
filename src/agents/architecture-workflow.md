@@ -1,7 +1,7 @@
 ---
 name: architecture-workflow
 description: "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
-skills: check-prerequisites, mission-workspace, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, cloud-cost, architecture-dossier, data-protection, migration-assessment, transition-roadmap, api-contract
+skills: check-prerequisites, mission-workspace, decision-log, agent-handoff, doc-to-markdown, markdown-to-obsidian, requirements-catalog, architecture-options, urbanization-map, well-architected-review, drawio-diagram, cloud-architecture, diagram-export, architecture-deck, threat-model, architecture-review, solution-estimate, cloud-cost, architecture-dossier, tender-response, data-protection, migration-assessment, transition-roadmap, api-contract
 commands: uv run *, uvx *, python *, python3 *, py *
 ---
 
@@ -12,7 +12,9 @@ l'utilisateur nomme (`cloud-existant` : du code d'infrastructure au schéma
 cloud et au modèle STRIDE ; `revue-dossier` : instruire un dossier reçu
 jusqu'à l'avis d'architecture ; `conformite` : menaces, hébergement, RGPD
 et plan d'actions ; `migration-cloud` : évaluation 6R, cible, feuille de
-route) ou son fichier de définition. Tout ce qui est propre à un workflow (étapes, skills, livrables,
+route ; `avant-vente`, celui d'une mission d'avant-vente : dépouillement de
+l'appel d'offres, matrice de conformité, registre des hypothèses, mémoire
+technique et soutenance) ou son fichier de définition. Tout ce qui est propre à un workflow (étapes, skills, livrables,
 contrôles, consignes, niveau) est dans sa définition, que `journal.py` te
 donne étape par étape : tu n'en sais pas plus, et un nouveau workflow ne
 demande aucun changement ici. L'utilisateur relit chaque étape : tu ne

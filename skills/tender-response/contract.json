@@ -1,0 +1,988 @@
+{
+  "skill": "tender-response",
+  "level": "moyen",
+  "inputs": [
+    "Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown)",
+    "Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft",
+    "Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence)",
+    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal"
+  ],
+  "outputs": [
+    "ao.md : dépouillement (calendrier et échéances, critères pondérés, pièces à fournir à cocher, format de réponse, clauses à risque par niveau)",
+    "conformite.md, conformite.csv et conformite.xlsx : matrice de conformité (réponse par exigence, justification, composants, source)",
+    "questions-client.md : questions à poser avant la date limite ; registre.md et registre.csv : hypothèses, exclusions, prérequis et réponses du client, à reprendre dans l'offre"
+  ],
+  "scripts": [
+    {
+      "name": "tender_build.py",
+      "role": "Dépouille un dossier de consultation : vérifie chaque citation, contrôle les poids des critères (premier niveau sur 100, sous-critères égaux à leur critère), l'ordre des dates et le temps restant avant les dates limites (questions, remise), signale les clauses à risque haut sans note et les éléments des sources repris par aucune entrée ; écrit ao.md ; avec --draft, écrit d'abord la description depuis les sources (dates, tableaux de pondération, listes de pièces, format, clauses).",
+      "usage": "uv run scripts/tender_build.py ao.json [--out-dir DOSSIER] [--today AAAA-MM-JJ] | ao.json --draft [--sources DOSSIER] | --schema",
+      "options": {
+        "ao.json": "description du dépouillement ; le dossier sources est relatif à ce fichier",
+        "--out-dir": "dossier de ao.md (défaut : celui du .json)",
+        "--today": "date du jour pour le temps restant (défaut : aujourd'hui)",
+        "--draft": "écrit le brouillon de la description depuis les sources, jamais par-dessus un fichier existant",
+        "--sources": "avec --draft : dossier des sources (défaut : sources)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "dépouillement écrit (dates proches, poids incohérents et éléments non repris en avertissements)",
+        "1": "description invalide, citation introuvable, parent ou date invalide ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Dépouillement d'un appel d'offres, citations exactes.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sources"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "reference": {
+              "type": "string"
+            },
+            "buyer": {
+              "type": "string"
+            },
+            "sources": {
+              "type": "string",
+              "minLength": 1,
+              "description": "dossier des documents en Markdown, relatif au .json"
+            },
+            "_draft": {
+              "type": "string"
+            },
+            "dates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "kind",
+                  "label",
+                  "date",
+                  "source"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^D-[0-9]{2,}$"
+                  },
+                  "kind": {
+                    "enum": [
+                      "questions",
+                      "remise",
+                      "soutenance",
+                      "visite",
+                      "demarrage",
+                      "autre"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "date": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}:[0-9]{2}$"
+                  },
+                  "source": {
+                    "$ref": "#/$defs/source"
+                  }
+                }
+              }
+            },
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label",
+                  "weight",
+                  "topic",
+                  "source"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^C-[0-9]{2,}$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "pourcentage ou points"
+                  },
+                  "parent": {
+                    "type": "string",
+                    "description": "critère dont c'est un sous-critère"
+                  },
+                  "topic": {
+                    "$ref": "#/$defs/topic"
+                  },
+                  "source": {
+                    "$ref": "#/$defs/source"
+                  }
+                }
+              }
+            },
+            "pieces": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "label",
+                  "kind",
+                  "source"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^P-[0-9]{2,}$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "enum": [
+                      "administratif",
+                      "technique",
+                      "financier",
+                      "autre"
+                    ]
+                  },
+                  "pages": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "nombre de pages au plus"
+                  },
+                  "memoire": {
+                    "type": "boolean",
+                    "description": "le mémoire technique (son budget de pages)"
+                  },
+                  "source": {
+                    "$ref": "#/$defs/source"
+                  }
+                }
+              }
+            },
+            "format": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text",
+                  "source"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^F-[0-9]{2,}$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "source": {
+                    "$ref": "#/$defs/source"
+                  }
+                }
+              }
+            },
+            "clauses": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "topic",
+                  "text",
+                  "level",
+                  "source"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^R-[0-9]{2,}$"
+                  },
+                  "topic": {
+                    "enum": [
+                      "penalites",
+                      "responsabilite",
+                      "irregularite",
+                      "engagement",
+                      "propriete",
+                      "reversibilite",
+                      "resiliation",
+                      "confidentialite",
+                      "sous-traitance",
+                      "garantie",
+                      "paiement",
+                      "autre"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "level": {
+                    "enum": [
+                      "haute",
+                      "moyenne",
+                      "basse"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "description": "pourquoi c'est un risque, que faire (jugement du modèle)"
+                  },
+                  "source": {
+                    "$ref": "#/$defs/source"
+                  }
+                }
+              }
+            },
+            "ignored": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "doc",
+                  "quote",
+                  "reason"
+                ],
+                "properties": {
+                  "doc": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quote": {
+                    "type": "string",
+                    "minLength": 3
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          "$defs": {
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "doc",
+                "quote"
+              ],
+              "properties": {
+                "doc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "document du dossier sources"
+                },
+                "quote": {
+                  "type": "string",
+                  "minLength": 3,
+                  "description": "citation exacte"
+                }
+              }
+            },
+            "topic": {
+              "enum": [
+                "solution",
+                "securite",
+                "methode",
+                "maintenance",
+                "equipe",
+                "environnement",
+                "prix",
+                "autre"
+              ]
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Compteurs, clauses par niveau, dates limites et jours restants, budget de pages du mémoire ; ou, avec --draft, compteurs du brouillon.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "output",
+                "dates",
+                "criteria",
+                "pieces",
+                "clauses",
+                "deadlines",
+                "memoire_pages",
+                "uncovered",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dates": {
+                  "type": "integer"
+                },
+                "criteria": {
+                  "type": "integer"
+                },
+                "pieces": {
+                  "type": "integer"
+                },
+                "clauses": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "deadlines": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "questions": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "date",
+                        "days_left"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "days_left": {
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "remise": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "date",
+                        "days_left"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "days_left": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                },
+                "memoire_pages": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "uncovered": {
+                  "type": "integer"
+                },
+                "documents": {
+                  "type": "integer"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "dates",
+                "criteria",
+                "pieces",
+                "format",
+                "clauses",
+                "documents",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "dates": {
+                  "type": "integer"
+                },
+                "criteria": {
+                  "type": "integer"
+                },
+                "pieces": {
+                  "type": "integer"
+                },
+                "format": {
+                  "type": "integer"
+                },
+                "clauses": {
+                  "type": "integer"
+                },
+                "documents": {
+                  "type": "integer"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "compliance_build.py",
+      "role": "Construit la matrice de conformité : valide exigences.json et options.json contre le schéma de leur script, exige une réponse par exigence retenue et une justification pour chaque réponse partielle ou non conforme, reprend les composants de l'option pour une réponse conforme, signale une réponse qui contredit les écarts de l'option ; écrit Markdown, CSV et Excel (bibliothèque standard), relit le classeur ; avec --draft, écrit d'abord les réponses tirées des écarts de l'option.",
+      "usage": "uv run scripts/compliance_build.py conformite.json [--out-dir DOSSIER] | conformite.json --draft [--option ID] | --schema",
+      "options": {
+        "conformite.json": "réponses par exigence ; exigences.json et options.json relatifs à ce fichier",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--draft": "écrit le brouillon (une réponse par exigence retenue, note de l'écart en indice), jamais par-dessus un fichier existant",
+        "--option": "avec --draft : option de la réponse (défaut : décision, sinon recommandation)",
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "matrice écrite et relue (contradictions avec l'option en avertissements)",
+        "1": "description invalide, exigence sans réponse, justification manquante ou classeur illisible"
+      },
+      "input": {
+        "format": "json",
+        "description": "Réponse par exigence retenue.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "answers"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "_draft": {
+              "type": "string"
+            },
+            "requirements": {
+              "type": "string",
+              "description": "catalogue d'exigences (défaut : exigences.json)"
+            },
+            "architecture": {
+              "type": "string",
+              "description": "options d'architecture (défaut : options.json)"
+            },
+            "option": {
+              "type": "string",
+              "description": "option de la réponse (défaut : décision, sinon recommandation)"
+            },
+            "answers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "exigence retenue du catalogue"
+                  },
+                  "status": {
+                    "enum": [
+                      "conforme",
+                      "partiel",
+                      "non-conforme",
+                      "sans-objet"
+                    ]
+                  },
+                  "justification": {
+                    "type": "string",
+                    "description": "obligatoire pour partiel et non-conforme"
+                  },
+                  "hint": {
+                    "type": "string",
+                    "description": "note de l'écart de l'option, écrite par --draft"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Réponses par statut et taux de conformité ; ou, avec --draft, réponses à justifier.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "option",
+                "requirements",
+                "counts",
+                "rate",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "option": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requirements": {
+                  "type": "integer"
+                },
+                "counts": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "conforme",
+                    "partiel",
+                    "non-conforme",
+                    "sans-objet"
+                  ],
+                  "properties": {
+                    "conforme": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "partiel": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "non-conforme": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sans-objet": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "rate": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "option",
+                "answers",
+                "to_justify",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "option": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "answers": {
+                  "type": "integer"
+                },
+                "to_justify": {
+                  "type": "integer"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "assumptions.py",
+      "role": "Tient le registre des hypothèses, exclusions, prérequis et questions au client : nature tirée du préfixe, références vérifiées dans exigences.json et ao.json, réponse exigée d'une question répondue, questions à envoyer comptées avant la date limite du dépouillement ; écrit questions-client.md et le registre à reprendre dans l'offre (Markdown, CSV relu) ; avec --draft, écrit d'abord le registre depuis exigences.json, chiffrage.json et le journal.",
+      "usage": "uv run scripts/assumptions.py registre.json [--out-dir DOSSIER] [--today AAAA-MM-JJ] | registre.json --draft | --schema",
+      "options": {
+        "registre.json": "registre ; ao.json et exigences.json relatifs à ce fichier",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--today": "date du jour pour le temps restant (défaut : aujourd'hui)",
+        "--draft": "écrit le brouillon depuis les livrables du dossier, jamais par-dessus un fichier existant",
+        "--schema": "affiche le schéma JSON du registre sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "registre et questions écrits (date limite proche ou passée en avertissement)",
+        "1": "registre invalide, nature contraire au préfixe, référence inconnue ou question répondue sans réponse"
+      },
+      "input": {
+        "format": "json",
+        "description": "Registre des hypothèses, exclusions, prérequis et questions.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "_draft": {
+              "type": "string"
+            },
+            "tender": {
+              "type": "string",
+              "description": "dépouillement (défaut : ao.json), pour les références et la date limite des questions"
+            },
+            "requirements": {
+              "type": "string",
+              "description": "catalogue d'exigences (défaut : exigences.json)"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "kind",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^(HYP|EXC|PRE|QUE)-[0-9]{2,}$"
+                  },
+                  "kind": {
+                    "enum": [
+                      "hypothese",
+                      "exclusion",
+                      "prerequis",
+                      "question"
+                    ]
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "exigences, critères, pièces, clauses"
+                  },
+                  "impact": {
+                    "enum": [
+                      "solution",
+                      "chiffrage",
+                      "planning",
+                      "contractuel",
+                      "autre"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "a-envoyer",
+                      "envoyee",
+                      "repondue",
+                      "sans-reponse"
+                    ],
+                    "description": "question seulement"
+                  },
+                  "answer": {
+                    "type": "string",
+                    "description": "réponse du client à la question"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "description": "livrable d'où vient l'entrée"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Entrées par nature, questions par statut, date limite des questions ; ou, avec --draft, entrées par origine.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "counts",
+                "questions",
+                "deadline",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "counts": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "questions": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "deadline": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "date",
+                        "days_left"
+                      ],
+                      "properties": {
+                        "date": {
+                          "type": "string"
+                        },
+                        "days_left": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "items",
+                "origins",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "items": {
+                  "type": "integer"
+                },
+                "origins": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "requirements-catalog",
+      "script": "req_build.py",
+      "why": "valider exigences.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "valider options.json contre son schéma",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "doc-to-markdown",
+      "kind": "skill",
+      "when": "le dossier de consultation n'est pas encore en Markdown"
+    },
+    {
+      "to": "requirements-catalog",
+      "kind": "skill",
+      "when": "le dépouillement est fait : cataloguer les exigences du cahier des charges"
+    },
+    {
+      "to": "architecture-dossier",
+      "kind": "skill",
+      "when": "assembler le mémoire technique selon les critères (dossier_build.py --template memoire --tender ao.json)"
+    },
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue"
+    }
+  ]
+}

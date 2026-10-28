@@ -18,7 +18,7 @@
     "documents": {"type": "string", "minLength": 1, "description": "Documents reçus (défaut : documents)."},
     "workflows": {
       "type": "array",
-      "description": "Workflows de la mission (skill decision-log). Défaut : architecture pour une avant-vente, revue-dossier pour une revue, à la racine.",
+      "description": "Workflows de la mission (skill decision-log). Défaut : avant-vente pour une avant-vente, revue-dossier pour une revue, à la racine.",
       "items": {
         "type": "object",
         "required": ["definition"],

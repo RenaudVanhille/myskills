@@ -1,0 +1,257 @@
+{
+ "title": "Dépouillement : plateforme de rendez-vous d'Aubrelac",
+ "reference": "AUB-2026-041",
+ "buyer": "Métropole d'Aubrelac",
+ "sources": "sources",
+ "dates": [
+  {
+   "id": "D-01",
+   "kind": "questions",
+   "label": "Date limite de réception des questions",
+   "date": "2026-11-14",
+   "time": "12:00",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Date limite de réception des questions : 14 novembre 2026 à 12 h."
+   }
+  },
+  {
+   "id": "D-02",
+   "kind": "remise",
+   "label": "Date limite de remise des offres",
+   "date": "2026-11-28",
+   "time": "12:00",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Date limite de remise des offres : 28 novembre 2026 à 12 h."
+   }
+  },
+  {
+   "id": "D-03",
+   "kind": "soutenance",
+   "label": "Soutenance des candidats retenus",
+   "date": "2026-12-07",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Soutenance des candidats retenus : semaine du 7 décembre 2026."
+   }
+  },
+  {
+   "id": "D-04",
+   "kind": "demarrage",
+   "label": "Démarrage prévisionnel",
+   "date": "2027-01-04",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Démarrage prévisionnel : 4 janvier 2027."
+   }
+  }
+ ],
+ "criteria": [
+  {
+   "id": "C-01",
+   "label": "Valeur technique",
+   "weight": 60,
+   "topic": "solution",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Valeur technique | 60 %"
+   }
+  },
+  {
+   "id": "C-02",
+   "label": "Prix",
+   "weight": 40,
+   "topic": "prix",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Prix | 40 %"
+   }
+  },
+  {
+   "id": "C-03",
+   "label": "Architecture proposée et réponse aux exigences du CCTP",
+   "weight": 25,
+   "parent": "C-1",
+   "topic": "solution",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Architecture proposée et réponse aux exigences du CCTP | 25 %"
+   }
+  },
+  {
+   "id": "C-04",
+   "label": "Sécurité, hébergement et protection des données",
+   "weight": 15,
+   "parent": "C-01",
+   "topic": "securite",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Sécurité, hébergement et protection des données | 15 %"
+   }
+  },
+  {
+   "id": "C-05",
+   "label": "Méthodologie de projet et planning",
+   "weight": 10,
+   "parent": "C-01",
+   "topic": "methode",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Méthodologie de projet et planning | 10 %"
+   }
+  },
+  {
+   "id": "C-06",
+   "label": "Organisation de la maintenance et niveaux de service",
+   "weight": 10,
+   "parent": "C-01",
+   "topic": "maintenance",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Organisation de la maintenance et niveaux de service | 10 %"
+   }
+  }
+ ],
+ "pieces": [
+  {
+   "id": "P-01",
+   "label": "Le DUME ou les formulaires DC1 et DC2",
+   "kind": "administratif",
+   "source": {
+    "doc": "RC.md",
+    "quote": "le DUME ou les formulaires DC1 et DC2"
+   }
+  },
+  {
+   "id": "P-02",
+   "label": "Un mémoire technique de 30 pages au plus, hors annexes",
+   "kind": "technique",
+   "pages": 30,
+   "memoire": true,
+   "source": {
+    "doc": "RC.md",
+    "quote": "un mémoire technique de 30 pages au plus, hors annexes"
+   }
+  },
+  {
+   "id": "P-03",
+   "label": "Le bordereau des prix unitaires (BPU) complété",
+   "kind": "financier",
+   "source": {
+    "doc": "RC.md",
+    "quote": "le bordereau des prix unitaires (BPU) complété"
+   }
+  },
+  {
+   "id": "P-04",
+   "label": "Le détail quantitatif estimatif (DQE) complété",
+   "kind": "financier",
+   "source": {
+    "doc": "RC.md",
+    "quote": "le détail quantitatif estimatif (DQE) complété"
+   }
+  },
+  {
+   "id": "P-05",
+   "label": "Un planning prévisionnel de réalisation",
+   "kind": "technique",
+   "source": {
+    "doc": "RC.md",
+    "quote": "un planning prévisionnel de réalisation"
+   }
+  },
+  {
+   "id": "P-06",
+   "label": "Les CV des intervenants clés (chef de projet, architecte, référent sécurité)",
+   "kind": "technique",
+   "source": {
+    "doc": "RC.md",
+    "quote": "les CV des intervenants clés (chef de projet, architecte, référent sécurité)"
+   }
+  }
+ ],
+ "format": [
+  {
+   "id": "F-01",
+   "text": "Les offres sont remises par voie électronique sur le profil acheteur.",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Les offres sont remises par voie électronique sur le profil acheteur."
+   }
+  },
+  {
+   "id": "F-02",
+   "text": "Le mémoire technique est remis au format PDF.",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Le mémoire technique est remis au format PDF."
+   }
+  },
+  {
+   "id": "F-03",
+   "text": "Les variantes ne sont pas autorisées.",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Les variantes ne sont pas autorisées."
+   }
+  }
+ ],
+ "clauses": [
+  {
+   "id": "R-01",
+   "topic": "engagement",
+   "text": "Une anomalie bloquante doit être corrigée en moins de 4 heures ouvrées.",
+   "level": "moyenne",
+   "source": {
+    "doc": "CCTP.md",
+    "quote": "Une anomalie bloquante est corrigée en 4 heures."
+   },
+   "note": "4 h ouvrées imposent une astreinte : la chiffrer dans le run."
+  },
+  {
+   "id": "R-02",
+   "topic": "penalites",
+   "text": "En cas de dépassement, une pénalité de 500 euros par heure de retard est appliquée, plafonnée à 10 % du montant annuel du marché.",
+   "level": "moyenne",
+   "source": {
+    "doc": "CCTP.md",
+    "quote": "En cas de dépassement, une pénalité de 500 euros par heure de retard est appliquée, plafonnée à 10 % du montant annuel du marché."
+   },
+   "note": "Pénalités plafonnées à 10 % : provisionner, et demander si le plafond est annuel."
+  },
+  {
+   "id": "R-03",
+   "topic": "reversibilite",
+   "text": "À la fin du marché, le titulaire doit restituer l'ensemble des données dans un format ouvert et documenté, et assister le nouveau titulaire pendant trois mois.",
+   "level": "moyenne",
+   "source": {
+    "doc": "CCTP.md",
+    "quote": "À la fin du marché, le titulaire doit restituer l'ensemble des données dans un format ouvert et documenté, et assister le nouveau titulaire pendant trois mois."
+   },
+   "note": "Prévoir l'export ouvert et trois mois d'assistance dans le chiffrage."
+  },
+  {
+   "id": "R-04",
+   "topic": "propriete",
+   "text": "Les développements spécifiques deviennent la propriété de la Métropole, qui peut les réutiliser librement.",
+   "level": "moyenne",
+   "source": {
+    "doc": "CCTP.md",
+    "quote": "Les développements spécifiques deviennent la propriété de la Métropole, qui peut les réutiliser librement."
+   },
+   "note": "Exclure les composants sous licence du titulaire de la cession."
+  },
+  {
+   "id": "R-05",
+   "topic": "irregularite",
+   "text": "Toute offre incomplète à la date limite sera déclarée irrégulière.",
+   "level": "haute",
+   "source": {
+    "doc": "RC.md",
+    "quote": "Toute offre incomplète à la date limite sera déclarée irrégulière."
+   },
+   "note": "Vérifier chaque pièce avant le dépôt : une pièce manquante élimine l'offre."
+  }
+ ]
+}

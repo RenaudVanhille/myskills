@@ -14,8 +14,15 @@ Le script relit le dossier produit : chaque image et chaque lien local doit
 exister. Une section obligatoire sans pièce est signalée (erreur avec
 --strict, sans fichier produit).
 
+Avec --tender ao.json (dépouillement de tender-response), le dossier est un
+mémoire technique : les sections à thème suivent l'ordre des critères de
+notation, chacune rappelle le critère et son poids ; un critère sans section
+remplie et un mémoire qui dépasse le budget de pages du règlement (annexes
+exclues, pages estimées sur les mots et les images) sont signalés (erreurs
+avec --strict).
+
     uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md]
-                                    [--title TITRE] [--strict] | --schema
+                                    [--title TITRE] [--tender ao.json] [--strict] | --schema
 """
 
 import argparse
@@ -27,12 +34,54 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from skill_paths import absent, schema_of  # noqa: E402
+from spec_schema import check, print_schema, validate  # noqa: E402
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "references" / "gabarit-dat.json"
 LINK = re.compile(r"(!?\[[^\]]*\])\(([^)\s]+)(\s+\"[^\"]*\")?\)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 FRONTMATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
+# Pages d'un mémoire estimées sans rendu : mots par page, part de page d'une image.
+WORDS_PER_PAGE = 450
+IMAGE_PAGE = 0.5
+
+
+def load_tender(path: Path, errors: list[str], warnings: list[str]) -> dict | None:
+    """Dépouillement (tender-response), validé contre le schéma de tender_build.py s'il est installé."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"tender : fichier illisible {path} ({error})")
+        return None
+    schema = schema_of("tender-response", "tender_build.py")
+    if schema is None:
+        warnings.append(f"{path.name} non vérifié : " + absent("tender-response", "tender_build.py"))
+    invalid = check(data, schema) if schema else []
+    if invalid:
+        errors.extend(f"tender : {path.name} : {e}" for e in invalid[:10])
+        return None
+    return data
+
+
+def leaves(tender: dict) -> list[dict]:
+    """Critères notés sur le mémoire : sans sous-critère, hors prix."""
+    criteria = tender.get("criteria", [])
+    parents = {c.get("parent") for c in criteria}
+    return [c for c in criteria if c["id"] not in parents and c["topic"] != "prix"]
+
+
+def follow(sections: list[dict], criteria: list[dict]) -> list[dict]:
+    """Sections à thème rangées dans l'ordre des critères ; les autres gardent leur place avant ou après."""
+    rank: dict[str, int] = {}
+    for index, criterion in enumerate(criteria):
+        rank.setdefault(criterion["topic"], index)
+    topical = [s for s in sections if s.get("topic")]
+    if not topical:
+        return sections
+    first = sections.index(topical[0])
+    return ([s for s in sections[:first] if not s.get("topic")]
+            + sorted(topical, key=lambda s: rank.get(s["topic"], len(rank)))
+            + [s for s in sections[first:] if not s.get("topic")])
 
 
 def matches(folder: Path, patterns: list[str], out: Path) -> list[Path]:
@@ -99,9 +148,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("folder", type=Path, nargs="?", help="dossier du workflow (livrables validés)")
     parser.add_argument("--template", type=Path, help="gabarit des sections : fichier JSON, ou nom d'un gabarit livré "
-                                                      "(dat, défaut ; avis : avis sur un dossier reçu ; conformite : dossier de conformité ; migration : dossier de migration)")
+                                                      "(dat, défaut ; avis : avis sur un dossier reçu ; conformite : dossier de conformité ; migration : dossier de migration ; memoire : mémoire technique)")
     parser.add_argument("--out", type=Path, help="dossier produit (défaut : DOSSIER/dossier-architecture.md)")
     parser.add_argument("--title", help="titre du dossier (défaut : titre du workflow, sinon celui du gabarit)")
+    parser.add_argument("--tender", type=Path,
+                        help="dépouillement ao.json (tender-response) : mémoire technique dans l'ordre des critères, "
+                             "couverture des critères et budget de pages contrôlés")
     parser.add_argument("--strict", action="store_true",
                         help="section obligatoire sans pièce : erreur, et aucun fichier produit")
     parser.add_argument("--schema", action="store_true",
@@ -119,7 +171,8 @@ def main() -> int:
     if args.template and args.template.name == str(args.template) and not args.template.suffix:
         template_path = TEMPLATE.with_name(f"gabarit-{args.template.name}.json")
     report = {"input": str(args.folder), "template": str(template_path), "output": None, "sections": 0,
-              "included": [], "missing": [], "pieces": 0, "images": 0, "errors": errors, "warnings": warnings}
+              "included": [], "missing": [], "pieces": 0, "images": 0, "criteria": None, "pages": None,
+              "page_budget": None, "errors": errors, "warnings": warnings}
     if not args.folder.is_dir():
         errors.append(f"dossier introuvable : {args.folder}")
     try:
@@ -132,6 +185,7 @@ def main() -> int:
     if template and not errors:
         ids = [s["id"] for s in template["sections"]]
         errors += [f"sections : identifiant en double « {i} »" for i in sorted({i for i in ids if ids.count(i) > 1})]
+    tender = load_tender(args.tender, errors, warnings) if args.tender else None
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
@@ -148,7 +202,11 @@ def main() -> int:
     title = title or template.get("title", "Dossier d'architecture technique")
     body: list[str] = []
     toc: list[str] = []
-    for section in template["sections"]:
+    criteria = leaves(tender) if tender else []
+    sections = follow(template["sections"], criteria) if tender else template["sections"]
+    covered: set[str] = set()
+    words, pictures = 0, 0
+    for section in sections:
         pieces = matches(folder, section["sources"], out)
         kind = section.get("kind", "markdown")
         if kind == "images":
@@ -166,6 +224,10 @@ def main() -> int:
         heading = f"{len(toc) + 1}. {section['title']}"
         toc.append(f"- [{heading}](#{re.sub(r'[^a-z0-9à-ÿ -]', '', heading.lower()).replace(' ', '-')})")
         body += [f"## {heading}", ""]
+        answered = [c for c in criteria if c["topic"] == section.get("topic")]
+        if answered and section["topic"] not in covered:
+            body += ["> Répond au critère " + ", ".join(f"{c['id']} « {c['label']} » ({c['weight']} %)"
+                                                         for c in answered) + ".", ""]
         if section.get("intro"):
             body += [section["intro"], ""]
         if not pieces:
@@ -173,10 +235,14 @@ def main() -> int:
             continue
         report["included"].append(section["id"])
         report["pieces"] += len(pieces)
+        if section.get("topic"):
+            covered.add(section["topic"])
+        counted = not section.get("annex") and kind != "files"
         for piece in pieces:
             rel = relative(piece.resolve(), out_dir)
             if kind == "images":
                 report["images"] += 1
+                pictures += counted
                 body += [f"![{piece.stem}]({rel})", "", f"*{piece.stem}*", ""]
             elif kind == "files":
                 body.append(f"- [{piece.relative_to(folder).as_posix()}]({rel})")
@@ -186,9 +252,27 @@ def main() -> int:
                     body += [f"### {piece_title or piece.stem}", ""]
                 body += [relink(text, piece.resolve(), out_dir), ""]
                 report["images"] += len(re.findall(r"!\[[^\]]*\]\(", text))
+                if counted:
+                    words += len(re.findall(r"\w+", re.sub(r"\]\([^)]*\)", "]", text)))
+                    pictures += len(re.findall(r"!\[[^\]]*\]\(", text))
         if kind == "files":
             body.append("")
     report["sections"] = len(toc)
+    if tender:
+        uncovered = [c for c in criteria if c["topic"] not in covered]
+        report["criteria"] = {"covered": [c["id"] for c in criteria if c["topic"] in covered],
+                              "uncovered": [c["id"] for c in uncovered]}
+        for c in uncovered:
+            where = [s["id"] for s in sections if s.get("topic") == c["topic"]]
+            (errors if args.strict else warnings).append(
+                f"critère {c['id']} « {c['label']} » ({c['weight']} %) sans section remplie"
+                + (f" : {', '.join(where)}" if where else f" : aucune section de thème {c['topic']} dans le gabarit"))
+        report["pages"] = round(words / WORDS_PER_PAGE + pictures * IMAGE_PAGE, 1)
+        budget = next((p.get("pages") for p in tender.get("pieces", []) if p.get("memoire")), None)
+        report["page_budget"] = budget
+        if budget and report["pages"] > budget:
+            (errors if args.strict else warnings).append(
+                f"mémoire estimé à {report['pages']} pages pour {budget} au plus (annexes exclues)")
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1

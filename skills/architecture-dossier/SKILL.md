@@ -13,12 +13,13 @@ reprend les livrables déjà validés : vous n'écrivez que la synthèse.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal) ; synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier ; Facultatif : un gabarit de sections (JSON) propre à l'organisation ; Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON.
-- **Sorties** : dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés ; plan-actions.md et plan-actions.csv : plan d'actions unique, dédoublonné et priorisé, tiré des revues (CSV importable dans Jira ou Azure DevOps).
-- **`dossier_build.py`** : Assemble le DAT d'un dossier de workflow selon un gabarit de sections : pièces Markdown reprises (frontmatter et titre retirés, titres décalés, liens recalés), images intégrées, fichiers listés en annexe ; signale chaque section obligatoire sans pièce avec la commande qui la produit ; relit le dossier produit et vérifie chaque lien et chaque image. Rapport JSON, codes de sortie : 0 dossier produit (sections manquantes et liens cassés en avertissements) ; 1 dossier introuvable, gabarit invalide, ou section obligatoire manquante avec --strict ; aucun fichier produit.
+- **Entrées** : Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal) ; synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier ; Facultatif : un gabarit de sections (JSON) propre à l'organisation ; Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON ; Pour un mémoire technique : le dépouillement ao.json (tender-response) et les sections écrites dans memoire/ (gabarit memoire).
+- **Sorties** : dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés ; plan-actions.md et plan-actions.csv : plan d'actions unique, dédoublonné et priorisé, tiré des revues (CSV importable dans Jira ou Azure DevOps) ; memoire-technique.md : mémoire technique dans l'ordre des critères de notation, chaque critère rappelé, couverture et pages contrôlées.
+- **`dossier_build.py`** : Assemble le DAT d'un dossier de workflow selon un gabarit de sections : pièces Markdown reprises (frontmatter et titre retirés, titres décalés, liens recalés), images intégrées, fichiers listés en annexe ; signale chaque section obligatoire sans pièce avec la commande qui la produit ; relit le dossier produit et vérifie chaque lien et chaque image ; avec --tender, assemble un mémoire technique dans l'ordre des critères de notation, rappelle chaque critère et son poids, contrôle la couverture des critères et le budget de pages. Rapport JSON, codes de sortie : 0 dossier produit (sections manquantes et liens cassés en avertissements) ; 1 dossier introuvable, gabarit invalide, ou section obligatoire manquante avec --strict ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`actions.py`** : Rassemble les points ouverts des revues d'un dossier (constats Well-Architected et de revue d'architecture, risques de la revue, menaces à mesure retenue, risques de l'AIPD à mesure prévue ou résiduel élevé) en un plan d'actions unique : une action par règle ou par mesure (éléments regroupés), priorité P1 à P3 tirée de la gravité, responsable et échéance par défaut ou par clé ; relit le CSV produit. Rapport JSON, codes de sortie : 0 plan écrit (menaces encore à analyser et clés inconnues en avertissements) ; 1 dossier introuvable ou affectation invalide ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `tender-response` (`tender_build.py`, facultatif : sans lui, avertissement) : valider ao.json contre son schéma.
 - **Passe la main** à l'agent `document-publisher` : le dossier doit être livré en Word, PDF, HTML ou XWiki.
 - **Passe la main** au skill `decision-log` : le dossier est un livrable d'étape : le soumettre à la revue (journal.py submit).
 - **Passe la main** à l'utilisateur : une section obligatoire manque : produire la pièce, ou l'écarter du gabarit avec sa raison.
@@ -53,7 +54,15 @@ menaces, Well-Architected et documents reçus. `--template conformite`
 plan d'actions, exigences, menaces, Well-Architected, registre des
 traitements et AIPD. `--template migration` (workflow `migration-cloud`,
 avec `--out dossier-migration.md`) : synthèse, évaluation 6R, feuille de
-route, cible et chiffrage. Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
+route, cible et chiffrage. `--template memoire --tender ao.json` (workflow
+`avant-vente`, avec `--out memoire-technique.md`) : le mémoire technique
+d'une réponse à appel d'offres ; vous écrivez dans `memoire/` une section
+par thème des critères (`comprehension`, `solution`, `securite`,
+`methodologie`, `maintenance`, `equipe`, `environnement`), le script les
+range dans l'ordre des critères notés du dépouillement (tender-response),
+rappelle chaque critère et son poids, et signale un critère sans section
+et un dépassement du budget de pages (`criteria`, `pages`, `page_budget`
+du rapport). Un gabarit propre à l'organisation (autres sections, autre ordre) se passe
 avec `--template` ; `--schema` donne sa forme. Ne relisez pas
 `dossier-architecture.md` : le rapport donne les sections reprises, les
 manquantes et les liens cassés.

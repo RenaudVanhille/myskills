@@ -1,0 +1,510 @@
+{
+  "name": "avant-vente",
+  "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
+  "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) mené en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
+  ],
+  "memory": {
+    "requirements": "exigences.json",
+    "options": "options.json",
+    "decision": "decision.json",
+    "adr": "adr-architecture.md"
+  },
+  "stages": [
+    {
+      "id": "documents",
+      "label": "Documents en Markdown",
+      "level": "simple",
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "agent": "document-extractor",
+      "inputs": [
+        "documents/*"
+      ],
+      "deliverables": [
+        "sources/*.md"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources"
+      ],
+      "instructions": "Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Les pages de vision_pages sont transcrites par la vision ; à partir de 5 documents à transcrire, passer la main à document-extractor. Un document écarté se note au journal avec sa raison."
+    },
+    {
+      "id": "depouillement",
+      "label": "Dépouillement de l'appel d'offres",
+      "level": "moyen",
+      "after": [
+        "documents"
+      ],
+      "facultative": true,
+      "skills": [
+        "tender-response"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "ao.json",
+        "ao.md"
+      ],
+      "checks": [
+        "tender-response : tender_build.py ao.json --draft, relu et noté, puis tender_build.py ao.json : zéro erreur et zéro élément du dossier non repris (uncovered)"
+      ],
+      "run": [
+        {
+          "skill": "tender-response",
+          "script": "tender_build.py",
+          "args": [
+            "ao.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, à faire dès qu'un règlement de consultation est fourni (sinon skip, avec les mots de l'utilisateur). tender_build.py --draft écrit dates, critères pondérés, pièces, format et clauses à risque avec leurs citations ; corriger le thème de chaque critère (il range le mémoire), noter chaque clause (pourquoi, que faire) et ajuster son niveau. À la revue, donner d'abord les jours restants avant la date limite des questions et la remise (deadlines du rapport). Une clause acceptée en l'état se note au journal."
+    },
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
+      ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
+      "instructions": "req_build.py exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
+      "optional": [
+        "exigences.candidats.json",
+        "exigences.tri.json"
+      ],
+      "after": [
+        "documents"
+      ]
+    },
+    {
+      "id": "architectures",
+      "label": "Options d'architecture",
+      "level": "complexe",
+      "skills": [
+        "architecture-options",
+        "urbanization-map",
+        "well-architected-review"
+      ],
+      "inputs": [
+        "exigences.json",
+        "documents/pos*"
+      ],
+      "deliverables": [
+        "options.json",
+        "options.md"
+      ],
+      "optional": [
+        "tracabilite.md",
+        "tracabilite.csv",
+        "schemas/option-*.cloud.json",
+        "schemas/option-*.wa.md",
+        "schemas/pos-option-*.json"
+      ],
+      "checks": [
+        "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+      ],
+      "run": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "args": [
+            "options.json"
+          ]
+        }
+      ],
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
+    },
+    {
+      "id": "schemas",
+      "label": "Décision et schémas",
+      "level": "moyen",
+      "skills": [
+        "architecture-options",
+        "drawio-diagram",
+        "cloud-architecture",
+        "well-architected-review",
+        "urbanization-map",
+        "diagram-export",
+        "api-contract"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "options.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "decision.json",
+        "adr-architecture.md",
+        "tracabilite.md",
+        "schemas/architectures.drawio",
+        "schemas/*.png"
+      ],
+      "optional": [
+        "tracabilite.csv",
+        "schemas/option-*.drawio",
+        "schemas/pos-option-*.drawio",
+        "api/*"
+      ],
+      "checks": [
+        "architecture-options : options_build.py options.json --decision decision.json",
+        "drawio-diagram : drawio_build.py schemas/architectures.json --export png",
+        "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json --export png (option cloud retenue), puis well-architected-review : wa_check.py --scope conventions sur ce fichier",
+        "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
+        "diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois",
+        "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../exigences.json, source ../options.json et l'option)"
+      ],
+      "run": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "args": [
+            "options.json",
+            "--decision",
+            "decision.json"
+          ]
+        },
+        {
+          "skill": "drawio-diagram",
+          "script": "drawio_build.py",
+          "args": [
+            "schemas/architectures.json",
+            "--export",
+            "png"
+          ]
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "schemas/option-*.cloud.json"
+        },
+        {
+          "skill": "well-architected-review",
+          "script": "wa_check.py",
+          "args": [
+            "{file}",
+            "--scope",
+            "conventions"
+          ],
+          "foreach": "schemas/option-*.cloud.json"
+        },
+        {
+          "skill": "urbanization-map",
+          "script": "pos_build.py",
+          "args": [
+            "{file}"
+          ],
+          "foreach": "schemas/pos-option-*.json"
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "args": [
+            "{file}",
+            "--format",
+            "png"
+          ],
+          "foreach": "schemas/pos-option-*.drawio"
+        },
+        {
+          "skill": "api-contract",
+          "script": "api_build.py",
+          "args": [
+            "api/api.json"
+          ],
+          "if": "api/api.json"
+        }
+      ],
+      "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer."
+    },
+    {
+      "id": "conformite",
+      "label": "Matrice de conformité",
+      "level": "moyen",
+      "after": [
+        "schemas"
+      ],
+      "facultative": true,
+      "skills": [
+        "tender-response"
+      ],
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "decision.json"
+      ],
+      "deliverables": [
+        "conformite.json",
+        "conformite.md",
+        "conformite.xlsx"
+      ],
+      "optional": [
+        "conformite.csv"
+      ],
+      "checks": [
+        "tender-response : compliance_build.py conformite.json --draft, puis compliance_build.py conformite.json : une réponse par exigence retenue, chaque réponse partielle ou non conforme justifiée"
+      ],
+      "run": [
+        {
+          "skill": "tender-response",
+          "script": "compliance_build.py",
+          "args": [
+            "conformite.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative : à faire quand l'acheteur demande une matrice de conformité ou un cadre de réponse. Le brouillon tire chaque réponse des écarts de l'option retenue ; n'écrire que la justification des réponses partielles et non conformes, pour l'acheteur. Une réponse qui contredit l'option se tranche avec l'utilisateur et se note au journal."
+    },
+    {
+      "id": "chiffrage",
+      "label": "Chiffrage de l'option retenue",
+      "level": "complexe",
+      "after": [
+        "schemas"
+      ],
+      "facultative": true,
+      "skills": [
+        "solution-estimate",
+        "cloud-cost"
+      ],
+      "agent": "solution-estimator",
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "decision.json"
+      ],
+      "deliverables": [
+        "chiffrage.json",
+        "chiffrage.md"
+      ],
+      "optional": [
+        "chiffrage.csv",
+        "couts.json",
+        "couts.md",
+        "couts.csv"
+      ],
+      "checks": [
+        "cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)",
+        "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
+      ],
+      "run": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "args": [
+            "couts.json"
+          ],
+          "if": "couts.json"
+        },
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "args": [
+            "chiffrage.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
+    },
+    {
+      "id": "revue",
+      "label": "Revue d'architecture",
+      "level": "complexe",
+      "after": [
+        "schemas"
+      ],
+      "facultative": true,
+      "skills": [
+        "architecture-review",
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "options.json",
+        "exigences.json",
+        "decision.json",
+        "adr-architecture.md",
+        "schemas/option-*.cloud.json"
+      ],
+      "deliverables": [
+        "revue.json",
+        "revue.md"
+      ],
+      "optional": [
+        "schemas/option-*.threats.md",
+        "schemas/option-*.wa.md"
+      ],
+      "checks": [
+        "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
+        "si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json, avec --vault <vault> --folder <dossier> --option <id> si le workflow a un vault"
+      ],
+      "run": [
+        {
+          "skill": "architecture-review",
+          "script": "arch_review.py",
+          "args": [
+            "revue.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
+    },
+    {
+      "id": "registre",
+      "label": "Hypothèses, exclusions et questions",
+      "level": "moyen",
+      "after": [
+        "conformite",
+        "chiffrage",
+        "revue"
+      ],
+      "skills": [
+        "tender-response",
+        "decision-log"
+      ],
+      "inputs": [
+        "exigences.json",
+        "chiffrage.json",
+        "ao.json",
+        "workflow.json"
+      ],
+      "deliverables": [
+        "registre.json",
+        "registre.md",
+        "questions-client.md"
+      ],
+      "optional": [
+        "registre.csv"
+      ],
+      "checks": [
+        "tender-response : assumptions.py registre.json --draft, puis assumptions.py registre.json : zéro erreur, chaque référence connue"
+      ],
+      "run": [
+        {
+          "skill": "tender-response",
+          "script": "assumptions.py",
+          "args": [
+            "registre.json"
+          ]
+        }
+      ],
+      "instructions": "Le brouillon reprend les questions des exigences, les hypothèses et exclusions du chiffrage et du journal. Reformuler chaque question pour le client, ajouter les prérequis et les questions sur les clauses à risque du dépouillement. Les questions partent avant la date limite des questions (rapport : deadline) ; après elle, une question sans réponse devient une hypothèse de l'offre."
+    },
+    {
+      "id": "memoire",
+      "label": "Mémoire technique",
+      "level": "moyen",
+      "after": [
+        "registre"
+      ],
+      "facultative": true,
+      "skills": [
+        "architecture-dossier",
+        "tender-response"
+      ],
+      "inputs": [
+        "ao.json",
+        "options.md",
+        "adr-architecture.md",
+        "schemas/*.png",
+        "conformite.md",
+        "registre.md",
+        "chiffrage.md",
+        "revue.md"
+      ],
+      "deliverables": [
+        "memoire/comprehension.md",
+        "memoire/solution.md",
+        "memoire-technique.md"
+      ],
+      "optional": [
+        "memoire/*.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --template memoire --tender ao.json --out memoire-technique.md --strict (chaque critère noté a sa section, budget de pages du règlement tenu)",
+        "si l'utilisateur veut un Word ou un PDF : passer memoire-technique.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "memoire",
+            "--tender",
+            "ao.json",
+            "--out",
+            "memoire-technique.md",
+            "--strict"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, quand l'appel d'offres demande un mémoire technique. Écrire dans memoire/ une section par thème des critères (comprehension, solution, securite, methodologie, maintenance, equipe, environnement), pour l'acheteur, en reprenant les rapports des étapes validées sans relire les livrables ; le script range les sections dans l'ordre des critères, rappelle chaque critère et son poids, et contrôle la couverture et le budget de pages."
+    },
+    {
+      "id": "soutenance",
+      "label": "Support de soutenance",
+      "level": "simple",
+      "after": [
+        "memoire"
+      ],
+      "facultative": true,
+      "skills": [
+        "architecture-deck"
+      ],
+      "inputs": [
+        "options.md",
+        "adr-architecture.md",
+        "schemas/*.png"
+      ],
+      "deliverables": [
+        "presentation.md"
+      ],
+      "checks": [
+        "architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
+      ],
+      "run": [
+        {
+          "skill": "architecture-deck",
+          "script": "deck_build.py",
+          "args": [
+            "."
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas."
+    }
+  ]
+}
