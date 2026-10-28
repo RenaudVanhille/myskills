@@ -41,6 +41,42 @@ TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" 
 MIN_RATIO = 0.9
 # Dépendances et extras interdits dans les scripts des skills (cas regles).
 FORBIDDEN_DEPS = ("modelscope", "rapidocr", "rapidocr-onnxruntime", "easyocr", "paddleocr", "funasr")
+# Vérifie dans un processus à part que model_store.forbid_network() coupe le réseau (cas regles).
+NETWORK_PROBE = r"""
+import socket, sys, urllib.request
+sys.path.insert(0, sys.argv[1])
+import model_store
+model_store.forbid_network()
+problems = []
+for address in [("192.0.2.1", 443), ("2001:db8::1", 443, 0, 0)]:
+    family = socket.AF_INET6 if ":" in address[0] else socket.AF_INET
+    try:
+        sock = socket.socket(family, socket.SOCK_STREAM)
+    except OSError:
+        continue
+    for method in (sock.connect, sock.connect_ex):
+        try:
+            method(address)
+            problems.append(f"{method.__name__} vers {address[0]} permis")
+        except ConnectionRefusedError as error:
+            if "myskills" not in str(error):
+                problems.append(f"{method.__name__} : refus inattendu {error}")
+    sock.close()
+try:
+    socket.create_connection(("192.0.2.1", 443), timeout=2)
+    problems.append("create_connection permis")
+except ConnectionRefusedError:
+    pass
+if urllib.request.getproxies():
+    problems.append(f"proxys encore lus : {urllib.request.getproxies()}")
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+client.close(); server.close()
+print("ok" if not problems else " ; ".join(problems))
+"""
 FORBIDDEN_EXTRAS = ("all", "audio-transcription", "az-doc-intel", "youtube-transcription")
 sys.path.insert(0, str(ROOT / "scripts"))
 import contracts_lib  # noqa: E402
@@ -509,6 +545,12 @@ def check_rules() -> dict:
                      for extra in FORBIDDEN_EXTRAS if re.search(rf"markitdown\[[^\]]*\b{extra}\b", deps)]
         if re.search(r'"(faster-whisper|ctranslate2)', deps) and "model_store.forbid_network()" not in code:
             failures.append(f"{where} : modèle local sans model_store.forbid_network() (réseau à couper)")
+    # Et forbid_network() tient : connexion sortante refusée, proxys ignorés, boucle locale permise.
+    probe = subprocess.run([sys.executable, "-I", "-c", NETWORK_PROBE, str(ROOT / "shared" / "scripts")],
+                           capture_output=True, text=True, encoding="utf-8", timeout=60,
+                           env={**os.environ, "HTTPS_PROXY": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9"})
+    if probe.stdout.strip() != "ok":
+        failures.append(f"model_store.forbid_network() ne coupe pas le réseau : {(probe.stdout + probe.stderr).strip()[-300:]}")
     return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 
