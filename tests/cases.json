@@ -94,6 +94,19 @@
       "contains": {"demo-portail.md": ["## 00:02", "<!-- vision"]}
     },
     {
+      "id": "video-transcription",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Modèle whisper-small téléchargé depuis sa source épinglée (empreintes vérifiées), puis vidéo transcrite réseau coupé.",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video", "--prefetch"], "exit": 0},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}", "--language", "fr"], "exit": 0,
+         "report": {"results.0.engine": "whisper", "results.0.model": "whisper-small", "results.0.images": 3,
+                    "results.0.language": "fr"}}
+      ]
+    },
+    {
       "id": "pdf-scanne-docling",
       "skill": "doc-to-markdown",
       "slow": true,
