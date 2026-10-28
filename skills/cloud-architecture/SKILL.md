@@ -15,11 +15,11 @@ téléchargé). N'écrivez pas le XML draw.io à la main.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
+- **Entrées** : Décision de diagram-brief : public et destination ; Description JSON de l'architecture : title, provider (aws, azure, gcp, k8s ou hébergeur souverain : ovh, outscale, cloud-temple, scaleway, s3ns, bleu, numspot, sur-site), qualifications, view, items (groupes imbriqués et services typés), flows, objectives ; ou du code d'infrastructure (Terraform, CloudFormation, Bicep, docker-compose, manifestes Kubernetes) que iac_import.py traduit en description.
 - **Sorties** : <sujet>.drawio en XML clair, avec les icônes officielles AWS, Azure, GCP ou Kubernetes (formes génériques de la charte pour les hébergeurs souverains), à côté de sa description <sujet>.json ; Vue network (ou --matrix) : <sujet>.flows.md, la matrice des flux ; Après export : <sujet>.drawio.png (une image par page), .svg ou .pdf.
 - **`cloud_build.py`** : Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
-- **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
+- **`iac_import.py`** : Écrit la description de cloud_build.py depuis le code d'infrastructure : ressources Terraform (AWS, Azure, Google), CloudFormation (AWS, YAML ou JSON) et Bicep (Azure), services docker-compose et manifestes Kubernetes deviennent services typés, réseaux et namespaces des groupes, références et dépendances des flux ; la description est validée contre le schéma d'entrée de cloud_build.py et construite à blanc avant d'être écrite. Rapport JSON, codes de sortie : 0 description écrite, conforme et construite sans erreur ; 1 source introuvable ou format non reconnu, aucune ressource reconnue, ressource en double, ou description produite rejetée par cloud_build.py ; rien n'est écrit.
 - **Dépend de** `drawio-diagram` (`check_drawio.py`, facultatif : sans lui, avertissement) : vérifier le .drawio produit.
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
@@ -106,7 +106,7 @@ Fichier `<sujet>.json` :
 - **Plusieurs vues** : `"pages": [{"name", "view", "items", "flows"}, ...]`.
 
 Si l'architecture existe en code (Terraform AWS, Azure ou Google,
-docker-compose, manifestes Kubernetes), ne le lisez pas : le script écrit la
+CloudFormation, Bicep, docker-compose, manifestes Kubernetes), ne le lisez pas : le script écrit la
 description, que vous complétez ensuite (titre, acteurs externes, protocoles,
 flux que le code ne montre pas) :
 
@@ -152,7 +152,8 @@ uv run ../diagram-export/scripts/export.py SUJET.drawio --format png
 Ou en un seul appel avec la construction : `cloud_build.py SUJET.json
 --export png` ; l'image est dans `export` du rapport.
 
-Ouvrez l'image : flèche qui traverse une icône ou un libellé, libellés qui
+N'ouvrez l'image que si `review_image` est vrai (lisibilité douteuse selon
+le contrôle) : flèche qui traverse une icône ou un libellé, libellés qui
 se chevauchent, groupe trop large. Changez l'ordre des services, `layout`
 ou `wrap`, ou découpez en pages, puis reconstruisez. Si quelqu'un a retouché
 le `.drawio` à la main, c'est lui qui fait foi : modifiez-le avec

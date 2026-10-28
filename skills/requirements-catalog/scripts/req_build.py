@@ -26,6 +26,14 @@ dossier `sources`. Le script, et non le modèle :
 
     uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER]
         [--laya [--laya-cache FICHIER]] | --schema
+
+Avec --draft, le script écrit d'abord la description à trier (jamais par-dessus
+un fichier existant) : une exigence par phrase normative des sources, avec sa
+citation exacte, l'identifiant du document s'il en porte un, la nature, la
+catégorie, la priorité (doit : indispensable, pourra : souhaitable) et la
+mesure déduites des mots. Le modèle ne fait que trier, fusionner et corriger.
+
+    uv run scripts/req_build.py exigences.json --draft [--sources DOSSIER]
 """
 
 import argparse
@@ -162,6 +170,87 @@ def sentences(lines: list[str], every: bool = False):
             normative = bool(NORMATIVE.search(normalize(part)))
             if len(part) > 12 and (normative or every):
                 yield find_quote(index, part) or number, part, normative
+
+
+# Brouillon (--draft) : catégorie d'une phrase non fonctionnelle d'après ses mots (texte normalisé), dans
+# l'ordre ; aucune : exigence fonctionnelle.
+DRAFT_CATEGORIES = [
+    ("performance", r"temps de reponse|secondes?\b|\bms\b|simultan|requetes|debit|latence|performan"),
+    ("disponibilite", r"disponibilit|panne|\bpra\b|reprise d.activite|\brto\b|\brpo\b|sauvegard"),
+    ("securite", r"authentif|chiffr|intrusion|mot de passe|habilitation|securit|journalis|tracabilit"),
+    ("cout", r"euros?\b|€|\bcout|budget"),
+    ("conformite", r"rgpd|donnees personnelles|heberge|secnumcloud|\bhds\b|conserv|supprim|reglement"),
+    ("utilisabilite", r"rgaa|accessib|ergonom"),
+    ("exploitabilite", r"supervision|anomalie|corrig|astreinte|exploitation|incident"),
+    ("portabilite", r"reversibil|restitu|format ouvert|portabilit"),
+    ("interoperabilite", r"format d.echange|interoperab|norme d.echange"),
+    ("evolutivite", r"evolutivit|montee en charge|croissance"),
+    ("maintenabilite", r"maintenabilit|documentation|code source"),
+]
+METRIC = re.compile(r"\d[\d  ,.]*\s*(?:%|secondes?|ms\b|heures?(?: ouvrées)?|h\b|minutes?|jours?|mois|ans?\b|"
+                    r"euros?|€|utilisateurs?(?: simultanés)?|requêtes)", re.I)
+
+
+def draft(path: Path, sources_name: str) -> dict:
+    """Brouillon d'exigences.json : une exigence par phrase normative des sources, citation exacte, identifiant
+    des documents s'il y en a un, nature, catégorie, priorité et mesure déduites des mots ; à trier par le modèle."""
+    errors: list[str] = []
+    report = {"input": str(path), "outputs": [], "requirements": 0, "functional": 0, "non_functional": 0,
+              "documents": 0, "errors": errors, "warnings": []}
+    if path.exists():
+        errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
+        return report
+    folder = path.parent / sources_name
+    sources = load_sources(folder) if folder.is_dir() else {}
+    if not sources:
+        errors.append(f"sources : aucun fichier .md dans {folder}")
+        return report
+    requirements, seen, numbers = [], set(), {"EF": 0, "ENF": 0}
+    for doc, lines in sources.items():
+        for number, sentence, _ in sentences(lines):
+            key = normalize(sentence)
+            if key in seen:
+                continue
+            seen.add(key)
+            category = next((c for c, pattern in DRAFT_CATEGORIES if re.search(pattern, key)), None)
+            prefix = "ENF" if category else "EF"
+            given = SOURCE_ID.search(sentence) or SOURCE_ID.search(lines[number - 1] if number <= len(lines) else "")
+            if given and not GENERATED_ID.match(given.group()):
+                rid = given.group()
+            else:
+                numbers[prefix] += 1
+                rid = f"{prefix}-{numbers[prefix]:03d}"
+            words = sentence.rstrip(".;:").split()
+            req = {"id": rid, "title": " ".join(words[:9]) + ("..." if len(words) > 9 else ""), "text": sentence}
+            if category:
+                req["category"] = category
+                if not rid.startswith(("EF-", "ENF-")):
+                    req["nature"] = "non-fonctionnelle"
+            elif not rid.startswith(("EF-", "ENF-")):
+                req["nature"] = "fonctionnelle"
+            metric = METRIC.findall(sentence)
+            if metric and category:
+                req["metric"] = ", ".join(m.strip() for m in metric)
+            req["priority"] = "souhaitable" if re.search(r"\b(pourra|devrait|should)\b", key) else "indispensable" \
+                if re.search(r"\b(doit|doivent|obligatoire\w*|imperatif|shall|must)\b", key) else "importante"
+            req["sources"] = [{"doc": doc, "quote": sentence}]
+            requirements.append(req)
+    ids = [r["id"] for r in requirements]
+    for dup in sorted({i for i in ids if ids.count(i) > 1}):
+        report["warnings"].append(f"identifiant {dup} repris de plusieurs phrases : à fusionner ou renuméroter")
+    spec = {"title": "Exigences", "sources": sources_name, "requirements": requirements,
+            "_draft": "Brouillon de req_build.py --draft : une exigence par phrase normative. À trier : retirer ce qui "
+                      "n'est pas une exigence de la solution (ou le passer dans ignored avec sa raison), fusionner, "
+                      "corriger titres, catégories, priorités et mesures ; ajouter les exigences sans verbe normatif."}
+    invalid = validate(spec, __file__) if requirements else []
+    if invalid:
+        errors.extend(invalid)
+        return report
+    path.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    report.update(outputs=[str(path)], requirements=len(requirements), documents=len(sources),
+                  functional=sum(1 for r in requirements if not r.get("category")),
+                  non_functional=sum(1 for r in requirements if r.get("category")))
+    return report
 
 
 def laya_key(question: str, text: str) -> str:
@@ -444,12 +533,19 @@ def main() -> int:
                         help="phrases d'exigence et catégorie contrôlées par le modèle local Laya")
     parser.add_argument("--laya-cache", type=Path,
                         help="cache des réponses de Laya (défaut : .myskills-tmp/<nom>.laya.json à côté du .json)")
+    parser.add_argument("--draft", action="store_true",
+                        help="écrire le brouillon de la description : une exigence par phrase normative des sources")
+    parser.add_argument("--sources", default="sources", help="avec --draft : dossier des sources (défaut : sources)")
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if args.draft:
+        report = draft(args.spec, args.sources)
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if report["errors"] else 0
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

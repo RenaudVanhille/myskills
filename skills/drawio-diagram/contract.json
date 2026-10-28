@@ -249,6 +249,10 @@
                       }
                     }
                   }
+                },
+                "review_image": {
+                  "type": "boolean",
+                  "description": "Lisibilité douteuse selon check_drawio.py : ouvrir l'image exportée ; sinon, ne pas l'ouvrir."
                 }
               }
             },
@@ -288,7 +292,7 @@
     },
     {
       "name": "check_drawio.py",
-      "role": "Vérifie un fichier draw.io avant export.",
+      "role": "Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image).",
       "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
       "report": {
         "format": "json",
@@ -311,6 +315,7 @@
                   "file",
                   "pages",
                   "shapes",
+                  "review_image",
                   "errors",
                   "warnings"
                 ],
@@ -338,6 +343,10 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "review_image": {
+                    "type": "boolean",
+                    "description": "Lisibilité douteuse (avertissement de lisibilité ou chevauchement) : ouvrir l'image exportée ; sinon, ne pas l'ouvrir."
                   }
                 }
               }

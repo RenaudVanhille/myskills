@@ -16,7 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources ; Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes).
 - **Sorties** : <nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; <nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM).
-- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences ; avec --laya, celles du modèle local Laya et ses désaccords sur la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV. Rapport JSON, codes de sortie : 0 catalogue produit sans erreur (avertissements possibles) ; 1 description invalide, citation introuvable ou autre erreur ; aucun fichier produit.
+- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences ; avec --laya, celles du modèle local Laya et ses désaccords sur la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON, codes de sortie : 0 catalogue produit sans erreur (avertissements possibles) ; 1 description invalide, citation introuvable ou autre erreur ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`req_laya.py`** : Pose au modèle local Laya les questions fermées de req_build.py --laya (la phrase est-elle une exigence, quelle catégorie) ; lancé par req_build.py dans son propre environnement. Rapport JSON, codes de sortie : 0 toutes les questions posées (une phrase sans réponse est un avertissement) ; 1 description invalide ou Laya indisponible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
@@ -27,7 +27,19 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 ## 1. Lire les sources
 
 Les documents sont en Markdown dans un dossier `sources/` (sinon,
-`doc-to-markdown` d'abord). Lisez chaque document une fois, en entier.
+`doc-to-markdown` d'abord). Commencez par le brouillon, puis lisez chaque
+document une fois, en entier, pour le trier :
+
+```bash
+uv run scripts/req_build.py exigences.json --draft
+```
+
+Une exigence par phrase normative, citation exacte, identifiant du document
+s'il en porte un, nature, catégorie, priorité (doit : indispensable, pourra :
+souhaitable) et mesure déduites des mots. Retirez ce qui n'est pas une
+exigence de la solution (ou passez-le dans `ignored` avec sa raison),
+fusionnez, corrigez titres et catégories, ajoutez les exigences sans verbe
+normatif et le glossaire.
 
 ## 2. Décrire les exigences
 

@@ -641,6 +641,71 @@ def expected(rules: list[dict], catalog: dict, comps: list[dict], scenarios) -> 
     return missing
 
 
+def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
+    """Brouillon de revue.json : source (option revue d'options.json), catalogue, un squelette de scénario par
+    exigence non fonctionnelle indispensable ou importante et par scénario attendu ; le modèle n'écrit que
+    stimulus, réponse et évaluation."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    report = {"input": str(path), "outputs": [], "option": None, "scenarios": 0, "errors": errors,
+              "warnings": warnings}
+    if path.exists():
+        errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
+        return report
+    options_path = path.parent / "options.json"
+    options = load_json(options_path, "options", errors)
+    if options is None:
+        return report
+    wanted = option_id or (options.get("decision") or {}).get("option") or \
+        (options.get("recommendation") or {}).get("option")
+    option = next((o for o in options.get("options", []) if o.get("id") == wanted), None)
+    if option is None:
+        ids = ", ".join(str(o.get("id")) for o in options.get("options", []))
+        errors.append(f"--option : option « {wanted} » absente de options.json ({ids})")
+        return report
+    catalog_path = path.parent / options.get("requirements", "exigences.json")
+    catalog = load_catalog(catalog_path, errors, warnings) if catalog_path.is_file() else {}
+    if errors:
+        return report
+    stimuli = {}
+    for rule in rules:
+        stimuli.setdefault(rule["attribute"], rule.get("draft"))
+    scenarios = []
+    for req in catalog.values():
+        category = req.get("category")
+        if req.get("status", "retenue") != "retenue" or req.get("priority") not in ("indispensable", "importante") \
+                or not category or not (req.get("nature") == "non-fonctionnelle" or req["id"].startswith("ENF")):
+            continue
+        scenario = {"id": f"QS-{len(scenarios) + 1:02d}", "attribute": category,
+                    "importance": "haute" if req["priority"] == "indispensable" else "moyenne",
+                    "stimulus": stimuli.pop(category, None) or f"À écrire : {req.get('title', req['id'])}",
+                    "response": req.get("text") or req.get("title", req["id"])}
+        if req.get("metric"):
+            scenario["measure"] = req["metric"]
+        scenario["refs"] = [req["id"]]
+        used = [c["id"] for c in option.get("components", []) if req["id"] in c.get("refs", [])]
+        if used:
+            scenario["components"] = used
+        scenario["status"] = "a-verifier"
+        scenarios.append(scenario)
+    for rule in expected(rules, catalog, option.get("components", []), scenarios):
+        if rule.get("draft"):
+            scenarios.append({"id": f"QS-{len(scenarios) + 1:02d}", "attribute": rule["attribute"],
+                              "stimulus": rule["draft"], "response": "À écrire", "status": "a-verifier"})
+    spec = {"title": f"Revue : {option.get('name', option['id'])}", "source": {"options": "options.json",
+                                                                                "option": option["id"]},
+            "scenarios": scenarios, "risks": [], "decisions": [],
+            "_draft": "Brouillon de arch_review.py --draft : stimulus, environnement, réponse et mesure à écrire ou "
+                      "corriger, puis évaluer chaque scénario (status, note) ; risques et décisions à ajouter."}
+    invalid = validate(spec, __file__)
+    if invalid:
+        errors.extend(invalid)
+        return report
+    path.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    report.update(outputs=[str(path)], option=option["id"], scenarios=len(scenarios))
+    return report
+
+
 def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None) -> dict:
     errors: list[str] = []
     warnings: list[str] = []
@@ -1071,6 +1136,9 @@ def main() -> int:
     parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire la revue (notes typées)")
     parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
     parser.add_argument("--rules", action="store_true", help="liste les règles, puis s'arrête")
+    parser.add_argument("--draft", action="store_true",
+                        help="écrire le brouillon de la description depuis options.json et le catalogue voisins")
+    parser.add_argument("--option", help="avec --draft : option revue (défaut : décision, sinon recommandation)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -1082,6 +1150,12 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if args.draft:
+        rules, _, invalid = workspace.rules("revue", EXPECTED, [args.spec])
+        report = draft(args.spec, args.option, rules) if not invalid else \
+            {"input": str(args.spec), "outputs": [], "option": None, "scenarios": 0, "errors": invalid, "warnings": []}
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if report["errors"] else 0
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
     args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
     if scoped:

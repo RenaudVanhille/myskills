@@ -6,13 +6,17 @@
 Erreurs : XML illisible, identifiants en double, parent ou extrémité de flèche
 introuvable, forme sans géométrie. Avertissements : formes qui se chevauchent,
 forme sans libellé, flèche sans extrémité, couleur hors charte (sauf
-icônes et groupes officiels AWS, Azure, GCP, Kubernetes), pas de titre.
+icônes et groupes officiels AWS, Azure, GCP, Kubernetes), pas de titre ; et
+lisibilité, estimée sans rendu : libellé trop long pour sa forme, flèches
+qui se croisent, flèche qui passe sous une forme. `review_image` dit s'il
+faut ouvrir l'image exportée : seulement quand la lisibilité est douteuse.
 Lit aussi les diagrammes compressés. Affiche un rapport JSON. Usage :
     uv run scripts/check_drawio.py SCHEMA.drawio [...]
 """
 
 import base64
 import json
+import math
 import re
 import sys
 import zlib
@@ -62,11 +66,110 @@ def box(cell: ET.Element) -> tuple[float, float, float, float] | None:
     return tuple(float(geo.get(k, 0)) for k in ("x", "y", "width", "height"))
 
 
+CHAR = 0.55   # largeur moyenne d'un caractère, en part de la taille de police
+LINE = 1.3    # hauteur d'une ligne, en part de la taille de police
+SHOWN = 3     # exemples cités par avertissement de lisibilité
+
+
+def label_fits(label: str, style: dict, w: float, h: float) -> bool:
+    """Le libellé tient-il dans la forme (estimation sans rendu) ?"""
+    size = float(style.get("fontSize", 12))
+    room = max(w - 8, 1)
+    if style.get("whiteSpace") != "wrap":
+        return len(label) * size * CHAR <= w
+    if max((len(word) for word in label.split()), default=0) * size * CHAR > room:
+        return False
+    return math.ceil(len(label) * size * CHAR / room) * size * LINE <= h + 2
+
+
+def route(edge: ET.Element, start: tuple, end: tuple) -> list[tuple[float, float]]:
+    """Points de la flèche : points de passage donnés, sinon coude orthogonal au milieu (approché)."""
+    geo = edge.find("mxGeometry")
+    points = [(float(p.get("x", 0)), float(p.get("y", 0)))
+              for p in (geo.findall("Array/mxPoint") if geo is not None else [])]
+    if points or "orthogonalEdgeStyle" not in (edge.get("style") or ""):
+        return [start, *points, end]
+    (sx, sy), (tx, ty) = start, end
+    if abs(tx - sx) >= abs(ty - sy):
+        mid = (sx + tx) / 2
+        return [start, (mid, sy), (mid, ty), end]
+    mid = (sy + ty) / 2
+    return [start, (sx, mid), (tx, mid), end]
+
+
+def crosses(a, b, c, d) -> bool:
+    """Les segments ab et cd se coupent-ils strictement ?"""
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    return side(a, b, c) * side(a, b, d) < 0 and side(c, d, a) * side(c, d, b) < 0
+
+
+def through(a, b, rect) -> bool:
+    """Le segment ab traverse-t-il le rectangle (réduit de 2 px) ?"""
+    x, y, w, h = rect[0] + 2, rect[1] + 2, rect[2] - 4, rect[3] - 4
+    if w <= 0 or h <= 0:
+        return False
+    corners = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    inside = lambda p: x < p[0] < x + w and y < p[1] < y + h  # noqa: E731
+    return inside(a) or inside(b) or any(crosses(a, b, corners[i], corners[(i + 1) % 4]) for i in range(4))
+
+
+def readability(name: str, ids: dict, warnings: list) -> bool:
+    """Libellés trop longs, flèches croisées, flèches sous une forme ; vrai si l'image est à relire."""
+    absolute: dict[str, tuple] = {}
+
+    def place(cid):
+        if cid in absolute:
+            return absolute[cid]
+        holder, cell = ids[cid]
+        geometry = box(cell) or (0, 0, 0, 0)
+        par = cell.get("parent")
+        ox, oy = place(par)[:2] if par in ids and ids[par][1].get("vertex") == "1" else (0, 0)
+        absolute[cid] = (geometry[0] + ox, geometry[1] + oy, geometry[2], geometry[3])
+        return absolute[cid]
+
+    parents = {cell.get("parent") for _, cell in ids.values() if cell.get("vertex") == "1"}
+    long, leaves = [], {}
+    for cid, (holder, cell) in ids.items():
+        if cell.get("vertex") != "1" or box(cell) is None:
+            continue
+        raw = cell.get("style") or ""
+        style = style_of(cell)
+        if raw.startswith("text") or any(mark in raw for mark in VENDOR) or "image" in style.get("shape", ""):
+            continue
+        label = holder.get("label") if holder is not cell else cell.get("value")
+        label = " ".join(re.sub(r"<[^>]+>", " ", label or "").split())
+        x, y, w, h = place(cid)
+        outside = style.get("labelPosition", "center") != "center" or \
+            style.get("verticalLabelPosition", "middle") != "middle"  # libellé à côté de la forme
+        if label and cid not in parents and not outside and not label_fits(label, style, w, h):
+            long.append(cid)
+        if cid not in parents:
+            leaves[cid] = (x, y, w, h)
+    edges = []
+    for cid, (holder, cell) in ids.items():
+        source, target = cell.get("source"), cell.get("target")
+        if cell.get("edge") == "1" and source in leaves and target in leaves:
+            centre = lambda r: (r[0] + r[2] / 2, r[1] + r[3] / 2)  # noqa: E731
+            points = route(cell, centre(leaves[source]), centre(leaves[target]))
+            edges.append((cid, {source, target}, list(zip(points, points[1:]))))
+    crossing = [f"{a}×{b}" for i, (a, ea, sa) in enumerate(edges) for b, eb, sb in edges[i + 1:]
+                if not ea & eb and any(crosses(p, q, r, s) for p, q in sa for r, s in sb)]
+    hidden = [f"{e}/{v}" for e, ends, segments in edges for v, rect in leaves.items()
+              if v not in ends and any(through(p, q, rect) for p, q in segments)]
+    for items, text in ((long, "libellé trop long pour sa forme"), (crossing, "flèches qui se croisent"),
+                        (hidden, "flèche qui passe sous une forme")):
+        if items:
+            more = f" (+{len(items) - SHOWN})" if len(items) > SHOWN else ""
+            warnings.append(f"{name} : lisibilité, {text} : {', '.join(items[:SHOWN])}{more}")
+    return bool(long or crossing or hidden)
+
+
 def check_page(name: str, model: ET.Element, errors: list, warnings: list) -> int:
     root = model.find("root")
     if root is None:
         errors.append(f"{name} : pas d'élément <root>")
-        return 0
+        return 0, False
     ids = {}
     for parent in root:
         cell = parent if parent.tag == "mxCell" else parent.find("mxCell")
@@ -119,11 +222,13 @@ def check_page(name: str, model: ET.Element, errors: list, warnings: list) -> in
                 warnings.append(f"{name} : {a} et {b} se chevauchent")
     if not has_title:
         warnings.append(f"{name} : pas de titre (texte de 18 px ou plus)")
-    return len(vertices)
+    overlap = any("se chevauchent" in w for w in warnings)
+    review = readability(name, ids, warnings) or overlap
+    return len(vertices), review
 
 
 def check(path: Path) -> dict:
-    report = {"file": str(path), "pages": 0, "shapes": 0, "errors": [], "warnings": []}
+    report = {"file": str(path), "pages": 0, "shapes": 0, "review_image": False, "errors": [], "warnings": []}
     try:
         pages = models(ET.parse(path).getroot())
     except (ET.ParseError, ValueError, zlib.error, OSError) as error:
@@ -131,7 +236,9 @@ def check(path: Path) -> dict:
         return report
     report["pages"] = len(pages)
     for name, model in pages:
-        report["shapes"] += check_page(name, model, report["errors"], report["warnings"])
+        shapes, review = check_page(name, model, report["errors"], report["warnings"])
+        report["shapes"] += shapes
+        report["review_image"] = report["review_image"] or review
     return report
 
 

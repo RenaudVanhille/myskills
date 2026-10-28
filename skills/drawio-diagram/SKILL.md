@@ -18,7 +18,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Sorties** : <sujet>.drawio en XML clair, à côté de sa description <sujet>.json ; Après export : <sujet>.drawio.png, .svg ou .pdf ; Depuis un .drawio existant : sa description courte <sujet>.json (drawio_read.py), à éditer puis reconstruire.
 - **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON, codes de sortie : 0 schéma produit sans erreur ; 1 description illisible ou erreur.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
-- **`check_drawio.py`** : Vérifie un fichier draw.io avant export. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
+- **`check_drawio.py`** : Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image). Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **`drawio_read.py`** : Tire d'un .drawio existant (XML clair ou compressé) la description JSON courte de drawio_build.py : rôle de chaque forme déduit de son style, identifiants, libellés sans HTML et positions (ou grille approchée), flèches avec libellé et style ; vérifie la description contre le schéma de drawio_build.py avant de l'écrire. Le modèle édite cette description au lieu du XML. Rapport JSON, codes de sortie : 0 description écrite ; 1 fichier illisible, schéma vide, description existante sans --force ou non conforme.
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
@@ -109,10 +109,11 @@ uv run ../diagram-export/scripts/export.py SUJET.drawio --format png
 Ou en un seul appel avec la construction : `drawio_build.py SUJET.json
 --export png` ; l'image est dans `export` du rapport.
 
-Le PNG `SUJET.drawio.png` garde le XML : il se rouvre dans draw.io. Ouvrez
-l'image et vérifiez la lisibilité (libellés coupés, flèches qui se croisent
-ou passent sous une forme). Ajustez `row`, `col`, `w` ou `h`, reconstruisez
-et réexportez.
+Le PNG `SUJET.drawio.png` garde le XML : il se rouvre dans draw.io. Le
+script estime la lisibilité (libellé trop long, flèches qui se croisent ou
+passent sous une forme) : n'ouvrez l'image que si `review_image` est vrai,
+pour juger les avertissements « lisibilité ». Ajustez `row`, `col`, `w` ou
+`h`, reconstruisez et réexportez.
 
 Pour Confluence, livrez les deux fichiers : le `.drawio`, à importer dans la
 macro draw.io de la page pour le modifier, et le `.drawio.png`, à insérer

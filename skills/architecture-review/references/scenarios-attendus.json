@@ -58,7 +58,7 @@
    "label": "croissance du volume ou des utilisateurs",
    "attribute": "evolutivite",
    "pattern": "croissance|doubl|tripl|x ?\\d|\\d+ ?%|montee en charge|volume|nouveaux? (clients|pays|utilisateurs)",
-   "draft": "Le nombre d'utilisateurs est multiplié par 3 en un an",
+   "draft": "Le volume d'utilisateurs triple en un an",
    "when": {
     "categories": [
      "evolutivite"

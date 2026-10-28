@@ -64,8 +64,10 @@ workflow, la commande les trace aussi au journal.
 3. Revue d'architecture (skill `architecture-review`), quand elle est
    demandée : écris `revue.json` (`arch_review.py --schema`), avec `source`
    pour une option d'`architecture-options` plutôt que de recopier ses
-   composants. Écris un scénario de qualité par exigence non fonctionnelle
-   indispensable ou importante, évalue-le et dis pourquoi ; note les
+   composants : `arch_review.py revue.json --draft` l'écrit d'abord, avec un
+   squelette de scénario par exigence non fonctionnelle indispensable ou
+   importante et par scénario attendu. Complète chaque scénario (stimulus,
+   réponse, mesure), évalue-le et dis pourquoi ; note les
    risques, sensibilités, compromis et décisions. Avec le code, donne
    `code` et un motif par composant : le script lance graphify
    (`--code-only` par défaut ; `semantic` pour lire aussi les documents,
