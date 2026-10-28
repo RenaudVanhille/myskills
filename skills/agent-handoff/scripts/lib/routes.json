@@ -96,10 +96,11 @@
    "name": "avant-vente",
    "agent": "architecture-workflow",
    "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
-   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) mené en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
    "stages": [
     "documents",
     "depouillement (facultative)",
+    "qualification (facultative)",
     "exigences",
     "architectures",
     "schemas",
@@ -113,7 +114,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cloud-existant",
@@ -250,7 +251,8 @@
     "Facultatif : la description cloud de la même architecture (schemas/option-<id>.cloud.json), pour les piliers Well-Architected",
     "Facultatif : le code source, ou le graph.json déjà produit par graphify, pour comparer le code à l'architecture",
     "Facultatif : accept, les écarts acceptés avec leur raison",
-    "Règles de complétude (scénarios attendus) : references/scenarios-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json"
+    "Règles de complétude (scénarios attendus) : references/scenarios-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
+    "Facultatif : les principes d'architecture du client, dans la mission (references.principes, liste principes de shared/schemas/rules.schema.json)"
    ],
    "match": "Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture."
   },
@@ -440,7 +442,8 @@
     "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions",
     "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
     "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
-    "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json"
+    "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
+    "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission"
    ],
    "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA."
   },
@@ -452,7 +455,8 @@
     "Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown)",
     "Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft",
     "Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence)",
-    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal"
+    "Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal",
+    "Pour la qualification : qualification.json (note et raison par critère de la grille, décision de l'utilisateur) ; facultatif, une grille propre à l'organisation"
    ],
    "match": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite. Les scripts écrivent les brouillons, le modèle relit et juge. À utiliser en avant-vente, avant le chiffrage et le mémoire technique."
   },

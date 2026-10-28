@@ -1,0 +1,49 @@
+{
+ "title": "Qualification : rendez-vous d'Aubrelac",
+ "tender": "ao.json",
+ "scores": [
+  {
+   "id": "adequat",
+   "score": 4,
+   "why": "Plateforme web et API sur mesure : notre cœur de métier."
+  },
+  {
+   "id": "references",
+   "score": 3
+  },
+  {
+   "id": "capacite",
+   "score": 4,
+   "why": "Architecte et référent sécurité disponibles en janvier ; chef de projet à confirmer."
+  },
+  {
+   "id": "client",
+   "score": 2,
+   "why": "Aucun projet passé avec la Métropole."
+  },
+  {
+   "id": "concurrence",
+   "score": 3,
+   "why": "Éditeurs SaaS présents, mais l'hébergement SecNumCloud les écarte en partie."
+  },
+  {
+   "id": "delai",
+   "score": 1,
+   "why": "26 jours avant la remise : suffisant pour un mémoire de 30 pages."
+  },
+  {
+   "id": "risques",
+   "score": 3,
+   "why": "Pénalités plafonnées à 10 %, cession des développements spécifiques."
+  },
+  {
+   "id": "enjeu",
+   "score": 4,
+   "why": "Premier compte dans la métropole, offre de services aux habitants à étendre."
+  }
+ ],
+ "decision": {
+  "choice": "go",
+  "by": "utilisateur"
+ }
+}

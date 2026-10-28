@@ -1,0 +1,1 @@
+{"principes": [{"id": "PA-01", "label": "Bases PostgreSQL", "target": "composant", "require": {"techno": "postgresql"}}]}

@@ -1,0 +1,23 @@
+{
+  "title": "Grille de qualification go / no-go",
+  "scale": "Note de 0 à 5 : 5 est le plus favorable à la réponse (pour les risques : 5, risques faibles).",
+  "thresholds": {"go": 65, "conditions": 50},
+  "criteria": [
+    {"id": "adequation", "label": "Adéquation au savoir-faire", "weight": 20,
+     "question": "Le besoin relève-t-il de nos métiers et de nos technologies ?", "hint": "criteres"},
+    {"id": "references", "label": "Références comparables", "weight": 15,
+     "question": "Avons-nous des références récentes et citables sur un besoin proche ?"},
+    {"id": "capacite", "label": "Capacité à faire", "weight": 15, "eliminatory": true,
+     "question": "Pouvons-nous mobiliser l'équipe et les profils demandés aux dates du marché ?", "hint": "pieces"},
+    {"id": "client", "label": "Connaissance du client", "weight": 10,
+     "question": "Connaissons-nous l'acheteur, ses enjeux et ses décideurs ?"},
+    {"id": "concurrence", "label": "Position face à la concurrence", "weight": 10,
+     "question": "Sommes-nous mieux placés que les concurrents probables (titulaire sortant, éditeurs) ?"},
+    {"id": "delai", "label": "Délai de réponse", "weight": 10, "eliminatory": true,
+     "question": "Le temps qui reste avant la remise suffit-il pour une offre de qualité ?", "hint": "remise"},
+    {"id": "risques", "label": "Risques contractuels", "weight": 10,
+     "question": "Pénalités, propriété intellectuelle, responsabilité et réversibilité sont-elles acceptables ?", "hint": "clauses"},
+    {"id": "enjeu", "label": "Intérêt stratégique", "weight": 10,
+     "question": "L'affaire ouvre-t-elle un compte, une offre ou un secteur visés ?"}
+  ]
+}

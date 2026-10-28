@@ -15,16 +15,19 @@ les fichiers produits : lisez le rapport.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown) ; Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft ; Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence) ; Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal.
-- **Sorties** : ao.md : dépouillement (calendrier et échéances, critères pondérés, pièces à fournir à cocher, format de réponse, clauses à risque par niveau) ; conformite.md, conformite.csv et conformite.xlsx : matrice de conformité (réponse par exigence, justification, composants, source) ; questions-client.md : questions à poser avant la date limite ; registre.md et registre.csv : hypothèses, exclusions, prérequis et réponses du client, à reprendre dans l'offre.
+- **Entrées** : Dossier de consultation (règlement, cahier des charges, bordereau de prix) en Markdown dans sources/ (sortie de doc-to-markdown) ; Description du dépouillement (ao.json) : dates, critères et poids, pièces, format, clauses à risque, chacun avec sa citation ; écrite d'abord par tender_build.py --draft ; Pour la matrice de conformité : exigences.json (requirements-catalog), options.json (architecture-options) et conformite.json (réponse par exigence) ; Pour le registre : registre.json (hypothèses, exclusions, prérequis, questions) ; brouillon tiré d'exigences.json, chiffrage.json et du journal ; Pour la qualification : qualification.json (note et raison par critère de la grille, décision de l'utilisateur) ; facultatif, une grille propre à l'organisation.
+- **Sorties** : ao.md : dépouillement (calendrier et échéances, critères pondérés, pièces à fournir à cocher, format de réponse, clauses à risque par niveau) ; conformite.md, conformite.csv et conformite.xlsx : matrice de conformité (réponse par exigence, justification, composants, source) ; questions-client.md : questions à poser avant la date limite ; registre.md et registre.csv : hypothèses, exclusions, prérequis et réponses du client, à reprendre dans l'offre ; qualification.md : grille notée, note sur 100, recommandation go / no-go et décision, tracée au journal.
 - **`tender_build.py`** : Dépouille un dossier de consultation : vérifie chaque citation, contrôle les poids des critères (premier niveau sur 100, sous-critères égaux à leur critère), l'ordre des dates et le temps restant avant les dates limites (questions, remise), signale les clauses à risque haut sans note et les éléments des sources repris par aucune entrée ; écrit ao.md ; avec --draft, écrit d'abord la description depuis les sources (dates, tableaux de pondération, listes de pièces, format, clauses). Rapport JSON, codes de sortie : 0 dépouillement écrit (dates proches, poids incohérents et éléments non repris en avertissements) ; 1 description invalide, citation introuvable, parent ou date invalide ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`compliance_build.py`** : Construit la matrice de conformité : valide exigences.json et options.json contre le schéma de leur script, exige une réponse par exigence retenue et une justification pour chaque réponse partielle ou non conforme, reprend les composants de l'option pour une réponse conforme, signale une réponse qui contredit les écarts de l'option ; écrit Markdown, CSV et Excel (bibliothèque standard), relit le classeur ; avec --draft, écrit d'abord les réponses tirées des écarts de l'option. Rapport JSON, codes de sortie : 0 matrice écrite et relue (contradictions avec l'option en avertissements) ; 1 description invalide, exigence sans réponse, justification manquante ou classeur illisible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`assumptions.py`** : Tient le registre des hypothèses, exclusions, prérequis et questions au client : nature tirée du préfixe, références vérifiées dans exigences.json et ao.json, réponse exigée d'une question répondue, questions à envoyer comptées avant la date limite du dépouillement ; écrit questions-client.md et le registre à reprendre dans l'offre (Markdown, CSV relu) ; avec --draft, écrit d'abord le registre depuis exigences.json, chiffrage.json et le journal. Rapport JSON, codes de sortie : 0 registre et questions écrits (date limite proche ou passée en avertissement) ; 1 registre invalide, nature contraire au préfixe, référence inconnue ou question répondue sans réponse.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`qualify.py`** : Qualifie un appel d'offres sur une grille pondérée (go / no-go) : valide la grille, exige une note de 0 à 5 justifiée par critère, calcule la note sur 100 et la recommandation (seuils de la grille, critère éliminatoire), exige la raison d'une décision contraire, trace la décision au journal du workflow (--log) ; avec --draft, écrit la grille à noter avec les indices du dépouillement. Rapport JSON, codes de sortie : 0 qualification écrite (décision absente ou non tracée en avertissement) ; 1 description ou grille invalide, critère non noté ou sans raison, décision contraire sans raison.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json contre son schéma.
+- **Dépend de** `decision-log` (`journal.py`, facultatif : sans lui, avertissement) : tracer la décision go / no-go au journal du workflow (--log).
 - **Passe la main** au skill `doc-to-markdown` : le dossier de consultation n'est pas encore en Markdown.
 - **Passe la main** au skill `requirements-catalog` : le dépouillement est fait : cataloguer les exigences du cahier des charges.
 - **Passe la main** au skill `architecture-dossier` : assembler le mémoire technique selon les critères (dossier_build.py --template memoire --tender ao.json).
@@ -63,7 +66,27 @@ le budget de pages du mémoire (`memoire_pages`) et les éléments des sources
 repris par aucune entrée (`uncovered`, à reprendre ou écarter). Une date
 limite des questions proche se dit tout de suite à l'utilisateur.
 
-## 2. Matrice de conformité
+## 2. Qualifier : go ou no-go
+
+Juste après le dépouillement, avant d'engager l'équipe :
+
+```bash
+uv run scripts/qualify.py qualification.json --draft
+uv run scripts/qualify.py qualification.json --log qualification
+```
+
+Le brouillon donne un critère par ligne de la grille
+(`references/grille-qualification.json`, ou celle de l'organisation dans
+`grid`) avec ce qu'en dit le dépouillement (jours avant la remise, clauses à
+risque, pièces). Notez chaque critère de 0 à 5 avec sa raison en une
+phrase ; la décision (`decision` : `go`, `go-conditions` avec
+`conditions`, `no-go`) est celle de l'utilisateur, avec ses mots. Le
+script calcule la note sur 100 et la recommandation (un critère
+éliminatoire à 1 ou moins donne no-go) ; une décision contraire exige sa
+raison. Avec `--log`, la décision est notée au journal de l'étape
+(`logged`). Un no-go arrête le workflow : dites-le à l'utilisateur.
+
+## 3. Matrice de conformité
 
 Après le choix de l'option (`options.json` d'architecture-options, avec sa
 décision) et le catalogue d'exigences (`exigences.json`), dans le même
@@ -82,7 +105,7 @@ Une réponse conforme sans justification reprend les composants qui couvrent
 l'exigence. Le script produit `conformite.md`, `.csv` et `.xlsx` (relu) ;
 une réponse qui contredit l'option est un avertissement à trancher.
 
-## 3. Registre des hypothèses et questions
+## 4. Registre des hypothèses et questions
 
 ```bash
 uv run scripts/assumptions.py registre.json --draft
@@ -101,7 +124,7 @@ une hypothèse de l'offre.
 Le script écrit `questions-client.md` (à envoyer avant la date limite) et
 `registre.md` (à reprendre dans l'offre et dans le mémoire).
 
-## 4. Mémoire technique
+## 5. Mémoire technique
 
 Le mémoire s'assemble avec `architecture-dossier`, dans l'ordre des
 critères : vous écrivez les sections de `memoire/` (compréhension,

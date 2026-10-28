@@ -1,7 +1,7 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "title": "Règles de complétude",
- "description": "Postes attendus d'un chiffrage (solution-estimate) et scénarios attendus d'une revue (architecture-review). Les règles livrées sont dans le references/ de chaque skill ; celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) puis celles de la mission (references.regles de mission.json) s'y ajoutent, et une règle de même id remplace la précédente ({\"id\", \"off\": true} la retire). Écrit par lessons.py --apply (decision-log) ou à la main.",
+ "title": "Règles de complétude et principes d'architecture",
+ "description": "Postes attendus d'un chiffrage (solution-estimate), scénarios attendus d'une revue et principes d'architecture du client, vérifiés par la revue (architecture-review). Les règles livrées sont dans le references/ de chaque skill ; celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) puis celles de la mission (references.regles, puis references.principes de mission.json) s'y ajoutent, et une règle de même id remplace la précédente ({\"id\", \"off\": true} la retire). Écrit par lessons.py --apply (decision-log) ou à la main.",
  "type": "object",
  "additionalProperties": false,
  "patternProperties": {
@@ -30,6 +30,20 @@
      },
      {
       "$ref": "#/$defs/scenario"
+     }
+    ]
+   }
+  },
+  "principes": {
+   "type": "array",
+   "description": "Principes d'architecture du client : règles en plus pour arch_review.py (architecture-review), le plus souvent ceux d'une mission.",
+   "items": {
+    "anyOf": [
+     {
+      "$ref": "#/$defs/off"
+     },
+     {
+      "$ref": "#/$defs/principe"
      }
     ]
    }
@@ -234,6 +248,145 @@
     },
     "source": {
      "type": "string"
+    }
+   }
+  },
+  "match": {
+   "type": "object",
+   "additionalProperties": false,
+   "description": "Champs du composant (tech, label, layer) ou du flux (style, protocol, label) : expression régulière, sans accents ni majuscules ; count_min : nombre d'instances minimal d'un composant.",
+   "properties": {
+    "tech": {
+     "type": "string",
+     "minLength": 1
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1
+    },
+    "layer": {
+     "type": "string",
+     "minLength": 1
+    },
+    "protocol": {
+     "type": "string",
+     "minLength": 1
+    },
+    "style": {
+     "enum": [
+      "sync",
+      "async"
+     ]
+    },
+    "count_min": {
+     "type": "integer",
+     "minimum": 1
+    }
+   }
+  },
+  "principe": {
+   "type": "object",
+   "required": [
+    "id",
+    "label",
+    "target"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Principe, tel qu'il apparaît dans le constat."
+    },
+    "target": {
+     "enum": [
+      "composants",
+      "flux"
+     ]
+    },
+    "severity": {
+     "enum": [
+      "haute",
+      "moyenne",
+      "basse"
+     ],
+     "description": "Gravité du constat (défaut : moyenne)."
+    },
+    "select": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Éléments visés, toutes conditions requises (aucune : tous).",
+     "properties": {
+      "roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       },
+       "description": "composants de ces rôles"
+      },
+      "tech": {
+       "type": "string",
+       "minLength": 1
+      },
+      "label": {
+       "type": "string",
+       "minLength": 1
+      },
+      "from_roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       }
+      },
+      "to_roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       }
+      },
+      "style": {
+       "enum": [
+        "sync",
+        "async"
+       ]
+      }
+     }
+    },
+    "require": {
+     "$ref": "#/$defs/match",
+     "description": "chaque champ doit correspondre"
+    },
+    "forbid": {
+     "$ref": "#/$defs/match",
+     "description": "aucun champ ne doit correspondre"
+    },
+    "source": {
+     "type": "string",
+     "description": "référentiel du client d'où vient le principe"
     }
    }
   }

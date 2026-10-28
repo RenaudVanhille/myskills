@@ -68,7 +68,12 @@ uv run scripts/mission.py check DOSSIER --fail-on haute
 
 Les règles de complétude propres à la mission (postes attendus du
 chiffrage, scénarios attendus de la revue) vont dans `references.regles`,
-lues par `estimate_build.py` et `arch_review.py`.
+lues par `estimate_build.py` et `arch_review.py`. Les principes
+d'architecture du client vont dans `references.principes`, contrôlés par
+`arch_review.py`. Pour calibrer un chiffrage, `analogues` désigne des
+missions passées (dossier ou `chiffrage.json`), lues seulement : ne
+l'ajoutez que si l'utilisateur l'accepte pour cette mission
+(confidentialité entre clients).
 
 Lisez `next`, `counts` et les `findings` du rapport, pas la note du
 vault. Un contrôle ouvert se corrige dans le livrable qu'il cite (la

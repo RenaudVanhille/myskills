@@ -278,6 +278,65 @@ def three_points(value) -> tuple[float, float, float, float, float]:
     return value, value, value, float(value), 0.0
 
 
+def phase_shares(spec: dict) -> dict[str, float]:
+    """Part de chaque phase dans la charge espérée des lots (0 à 1)."""
+    days: dict[str, float] = {}
+    for task in spec.get("work", []):
+        for value in task.get("effort", {}).values():
+            days[task["phase"]] = days.get(task["phase"], 0.0) + three_points(value)[3]
+    total = sum(days.values())
+    return {k: v / total for k, v in days.items()} if total else {}
+
+
+def analogy(spec_path: Path, spec: dict, errors: list[str], warnings: list[str]) -> dict | None:
+    """Calibration par analogie avec les missions passées désignées dans mission.json (analogues).
+
+    Lecture seule : seuls les noms des missions et les parts par phase sortent, rien de leur contenu."""
+    root = workspace.find(spec_path)
+    if not root:
+        return None
+    mission, invalid = workspace.load(root)
+    if not mission or not mission.get("analogues"):
+        return None
+    past: dict[str, dict[str, float]] = {}
+    for index, item in enumerate(mission["analogues"]):
+        path = Path(item["path"])
+        path = path if path.is_absolute() else root / path
+        if path.is_dir():
+            path = path / "chiffrage.json"
+        name = item.get("name") or path.parent.name
+        try:
+            other = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            warnings.append(f"analogues/{index} : chiffrage illisible « {item['path']} » ({error.__class__.__name__}), ignoré")
+            continue
+        if validate(other, __file__):
+            warnings.append(f"analogues/{index} : « {item['path']} » n'est pas un chiffrage valide, ignoré")
+            continue
+        shares = phase_shares(other)
+        if shares:
+            past[name] = shares
+    if not past:
+        warnings.append("analogues : aucun chiffrage passé exploitable, calibration impossible")
+        return None
+    current = phase_shares(spec)
+    phases, deviations = {}, []
+    for phase in [p for p in PHASES if p in current or any(p in s for s in past.values())]:
+        values = [s.get(phase, 0.0) for s in past.values()]
+        low, high = min(values), max(values)
+        share = current.get(phase, 0.0)
+        phases[phase] = {"share": round(share, 3), "range": [round(low, 3), round(high, 3)]}
+        if not share and low:
+            deviations.append(phase)
+            warnings.append(f"analogie : phase {phase} absente, présente dans toutes les missions comparées "
+                            f"({low:.0%} à {high:.0%})")
+        elif share and (share < low * 0.67 or share > high * 1.5):
+            deviations.append(phase)
+            warnings.append(f"analogie : phase {phase} à {share:.0%} de la charge, {low:.0%} à {high:.0%} "
+                            "dans les missions comparées")
+    return {"missions": list(past), "phases": phases, "deviations": deviations}
+
+
 def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
             errors: list[str], warnings: list[str], rules: list[dict]) -> dict:
     """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
@@ -1127,6 +1186,7 @@ def main() -> int:
     report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"), "charges": found["charges"],
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
                    "uncertain": found["uncertain"], "missing": found["missing"]})
+    report["analogy"] = analogy(args.spec, spec, errors, warnings)
 
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)

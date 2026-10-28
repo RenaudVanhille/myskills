@@ -1,0 +1,13 @@
+{
+ "_source": "Principes d'architecture de la Métropole d'Aubrelac (fictifs, pour les tests)",
+ "principes": [
+  {"id": "PA-01", "label": "Bases de données PostgreSQL ou Oracle uniquement", "target": "composants",
+   "select": {"roles": ["db"]}, "require": {"tech": "postgresql|oracle"}, "severity": "haute", "source": "Cadre de cohérence technique, §3"},
+  {"id": "PA-02", "label": "Aucun appel synchrone direct vers une application du SI sans passer par la plateforme d'échanges", "target": "flux",
+   "select": {"to_roles": ["external"]}, "forbid": {"style": "sync"}, "severity": "haute", "source": "Cadre de cohérence technique, §5"},
+  {"id": "PA-03", "label": "Services applicatifs redondés sur deux instances au moins", "target": "composants",
+   "select": {"roles": ["system"]}, "require": {"count_min": 2}, "source": "Politique de disponibilité"},
+  {"id": "PA-04", "label": "Pas de logiciel SaaS hors de l'Union européenne", "target": "composants",
+   "forbid": {"tech": "saas"}, "severity": "basse"}
+ ]
+}
