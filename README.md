@@ -137,9 +137,9 @@ qui dit ce qui manque et donne la commande d'installation.
 | Usage | À installer | Facultatif | Vérifier |
 | --- | --- | --- | --- |
 | Traiter des documents Office (DOCX, PPTX, XLSX, Outlook) | rien de plus | — | `extraction` |
-| Traiter des PDF | rien de plus (Docling se télécharge au premier lancement, ~2 Go) | Tesseract, pour l'OCR local des PDF scannés : `winget install UB-Mannheim.TesseractOCR` (macOS `brew install tesseract tesseract-lang`, Linux `apt install tesseract-ocr tesseract-ocr-fra`) ; sans lui, les pages scannées passent à la vision du modèle | `extraction` |
+| Traiter des PDF | Docling et ses modèles de mise en page (voir « Modèles et téléchargements ») | Tesseract, pour l'OCR local des PDF scannés : `winget install UB-Mannheim.TesseractOCR` (macOS `brew install tesseract tesseract-lang`, Linux `apt install tesseract-ocr tesseract-ocr-fra`) ; sans lui, les pages scannées passent à la vision du modèle | `extraction` |
 | Images (captures, photos de tableau blanc) | rien : lues par la vision du modèle | — | — |
-| Trier un lot de documents (modèle local Laya) | rien de plus (PyTorch CPU et ~1,3 Go de modèle au premier lancement) | — | — |
+| Trier un lot de documents (modèle local Laya) | le modèle Laya et PyTorch CPU (voir « Modèles et téléchargements ») | — | — |
 | Vidéo ou audio (atelier, kick-off, réunion, présentation) | le modèle de transcription, une fois : `doctor.py video --prefetch` (sur une machine sans accès à la source : `--models-from DOSSIER`) | — | `video` |
 | Schémas draw.io, POS du SI, cloud (`.drawio` et `.drawio.png`) | [draw.io Desktop](https://github.com/jgraph/drawio-desktop/releases) (`winget install JGraph.Draw`) et un navigateur : Edge suffit sous Windows, sinon `uvx playwright install chromium` | — | `schemas` |
 | Schémas Mermaid, Excalidraw | un navigateur (voir ci-dessus) | `doctor.py schemas --prefetch` pour travailler hors ligne | `schemas` |
@@ -151,6 +151,30 @@ qui dit ce qui manque et donne la commande d'installation.
 
 `doctor.py` sans groupe vérifie tout. Rien ne s'installe sans votre accord :
 le script donne seulement les commandes.
+
+### Modèles et téléchargements
+
+Un run ne doit rien télécharger : tout ce qui suit s'installe à l'avance,
+une fois, sur une machine connectée. Les modèles se copient ensuite comme des
+dossiers sur une machine sans réseau. Pendant un run, les scripts qui chargent
+un modèle filtrent leurs flux réseau : seuls les hôtes de
+`shared/model-sources.json` sont joignables, tout autre flux est refusé et
+signalé dans le rapport.
+
+| Élément | Taille | Source | Installer à l'avance | Pendant le run |
+| --- | --- | --- | --- | --- |
+| Modèle de transcription `whisper-small` (vidéo, audio) | ~480 Mo | Hugging Face `Systran/faster-whisper-small`, commit et SHA-256 épinglés dans `model-sources.json` | `doctor.py video --prefetch`, ou `--models-from DOSSIER` depuis une copie | lu dans le cache seulement ; sans modèle, images clés sans transcription |
+| Modèles Docling (mise en page, tableaux) | ~0,5 Go | Hugging Face, dépôts de `docling-project` | pas encore pris en charge par `doctor.py` | **téléchargés au premier PDF passé à Docling** |
+| Modèle Laya (tri des documents) | ~1,3 Go | Hugging Face, révision fixée par le paquet `laya` | pas encore pris en charge par `doctor.py` ; à défaut, un premier `classify.py` connecté | **téléchargé au premier tri** ; sans lui, tri par règles |
+| Langues Tesseract `fra` et `eng` | ~30 Mo | paquet système | avec Tesseract (tableau ci-dessus) | rien |
+| Bibliothèques Python, Docling (~2 Go), Pandoc | — | PyPI, par uv | lancer une fois chaque script utile, connecté (`uv run SCRIPT --help`) | lues dans le cache de uv |
+| Navigateur pour les rendus | ~150 Mo | Edge déjà installé, sinon Playwright | `uvx playwright install chromium` | rien |
+| Mermaid et Excalidraw | ~5 Mo | npm, version et SHA-512 épinglées | `doctor.py schemas --prefetch` | avec `MYSKILLS_OFFLINE=1`, rien n'est téléchargé |
+| LikeC4 | ~100 Mo | npm | `npm install -g likec4` | sinon téléchargé par `npx` |
+
+Les lignes en gras ne respectent pas encore la règle : les modèles Docling
+et Laya se téléchargent encore pendant le run, depuis Hugging Face, sans
+épinglage par myskills.
 
 ## Contenu
 
