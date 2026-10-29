@@ -1,0 +1,36 @@
+{
+  "agent": "ui-designer",
+  "level": "complexe",
+  "receives": [
+    "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
+    "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+    "Le dossier de sortie et ce que l'utilisateur attend : pages HTML, design system, ou les deux"
+  ],
+  "produces": [
+    "design-system.json, .css, .tokens.json, .md : tokens du design system, contrôlés (contrastes WCAG), et leur documentation",
+    "design-system.styleguide.html : page de référence des couleurs, de la typographie, des espacements et des composants",
+    "<écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png)"
+  ],
+  "never": [
+    "Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON",
+    "Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local",
+    "Inventer un texte illisible de la maquette : il se signale"
+  ],
+  "handoffs": [
+    {
+      "to": "document-extractor",
+      "when": "les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images",
+      "send": ["le document", "le dossier où ranger les images"]
+    },
+    {
+      "to": "document-publisher",
+      "when": "la documentation du design system doit être livrée en Word, HTML ou XWiki",
+      "send": ["design-system.md", "l'outil cible"]
+    },
+    {
+      "to": "architecture-workflow",
+      "when": "les maquettes sont traitées pour une avant-vente en cours : rendre la main au workflow",
+      "send": ["les pages et le design system produits", "les écarts restants (similarité, accessibilité)", "le dossier du workflow"]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "title": "Assur'Plus : déclarer un sinistre",
+  "mockup": "accueil.png",
+  "tokens": "design-system.json",
+  "max_width": 1200,
+  "body": [
+    {"type": "header", "text": "Assur'Plus", "crop": [40, 14, 36, 36], "alt": "", "items": ["Mes contrats", "Mes sinistres", "Aide"], "actions": [{"text": "Déclarer un sinistre", "variant": "secondary"}]},
+    {"type": "section", "background": "primary", "padding": "3xl", "children": [
+      {"type": "heading", "level": 1, "text": "Déclarez votre sinistre en ligne", "size": "3xl"},
+      {"type": "text", "text": "Suivi en temps réel, réponse sous 48 heures.", "size": "lg"},
+      {"type": "buttons", "items": [{"text": "Commencer", "variant": "secondary"}]}
+    ]},
+    {"type": "section", "padding": "2xl", "children": [
+      {"type": "grid", "columns": 3, "gap": "xl", "children": [
+        {"type": "card", "title": "Auto", "text": "Accident, bris de glace"},
+        {"type": "card", "title": "Habitation", "text": "Dégât des eaux, vol"},
+        {"type": "card", "title": "Santé", "text": "Remboursements"}
+      ]}
+    ]},
+    {"type": "footer", "text": "© Assur'Plus, mentions légales"}
+  ]
+}

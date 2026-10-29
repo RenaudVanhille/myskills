@@ -1317,6 +1317,25 @@
       {"copy": ["{fixtures}/workflow/exigences.json", "{out}/m/exigences.json"]},
       {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/m/chiffrage.json"], "exit": 0, "report": {"errors": [], "analogy.missions": ["Sinistres 2024", "Sinistres 2025"], "analogy.phases.tests.share": 0.138, "analogy.phases.tests.range": [0.212, 0.235], "analogy.phases.realisation.share": 0.539, "analogy.deviations": ["tests"]}, "report_contains": {"warnings": "analogie : phase tests à 14% de la charge, 21% à 24% dans les missions comparées", "warnings.4": "analogues/2 : chiffrage illisible « ../passees/absente »"}},
       {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{fixtures}/workflow/chiffrage.json", "--out-dir", "{out}/hors"], "exit": 0, "report": {"errors": [], "analogy": null}}
+    ]},
+    {"id": "maquette-page", "skill": "mockup-to-html", "_note": "Page décrite en composants, tokens du design system, logo découpé dans la maquette ; sans rendu (cas rapide).", "files": ["accueil.html", "accueil.css", "assets/accueil-1.png"], "contains": {"accueil.html": ["<main>", "<header class=\"c-header\">", "aria-label=\"Navigation principale\"", "<h1", "Déclarez votre sinistre en ligne"], "accueil.css": ["--color-primary: #0b3d91;", "--color-on-primary: #ffffff;", ".c-card{"]}, "steps": [
+      {"script": "{skills}/mockup-to-html/scripts/page_build.py", "args": ["{fixtures}/maquettes/accueil.json", "--out-dir", "{out}", "--no-render"], "exit": 0, "report": {"components": 11, "rendered": false, "errors": []}, "report_contains": {"warnings": "rendu non vérifié"}}
+    ]},
+    {"id": "maquette-invalide", "skill": "mockup-to-html", "_note": "Description hors schéma, puis erreurs de composants : propriété non permise, variante, URL externe, zone hors maquette, token inconnu ; aucun fichier.", "absent": ["page-invalide.html", "page-erreurs.html", "page-erreurs.css", "assets"], "steps": [
+      {"script": "{skills}/mockup-to-html/scripts/page_build.py", "args": ["{fixtures}/maquettes/page-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « card »"}},
+      {"script": "{skills}/mockup-to-html/scripts/page_build.py", "args": ["{fixtures}/maquettes/page-erreurs.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "vouliez-vous « primary »"}}
+    ]},
+    {"id": "maquette-rendu", "skill": "mockup-to-html", "slow": true, "_note": "Rendu dans un navigateur local réseau coupé, comparaison avec la maquette, débordement mobile.", "files": ["accueil.render.png", "accueil.compare.png"], "steps": [
+      {"script": "{skills}/mockup-to-html/scripts/page_build.py", "args": ["{fixtures}/maquettes/accueil.json", "--out-dir", "{out}"], "exit": 0, "report": {"rendered": true, "mobile_overflow": false, "blocked": [], "warnings": []}}
+    ]},
+    {"id": "design-system", "skill": "design-system", "_note": "Palette tirée de la maquette (rôles), brouillon de tokens valide, puis design system complet avec inventaire de la page.", "files": ["brouillon.json", "design-system.css", "design-system.tokens.json", "design-system.md", "design-system.styleguide.json"], "contains": {"design-system.md": ["## Contrastes (WCAG 2.1)", "Un seul bouton primary par écran", "| `card` |"], "design-system.tokens.json": ["\"$type\": \"color\""]}, "steps": [
+      {"script": "{skills}/design-system/scripts/ds_extract.py", "args": ["{fixtures}/maquettes/accueil.png", "--draft", "{out}/brouillon.json"], "exit": 0, "report": {"roles.background": "#ffffff", "roles.primary": "#0b3d91", "roles.secondary": "#f97316", "roles.text": "#0f172a", "roles.surface": "#f1f5f9", "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_build.py", "args": ["{out}/brouillon.json"], "exit": 0, "report": {"errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_build.py", "args": ["{fixtures}/maquettes/design-system.json", "--pages", "{fixtures}/maquettes/accueil.json", "--out-dir", "{out}"], "exit": 0, "report": {"components.card": 3, "contrast": [], "errors": [], "warnings": []}}
+    ]},
+    {"id": "design-system-controles", "skill": "design-system", "_note": "Tokens hors schéma (couleur mal formée, texte manquant, espacement en texte), puis palette pastel : contraste insuffisant avec teinte proposée, couleurs presque identiques, espacement hors grille.", "absent": ["tokens-invalide.css"], "steps": [
+      {"script": "{skills}/design-system/scripts/ds_build.py", "args": ["{fixtures}/maquettes/tokens-invalide.json", "--out-dir", "{out}"], "exit": 1, "report_contains": {"errors": "champ « text » manquant"}},
+      {"script": "{skills}/design-system/scripts/ds_build.py", "args": ["{fixtures}/maquettes/tokens-contraste.json", "--out-dir", "{out}"], "exit": 0, "report": {"contrast.0.fg": "primary"}, "report_contains": {"warnings": "proposition primary"}}
     ]}
   ]
 }

@@ -12,6 +12,7 @@ lancent ces outils par scripts/build.py. Ne modifiez pas les copies.
 import base64
 import hashlib
 import os
+import platform
 import shutil
 import subprocess
 import tarfile
@@ -80,6 +81,36 @@ def browser_available() -> bool:
                 or any(p.exists() for p in BROWSER_PATHS)
                 or any(p.is_dir() and any(p.glob("chromium*")) for p in PLAYWRIGHT_CACHE))
 
+
+
+# Pendant un rendu, rien ne doit sortir de la machine : le navigateur passe par un
+# proxy qui n'existe pas (les fichiers locaux n'en ont pas besoin), ce qui coupe
+# aussi ses requêtes de fond (mises à jour de composants, pings).
+DEAD_PROXY = "http://127.0.0.1:9"
+QUIET_CHROMIUM = [f"--proxy-server={DEAD_PROXY}", "--proxy-bypass-list=<-loopback>",
+    "--disable-background-networking", "--disable-component-update", "--no-pings",
+    "--disable-domain-reliability", "--no-first-run", "--no-default-browser-check",
+    "--disable-features=OptimizationHints,MediaRouter,Translate,AutofillServerCommunication,"
+    "CertificateTransparencyComponentUpdater",
+]
+NO_SANDBOX = platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0
+
+
+def launch_chromium(pw):
+    """Navigateur local piloté par Playwright, sans accès réseau : MYSKILLS_BROWSER,
+    sinon Edge, Chrome ou le Chromium de Playwright. PackageError s'il n'y en a aucun."""
+    custom = os.environ.get("MYSKILLS_BROWSER")
+    args = (["--no-sandbox"] if NO_SANDBOX else []) + QUIET_CHROMIUM
+    attempts = [{"executable_path": custom}] if custom else []
+    attempts += [{"channel": "msedge"}, {"channel": "chrome"}, {}]
+    last = None
+    for options in attempts:
+        try:
+            return pw.chromium.launch(args=args, proxy={"server": DEAD_PROXY}, **options)
+        except Exception as error:  # navigateur absent : on essaie le suivant
+            last = error
+    raise PackageError("Aucun navigateur trouvé (Edge, Chrome ou Chromium de Playwright) : "
+                       "lancez `uvx playwright install chromium`. " + str(last).splitlines()[0])
 
 def cache_dir() -> Path:
     """Cache des bibliothèques téléchargées (Mermaid, Excalidraw, LikeC4...)."""

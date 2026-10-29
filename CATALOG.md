@@ -8,9 +8,9 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 ## Messages entre agents
 
 - Message de passage : [`shared/schemas/handoff.schema.json`](shared/schemas/handoff.schema.json).
-  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
+  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`.
 - Rapport final : [`shared/schemas/agent-report.schema.json`](shared/schemas/agent-report.schema.json).
-  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet).
+  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet).
 
 ## Agents
 
@@ -156,6 +156,26 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 | `architecture-workflow` | le chiffrage est fait pour un workflow : rendre la main pour la soumission | chiffrage.md et chiffrage.csv ; les hypothèses à valider et les avertissements restants ; le dossier du workflow |
 | `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
 
+### `ui-designer`
+
+Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page HTML par écran rendue en local et comparée à sa maquette, documentation et page de référence. Adapte l'effort de chaque action pour limiter les coûts.
+
+**Skills** : `check-prerequisites`, `design-system`, `mockup-to-html`, `agent-handoff`
+
+Généré depuis `src/agents/ui-designer.contract.json`, qui fait foi.
+
+- **Niveau** : complexe (modèle puissant, `shared/models.json`).
+- **Reçoit** : Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges) ; Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA) ; Le dossier de sortie et ce que l'utilisateur attend : pages HTML, design system, ou les deux.
+- **Produit** : design-system.json, .css, .tokens.json, .md : tokens du design system, contrôlés (contrastes WCAG), et leur documentation ; design-system.styleguide.html : page de référence des couleurs, de la typographie, des espacements et des composants ; <écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png).
+- **Ne fait jamais** : Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON ; Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local ; Inventer un texte illisible de la maquette : il se signale.
+- **Passe la main** :
+
+| Agent | Quand | À transmettre |
+| --- | --- | --- |
+| `document-extractor` | les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images | le document ; le dossier où ranger les images |
+| `document-publisher` | la documentation du design system doit être livrée en Word, HTML ou XWiki | design-system.md ; l'outil cible |
+| `architecture-workflow` | les maquettes sont traitées pour une avant-vente en cours : rendre la main au workflow | les pages et le design system produits ; les écarts restants (similarité, accessibilité) ; le dossier du workflow |
+
 ## Skills
 
 ### `agent-handoff`
@@ -290,7 +310,7 @@ Vérifie que les outils locaux nécessaires aux skills de myskills sont install�
 Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Un groupe : extraction, video, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne ; Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier.
+- **Entrées** : Un groupe : extraction, video, schemas, maquettes, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne ; Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier.
 - **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupes extraction et video) dans le cache de myskills.
 - **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec les groupes extraction (Docling, Laya) et video (Whisper), télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json) : un run n'en télécharge aucun. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
@@ -369,6 +389,23 @@ Résumé de [`contract.json`](skills/decision-log/contract.json), qui fait foi (
 - **Vault Obsidian** : écrit les notes de type `workflow`, `etape`, `revue`, `exigence`, `terme`, `option-architecture`, `decision`, `adr`, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
 - **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
 - **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
+
+### `design-system`
+
+Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette.
+
+Résumé de [`contract.json`](skills/design-system/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : complexe (modèle puissant).
+- **Entrées** : Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette ; Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu ; Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants ; Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA).
+- **Sorties** : <nom>.css : variables CSS (--color-*, --text-*, --space-*, --radius-*, --shadow-*) ; <nom>.tokens.json : tokens au format W3C Design Tokens (Style Dictionary, Tokens Studio) ; <nom>.md : documentation (principes, couleurs, contrastes WCAG, typographie, espacements, composants et emplois) ; <nom>.styleguide.json : page de référence décrite pour mockup-to-html ; avec --render, <nom>.styleguide.html et son rendu.
+- **`ds_extract.py`** : Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide. Rapport JSON, codes de sortie : 0 palette mesurée (et brouillon écrit) ; 1 image illisible ou format non reconnu ; aucun fichier produit.
+- **`ds_build.py`** : Complète les couleurs (surface, bordure, texte secondaire, texte sur chaque couleur de fond), contrôle les contrastes WCAG 2.1 et propose une teinte qui passe, signale couleurs presque identiques, échelle de tailles irrégulière et espacement hors grille, fait l'inventaire des composants et des couleurs en dur des pages ; écrit variables CSS, tokens W3C, documentation et page de référence, rendue avec --render. Rapport JSON, codes de sortie : 0 design system écrit (avertissements possibles : contraste insuffisant, couleurs proches, couleurs en dur) ; 1 tokens invalides, page illisible ou couleur absente des tokens ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `mockup-to-html` (`page_build.py`, facultatif : sans lui, avertissement) : construire et rendre la page de référence (--render).
+- **Passe la main** au skill `mockup-to-html` : reproduire les maquettes en HTML avec ces tokens.
+- **Passe la main** à l'agent `document-publisher` : la documentation du design system doit être livrée en Word, HTML ou XWiki.
+- **Passe la main** à l'utilisateur : une couleur de la charte du client échoue au contraste : garder la marque ou prendre la teinte proposée.
 
 ### `diagram-brief`
 
@@ -530,6 +567,23 @@ Résumé de [`contract.json`](skills/mission-workspace/contract.json), qui fait 
 - **Passe la main** à l'agent `architecture-reviewer` : revue d'architecture de la mission, dépôts de code compris.
 - **Passe la main** à l'utilisateur : un contrôle ouvert demande une décision : corriger le livrable, ou accepter l'écart avec sa raison (accept).
 
+### `mockup-to-html`
+
+Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre). À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence.
+
+Résumé de [`contract.json`](skills/mockup-to-html/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Maquettes d'écrans en image (PNG, JPEG, WebP), par exemple tirées d'un appel d'offres par doc-to-markdown ; Description JSON de chaque page (page_build.py --schema) : arbre de composants, textes, tokens ; Facultatif : tokens du design system (design-system, ds_build.py --schema).
+- **Sorties** : <nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive ; <nom>.css : variables CSS des tokens puis styles des composants ; assets/ : zones découpées dans la maquette (logos, photos, illustrations) ; <nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte.
+- **`page_build.py`** : Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Rapport JSON, codes de sortie : 0 page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur) ; 1 description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `design-system` (`ds_build.py`, obligatoire) : tokens : schéma, valeurs par défaut, couleurs dérivées, variables CSS et contraste.
+- **Passe la main** au skill `design-system` : les tokens (couleurs, typographie, espacements) ne sont pas encore définis : ds_extract.py --draft depuis les maquettes.
+- **Passe la main** à l'agent `document-extractor` : les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images.
+- **Passe la main** à l'agent `document-publisher` : les pages doivent être livrées dans un document Word ou un site XWiki.
+- **Passe la main** à l'utilisateur : une maquette est ambiguë (état d'un écran, contenu masqué, interaction) : la question à poser.
+
 ### `requirements-catalog`
 
 Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV. À utiliser pour recenser, tracer ou exporter les exigences d'un projet.
@@ -589,6 +643,7 @@ Résumé de [`contract.json`](skills/tender-response/contract.json), qui fait fo
 - **Passe la main** au skill `requirements-catalog` : le dépouillement est fait : cataloguer les exigences du cahier des charges.
 - **Passe la main** au skill `architecture-dossier` : assembler le mémoire technique selon les critères (dossier_build.py --template memoire --tender ao.json).
 - **Passe la main** au skill `decision-log` : noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue.
+- **Passe la main** à l'agent `ui-designer` : le dossier de consultation contient des maquettes d'écrans à reproduire en HTML ou un design system à proposer.
 
 ### `threat-model`
 

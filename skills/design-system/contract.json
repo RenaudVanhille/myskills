@@ -1,0 +1,457 @@
+{
+  "skill": "design-system",
+  "level": "complexe",
+  "inputs": [
+    "Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette",
+    "Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu",
+    "Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants",
+    "Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA)"
+  ],
+  "outputs": [
+    "<nom>.css : variables CSS (--color-*, --text-*, --space-*, --radius-*, --shadow-*)",
+    "<nom>.tokens.json : tokens au format W3C Design Tokens (Style Dictionary, Tokens Studio)",
+    "<nom>.md : documentation (principes, couleurs, contrastes WCAG, typographie, espacements, composants et emplois)",
+    "<nom>.styleguide.json : page de référence décrite pour mockup-to-html ; avec --render, <nom>.styleguide.html et son rendu"
+  ],
+  "scripts": [
+    {
+      "name": "ds_extract.py",
+      "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide.",
+      "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM]",
+      "options": {
+        "IMAGE": "maquettes (PNG, JPEG, WebP, BMP, GIF)",
+        "--colors": "couleurs gardées dans la palette du rapport (défaut 12)",
+        "--draft": "écrit le brouillon de tokens",
+        "--name": "nom du design system (défaut : tiré du fichier)"
+      },
+      "exit_codes": {
+        "0": "palette mesurée (et brouillon écrit)",
+        "1": "image illisible ou format non reconnu ; aucun fichier produit"
+      },
+      "report": {
+        "format": "json",
+        "description": "Palette (couleur, part de surface, rôle proposé), rôles et brouillon.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inputs",
+            "palette",
+            "roles",
+            "draft",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "palette": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "hex",
+                  "share",
+                  "role"
+                ],
+                "properties": {
+                  "hex": {
+                    "type": "string"
+                  },
+                  "share": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "role": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "roles": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "draft": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ds_build.py",
+      "role": "Complète les couleurs (surface, bordure, texte secondaire, texte sur chaque couleur de fond), contrôle les contrastes WCAG 2.1 et propose une teinte qui passe, signale couleurs presque identiques, échelle de tailles irrégulière et espacement hors grille, fait l'inventaire des composants et des couleurs en dur des pages ; écrit variables CSS, tokens W3C, documentation et page de référence, rendue avec --render.",
+      "usage": "uv run scripts/ds_build.py TOKENS.json [--pages PAGE.json ...] [--out-dir DOSSIER] [--render] | --schema",
+      "options": {
+        "TOKENS.json": "tokens du design system",
+        "--pages": "descriptions de pages de mockup-to-html à inventorier",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--render": "construit et rend la page de référence (mockup-to-html)",
+        "--schema": "affiche le schéma JSON des tokens sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "design system écrit (avertissements possibles : contraste insuffisant, couleurs proches, couleurs en dur)",
+        "1": "tokens invalides, page illisible ou couleur absente des tokens ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Tokens : couleurs, polices, tailles, espacements, rayons, ombres, principes et composants documentés.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "colors"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "colors": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "primary",
+                "background",
+                "text"
+              ],
+              "description": "rôles conseillés : primary, secondary, background, surface, text, muted, border, success, warning, danger, info ; on-<couleur> : texte posé dessus (calculé s'il manque)"
+            },
+            "fonts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "body": {
+                  "type": "string"
+                },
+                "heading": {
+                  "type": "string"
+                },
+                "mono": {
+                  "type": "string"
+                }
+              },
+              "description": "piles de polices CSS ; polices installées sur le poste seulement (aucun téléchargement)"
+            },
+            "font_sizes": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "number",
+                  "minimum": 8,
+                  "maximum": 128
+                }
+              },
+              "additionalProperties": false,
+              "description": "px, ex. sm 14, md 16, xl 24"
+            },
+            "line_height": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 2.5
+            },
+            "spacing": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 256
+                }
+              },
+              "additionalProperties": false,
+              "description": "px, grille de 4 px"
+            },
+            "radii": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 999
+                }
+              },
+              "additionalProperties": false,
+              "description": "px"
+            },
+            "shadows": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false,
+              "description": "ombres CSS"
+            },
+            "max_width": {
+              "type": "integer",
+              "minimum": 320,
+              "maximum": 3840,
+              "description": "largeur du contenu, px (défaut 1200)"
+            },
+            "contrast": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "min": {
+                  "type": "number",
+                  "minimum": 3,
+                  "maximum": 7,
+                  "description": "contraste minimal du texte (défaut 4.5, AA ; 7 pour AAA)"
+                },
+                "pairs": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "description": "paires [texte, fond] à contrôler en plus"
+                }
+              }
+            },
+            "principles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "components": {
+              "type": "object",
+              "patternProperties": {
+                "^[a-z0-9][a-z0-9-]*$": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    },
+                    "variants": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "do": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "dont": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers, couleurs, contrastes insuffisants et propositions, composants employés.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "colors",
+            "derived",
+            "contrast",
+            "components",
+            "styleguide",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "colors": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "derived": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "contrast": {
+              "type": "array",
+              "description": "paires de contraste insuffisant, avec la teinte proposée",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fg",
+                  "bg",
+                  "ratio",
+                  "min",
+                  "ok",
+                  "usage"
+                ],
+                "properties": {
+                  "fg": {
+                    "type": "string"
+                  },
+                  "bg": {
+                    "type": "string"
+                  },
+                  "ratio": {
+                    "type": "number"
+                  },
+                  "min": {
+                    "type": "number"
+                  },
+                  "ok": {
+                    "type": "boolean"
+                  },
+                  "usage": {
+                    "type": "string"
+                  },
+                  "suggestion": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            },
+            "components": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "description": "composants employés dans les pages (--pages) et leur nombre"
+            },
+            "styleguide": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "outputs",
+                    "rendered"
+                  ],
+                  "properties": {
+                    "outputs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "rendered": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              ]
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "mockup-to-html",
+      "script": "page_build.py",
+      "why": "construire et rendre la page de référence (--render)",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "mockup-to-html",
+      "kind": "skill",
+      "when": "reproduire les maquettes en HTML avec ces tokens"
+    },
+    {
+      "to": "document-publisher",
+      "kind": "agent",
+      "when": "la documentation du design system doit être livrée en Word, HTML ou XWiki"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "une couleur de la charte du client échoue au contraste : garder la marque ou prendre la teinte proposée"
+    }
+  ]
+}

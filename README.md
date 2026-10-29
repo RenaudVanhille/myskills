@@ -16,6 +16,9 @@ Plugin de skills et d'agents pour l'ingénierie logicielle, utilisable dans
   d'offres, matrice de conformité, chiffrage, registre des hypothèses et
   questions au client, mémoire technique dans l'ordre des critères de
   notation.
+- **Maquettes et design system** : maquettes d'écrans en image reproduites
+  en HTML/CSS accessible, rendues en local et comparées à la maquette ;
+  design system tiré des maquettes (tokens, contrastes WCAG, styleguide).
 
 ## Installation
 
@@ -146,6 +149,7 @@ qui dit ce qui manque et donne la commande d'installation.
 | Schémas C4 (LikeC4) | [Node.js](https://nodejs.org/) (`winget install OpenJS.NodeJS.LTS`) | `npm install -g likec4`, plus rapide et nécessaire hors ligne | `schemas` |
 | Publier en Word, HTML, XWiki | rien de plus (Pandoc est fourni) | [LibreOffice](https://www.libreoffice.org/download/), pour le PDF et la relecture visuelle des `.docx` | `publication` |
 | Publier en PowerPoint | le skill externe `markdown-to-pptx` | — | `publication` |
+| Maquettes vers HTML, design system | un navigateur (voir schémas) | — | `maquettes` |
 | Revue d'architecture avec comparaison au code | rien de plus | le skill externe `graphify` (analyse locale du code) | `revue` |
 | Avant-vente, exigences, chiffrage, revues, matrices Excel | rien de plus | — | — |
 
@@ -170,7 +174,7 @@ signalé dans le rapport.
 | Modèle Laya, checkpoints anglais et multilingue (tri des documents, exigences, routage) | ~1,5 Go | Hugging Face `convaiinnovations/laya`, révision relue par le paquet `laya`, SHA-256 épinglés | `doctor.py extraction --prefetch`, ou `--models-from DOSSIER` | lu dans le cache seulement ; sans lui, tri par règles et un avertissement |
 | Langues Tesseract `fra` et `eng` | ~30 Mo | paquet système | avec Tesseract (tableau ci-dessus) | rien |
 | Bibliothèques Python, Docling (~2 Go), Pandoc | — | PyPI, par uv | lancer une fois chaque script utile, connecté (`uv run SCRIPT --help`) | lues dans le cache de uv |
-| Navigateur pour les rendus | ~150 Mo | Edge déjà installé, sinon Playwright | `uvx playwright install chromium` | rien |
+| Navigateur pour les rendus (schémas, pages HTML des maquettes) | ~150 Mo | Edge déjà installé, sinon Playwright | `uvx playwright install chromium` | réseau coupé ; les pages n'utilisent que les polices installées sur le poste |
 | Mermaid et Excalidraw | ~5 Mo | npm, version et SHA-512 épinglées | `doctor.py schemas --prefetch` | avec `MYSKILLS_OFFLINE=1`, rien n'est téléchargé |
 | LikeC4 | ~100 Mo | npm | `npm install -g likec4` | sinon téléchargé par `npx` |
 
@@ -217,6 +221,7 @@ flowchart TD
     reviewer["architecture-reviewer"]
     estimator["solution-estimator"]
     publisher["document-publisher (export)"]
+    ui["ui-designer"]
   end
   subgraph g3["Skills"]
     s_import["Import : doc-to-markdown, markdown-to-obsidian"]
@@ -225,6 +230,7 @@ flowchart TD
     s_revue["Revue : ATAM, STRIDE, Well-Architected, RGPD"]
     s_chiffrage["Chiffrage : solution-estimate, cloud-cost"]
     s_publi["Publication : Word, HTML, XWiki, dossier, deck"]
+    s_ui["Maquettes : mockup-to-html, design-system"]
   end
   user(["Utilisateur"])
   orientation["orientation : choisit l'agent ou le workflow"]
@@ -240,6 +246,8 @@ flowchart TD
   engine -->|"délègue"| reviewer
   engine -->|"délègue"| estimator
   engine -->|"délègue"| publisher
+  orientation -->|"passe la main"| ui
+  ui -->|"appelle"| s_ui
   engine -->|"appelle"| s_archi
   extractor -->|"appelle"| s_import
   designer -->|"appelle"| s_schemas
@@ -260,7 +268,7 @@ flowchart TD
   class docs,workflows,vault db
   class ext external
   class user person
-  class orientation,mission,engine,extractor,designer,reviewer,estimator,publisher,s_import,s_archi,s_schemas,s_revue,s_chiffrage,s_publi system
+  class orientation,mission,engine,extractor,designer,reviewer,estimator,publisher,ui,s_import,s_archi,s_schemas,s_revue,s_chiffrage,s_publi,s_ui system
 ```
 
 ### Agents
@@ -273,6 +281,7 @@ flowchart TD
 | `document-publisher` | Export : transforme un Markdown en Word, PowerPoint, HTML ou XWiki pour SharePoint, Confluence ou XWiki, puis relit le rendu |
 | `architecture-workflow` | Moteur de workflow générique : suit une définition JSON (par défaut `architecture` : documents, exigences avec glossaire, 2 ou 3 architectures situées dans le POS du SI, schémas et matrice de traçabilité, puis au choix revue, chiffrage et dossier d'architecture technique ; aussi `cloud-existant` : code d'infrastructure vers schéma cloud, menaces et revue Well-Architected ; `revue-dossier` : instruction d'un dossier reçu jusqu'à l'avis d'architecture ; `conformite` : menaces, hébergement, registre et AIPD RGPD, plan d'actions ; `migration-cloud` : évaluation 6R, cible, feuille de route ; `avant-vente`, celui d'une mission d'avant-vente : dépouillement de l'appel d'offres en parallèle des exigences, options, matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique, soutenance) ; s'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision |
 | `architecture-reviewer` | Revue d'une architecture logicielle ou solution (ATAM : scénarios de qualité, risques, compromis, traçabilité, code comparé à l'architecture, avis calculé) et d'une architecture cloud : modèle de menaces STRIDE relu et revue Well-Architected des piliers, constats ouverts ou acceptés avec leur raison ; registre des traitements et AIPD RGPD |
+| `ui-designer` | Maquettes d'écrans en image (appel d'offres, cahier des charges) reproduites en HTML/CSS et design system : palette tirée des maquettes, tokens contrôlés, une page par écran rendue en local et comparée à sa maquette (sous-agents en parallèle), documentation et styleguide |
 | `solution-estimator` | Chiffrage de la solution retenue à partir des exigences et de l'architecture : lots estimés à trois points, hypothèses d'infrastructure et de run, charge, fourchette, coût total et budget calculés par script, comparés en trois hypothèses (sans IA, avec IA, dev IA natif) |
 
 Chaque skill et chaque agent a un **contrat d'interface en JSON**, qui fait
@@ -321,6 +330,8 @@ lire par un autre agent ou outil qui appelle myskills.
 | `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie ; flux chiffrés proposés comme traités ; décisions du modèle (règles groupées, mesure retenue, statut, raison) reportées par script depuis un court JSON (`threat_review.py`) |
 | `architecture-review` | Revue d'architecture logicielle ou solution à la manière d'ATAM : arbre d'utilité (scénarios de qualité évalués), risques, sensibilités, compromis, décisions ; structure, traçabilité des exigences et avis calculés par script ; code comparé à l'architecture avec graphify (code analysé en local), y compris plusieurs dépôts (microservices : appels entre services lus dans la configuration et les contrats, base partagée, flux sans trace) ; piliers Well-Architected d'une option cloud ; scénarios attendus selon les exigences (pointe, panne, sinistre, attaque, croissance, incident) ; brouillon des scénarios tiré des exigences (`--draft`) ; principes d'architecture du client tirés de la mission ; revue versée au vault Obsidian (notes typées de l'ontologie) |
 | `well-architected-review` | Revue Well-Architected (AWS, Azure, Google Cloud) des six piliers et des conventions de schéma des fournisseurs, constats acceptés avec leur raison |
+| `mockup-to-html` | Maquette d'écran en image vers HTML/CSS : page décrite en composants (27 : en-tête, bandeau, grille, carte, formulaire, tableau, onglets, étapes...) et tokens, HTML sémantique, accessible et responsive écrit par script, logos et photos découpés dans la maquette, rendu dans un navigateur local réseau coupé et comparé à la maquette (similarité, zones à reprendre, image côte à côte), débordement mobile (`page_build.py`) |
+| `design-system` | Design system : palette et rôles des couleurs tirés des maquettes (`ds_extract.py`), tokens complétés et contrôlés (contrastes WCAG 2.1 avec teinte corrigée proposée, couleurs en double, échelle, grille de 4 px), inventaire des composants et des couleurs en dur des pages, variables CSS, tokens W3C Design Tokens, documentation et styleguide rendu (`ds_build.py`) |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
 | `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
 

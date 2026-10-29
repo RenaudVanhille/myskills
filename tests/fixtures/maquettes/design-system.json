@@ -1,0 +1,64 @@
+{
+  "name": "Assur'Plus",
+  "description": "Design system du portail de déclaration de sinistres (appel d'offres fictif).",
+  "colors": {
+    "background": "#ffffff",
+    "text": "#0f172a",
+    "primary": "#0b3d91",
+    "secondary": "#f97316",
+    "surface": "#f1f5f9",
+    "border": "#e2e8f0"
+  },
+  "fonts": {
+    "body": "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+    "heading": "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+    "mono": "ui-monospace, Consolas, 'Courier New', monospace"
+  },
+  "font_sizes": {
+    "xs": 12,
+    "sm": 14,
+    "md": 16,
+    "lg": 20,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 40
+  },
+  "spacing": {
+    "none": 0,
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "2xl": 48,
+    "3xl": 64
+  },
+  "radii": {
+    "none": 0,
+    "sm": 4,
+    "md": 8,
+    "lg": 16,
+    "full": 999
+  },
+  "principles": [
+    "Accessible AA sur tous les écrans",
+    "Une action principale par écran",
+    "Textes courts et directs"
+  ],
+  "components": {
+    "button": {
+      "description": "Action",
+      "variants": [
+        "primary",
+        "secondary",
+        "outline"
+      ],
+      "do": [
+        "Un seul bouton primary par écran"
+      ],
+      "dont": [
+        "Bouton sans libellé"
+      ]
+    }
+  }
+}

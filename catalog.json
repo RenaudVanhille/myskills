@@ -444,6 +444,59 @@
         "decision-log",
         "agent-handoff"
       ]
+    },
+    {
+      "agent": "ui-designer",
+      "level": "complexe",
+      "receives": [
+        "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
+        "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+        "Le dossier de sortie et ce que l'utilisateur attend : pages HTML, design system, ou les deux"
+      ],
+      "produces": [
+        "design-system.json, .css, .tokens.json, .md : tokens du design system, contrôlés (contrastes WCAG), et leur documentation",
+        "design-system.styleguide.html : page de référence des couleurs, de la typographie, des espacements et des composants",
+        "<écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png)"
+      ],
+      "never": [
+        "Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON",
+        "Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local",
+        "Inventer un texte illisible de la maquette : il se signale"
+      ],
+      "handoffs": [
+        {
+          "to": "document-extractor",
+          "when": "les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images",
+          "send": [
+            "le document",
+            "le dossier où ranger les images"
+          ]
+        },
+        {
+          "to": "document-publisher",
+          "when": "la documentation du design system doit être livrée en Word, HTML ou XWiki",
+          "send": [
+            "design-system.md",
+            "l'outil cible"
+          ]
+        },
+        {
+          "to": "architecture-workflow",
+          "when": "les maquettes sont traitées pour une avant-vente en cours : rendre la main au workflow",
+          "send": [
+            "les pages et le design system produits",
+            "les écarts restants (similarité, accessibilité)",
+            "le dossier du workflow"
+          ]
+        }
+      ],
+      "description": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page HTML par écran rendue en local et comparée à sa maquette, documentation et page de référence. Adapte l'effort de chaque action pour limiter les coûts.",
+      "skills": [
+        "check-prerequisites",
+        "design-system",
+        "mockup-to-html",
+        "agent-handoff"
+      ]
     }
   ],
   "skills": [
@@ -3721,7 +3774,7 @@
       "skill": "check-prerequisites",
       "level": "simple",
       "inputs": [
-        "Un groupe : extraction, video, schemas, publication, revue ou tout (défaut)",
+        "Un groupe : extraction, video, schemas, maquettes, publication, revue ou tout (défaut)",
         "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne",
         "Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier"
       ],
@@ -3732,7 +3785,7 @@
         {
           "name": "doctor.py",
           "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec les groupes extraction (Docling, Laya) et video (Whisper), télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json) : un run n'en télécharge aucun.",
-          "usage": "uv run scripts/doctor.py [extraction|video|schemas|publication|revue|tout] [--prefetch] [--models-from DOSSIER]",
+          "usage": "uv run scripts/doctor.py [extraction|video|schemas|maquettes|publication|revue|tout] [--prefetch] [--models-from DOSSIER]",
           "report": {
             "format": "json",
             "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
@@ -3769,6 +3822,7 @@
                           "extraction",
                           "video",
                           "schemas",
+                          "maquettes",
                           "publication",
                           "revue"
                         ]
@@ -3812,7 +3866,7 @@
             "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
           },
           "options": {
-            "GROUPE": "extraction, video, schemas, publication, revue ou tout (défaut)",
+            "GROUPE": "extraction, video, schemas, maquettes, publication, revue ou tout (défaut)",
             "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement ; groupes extraction (Docling, Laya) et video (Whisper) : modèles de model-sources.json, depuis leur source épinglée, empreinte SHA-256 vérifiée",
             "--models-from": "copie les modèles depuis ce dossier (copie du cache ou fichiers du modèle) au lieu de la source (mêmes empreintes vérifiées) ; implique --prefetch"
           }
@@ -6582,6 +6636,465 @@
       ],
       "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation de celles dont elle dépend, et des étapes indépendantes se mènent en parallèle ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées.",
       "path": "skills/decision-log"
+    },
+    {
+      "skill": "design-system",
+      "level": "complexe",
+      "inputs": [
+        "Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette",
+        "Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu",
+        "Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants",
+        "Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA)"
+      ],
+      "outputs": [
+        "<nom>.css : variables CSS (--color-*, --text-*, --space-*, --radius-*, --shadow-*)",
+        "<nom>.tokens.json : tokens au format W3C Design Tokens (Style Dictionary, Tokens Studio)",
+        "<nom>.md : documentation (principes, couleurs, contrastes WCAG, typographie, espacements, composants et emplois)",
+        "<nom>.styleguide.json : page de référence décrite pour mockup-to-html ; avec --render, <nom>.styleguide.html et son rendu"
+      ],
+      "scripts": [
+        {
+          "name": "ds_extract.py",
+          "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide.",
+          "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM]",
+          "options": {
+            "IMAGE": "maquettes (PNG, JPEG, WebP, BMP, GIF)",
+            "--colors": "couleurs gardées dans la palette du rapport (défaut 12)",
+            "--draft": "écrit le brouillon de tokens",
+            "--name": "nom du design system (défaut : tiré du fichier)"
+          },
+          "exit_codes": {
+            "0": "palette mesurée (et brouillon écrit)",
+            "1": "image illisible ou format non reconnu ; aucun fichier produit"
+          },
+          "report": {
+            "format": "json",
+            "description": "Palette (couleur, part de surface, rôle proposé), rôles et brouillon.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "inputs",
+                "palette",
+                "roles",
+                "draft",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "palette": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "hex",
+                      "share",
+                      "role"
+                    ],
+                    "properties": {
+                      "hex": {
+                        "type": "string"
+                      },
+                      "share": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "role": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "roles": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "draft": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ds_build.py",
+          "role": "Complète les couleurs (surface, bordure, texte secondaire, texte sur chaque couleur de fond), contrôle les contrastes WCAG 2.1 et propose une teinte qui passe, signale couleurs presque identiques, échelle de tailles irrégulière et espacement hors grille, fait l'inventaire des composants et des couleurs en dur des pages ; écrit variables CSS, tokens W3C, documentation et page de référence, rendue avec --render.",
+          "usage": "uv run scripts/ds_build.py TOKENS.json [--pages PAGE.json ...] [--out-dir DOSSIER] [--render] | --schema",
+          "options": {
+            "TOKENS.json": "tokens du design system",
+            "--pages": "descriptions de pages de mockup-to-html à inventorier",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--render": "construit et rend la page de référence (mockup-to-html)",
+            "--schema": "affiche le schéma JSON des tokens sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "design system écrit (avertissements possibles : contraste insuffisant, couleurs proches, couleurs en dur)",
+            "1": "tokens invalides, page illisible ou couleur absente des tokens ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Tokens : couleurs, polices, tailles, espacements, rayons, ombres, principes et composants documentés.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "colors"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "colors": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "primary",
+                    "background",
+                    "text"
+                  ],
+                  "description": "rôles conseillés : primary, secondary, background, surface, text, muted, border, success, warning, danger, info ; on-<couleur> : texte posé dessus (calculé s'il manque)"
+                },
+                "fonts": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "body": {
+                      "type": "string"
+                    },
+                    "heading": {
+                      "type": "string"
+                    },
+                    "mono": {
+                      "type": "string"
+                    }
+                  },
+                  "description": "piles de polices CSS ; polices installées sur le poste seulement (aucun téléchargement)"
+                },
+                "font_sizes": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "number",
+                      "minimum": 8,
+                      "maximum": 128
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "px, ex. sm 14, md 16, xl 24"
+                },
+                "line_height": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 2.5
+                },
+                "spacing": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 256
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "px, grille de 4 px"
+                },
+                "radii": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 999
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "px"
+                },
+                "shadows": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "ombres CSS"
+                },
+                "max_width": {
+                  "type": "integer",
+                  "minimum": 320,
+                  "maximum": 3840,
+                  "description": "largeur du contenu, px (défaut 1200)"
+                },
+                "contrast": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "min": {
+                      "type": "number",
+                      "minimum": 3,
+                      "maximum": 7,
+                      "description": "contraste minimal du texte (défaut 4.5, AA ; 7 pour AAA)"
+                    },
+                    "pairs": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "minItems": 2,
+                        "maxItems": 2
+                      },
+                      "description": "paires [texte, fond] à contrôler en plus"
+                    }
+                  }
+                },
+                "principles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "components": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-z0-9][a-z0-9-]*$": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "description": {
+                          "type": "string"
+                        },
+                        "usage": {
+                          "type": "string"
+                        },
+                        "variants": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "do": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "dont": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers, couleurs, contrastes insuffisants et propositions, composants employés.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "colors",
+                "derived",
+                "contrast",
+                "components",
+                "styleguide",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "colors": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "derived": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "contrast": {
+                  "type": "array",
+                  "description": "paires de contraste insuffisant, avec la teinte proposée",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "fg",
+                      "bg",
+                      "ratio",
+                      "min",
+                      "ok",
+                      "usage"
+                    ],
+                    "properties": {
+                      "fg": {
+                        "type": "string"
+                      },
+                      "bg": {
+                        "type": "string"
+                      },
+                      "ratio": {
+                        "type": "number"
+                      },
+                      "min": {
+                        "type": "number"
+                      },
+                      "ok": {
+                        "type": "boolean"
+                      },
+                      "usage": {
+                        "type": "string"
+                      },
+                      "suggestion": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "components": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "description": "composants employés dans les pages (--pages) et leur nombre"
+                },
+                "styleguide": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "outputs",
+                        "rendered"
+                      ],
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "rendered": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "mockup-to-html",
+          "script": "page_build.py",
+          "why": "construire et rendre la page de référence (--render)",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "mockup-to-html",
+          "kind": "skill",
+          "when": "reproduire les maquettes en HTML avec ces tokens"
+        },
+        {
+          "to": "document-publisher",
+          "kind": "agent",
+          "when": "la documentation du design system doit être livrée en Word, HTML ou XWiki"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une couleur de la charte du client échoue au contraste : garder la marque ou prendre la teinte proposée"
+        }
+      ],
+      "description": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette.",
+      "path": "skills/design-system"
     },
     {
       "skill": "diagram-brief",
@@ -10503,6 +11016,639 @@
       "path": "skills/mission-workspace"
     },
     {
+      "skill": "mockup-to-html",
+      "level": "moyen",
+      "inputs": [
+        "Maquettes d'écrans en image (PNG, JPEG, WebP), par exemple tirées d'un appel d'offres par doc-to-markdown",
+        "Description JSON de chaque page (page_build.py --schema) : arbre de composants, textes, tokens",
+        "Facultatif : tokens du design system (design-system, ds_build.py --schema)"
+      ],
+      "outputs": [
+        "<nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive",
+        "<nom>.css : variables CSS des tokens puis styles des composants",
+        "assets/ : zones découpées dans la maquette (logos, photos, illustrations)",
+        "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte"
+      ],
+      "scripts": [
+        {
+          "name": "page_build.py",
+          "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile.",
+          "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--no-render] [--min-similarity 0.6] | --schema",
+          "options": {
+            "PAGE.json": "description de la page",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+            "--no-render": "sans rendu ni comparaison (page non vérifiée, signalé)",
+            "--min-similarity": "similarité en dessous de laquelle la page est signalée (défaut 0.6)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "exit_codes": {
+            "0": "page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur)",
+            "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent ; aucun fichier produit"
+          },
+          "input": {
+            "format": "json",
+            "description": "Page décrite en arbre de composants, avec sa maquette et ses tokens.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "body"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "lang": {
+                  "type": "string",
+                  "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+                  "description": "défaut fr"
+                },
+                "mockup": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "image de la maquette, relative à la description : rendu comparé, zones découpées (crop)"
+                },
+                "scale": {
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 4,
+                  "description": "pixels de la maquette par pixel CSS (2 pour un export retina ; défaut 1)"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 320,
+                  "maximum": 3840,
+                  "description": "largeur de rendu en pixels CSS (défaut : celle de la maquette, sinon 1280)"
+                },
+                "max_width": {
+                  "type": "integer",
+                  "minimum": 320,
+                  "maximum": 3840,
+                  "description": "largeur du contenu, remplace celle des tokens"
+                },
+                "tokens": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "fichier de tokens du design system (ds_build.py --schema), relatif à la description ; défaut : tokens par défaut"
+                },
+                "body": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/node"
+                  },
+                  "minItems": 1
+                }
+              },
+              "$defs": {
+                "node": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "type"
+                  ],
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "section",
+                        "row",
+                        "stack",
+                        "grid",
+                        "header",
+                        "nav",
+                        "breadcrumb",
+                        "heading",
+                        "text",
+                        "link",
+                        "button",
+                        "buttons",
+                        "image",
+                        "box",
+                        "card",
+                        "form",
+                        "table",
+                        "list",
+                        "badge",
+                        "alert",
+                        "tabs",
+                        "stepper",
+                        "stat",
+                        "search",
+                        "divider",
+                        "spacer",
+                        "footer"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][\\w-]*$"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 6
+                    },
+                    "size": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "heading, text : token font_sizes ; spacer : token spacing ; button : sm, md, lg"
+                    },
+                    "variant": {
+                      "type": "string",
+                      "description": "button : primary, secondary, outline, ghost, danger ; nav : horizontal, vertical ; table : plain, striped ; list : bullet, ordered, check, plain ; badge, alert : info, success, warning, danger (badge : neutral)"
+                    },
+                    "muted": {
+                      "type": "boolean"
+                    },
+                    "bold": {
+                      "type": "boolean"
+                    },
+                    "align": {
+                      "enum": [
+                        "left",
+                        "center",
+                        "right"
+                      ]
+                    },
+                    "valign": {
+                      "enum": [
+                        "start",
+                        "center",
+                        "end",
+                        "stretch"
+                      ]
+                    },
+                    "background": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token de couleur (ou #rrggbb, signalé hors design system)"
+                    },
+                    "color": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token de couleur du texte ; défaut on-<background> s'il existe"
+                    },
+                    "padding": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token spacing"
+                    },
+                    "gap": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token spacing"
+                    },
+                    "radius": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token radii"
+                    },
+                    "shadow": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "token shadows"
+                    },
+                    "width": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "full",
+                            "contained"
+                          ]
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 3840
+                        }
+                      ],
+                      "description": "section : full ou contained (défaut) ; box : px"
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4000,
+                      "description": "image, box : px"
+                    },
+                    "columns": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 12
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "exclusiveMinimum": 0
+                          },
+                          "minItems": 1,
+                          "maxItems": 12
+                        }
+                      ],
+                      "description": "row : proportions [2, 1] ; grid : nombre de colonnes ; form : 1 ou 2"
+                    },
+                    "children": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/node"
+                      }
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "href": {
+                                "type": "string"
+                              },
+                              "active": {
+                                "type": "boolean"
+                              },
+                              "variant": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "text"
+                            ],
+                            "properties": {
+                              "text": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "href": {
+                                "type": "string"
+                              },
+                              "active": {
+                                "type": "boolean"
+                              },
+                              "variant": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "current": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "tabs, stepper : rang de l'élément actif, à partir de 1"
+                    },
+                    "src": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "image locale, relative à la description (aucune URL)"
+                    },
+                    "crop": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "minItems": 4,
+                      "maxItems": 4,
+                      "description": "zone [x, y, largeur, hauteur] de la maquette, en pixels de l'image"
+                    },
+                    "alt": {
+                      "type": "string",
+                      "description": "texte alternatif ; \"\" pour une image décorative"
+                    },
+                    "href": {
+                      "type": "string"
+                    },
+                    "placeholder": {
+                      "type": "string"
+                    },
+                    "fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "label"
+                        ],
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "type": {
+                            "enum": [
+                              "text",
+                              "email",
+                              "password",
+                              "number",
+                              "tel",
+                              "date",
+                              "search",
+                              "url",
+                              "file",
+                              "select",
+                              "textarea",
+                              "checkbox",
+                              "radio"
+                            ]
+                          },
+                          "placeholder": {
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "required": {
+                            "type": "boolean"
+                          },
+                          "help": {
+                            "type": "string"
+                          },
+                          "width": {
+                            "enum": [
+                              "half",
+                              "full"
+                            ]
+                          }
+                        }
+                      },
+                      "minItems": 1
+                    },
+                    "submit": {
+                      "type": "string"
+                    },
+                    "headers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "title",
+                          "items"
+                        ],
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                {
+                                  "type": "object",
+                                  "additionalProperties": false,
+                                  "required": [
+                                    "text"
+                                  ],
+                                  "properties": {
+                                    "text": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "href": {
+                                      "type": "string"
+                                    },
+                                    "active": {
+                                      "type": "boolean"
+                                    },
+                                    "variant": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "minItems": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers, composants, rendu, similarité avec la maquette et zones à reprendre.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "components",
+                "tokens",
+                "rendered",
+                "similarity",
+                "height_ratio",
+                "zones",
+                "mobile_overflow",
+                "blocked",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "components": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "tokens": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "rendered": {
+                  "type": "boolean"
+                },
+                "similarity": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "height_ratio": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "zones": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "x",
+                      "y",
+                      "width",
+                      "height",
+                      "similarity"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "width": {
+                        "type": "number"
+                      },
+                      "height": {
+                        "type": "number"
+                      },
+                      "similarity": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "mobile_overflow": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "blocked": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "design-system",
+          "script": "ds_build.py",
+          "why": "tokens : schéma, valeurs par défaut, couleurs dérivées, variables CSS et contraste"
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "design-system",
+          "kind": "skill",
+          "when": "les tokens (couleurs, typographie, espacements) ne sont pas encore définis : ds_extract.py --draft depuis les maquettes"
+        },
+        {
+          "to": "document-extractor",
+          "kind": "agent",
+          "when": "les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images"
+        },
+        {
+          "to": "document-publisher",
+          "kind": "agent",
+          "when": "les pages doivent être livrées dans un document Word ou un site XWiki"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une maquette est ambiguë (état d'un écran, contenu masqué, interaction) : la question à poser"
+        }
+      ],
+      "description": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre). À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence.",
+      "path": "skills/mockup-to-html"
+    },
+    {
       "skill": "requirements-catalog",
       "level": "moyen",
       "inputs": [
@@ -14147,6 +15293,11 @@
           "to": "decision-log",
           "kind": "skill",
           "when": "noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue"
+        },
+        {
+          "to": "ui-designer",
+          "kind": "agent",
+          "when": "le dossier de consultation contient des maquettes d'écrans à reproduire en HTML ou un design system à proposer"
         }
       ],
       "description": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite. Les scripts écrivent les brouillons, le modèle relit et juge. À utiliser en avant-vente, avant le chiffrage et le mémoire technique.",

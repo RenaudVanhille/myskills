@@ -22,6 +22,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 OUT = Path(__file__).resolve().parent / "fixtures" / "samples"
+MOCKUPS = Path(__file__).resolve().parent / "fixtures" / "maquettes"
 
 TITLE = "Architecture du service de paiement"
 PARAGRAPH = ("Le service de paiement reçoit les commandes, appelle la banque "
@@ -50,6 +51,34 @@ def make_diagram(path: Path) -> None:
         if i < 2:
             draw.line([x + 220, 150, x + 300, 150], fill="black", width=3)
             draw.polygon([(x + 300, 150), (x + 285, 140), (x + 285, 160)], fill="black")
+    img.save(path)
+
+
+def make_mockup(path: Path) -> None:
+    """Maquette d'écran d'un appel d'offres fictif : en-tête, bandeau, trois cartes, pied de page."""
+    navy, orange, line, grey = "#0b3d91", "#f97316", "#e2e8f0", "#f1f5f9"
+    img = Image.new("RGB", (1280, 900), "white")
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 63, 1280, 64], fill=line)
+    draw.rectangle([40, 14, 76, 50], fill=navy)
+    draw.text((88, 20), "Assur'Plus", fill="#0f172a", font=font(24))
+    for i, label in enumerate(["Mes contrats", "Mes sinistres", "Aide"]):
+        draw.text((420 + i * 150, 22), label, fill="#0f172a", font=font(18))
+    draw.rounded_rectangle([1010, 12, 1240, 52], radius=8, fill=orange)
+    draw.text((1030, 22), "Déclarer un sinistre", fill="white", font=font(17))
+    draw.rectangle([0, 65, 1280, 384], fill=navy)
+    draw.text((80, 150), "Déclarez votre sinistre en ligne", fill="white", font=font(40))
+    draw.text((80, 215), "Suivi en temps réel, réponse sous 48 heures.", fill="#dbeafe", font=font(20))
+    draw.rounded_rectangle([80, 270, 300, 318], radius=8, fill=orange)
+    draw.text((104, 283), "Commencer", fill="white", font=font(20))
+    for i, (title, text) in enumerate([("Auto", "Accident, bris de glace"), ("Habitation", "Dégât des eaux, vol"),
+                                       ("Santé", "Remboursements")]):
+        x = 80 + i * 380
+        draw.rounded_rectangle([x, 440, x + 350, 700], radius=16, fill="white", outline=line, width=2)
+        draw.text((x + 24, 470), title, fill="#0f172a", font=font(24))
+        draw.text((x + 24, 515), text, fill="#64748b", font=font(18))
+    draw.rectangle([0, 780, 1280, 900], fill=grey)
+    draw.text((80, 825), "© Assur'Plus, mentions légales", fill="#64748b", font=font(16))
     img.save(path)
 
 
@@ -117,6 +146,8 @@ def main() -> None:
     make_pptx(OUT / "presentation.pptx", diagram)
     make_text_pdf(OUT / "rapport-texte.pdf")
     make_scanned_pdf(OUT / "rapport-scanne.pdf")
+    MOCKUPS.mkdir(parents=True, exist_ok=True)
+    make_mockup(MOCKUPS / "accueil.png")
     print(f"Exemples générés dans {OUT}")
 
 

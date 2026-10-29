@@ -1329,6 +1329,11 @@
       "to": "decision-log",
       "kind": "skill",
       "when": "noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue"
+    },
+    {
+      "to": "ui-designer",
+      "kind": "agent",
+      "when": "le dossier de consultation contient des maquettes d'écrans à reproduire en HTML ou un design system à proposer"
     }
   ]
 }

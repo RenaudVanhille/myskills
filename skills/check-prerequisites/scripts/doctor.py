@@ -80,6 +80,11 @@ GROUPS = {
            lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py --prefetch")
           for name, (version, _, _) in local_tools.PACKAGES.items()),
     ],
+    "maquettes": [
+        UV,
+        ("Navigateur pour Playwright (Edge, Chrome ou Chromium) : rendu et comparaison des pages", "obligatoire",
+         local_tools.browser_available, "uvx playwright install chromium"),
+    ],
     "publication": [
         UV,
         ("LibreOffice (PDF et relecture visuelle des .docx)", "facultatif",

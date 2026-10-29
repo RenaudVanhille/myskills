@@ -70,6 +70,17 @@
     "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning"
    ],
    "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts."
+  },
+  {
+   "name": "ui-designer",
+   "level": "complexe",
+   "description": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page HTML par écran rendue en local et comparée à sa maquette, documentation et page de référence.",
+   "receives": [
+    "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
+    "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+    "Le dossier de sortie et ce que l'utilisateur attend : pages HTML, design system, ou les deux"
+   ],
+   "match": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page HTML par écran rendue en local et comparée à sa maquette, documentation et page de référence. Adapte l'effort de chaque action pour limiter les coûts."
   }
  ],
  "workflows": [
@@ -272,7 +283,7 @@
    "level": "simple",
    "description": "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (uv, draw.io Desktop, navigateur, LibreOffice en option) et indique comment installer ceux qui manquent.",
    "inputs": [
-    "Un groupe : extraction, video, schemas, publication, revue ou tout (défaut)",
+    "Un groupe : extraction, video, schemas, maquettes, publication, revue ou tout (défaut)",
     "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne",
     "Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier"
    ],
@@ -320,6 +331,18 @@
     "Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json)"
    ],
    "match": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md). Une étape ne démarre qu'après validation de celles dont elle dépend, et des étapes indépendantes se mènent en parallèle ; un fichier validé puis modifié est détecté. À utiliser pour piloter un workflow prédictible où l'utilisateur relit chaque étape et où toutes les décisions doivent être tracées."
+  },
+  {
+   "name": "design-system",
+   "level": "complexe",
+   "description": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local.",
+   "inputs": [
+    "Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette",
+    "Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu",
+    "Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants",
+    "Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA)"
+   ],
+   "match": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette."
   },
   {
    "name": "diagram-brief",
@@ -423,6 +446,17 @@
     "Facultatif : la description de la mission en JSON (nature, client, échéance, workflows, dépôts, référentiels, écarts acceptés), schéma shared/schemas/mission.schema.json"
    ],
    "match": "Ouvre et suit un espace de travail par mission : un répertoire, un vault Obsidian unique, pour une avant-vente (documents reçus, solution, chiffrage, schémas, POS) ou une revue d'architecture (documentation et code, un dépôt par service). Crée mission.json et l'arborescence, démarre le workflow de la nature, fige les commits revus, fait le point dans le vault et contrôle la cohérence entre livrables (exigences, option retenue, chiffrage, revue). À utiliser au début d'une mission, pour savoir où en est une mission ou avant de la livrer."
+  },
+  {
+   "name": "mockup-to-html",
+   "level": "moyen",
+   "description": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre).",
+   "inputs": [
+    "Maquettes d'écrans en image (PNG, JPEG, WebP), par exemple tirées d'un appel d'offres par doc-to-markdown",
+    "Description JSON de chaque page (page_build.py --schema) : arbre de composants, textes, tokens",
+    "Facultatif : tokens du design system (design-system, ds_build.py --schema)"
+   ],
+   "match": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre). À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence."
   },
   {
    "name": "requirements-catalog",
