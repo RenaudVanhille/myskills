@@ -20,7 +20,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (error dans son résultat, repris dans errors).
 - **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
-- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 
@@ -39,9 +39,11 @@ procedure, compte-rendu, presentation, contrat, rapport, autre), `domaine`
 (liste par défaut ou `--domains`), `tables` (probabilité de tableaux ou de
 colonnes, PDF seulement) et `engine` conseillé. Un type ou un domaine dont la
 confiance est sous 0,5 reste vide et le rapport le signale : décidez alors en
-lisant le document. Premier lancement long (PyTorch CPU puis ~1,3 Go de
-modèle, téléchargés une fois). Si le modèle ne peut pas être chargé, le script
-se replie sur des règles simples (`method: regles`) au lieu d'échouer.
+lisant le document. Le modèle (~1,5 Go, révision et empreintes épinglées)
+se prépare avant, une fois : `doctor.py extraction --prefetch` (skill
+`check-prerequisites`) ; rien ne se télécharge pendant le run. Sans modèle
+dans le cache, le script se replie sur des règles simples (`method: regles`)
+et l'avertissement donne cette commande.
 
 Pour ne lancer qu'une commande, passez plutôt `--classify` à `convert.py` :
 le classement est ajouté au rapport de conversion et oriente le moteur.
@@ -63,8 +65,10 @@ Le script choisit le moteur (`--engine auto`, par défaut) :
 
 Avec `--classify`, un PDF que Laya juge riche en tableaux ou en colonnes part
 aussi sur Docling. Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
-colonnes que MarkItDown a mal rendu. Premier lancement de Docling long
-(~2 Go de modèles téléchargés une fois).
+colonnes que MarkItDown a mal rendu. Docling (version épinglée) lit ses
+modèles de mise en page et de tableaux dans le cache vérifié, préparé une
+fois par `doctor.py extraction --prefetch` ; sans eux, repli sur MarkItDown
+avec un avertissement qui donne cette commande, jamais de téléchargement.
 
 L'OCR de Docling est toujours Tesseract installé en local (langues `fra`,
 `eng`), jamais RapidOCR, son choix par défaut, qui télécharge ses modèles

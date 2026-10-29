@@ -291,8 +291,8 @@ Résumé de [`contract.json`](skills/check-prerequisites/contract.json), qui fai
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Un groupe : extraction, video, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne ; Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier.
-- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupe video) dans le cache de myskills.
-- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec le groupe video, télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json). Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
+- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupes extraction et video) dans le cache de myskills.
+- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec les groupes extraction (Docling, Laya) et video (Whisper), télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json) : un run n'en télécharge aucun. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
 
 ### `cloud-architecture`
@@ -413,7 +413,7 @@ Résumé de [`contract.json`](skills/doc-to-markdown/contract.json), qui fait fo
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis ; 1 au moins un fichier a échoué (error dans son résultat, repris dans errors).
 - **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
-- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 

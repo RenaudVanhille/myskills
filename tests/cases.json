@@ -107,10 +107,22 @@
       ]
     },
     {
+      "id": "docling-sans-modele",
+      "skill": "doc-to-markdown",
+      "_note": "Modèles de Docling absents du cache (MYSKILLS_MODELS vide) : rien n'est téléchargé, repli sur MarkItDown avec la commande qui prépare la machine.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-texte.pdf", "--out", "{out}", "--engine", "docling"],
+         "env": {"MYSKILLS_MODELS": "{out}/modeles"}, "exit": 0,
+         "report": {"results.0.engine": "markitdown"},
+         "report_contains": {"results.0.warnings": "doctor.py extraction --prefetch"}}
+      ]
+    },
+    {
       "id": "docling-flux-filtres",
       "skill": "doc-to-markdown",
       "slow": true,
-      "_note": "Docling lancé derrière guard_network() (uvx) : ses modèles viennent d'hôtes autorisés (Hugging Face), aucun repli sur MarkItDown.",
+      "_note": "Docling (version épinglée) lancé derrière guard_network() (uvx), modèles lus dans le cache vérifié préparé par doctor.py extraction --prefetch, hors ligne pour Hugging Face ; aucun repli sur MarkItDown.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-texte.pdf", "--out", "{out}", "--engine", "docling"],
@@ -121,7 +133,7 @@
       "id": "pdf-scanne-docling",
       "skill": "doc-to-markdown",
       "slow": true,
-      "_note": "Docling (environ 2 Go au premier lancement) : OCR du scan, repli sur MarkItDown s'il échoue.",
+      "_note": "Docling (modèles du cache préparé) : OCR du scan, repli sur MarkItDown s'il échoue.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",
          "args": ["{samples}/rapport-scanne.pdf", "--out", "{out}"],
@@ -172,6 +184,18 @@
       ]
     },
     {
+      "id": "classify-sans-modele",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Modèle Laya absent du cache (MYSKILLS_MODELS vide) : rien n'est téléchargé, tri par règles et commande qui prépare la machine. Installe PyTorch au premier lancement, d'où --slow.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/classify.py", "args": ["{samples}/presentation.pptx"],
+         "env": {"MYSKILLS_MODELS": "{out}/modeles"}, "exit": 0,
+         "report": {"results.0.method": "regles"},
+         "report_contains": {"results.0.warnings": "doctor.py extraction --prefetch"}}
+      ]
+    },
+    {
       "id": "obsidian",
       "skill": "markdown-to-obsidian",
       "steps": [
@@ -202,6 +226,9 @@
         {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video"], "exit": 1,
          "env": {"MYSKILLS_MODELS": "{out}/modeles", "MYSKILLS_OFFLINE": "1"},
          "report_contains": {"errors": "doctor.py video --prefetch"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction"], "exit": 0,
+         "env": {"MYSKILLS_MODELS": "{out}/modeles", "MYSKILLS_OFFLINE": "1"},
+         "report_contains": {"warnings": "doctor.py extraction --prefetch"}},
         {"script": "{root}/scripts/pin_model.py", "args": ["whisper-small"], "exit": 1,
          "report_contains": {"errors": "--repo"}}
       ]
@@ -483,7 +510,7 @@
       "slow": true,
       "_note": "Réseau : télécharge Mermaid et Excalidraw, vérifie leur empreinte, puis rend hors ligne.",
       "steps": [
-        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["extraction", "--prefetch"],
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["schemas", "--prefetch"],
          "env": {"XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"}, "exit": 0, "report": {"errors": []}},
         {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{fixtures}/diagrams/flux.mmd", "--out", "{out}"],
          "env": {"MYSKILLS_OFFLINE": "1", "XDG_CACHE_HOME": "{out}/cache", "LOCALAPPDATA": "{out}/cache"},

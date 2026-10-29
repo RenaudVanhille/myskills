@@ -66,9 +66,10 @@ def main() -> int:
     question = {"type": "choice", "instructions": "Quel agent, workflow ou skill doit traiter cette demande ?",
                 "criteria": {name: text[:MAX_DESCRIPTION] for name, text in spec["candidates"].items()}}
     try:
+        model_store.hub_offline()  # avant l'import : huggingface_hub lit HF_HUB_OFFLINE au chargement
         from laya import Router
 
-        result = Router().predict({"demande": spec["query"][:MAX_QUERY]}, {"q": question})
+        result = Router(models=model_store.laya_models()).predict({"demande": spec["query"][:MAX_QUERY]}, {"q": question})
     except Exception as error:  # noqa: BLE001 - route.py garde alors son classement par mots
         report["errors"].append(f"Laya indisponible : {type(error).__name__}: {str(error)[:300]}")
         print(json.dumps(report, ensure_ascii=False))

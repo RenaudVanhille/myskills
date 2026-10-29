@@ -127,9 +127,10 @@ def questions(domains: dict, pdf: bool) -> dict:
 
 def load_router():
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    model_store.hub_offline()  # avant l'import : huggingface_hub lit HF_HUB_OFFLINE au chargement
     from laya import Router
 
-    return Router()
+    return Router(models=model_store.laya_models())
 
 
 def engine_for(suffix: str, scanned: list[int], tables: float | None) -> str:

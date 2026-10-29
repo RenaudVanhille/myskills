@@ -21,7 +21,7 @@
       "options": {
         "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md ; une vidéo ou un audio passe par video.py",
         "--out": "dossier de sortie (défaut : dossier courant)",
-        "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
+        "--engine": "moteur ; auto choisit Docling pour un PDF scanné (version épinglée, modèles lus dans le cache vérifié : doctor.py extraction --prefetch ; sans eux, repli sur MarkItDown)",
         "--classify": "classe d'abord avec classify.py (Laya)",
         "--domains": "avec --classify : domaines possibles",
         "--no-clean": "ne pas nettoyer le texte des PDF",
@@ -616,7 +616,7 @@
     },
     {
       "name": "classify.py",
-      "role": "Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya, ou par règles.",
+      "role": "Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles.",
       "usage": "uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b] [--min-confidence 0.5] [--rules-only]",
       "options": {
         "FICHIER|DOSSIER": "documents ou dossiers",

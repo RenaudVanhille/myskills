@@ -134,5 +134,5 @@ exigence retenue (désaccord net : avertissement « Laya y voit plutôt... »,
 jamais une erreur). Il suit surtout les verbes modaux : F1 0,67 au mieux
 sur le même jeu, à préférer seulement sans sous-agent possible ; la nature
 n'est pas contrôlée (pire qu'une réponse fixe). Réponses en cache
-(`.myskills-tmp/<nom>.laya.json`), repli sur la regex sans Laya. Premier
-lancement long : PyTorch CPU puis le modèle (~1,3 Go).
+(`.myskills-tmp/<nom>.laya.json`), repli sur la regex sans Laya. Le modèle se prépare avant, une fois :
+`doctor.py extraction --prefetch` (skill `check-prerequisites`).

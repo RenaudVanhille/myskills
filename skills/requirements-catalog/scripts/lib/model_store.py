@@ -8,6 +8,10 @@ appelle guard_network() : seuls les hôtes identifiés (model-sources.json,
 MYSKILLS_ALLOWED_HOSTS), la machine et le proxy restent joignables ; tout
 autre flux est refusé et listé dans son rapport.
 
+Pendant un run, rien ne se télécharge : require() rend le dossier vérifié ou
+dit comment préparer la machine, hub_offline() coupe les téléchargements de
+huggingface_hub et transformers.
+
 Cache : <cache de myskills>/models/<id>/<révision>/, ou MYSKILLS_MODELS.
 
 Source : shared/scripts/model_store.py, copiée dans scripts/lib/ des skills
@@ -127,10 +131,14 @@ def fetch(model: str, from_dir: Path | None = None) -> Path:
         target = folder / name
         if target.is_file() and sha256(target) == expected:
             continue
+        target.parent.mkdir(parents=True, exist_ok=True)
         part = target.with_name(target.name + ".part")
         if from_dir:
-            source_file = Path(from_dir) / name
-            if not source_file.is_file():
+            # Copie du cache (<id>/<révision>/...), dossier du modèle (<id>/...) ou fichiers à plat.
+            candidates = [Path(from_dir) / model / spec["source"]["revision"] / name,
+                          Path(from_dir) / model / name, Path(from_dir) / name]
+            source_file = next((c for c in candidates if c.is_file()), None)
+            if source_file is None:
                 raise ModelError(f"{model} : {name} absent de {from_dir}")
             shutil.copyfile(source_file, part)
         else:
@@ -153,6 +161,57 @@ def fetch(model: str, from_dir: Path | None = None) -> Path:
     if not found:
         raise ModelError(f"{model} : vérification impossible après téléchargement")
     return found
+
+
+def require(model: str) -> Path:
+    """Dossier vérifié du modèle, pour un run : rien n'est téléchargé pendant un
+    traitement. Absent ou altéré, ModelError dit comment le préparer."""
+    found = local_model(model)
+    if found is None:
+        raise ModelError(f"modèle {model} absent du cache ou altéré : préparez la machine avant le run avec "
+                         "uv run scripts/doctor.py extraction --prefetch (skill check-prerequisites), "
+                         "ou --models-from DOSSIER depuis une copie")
+    return found
+
+
+def hub_offline() -> None:
+    """Interdit à huggingface_hub et transformers tout téléchargement dans ce
+    processus (et ses enfants) : les modèles viennent du cache vérifié."""
+    os.environ["HF_HUB_OFFLINE"] = os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+
+def linked_tree(name: str, layout: dict[str, str]) -> Path:
+    """Arborescence <cache>/<name>/<dossier>/ attendue par une bibliothèque
+    (Docling : un dossier par dépôt), faite de liens physiques vers les modèles
+    vérifiés (copie si le système de fichiers refuse les liens). `layout` donne,
+    pour chaque dossier, l'identifiant du modèle."""
+    root = models_root() / name
+    for folder, model in layout.items():
+        source = require(model)
+        for file in entry(model)["files"]:
+            target = root / folder / file
+            if target.is_file() and target.stat().st_size == (source / file).stat().st_size:
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.unlink(missing_ok=True)
+            try:
+                os.link(source / file, target)
+            except OSError:
+                shutil.copyfile(source / file, target)
+    return root
+
+
+# Checkpoints Laya utilisés par Router : anglais (racine du dépôt) et multilingue.
+LAYA_MODEL = "laya"
+LAYA_CHECKPOINTS = {"english": None, "multilingual": "multilingual"}
+
+
+def laya_models() -> dict:
+    """Argument `models` de laya.Router : les checkpoints du cache vérifié, sans
+    téléchargement (ModelError s'il manque)."""
+    folder = str(require(LAYA_MODEL))
+    hub_offline()
+    return {name: (folder, sub) for name, sub in LAYA_CHECKPOINTS.items()}
 
 
 # Flux refusés depuis guard_network(), pour le rapport du script.

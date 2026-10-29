@@ -43,7 +43,9 @@ en donnant son nom dans `constraints` du message de passage
 Avec `--laya`, le modèle local Laya choisit parmi les six premiers
 candidats ; son choix passe en tête à partir de 0,6 de confiance (champ
 `laya` du rapport). Il est facultatif : sans Laya, le classement par mots
-reste. Réservez-le aux demandes sans mot commun avec les candidats.
+reste. Réservez-le aux demandes sans mot commun avec les candidats. Le
+modèle se prépare avant, une fois : `doctor.py extraction --prefetch`
+(skill `check-prerequisites`) ; rien ne se télécharge pendant le run.
 
 ## Contrat
 

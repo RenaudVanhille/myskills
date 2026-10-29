@@ -27,19 +27,6 @@ jobs:
       - name: Tests des scripts
         run: uv run tests/run.py
 
-  epinglage-temporaire:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-      - run: |
-          L="rl_agent_config.json,model.safetensors,tokenizer/tokenizer.json,tokenizer/tokenizer_config.json,encoder/config.json"
-          M="multilingual/rl_agent_config.json,multilingual/model.safetensors,multilingual/tokenizer/tokenizer.json,multilingual/tokenizer/tokenizer_config.json,multilingual/encoder/config.json"
-          uv run scripts/pin_model.py docling-layout-heron --repo docling-project/docling-layout-heron --revision main --files config.json,model.safetensors,preprocessor_config.json --license Apache-2.0 || true
-          uv run scripts/pin_model.py docling-tableformer --repo docling-project/docling-models --revision v2.3.0 --files model_artifacts/tableformer/accurate/tm_config.json,model_artifacts/tableformer/accurate/tableformer_accurate.safetensors --license CDLA-Permissive-2.0 || true
-          uv run scripts/pin_model.py laya --repo convaiinnovations/laya --revision 55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851 --files "$L,$M" --license Apache-2.0 || true
-          uv run scripts/pin_model.py laya --repo convaiinnovations/laya --revision main --files "$L,$M" --license Apache-2.0 || true
-
   # Cas lents de run.py (navigateur, Pandoc, Docling, Laya) et export réel par
   # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
   # pas télécharger.
@@ -68,6 +55,8 @@ jobs:
           key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
       - name: Sources épinglées des modèles locaux
         run: uv run scripts/pin_model.py --check
+      - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
+        run: uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
       - name: Justesse de Laya sur les exigences
