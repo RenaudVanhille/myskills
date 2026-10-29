@@ -51,7 +51,10 @@ jobs:
           path: |
             ~/.cache/huggingface
             ~/.cache/ms-playwright
-          key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py') }}
+            ~/.cache/myskills/models
+          key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
+      - name: Sources épinglées des modèles locaux
+        run: uv run scripts/pin_model.py --check
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
       - name: Justesse de Laya sur les exigences

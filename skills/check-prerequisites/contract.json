@@ -2,17 +2,18 @@
   "skill": "check-prerequisites",
   "level": "simple",
   "inputs": [
-    "Un groupe : extraction, schemas, publication, revue ou tout (défaut)",
-    "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne"
+    "Un groupe : extraction, video, schemas, publication, revue ou tout (défaut)",
+    "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne",
+    "Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier"
   ],
   "outputs": [
-    "Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu dans le cache de myskills"
+    "Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupe video) dans le cache de myskills"
   ],
   "scripts": [
     {
       "name": "doctor.py",
-      "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne.",
-      "usage": "uv run scripts/doctor.py [extraction|schemas|publication|revue|tout] [--prefetch]",
+      "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec le groupe video, télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json).",
+      "usage": "uv run scripts/doctor.py [extraction|video|schemas|publication|revue|tout] [--prefetch] [--models-from DOSSIER]",
       "report": {
         "format": "json",
         "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
@@ -47,6 +48,7 @@
                   "group": {
                     "enum": [
                       "extraction",
+                      "video",
                       "schemas",
                       "publication",
                       "revue"
@@ -91,8 +93,9 @@
         "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
       },
       "options": {
-        "GROUPE": "extraction, schemas, publication, revue ou tout (défaut)",
-        "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement"
+        "GROUPE": "extraction, video, schemas, publication, revue ou tout (défaut)",
+        "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement ; groupe video : modèles de model-sources.json, depuis leur source épinglée, empreinte SHA-256 vérifiée",
+        "--models-from": "copie les modèles depuis ce dossier au lieu de la source (mêmes empreintes vérifiées) ; implique --prefetch"
       }
     }
   ],

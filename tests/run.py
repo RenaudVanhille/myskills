@@ -39,6 +39,50 @@ TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" 
           "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
 MIN_RATIO = 0.9
+# Dépendances et extras interdits dans les scripts des skills (cas regles).
+FORBIDDEN_DEPS = ("modelscope", "rapidocr", "rapidocr-onnxruntime", "easyocr", "paddleocr", "funasr")
+# Vérifie dans un processus à part que model_store.guard_network() filtre les flux (cas regles) :
+# hôte non identifié refusé (nom, adresse, tunnel de proxy) et signalé, hôte autorisé, proxy et boucle
+# locale permis.
+NETWORK_PROBE = r"""
+import http.client, socket, sys
+sys.path.insert(0, sys.argv[1])
+import model_store
+warnings = []
+model_store.guard_network(warnings)
+problems = []
+def refused(action, label):
+    try:
+        action()
+        problems.append(label + " permis")
+    except ConnectionRefusedError as error:
+        if "myskills" not in str(error):
+            problems.append(label + " : refus inattendu " + str(error))
+    except OSError:
+        problems.append(label + " : pas refusé par myskills")
+refused(lambda: socket.getaddrinfo("www.modelscope.cn", 443), "résolution de modelscope.cn")
+refused(lambda: socket.create_connection(("modelscope.cn", 443), timeout=2), "connexion à modelscope.cn")
+refused(lambda: socket.socket().connect(("192.0.2.1", 443)), "connexion à 192.0.2.1")
+refused(lambda: socket.socket().connect_ex(("192.0.2.1", 443)), "connect_ex vers 192.0.2.1")
+refused(lambda: http.client.HTTPSConnection("127.0.0.1", 9).set_tunnel("modelscope.cn", 443), "tunnel vers modelscope.cn")
+http.client.HTTPSConnection("127.0.0.1", 9).set_tunnel("huggingface.co", 443)
+try:
+    socket.getaddrinfo("huggingface.co", 443)
+except ConnectionRefusedError as error:
+    problems.append("huggingface.co refusé : " + str(error))
+except OSError:
+    pass
+if not any("modelscope.cn" in w for w in warnings):
+    problems.append("flux refusé absent des avertissements")
+server = socket.socket()
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+client = socket.socket()
+client.connect(server.getsockname())
+client.close(); server.close()
+print("ok" if not problems else " ; ".join(problems))
+"""
+FORBIDDEN_EXTRAS = ("all", "audio-transcription", "az-doc-intel", "youtube-transcription")
 sys.path.insert(0, str(ROOT / "scripts"))
 import contracts_lib  # noqa: E402
 from jsonschema import Draft202012Validator  # noqa: E402
@@ -50,6 +94,7 @@ CONTRACTS = {script["name"]: script["report"].get("schema")
              for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]}
 CONTRACTS["install.py"] = contracts_lib.schema("install-report")
 CONTRACTS["check_commit.py"] = contracts_lib.schema("commit-report")
+CONTRACTS["pin_model.py"] = contracts_lib.schema("pin-report")
 # Schéma d'entrée (description JSON) de chaque script qui en déclare un.
 INPUTS = {script["name"]: script["input"]["schema"]
           for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
@@ -491,6 +536,27 @@ def check_rules() -> dict:
         if path.is_file() and path.suffix in {".md", ".py", ".json"}:
             if "puppeteer" in path.read_text(encoding="utf-8", errors="replace").lower():
                 failures.append(f"{path.relative_to(ROOT)} : Puppeteer, utilisez Playwright")
+    # Aucun envoi ni téléchargement non maîtrisé : pas de bibliothèque qui tire ses modèles d'une source non
+    # épinglée (ModelScope...) ni d'extra MarkItDown qui envoie le contenu à un service ; un script de modèle
+    # local ou de conversion filtre ses flux réseau.
+    for path in sorted((ROOT / "skills").glob("*/scripts/*.py")):
+        code = path.read_text(encoding="utf-8")
+        header = re.search(r"^# /// script\n(.*?)^# ///", code, re.M | re.S)
+        deps = header.group(1).lower() if header else ""
+        where = path.relative_to(ROOT).as_posix()
+        failures += [f"{where} : dépendance {dep} interdite (modèles téléchargés hors des sources épinglées)"
+                     for dep in FORBIDDEN_DEPS if re.search(rf'"{re.escape(dep)}[\[<>=~!"]', deps)]
+        failures += [f"{where} : extra markitdown[{extra}] interdit (contenu envoyé à un service)"
+                     for extra in FORBIDDEN_EXTRAS if re.search(rf"markitdown\[[^\]]*\b{extra}\b", deps)]
+        if re.search(r'"(faster-whisper|ctranslate2|laya|markitdown|docling)', deps) \
+                and "model_store.guard_network(" not in code:
+            failures.append(f"{where} : bibliothèque de modèle ou de conversion sans model_store.guard_network()")
+    # Et guard_network() tient.
+    probe = subprocess.run([sys.executable, "-I", "-c", NETWORK_PROBE, str(ROOT / "shared" / "scripts")],
+                           capture_output=True, text=True, encoding="utf-8", timeout=60,
+                           env={**os.environ, "HTTPS_PROXY": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9"})
+    if probe.stdout.strip() != "ok":
+        failures.append(f"model_store.guard_network() ne filtre pas les flux : {(probe.stdout + probe.stderr).strip()[-300:]}")
     return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 

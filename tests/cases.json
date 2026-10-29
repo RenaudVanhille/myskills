@@ -74,6 +74,50 @@
       ]
     },
     {
+      "id": "video-images-cles",
+      "skill": "doc-to-markdown",
+      "_note": "Vidéo (3 écrans successifs) par convert.py puis video.py (flux réseau filtrés), une image clé par écran pour la vision ; sans modèle Whisper dans le cache (MYSKILLS_MODELS vide), pas de transcription et un avertissement.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}"], "env": {"MYSKILLS_MODELS": "{out}/modeles"},
+         "exit": 0, "report": {"results.0.type": "video", "results.0.engine": "images", "results.0.images": 3,
+                               "results.0.needs_vision": true, "results.0.validation.ok": true},
+         "report_contains": {"results.0.warnings": "absent du cache local"}},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}/seul", "--no-audio"], "exit": 0,
+         "report": {"results.0.images": 3, "results.0.segments": 0}},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}", "--model", "whisper-smal"], "exit": 1,
+         "report_contains": {"errors": "inconnu"}}
+      ],
+      "files": ["demo-portail.md", "attachments/demo-portail-01.png", "attachments/demo-portail-03.png"],
+      "contains": {"demo-portail.md": ["## 00:02", "<!-- vision"]}
+    },
+    {
+      "id": "video-transcription",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Modèle whisper-small téléchargé depuis sa source épinglée (empreintes vérifiées), puis vidéo transcrite avec les flux réseau filtrés.",
+      "steps": [
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video", "--prefetch"], "exit": 0},
+        {"script": "{skills}/doc-to-markdown/scripts/video.py",
+         "args": ["{samples}/demo-portail.mp4", "--out", "{out}", "--language", "fr"], "exit": 0,
+         "report": {"results.0.engine": "whisper", "results.0.model": "whisper-small", "results.0.images": 3,
+                    "results.0.language": "fr"}}
+      ]
+    },
+    {
+      "id": "docling-flux-filtres",
+      "skill": "doc-to-markdown",
+      "slow": true,
+      "_note": "Docling lancé derrière guard_network() (uvx) : ses modèles viennent d'hôtes autorisés (Hugging Face), aucun repli sur MarkItDown.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-texte.pdf", "--out", "{out}", "--engine", "docling"],
+         "exit": 0, "report": {"results.0.engine": "docling"}}
+      ]
+    },
+    {
       "id": "pdf-scanne-docling",
       "skill": "doc-to-markdown",
       "slow": true,
@@ -154,7 +198,12 @@
       "skill": "check-prerequisites",
       "steps": [
         {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["inconnu"], "exit": 1,
-         "report_contains": {"errors": "groupe inconnu"}}
+         "report_contains": {"errors": "groupe inconnu"}},
+        {"script": "{skills}/check-prerequisites/scripts/doctor.py", "args": ["video"], "exit": 1,
+         "env": {"MYSKILLS_MODELS": "{out}/modeles", "MYSKILLS_OFFLINE": "1"},
+         "report_contains": {"errors": "doctor.py video --prefetch"}},
+        {"script": "{root}/scripts/pin_model.py", "args": ["whisper-small"], "exit": 1,
+         "report_contains": {"errors": "--repo"}}
       ]
     },
     {

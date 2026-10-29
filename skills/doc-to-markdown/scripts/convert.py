@@ -12,12 +12,27 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]
+        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
     docling     PDF scannés (OCR) ou riches en tableaux ; lancé via `uvx`
                 s'il n'est pas installé (premier lancement long : ~2 Go)
+
+L'OCR de Docling passe par Tesseract installé en local, jamais par son
+choix automatique : RapidOCR, qu'il prend par défaut, télécharge ses modèles
+depuis ModelScope (modelscope.cn). Sans Tesseract, Docling tourne sans OCR et
+les pages scannées vont à la vision.
+
+Une vidéo ou un enregistrement audio passe par video.py (flux réseau filtrés,
+transcription Whisper locale, images clés pour la vision), jamais par Docling
+ni MarkItDown, qui téléchargeraient des modèles ou enverraient le son à un
+service en ligne.
+
+Les flux réseau du script, de Docling et de video.py sont limités aux hôtes
+identifiés (model_store.guard_network : model-sources.json,
+MYSKILLS_ALLOWED_HOSTS, proxy, machine locale) ; un autre flux, par exemple
+vers ModelScope, est refusé et listé dans `warnings`.
 
 Avec --classify, chaque document passe d'abord par classify.py (modèle local
 Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
@@ -59,13 +74,21 @@ from pathlib import Path
 
 from validate import check
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+LIB = Path(__file__).resolve().parent / "lib"
+sys.path.insert(0, str(LIB))
+import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
+# Vidéo et audio : confiés à video.py (flux filtrés, modèles locaux épinglés).
+MEDIA = {".mp4", ".m4v", ".mov", ".avi", ".mkv", ".webm", ".wmv",
+         ".m4a", ".mp3", ".wav", ".ogg", ".flac", ".aac", ".wma"}
+VIDEO_SCRIPT = Path(__file__).with_name("video.py")
+# Langues OCR de Tesseract essayées, dans l'ordre (fichiers .traineddata).
+OCR_LANGS = ("fra", "eng")
 # Documents pris dans un dossier passé en argument.
-CONVERTIBLE = OFFICE | IMAGES | {".pdf", ".html", ".htm", ".csv", ".epub"}
+CONVERTIBLE = OFFICE | IMAGES | MEDIA | {".pdf", ".html", ".htm", ".csv", ".epub"}
 # En dessous de ce nombre de caractères, une page PDF est considérée scannée.
 MIN_CHARS_PER_PAGE = 30
 # Côté le plus long d'une page rendue pour la vision : au-delà, le modèle la
@@ -211,26 +234,66 @@ def run_markitdown(path: Path) -> str:
     return promote_empty_headers(text)
 
 
-def docling_command() -> list[str] | None:
-    if shutil.which("docling"):
-        return ["docling"]
+# Docling lancé derrière model_store.guard_network() : seuls les flux identifiés passent,
+# les autres sont refusés et listés sur la sortie d'erreur (ligne MYSKILLS_BLOCKED).
+DOCLING_GUARDED = (
+    "import atexit, sys; sys.path.insert(0, sys.argv.pop(1)); import model_store; "
+    "blocked = model_store.guard_network(); "
+    "atexit.register(lambda: blocked and print('MYSKILLS_BLOCKED ' + ' '.join(blocked), file=sys.stderr)); "
+    "from docling.cli.main import app; sys.argv[0] = 'docling'; app()")
+BLOCKED_LINE = re.compile(r"^MYSKILLS_BLOCKED (.+)$", re.M)
+
+
+def docling_command() -> tuple[list[str] | None, bool]:
+    """Commande Docling, et si ses flux réseau sont filtrés (uvx) ou non (docling installé seul)."""
     if shutil.which("uvx"):
-        return ["uvx", "--from", "docling", "docling"]
-    return None
+        return ["uvx", "--from", "docling", "python", "-c", DOCLING_GUARDED, str(LIB)], True
+    if shutil.which("docling"):
+        return ["docling"], False
+    return None, False
+
+
+def tesseract_langs() -> list[str]:
+    """Langues de OCR_LANGS installées pour Tesseract ; vide sans Tesseract."""
+    if not shutil.which("tesseract"):
+        return []
+    try:
+        listed = subprocess.run(["tesseract", "--list-langs"], capture_output=True,
+                                text=True, encoding="utf-8", timeout=30).stdout.split()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [lang for lang in OCR_LANGS if lang in listed]
+
+
+def docling_ocr_args() -> list[str]:
+    """OCR de Docling : Tesseract local, sinon aucun. Jamais le choix
+    automatique, qui prend RapidOCR et télécharge ses modèles sur ModelScope."""
+    langs = tesseract_langs()
+    if not langs:
+        return ["--no-ocr"]
+    return ["--ocr-engine", "tesseract_cli", "--ocr-lang", ",".join(langs)]
 
 
 # Docling prend déjà tous les cœurs et beaucoup de mémoire : un document à la fois.
 DOCLING_SLOT = threading.Semaphore(1)
+# La transcription aussi : une vidéo à la fois.
+MEDIA_SLOT = threading.Semaphore(1)
 
 
-def run_docling(path: Path, attachments: Path, stem: str) -> tuple[str, int]:
-    command = docling_command()
+def run_docling(path: Path, attachments: Path, stem: str, warnings: list[str]) -> tuple[str, int]:
+    command, guarded = docling_command()
     if command is None:
-        raise RuntimeError("Docling introuvable : installez-le (uv tool install docling).")
+        raise RuntimeError("Docling introuvable : installez uv (uvx), ou Docling (uv tool install docling).")
+    if not guarded:
+        warnings.append("Docling lancé sans filtre des flux réseau (uvx absent)")
     with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
-                                  "referenced", "--output", tmp],
-                       check=True, capture_output=True, text=True)
+        env = {**os.environ, "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
+        done = subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
+                                         "referenced", *docling_ocr_args(), "--output", tmp],
+                              capture_output=True, text=True, encoding="utf-8", env=env)
+        for line in BLOCKED_LINE.findall(done.stderr or ""):
+            warnings.append(f"Flux non identifiés refusés (Docling) : {line.strip()}")
+        done.check_returncode()
         tmp_dir = Path(tmp)
         markdown = next(tmp_dir.glob("*.md")).read_text(encoding="utf-8")
         count = 0
@@ -292,8 +355,28 @@ def expand(paths: list[Path], out: Path) -> list[Path]:
     return list(dict.fromkeys(files))
 
 
+def run_video(path: Path, out: Path, stem: str, language: str | None) -> dict:
+    """Vidéo ou audio : video.py, dans son propre environnement ; une à la fois."""
+    command = (["uv", "run", "--quiet", str(VIDEO_SCRIPT)] if shutil.which("uv")
+               else [sys.executable, str(VIDEO_SCRIPT)])
+    command += [str(path), "--out", str(out), "--stem", stem] + (["--language", language] if language else [])
+    with MEDIA_SLOT:
+        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
+    try:
+        report = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        lines = (result.stderr or "sortie vide").strip().splitlines()
+        raise RuntimeError(f"video.py : {lines[-1][:300] if lines else '?'}") from None
+    if report["results"]:
+        if "error" in report["results"][0]:
+            raise RuntimeError(report["results"][0]["error"])
+        report["results"][0]["warnings"] += report["warnings"]
+        return report["results"][0]
+    raise RuntimeError("; ".join(report["errors"]) or "video.py sans résultat")
+
+
 def convert(path: Path, out: Path, engine: str, classification: dict | None = None,
-            clean: bool = True, stem: str | None = None) -> dict:
+            clean: bool = True, stem: str | None = None, language: str | None = None) -> dict:
     suffix = path.suffix.lower()
     stem = stem or path.stem
     attachments = out / "attachments"
@@ -304,6 +387,8 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         report["classification"] = {key: classification[key] for key in
                                     ("type", "domaine", "tables", "engine", "method", "warnings")}
 
+    if suffix in MEDIA:
+        return run_video(path, out, stem, language)
     if suffix in IMAGES:
         report["type"], report["engine"] = "image", "copie"
         attachments.mkdir(parents=True, exist_ok=True)
@@ -322,8 +407,13 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
             if profile["scanned_pages"]:
                 report["warnings"].append(
                     f"Pages sans texte (scannées ?) : {profile['scanned_pages']}")
-                if engine == "auto":
+                ocr = bool(tesseract_langs())
+                if engine == "auto" and ocr:
                     engine = "docling"
+                elif not ocr:
+                    report["warnings"].append(
+                        "OCR local absent (Tesseract) : pages scannées à transcrire par la vision")
+                    report["needs_vision"] = True
             if engine == "auto" and classification and classification["engine"] == "docling":
                 report["warnings"].append(
                     f"Tableaux ou colonnes probables ({classification['tables']}) : Docling")
@@ -338,7 +428,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         if engine == "docling":
             try:
                 with DOCLING_SLOT:
-                    markdown, report["images"] = run_docling(path, attachments, stem)
+                    markdown, report["images"] = run_docling(path, attachments, stem, report["warnings"])
             except (RuntimeError, subprocess.CalledProcessError) as error:
                 detail = (getattr(error, "stderr", "") or str(error)).strip().splitlines()
                 last = detail[-1] if detail else "erreur inconnue"
@@ -381,9 +471,12 @@ def main() -> int:
                         help="ne pas reconvertir un document dont le Markdown est plus récent")
     parser.add_argument("--no-clean", action="store_true",
                         help="ne pas nettoyer le texte des PDF (paragraphes, césures, en-têtes)")
+    parser.add_argument("--language", help="vidéo ou audio : langue parlée (fr, en...) ; défaut : détectée")
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1),
                         help="documents convertis en même temps (défaut : jusqu'à 4 ; 1 : un par un)")
     args = parser.parse_args()
+    network_warnings: list[str] = []
+    model_store.guard_network(network_warnings)
 
     reports, failed = [], False
     files = expand(args.files, args.out.resolve())
@@ -391,7 +484,7 @@ def main() -> int:
     classifications, classify_warning = {}, None
     if args.classify:
         existing = [path.resolve() for path in files
-                    if path.is_file() and path.suffix.lower() not in IMAGES]
+                    if path.is_file() and path.suffix.lower() not in IMAGES | MEDIA]
         if existing:
             classifications, classify_warning = run_classifier(existing, args.domains)
     def one(path: Path) -> tuple[dict, bool]:
@@ -403,7 +496,8 @@ def main() -> int:
             return {"input": str(path), "output": str(target), "skipped": True}, False
         try:
             report = convert(path.resolve(), args.out.resolve(), args.engine,
-                             classifications.get(path.resolve()), not args.no_clean, stems[path])
+                             classifications.get(path.resolve()), not args.no_clean, stems[path],
+                             args.language)
             if stems[path] != path.stem:
                 report["warnings"].append(f"Nom déjà pris dans le lot : écrit sous {stems[path]}.md")
             return report, False
@@ -414,7 +508,7 @@ def main() -> int:
         for report, error in pool.map(one, files):
             reports.append(report)
             failed = failed or error
-    print_report(reports, warnings=[classify_warning] if classify_warning else [])
+    print_report(reports, warnings=([classify_warning] if classify_warning else []) + network_warnings)
     return 1 if failed else 0
 
 

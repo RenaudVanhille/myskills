@@ -4,27 +4,30 @@
   "inputs": [
     "Fichiers PDF, DOCX, PPTX, XLSX, XLS, DOC, PPT",
     "Images PNG, JPG, GIF, BMP, TIFF, WEBP",
+    "Vidéos MP4, MOV, MKV, WEBM, AVI et enregistrements audio MP3, WAV, M4A (traités en local, flux réseau limités aux hôtes identifiés)",
     "Dossiers"
   ],
   "outputs": [
     "DOSSIER/<nom>.md",
     "DOSSIER/attachments/<nom>-N.<ext>, liées en relatif depuis le Markdown",
+    "DOSSIER/attachments/<nom>-NN.png : images clés d'une vidéo, à décrire par vision",
     "DOSSIER/.myskills-tmp/<nom>-pages/page-N.png : pages à transcrire par vision, à supprimer ensuite"
   ],
   "scripts": [
     {
       "name": "convert.py",
       "role": "Convertit les documents en Markdown, en local.",
-      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N]",
+      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]",
       "options": {
-        "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md",
+        "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md ; une vidéo ou un audio passe par video.py",
         "--out": "dossier de sortie (défaut : dossier courant)",
         "--engine": "moteur ; auto choisit Docling pour un PDF scanné",
         "--classify": "classe d'abord avec classify.py (Laya)",
         "--domains": "avec --classify : domaines possibles",
         "--no-clean": "ne pas nettoyer le texte des PDF",
         "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)",
-        "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)"
+        "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)",
+        "--language": "vidéo ou audio : langue parlée (fr, en...) ; défaut : détectée"
       },
       "report": {
         "format": "json",
@@ -190,6 +193,115 @@
                     "required": [
                       "input",
                       "output",
+                      "type",
+                      "engine",
+                      "duration",
+                      "images",
+                      "segments",
+                      "language",
+                      "model",
+                      "needs_vision",
+                      "vision_pages",
+                      "warnings",
+                      "validation"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "output": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "video",
+                          "audio"
+                        ]
+                      },
+                      "engine": {
+                        "enum": [
+                          "whisper",
+                          "images"
+                        ],
+                        "description": "whisper : transcrit ; images : images clés seules (modèle absent ou --no-audio)"
+                      },
+                      "duration": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "secondes"
+                      },
+                      "images": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "images clés extraites"
+                      },
+                      "segments": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "phrases transcrites"
+                      },
+                      "language": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "model": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "modèle de model-sources.json utilisé"
+                      },
+                      "needs_vision": {
+                        "type": "boolean"
+                      },
+                      "vision_pages": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "validation": {
+                        "type": "object",
+                        "required": [
+                          "ok",
+                          "errors",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "errors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "output",
                       "skipped"
                     ],
                     "additionalProperties": false,
@@ -244,6 +356,184 @@
       "exit_codes": {
         "0": "tous les fichiers sont convertis",
         "1": "au moins un fichier a échoué (error dans son résultat, repris dans errors)"
+      }
+    },
+    {
+      "name": "video.py",
+      "role": "Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache.",
+      "usage": "uv run scripts/video.py FICHIER [...] [--out DOSSIER] [--language fr] [--model whisper-small] [--no-audio] [--interval 1.0] [--threshold 0.06] [--max-frames 40]",
+      "options": {
+        "FICHIER": "vidéos ou enregistrements audio",
+        "--out": "dossier de sortie (défaut : dossier courant)",
+        "--language": "langue parlée ; défaut : détectée",
+        "--model": "modèle de model-sources.json (défaut : whisper-small)",
+        "--no-audio": "images clés seulement",
+        "--interval": "secondes entre deux images comparées",
+        "--threshold": "écart moyen (0 à 1) qui fait garder une image",
+        "--max-frames": "images clés au plus par vidéo"
+      },
+      "report": {
+        "format": "json",
+        "description": "Objet : results (un objet par fichier), errors et warnings.",
+        "schema": {
+          "type": "object",
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "output",
+                      "type",
+                      "engine",
+                      "duration",
+                      "images",
+                      "segments",
+                      "language",
+                      "model",
+                      "needs_vision",
+                      "vision_pages",
+                      "warnings",
+                      "validation"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "output": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "enum": [
+                          "video",
+                          "audio"
+                        ]
+                      },
+                      "engine": {
+                        "enum": [
+                          "whisper",
+                          "images"
+                        ],
+                        "description": "whisper : transcrit ; images : images clés seules (modèle absent ou --no-audio)"
+                      },
+                      "duration": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "secondes"
+                      },
+                      "images": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "images clés extraites"
+                      },
+                      "segments": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "phrases transcrites"
+                      },
+                      "language": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "model": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "modèle de model-sources.json utilisé"
+                      },
+                      "needs_vision": {
+                        "type": "boolean"
+                      },
+                      "vision_pages": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "warnings": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "validation": {
+                        "type": "object",
+                        "required": [
+                          "ok",
+                          "errors",
+                          "warnings"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "errors": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "warnings": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "input",
+                      "error"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "input": {
+                        "type": "string"
+                      },
+                      "error": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement)",
+        "1": "fichier introuvable ou illisible, audio sans modèle, modèle inconnu"
       }
     },
     {

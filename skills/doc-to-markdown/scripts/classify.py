@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
 
 PDF = {".pdf"}
@@ -184,6 +185,8 @@ def main() -> int:
                         help="confiance minimale pour retenir un type ou un domaine (défaut : 0.5)")
     parser.add_argument("--rules-only", action="store_true", help="ne pas charger Laya")
     args = parser.parse_args()
+    network_warnings: list[str] = []
+    model_store.guard_network(network_warnings)
 
     router, load_warning = None, None
     if not args.rules_only:
@@ -213,7 +216,7 @@ def main() -> int:
         if load_warning:
             report["warnings"].insert(0, load_warning[:300])
         reports.append(report)
-    print_report(reports)
+    print_report(reports, warnings=network_warnings)
     return 1 if failed else 0
 
 
