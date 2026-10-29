@@ -288,3 +288,4 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-28T07:44:47,avant-lot4,1db20e4,revue-architecture,architecture-reviewer,agent,True,11,0.6827,17,49709,351050,10731,0,118,
 2026-10-28T07:44:47,avant-lot4,1db20e4,revue-architecture,architecture-reviewer,agent,True,11,0.6577,19,42133,375098,12271,0,129,
 2026-10-28T07:44:47,avant-lot4,1db20e4,revue-architecture,architecture-reviewer,agent,True,10,0.5858,15,40730,299132,9999,0,106,
+2026-10-29T23:53:56,ui-designer,ab8f10f,maquettes-html,ui-designer,sonnet,True,11,0.2367,20,41168,306435,4109,0,39,1.0
