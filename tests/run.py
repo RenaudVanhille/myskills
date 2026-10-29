@@ -551,6 +551,12 @@ def check_rules() -> dict:
         if re.search(r'"(faster-whisper|ctranslate2|laya|markitdown|docling)', deps) \
                 and "model_store.guard_network(" not in code:
             failures.append(f"{where} : bibliothèque de modèle ou de conversion sans model_store.guard_network()")
+        # Aucun modèle téléchargé pendant un run : Laya et Docling lisent le cache vérifié.
+        if re.search(r'"laya[\[<>=~!"]', deps) and "model_store.laya_models()" not in code:
+            failures.append(f"{where} : Laya sans model_store.laya_models() (modèle téléchargé pendant le run)")
+        if re.search(r'\["docling"\]|"--from", f?"docling', code) and ("--artifacts-path" not in code or "docling==" not in code):
+            failures.append(f"{where} : Docling sans version épinglée ni --artifacts-path "
+                            "(modèles téléchargés pendant le run)")
     # Et guard_network() tient.
     probe = subprocess.run([sys.executable, "-I", "-c", NETWORK_PROBE, str(ROOT / "shared" / "scripts")],
                            capture_output=True, text=True, encoding="utf-8", timeout=60,

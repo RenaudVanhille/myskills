@@ -161,6 +161,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   bibliothèque qui tire ses modèles d'ailleurs (ModelScope, RapidOCR,
   EasyOCR...) ni d'extra MarkItDown qui envoie le contenu à un service
   (`all`, `audio-transcription`, `az-doc-intel`) **(vérifiée)**.
+- Aucun téléchargement de modèle pendant un run : chaque modèle local
+  s'installe avant, une fois, par `doctor.py GROUPE --prefetch` (ou
+  `--models-from`, skill `check-prerequisites`). Un script le lit dans le
+  cache vérifié (`model_store.require`, `laya_models`, Docling en version
+  épinglée avec `--artifacts-path`, `HF_HUB_OFFLINE`) ; s'il manque, il
+  s'arrête ou se replie en donnant cette commande **(vérifiée)**.
 - Rendus de navigateur avec Playwright, jamais Puppeteer **(vérifiée)**, et
   pas de serveur MCP Playwright.
 - Un agent ne publie rien en ligne : il produit des fichiers.

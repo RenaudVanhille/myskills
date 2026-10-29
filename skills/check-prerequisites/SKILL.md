@@ -8,7 +8,8 @@ description: "Vérifie que les outils locaux nécessaires aux skills de myskills
 Lance le script fourni avec ce skill, avec le groupe utile :
 
 ```bash
-uv run scripts/doctor.py extraction   # uv (MarkItDown et Docling sont fournis par uv)
+uv run scripts/doctor.py extraction   # uv (MarkItDown et Docling sont fournis par uv) ; modèles Docling et Laya, Tesseract en option
+uv run scripts/doctor.py video        # uv ; modèle de transcription Whisper
 uv run scripts/doctor.py schemas      # uv, draw.io Desktop, navigateur ; Node.js en option
 uv run scripts/doctor.py publication  # uv (Pandoc est fourni) ; LibreOffice en option
 uv run scripts/doctor.py revue        # uv ; graphify en option (revue d'architecture)
@@ -32,13 +33,20 @@ et leur empreinte est vérifiée (un paquet différent est refusé). Ensuite,
 besoin s'arrête avec la marche à suivre. Le cache est un dossier copiable
 (`%LOCALAPPDATA%\myskills`, sinon `~/.cache/myskills`).
 
+**Modèles locaux** : un run n'en télécharge aucun. `doctor.py extraction
+--prefetch` (Docling : mise en page et tableaux ; Laya) et `doctor.py video
+--prefetch` (Whisper) les téléchargent une fois, seulement depuis leur source
+épinglée (`model-sources.json`), empreintes vérifiées ;
+`--models-from DOSSIER` les copie depuis une copie du cache. Un script à qui
+il manque un modèle s'arrête ou se replie en donnant cette commande.
+
 ## Contrat
 
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Un groupe : extraction, video, schemas, publication, revue ou tout (défaut) ; Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne ; Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier.
-- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupe video) dans le cache de myskills.
-- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec le groupe video, télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json). Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
+- **Sorties** : Aucun fichier, sauf avec --prefetch : les bibliothèques de rendu et les modèles locaux (groupes extraction et video) dans le cache de myskills.
+- **`doctor.py`** : Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec les groupes extraction (Docling, Laya) et video (Whisper), télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json) : un run n'en télécharge aucun. Rapport JSON, codes de sortie : 0 tous les outils obligatoires sont présents (et le préchargement a réussi) ; 1 au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente).
 - **Passe la main** à l'utilisateur : un outil manque : il l'installe lui-même, rien n'est installé sans son accord.
 

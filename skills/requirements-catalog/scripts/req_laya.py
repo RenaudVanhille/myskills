@@ -90,9 +90,10 @@ def main() -> int:
 
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     try:
+        model_store.hub_offline()  # avant l'import : huggingface_hub lit HF_HUB_OFFLINE au chargement
         from laya import Router
 
-        router = Router()
+        router = Router(models=model_store.laya_models())
     except Exception as error:  # noqa: BLE001 - l'appelant se replie sur la regex
         report["errors"].append(f"Laya indisponible : {type(error).__name__}: {str(error)[:300]}")
         print(json.dumps(report, ensure_ascii=False))

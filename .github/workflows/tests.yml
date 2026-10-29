@@ -55,6 +55,8 @@ jobs:
           key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
       - name: Sources épinglées des modèles locaux
         run: uv run scripts/pin_model.py --check
+      - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
+        run: uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
       - name: Justesse de Laya sur les exigences

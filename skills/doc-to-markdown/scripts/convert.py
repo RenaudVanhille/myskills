@@ -244,10 +244,23 @@ DOCLING_GUARDED = (
 BLOCKED_LINE = re.compile(r"^MYSKILLS_BLOCKED (.+)$", re.M)
 
 
+# Version de Docling épinglée : ses modèles (DOCLING_MODELS) sont épinglés pour elle.
+DOCLING_VERSION = "2.144.0"
+# Dossier attendu par Docling (--artifacts-path) -> modèle de model-sources.json.
+DOCLING_MODELS = {"docling-project--docling-layout-heron": "docling-layout-heron",
+                  "docling-project--docling-models": "docling-tableformer"}
+
+
+def docling_artifacts() -> Path:
+    """Modèles de Docling depuis le cache vérifié : rien ne se télécharge pendant
+    le run (model_store.ModelError s'il en manque un)."""
+    return model_store.linked_tree("docling", DOCLING_MODELS)
+
+
 def docling_command() -> tuple[list[str] | None, bool]:
     """Commande Docling, et si ses flux réseau sont filtrés (uvx) ou non (docling installé seul)."""
     if shutil.which("uvx"):
-        return ["uvx", "--from", "docling", "python", "-c", DOCLING_GUARDED, str(LIB)], True
+        return ["uvx", "--from", f"docling=={DOCLING_VERSION}", "python", "-c", DOCLING_GUARDED, str(LIB)], True
     if shutil.which("docling"):
         return ["docling"], False
     return None, False
@@ -284,12 +297,18 @@ def run_docling(path: Path, attachments: Path, stem: str, warnings: list[str]) -
     command, guarded = docling_command()
     if command is None:
         raise RuntimeError("Docling introuvable : installez uv (uvx), ou Docling (uv tool install docling).")
+    try:
+        artifacts = docling_artifacts()
+    except model_store.ModelError as error:
+        raise RuntimeError(f"Docling : {error}") from error
     if not guarded:
         warnings.append("Docling lancé sans filtre des flux réseau (uvx absent)")
     with tempfile.TemporaryDirectory() as tmp:
-        env = {**os.environ, "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
+        env = {**os.environ, "HF_HUB_DISABLE_TELEMETRY": "1", "DO_NOT_TRACK": "1",
+               "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"}
         done = subprocess.run(command + [str(path), "--to", "md", "--image-export-mode",
-                                         "referenced", *docling_ocr_args(), "--output", tmp],
+                                         "referenced", *docling_ocr_args(), "--artifacts-path", str(artifacts),
+                                         "--output", tmp],
                               capture_output=True, text=True, encoding="utf-8", env=env)
         for line in BLOCKED_LINE.findall(done.stderr or ""):
             warnings.append(f"Flux non identifiés refusés (Docling) : {line.strip()}")

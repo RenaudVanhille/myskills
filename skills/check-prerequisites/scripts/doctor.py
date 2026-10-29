@@ -16,11 +16,13 @@ Code de sortie : 0 si tous les outils obligatoires sont présents, 1 sinon
 --prefetch télécharge dans le cache les bibliothèques JavaScript des rendus
 (Mermaid, Excalidraw), à version fixée, et vérifie leur empreinte : la
 machine peut ensuite travailler hors ligne (MYSKILLS_OFFLINE=1). Avec le
-groupe video (ou tout), il télécharge aussi les modèles locaux de
-model-sources.json, seulement depuis leur source épinglée, et vérifie
+groupe extraction (Docling : mise en page et tableaux ; Laya), video
+(Whisper) ou tout, il télécharge aussi les modèles locaux du groupe,
+seulement depuis leur source épinglée dans model-sources.json, et vérifie
 l'empreinte SHA-256 de chaque fichier. --models-from DOSSIER les copie
-depuis un dossier (machine sans accès à la source), avec la même
-vérification.
+depuis un dossier (machine sans accès à la source, copie du cache), avec la
+même vérification. Un run ne télécharge aucun modèle : il le lit dans ce
+cache, ou s'arrête en donnant cette commande.
 """
 
 import json
@@ -33,8 +35,18 @@ import external_skill  # noqa: E402
 import local_tools  # noqa: E402
 import model_store  # noqa: E402
 
-# Modèles locaux préchargés par groupe (identifiants de model-sources.json).
-GROUP_MODELS = {"video": ["whisper-small"]}
+# Modèles locaux préchargés par groupe (identifiants de model-sources.json) : un
+# run n'en télécharge aucun, il les lit dans le cache vérifié.
+GROUP_MODELS = {"extraction": ["docling-layout-heron", "docling-tableformer", "laya"],
+                "video": ["whisper-small"]}
+MODEL_USES = {"docling-layout-heron": "Docling, mise en page des PDF", "docling-tableformer": "Docling, tableaux",
+              "laya": "tri des documents par Laya, --classify", "whisper-small": "transcription locale"}
+
+
+def model_row(model: str, need: str, group: str) -> tuple:
+    return (f"Modèle {model} vérifié dans le cache ({MODEL_USES[model]})", need,
+            lambda: model_known(model) and model_store.local_model(model) is not None,
+            f"uv run scripts/doctor.py {group} --prefetch")
 
 UV = ("uv", "obligatoire", lambda: shutil.which("uv") is not None, "https://docs.astral.sh/uv/")
 # (outil, obligatoire ou facultatif, test, commande ou page d'installation)
@@ -49,13 +61,11 @@ GROUPS = {
          lambda: shutil.which("tesseract") is not None,
          "winget install UB-Mannheim.TesseractOCR | brew install tesseract tesseract-lang | "
          "apt install tesseract-ocr tesseract-ocr-fra"),
+        *(model_row(model, "facultatif", "extraction") for model in GROUP_MODELS["extraction"]),
     ],
     "video": [
         UV,
-        *((f"Modèle {model} vérifié dans le cache (transcription locale)", "obligatoire",
-           lambda model=model: model_known(model) and model_store.local_model(model) is not None,
-           "uv run scripts/doctor.py video --prefetch")
-          for model in GROUP_MODELS["video"]),
+        *(model_row(model, "obligatoire", "video") for model in GROUP_MODELS["video"]),
     ],
     "schemas": [
         UV,
