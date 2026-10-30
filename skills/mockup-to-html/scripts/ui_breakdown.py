@@ -21,7 +21,7 @@ page_build.py) et calcule :
 Écrit <nom>.json (découpage), <nom>.md, <nom>.csv et <nom>.lots.json, que
 `estimate_build.py --draft --frontend` (solution-estimate) reprend.
 
-    uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd]
+    uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material]
         [--rules REGLES.json] [--component ID] | --schema
 """
 
@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 sys.path.insert(0, str(HERE / "targets"))
 import react  # noqa: E402
+import templates  # noqa: E402
 import skill_paths  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
@@ -77,12 +78,23 @@ LIBRARY = {
     "bootstrap": {"button": ".btn", "buttons": ".btn", "card": ".card", "table": ".table", "badge": ".badge",
                   "alert": ".alert", "form": ".form-control", "breadcrumb": "(style propre)", "list": ".list-unstyled",
                   "divider": "hr"},
+    "vue-vuetify": {"header": "v-toolbar", "nav": "v-btn variant=text", "breadcrumb": "v-breadcrumbs", "button": "v-btn",
+                    "buttons": "v-btn", "card": "v-card", "form": "v-form, v-text-field, v-select...",
+                    "table": "v-table", "list": "v-list", "badge": "v-chip", "alert": "v-alert", "tabs": "v-tabs",
+                    "stepper": "v-stepper", "search": "v-text-field", "divider": "v-divider", "image": "v-img",
+                    "row": "v-row / v-col", "grid": "v-row / v-col", "section": "v-container"},
+    "angular-material": {"header": "mat-toolbar", "nav": "mat-button", "button": "mat-flat-button / mat-stroked-button",
+                         "buttons": "mat-button", "card": "mat-card", "form": "mat-form-field, matInput, mat-select...",
+                         "table": "table (mat-table pour les données dynamiques)", "list": "mat-list",
+                         "badge": "mat-chip", "tabs": "mat-tab-group", "stepper": "mat-stepper",
+                         "search": "mat-form-field", "divider": "mat-divider"},
 }
 
 
 def provided(target: str) -> set[str]:
-    if target in react.TARGETS:
-        return set(react.TARGETS[target]["provides"])
+    for family in (react.TARGETS, templates.TARGETS):
+        if target in family:
+            return set(family[target]["provides"])
     if target == "bootstrap":
         return set(json.loads((HERE / "targets" / "bootstrap.json").read_text(encoding="utf-8"))["provides"])
     return set()
@@ -246,7 +258,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("pages", nargs="*", type=Path)
     parser.add_argument("--out", type=Path)
-    parser.add_argument("--target", choices=["html", "bootstrap", *react.TARGETS], default="html")
+    parser.add_argument("--target", choices=["html", "bootstrap", *react.TARGETS, *templates.TARGETS], default="html")
     parser.add_argument("--rules", type=Path)
     parser.add_argument("--component")
     parser.add_argument("--schema", action="store_true")

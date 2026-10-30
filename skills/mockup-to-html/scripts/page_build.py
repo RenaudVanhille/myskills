@@ -44,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "targets"))
 import local_tools  # noqa: E402
 import react  # noqa: E402
+import templates  # noqa: E402
 import skill_paths  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
@@ -88,7 +89,7 @@ VARIANTS = {"button": ["primary", "secondary", "outline", "ghost", "danger"], "n
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 EXTERNAL = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 MOBILE = 390
-TARGET_NAMES = ["html", "bootstrap", "react-mui", "react-antd"]
+TARGET_NAMES = ["html", "bootstrap", *react.TARGETS, *templates.TARGETS]
 SELECTED, STEP = 'aria-selected="true"', ' aria-current="step"'
 
 CSS = """*,*::before,*::after{box-sizing:border-box}
@@ -618,6 +619,24 @@ def write_react(target: str, spec: dict, theme: dict, page: "Page", out_dir: Pat
     return 0
 
 
+def write_templates(target: str, spec: dict, theme: dict, page: "Page", out_dir: Path, stem: str, report: dict) -> int:
+    """Composant Vue (Vuetify) ou Angular (Angular Material) et thème ; gabarit contrôlé, rendu non vérifié."""
+    files, used = templates.files_for(target, spec, theme, stem, page.sources)
+    errors = [f"{file} : {e}" for file, text in files.items() if file.endswith((".vue", ".html"))
+              for e in templates.check_template(text)]
+    if errors:
+        report["errors"] += errors
+        return 1
+    for file, text in files.items():
+        (out_dir / file).write_text(text, encoding="utf-8")
+    report["outputs"] = [str(out_dir / f) for f in files] + [str(a) for a in page.assets]
+    report["library"] = used
+    report["warnings"].append(f"rendu {templates.TARGETS[target]['label']} non vérifié (pas de Node ni de bundler "
+                              "pendant le run) : la page HTML de la même description (--target html) sert de "
+                              "référence visuelle")
+    return 0
+
+
 # --- Rendu et comparaison -----------------------------------------------------------------------------------
 
 def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -> dict:
@@ -783,6 +802,8 @@ def main() -> int:
         return done(1)
     if args.target.startswith("react-"):
         return done(write_react(args.target, spec, theme, page, out_dir, stem, report))
+    if args.target in templates.TARGETS:
+        return done(write_templates(args.target, spec, theme, page, out_dir, stem, report))
     if args.target == "bootstrap":
         try:
             markup, css = bootstrap(markup, css, out_dir, report)

@@ -11,25 +11,25 @@
     "<nom>.css : variables CSS des tokens puis styles des composants",
     "assets/ : zones découpées dans la maquette (logos, photos, illustrations)",
     "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte",
-    "Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target bootstrap : vendor/bootstrap-<version>.min.css",
+    "Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css",
     "decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate"
   ],
   "scripts": [
     {
       "name": "page_build.py",
-      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé, rendu non vérifié, la cible HTML sert de référence).",
-      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd] [--no-render] [--min-similarity 0.6] | --schema",
+      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence.",
+      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--no-render] [--min-similarity 0.6] | --schema",
       "options": {
         "PAGE.json": "description de la page",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-        "--target": "html (défaut) ; bootstrap ; react-mui, react-antd (<Nom>Page.tsx, theme.ts, App.tsx)",
+        "--target": "html (défaut) ; bootstrap ; react-mui, react-antd (<Nom>Page.tsx, theme.ts, App.tsx) ; vue-vuetify (<Nom>Page.vue, vuetify.ts) ; angular-material (composant autonome, styles.scss)",
         "--no-render": "sans rendu ni comparaison (page non vérifiée, signalé)",
         "--min-similarity": "similarité en dessous de laquelle la page est signalée (défaut 0.6)",
         "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
       },
       "exit_codes": {
         "0": "page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur)",
-        "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX mal formé ; aucun fichier produit"
+        "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX ou gabarit mal formé ; aucun fichier produit"
       },
       "input": {
         "format": "json",
@@ -516,7 +516,9 @@
                 "html",
                 "bootstrap",
                 "react-mui",
-                "react-antd"
+                "react-antd",
+                "vue-vuetify",
+                "angular-material"
               ]
             },
             "library": {
@@ -524,7 +526,7 @@
               "items": {
                 "type": "string"
               },
-              "description": "composants de la bibliothèque React employés"
+              "description": "composants de la bibliothèque employés (React, Vue ou Angular)"
             },
             "outputs": {
               "type": "array",
@@ -621,7 +623,7 @@
     {
       "name": "ui_breakdown.py",
       "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables.",
-      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd] [--rules REGLES.json] [--component ID] | --schema",
+      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--rules REGLES.json] [--component ID] | --schema",
       "options": {
         "PAGE": "descriptions de pages de page_build.py",
         "--out": "chemin des fichiers produits, sans extension (défaut : decoupage à côté de la première page)",

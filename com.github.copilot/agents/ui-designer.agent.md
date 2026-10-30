@@ -1,6 +1,6 @@
 ---
 name: ui-designer
-description: "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React MUI ou Ant Design sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend. Adapte l'effort de chaque action pour limiter les coûts."
+description: "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material) sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend. Adapte l'effort de chaque action pour limiter les coûts."
 tools: ['read', 'edit', 'execute', 'agent']
 model: ['Claude Opus 5.5', 'GPT-6.1 Sol']
 ---
@@ -71,9 +71,11 @@ workflow, la commande les trace aussi au journal.
    en parallèle, avec seulement l'image, le fichier de tokens et les
    sections 2 et 3 du skill. Sous la similarité minimale, regarde une fois
    `<écran>.compare.png`, corrige, deux reprises au plus.
-5. Bibliothèque demandée (Bootstrap, MUI, Ant Design) : relance
+5. Bibliothèque ou framework demandé (Bootstrap ; React avec MUI ou Ant
+   Design ; Vue avec Vuetify ; Angular avec Angular Material) : relance
    `page_build.py --target` sur les mêmes descriptions, sans les réécrire ;
-   pour React, garde la cible html comme référence visuelle.
+   pour React, Vue et Angular, garde la cible html comme référence
+   visuelle.
 6. Découpage ou chiffrage frontend demandé : `ui_breakdown.py` sur toutes
    les descriptions, avec `--target` et `--component` (composant web de
    l'option, s'il y en a une). Dis que les charges viennent d'abaques.

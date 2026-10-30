@@ -55,6 +55,7 @@
     {"prompt": "Aide-moi à définir un design system à partir de ces maquettes : couleurs, typographie, espacements.", "skill": "design-system"},
     {"prompt": "Vérifie l'accessibilité des couleurs de notre charte et donne-moi les design tokens.", "skill": "design-system"},
     {"prompt": "Découpe ces écrans en composants React MUI et estime la charge du front.", "skill": "mockup-to-html"},
+    {"prompt": "Génère ces maquettes en Angular Material, et aussi en Vue avec Vuetify.", "skill": "mockup-to-html"},
     {"prompt": "Voici le design system du client en tokens JSON : reprends-le pour nos maquettes.", "skill": "design-system"}
   ]
 }
