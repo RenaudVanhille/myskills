@@ -1,0 +1,50 @@
+{
+  "title": "Suivi des sinistres",
+  "tokens": "design-system.json",
+  "body": [
+    {"type": "header", "text": "Assur'Plus", "items": [{"text": "Mes contrats", "href": "#contrats"}, {"text": "Mes sinistres", "active": true}, "Aide"], "actions": ["Se connecter", {"text": "Déclarer", "variant": "secondary"}]},
+    {"type": "section", "children": [
+      {"type": "breadcrumb", "items": ["Accueil", "Mes sinistres", "Dossier S-2026-042"]},
+      {"type": "heading", "level": 1, "text": "Dossier S-2026-042"},
+      {"type": "stepper", "items": ["Déclaration", "Expertise", "Indemnisation", "Clôture"], "current": 2},
+      {"type": "alert", "variant": "warning", "title": "Pièce manquante", "text": "Ajoutez la facture de réparation."},
+      {"type": "row", "columns": [2, 1], "gap": "xl", "valign": "start", "children": [
+        {"type": "stack", "gap": "lg", "children": [
+          {"type": "tabs", "items": ["Détails", "Documents", "Historique"], "current": 1},
+          {"type": "form", "title": "Compléter la déclaration", "columns": 2, "submit": "Envoyer", "fields": [
+            {"label": "Date du sinistre", "type": "date", "required": true},
+            {"label": "Type", "type": "select", "options": ["Auto", "Habitation", "Santé"]},
+            {"label": "Montant estimé", "type": "number"},
+            {"label": "Courriel", "type": "email", "placeholder": "nom@exemple.fr"},
+            {"label": "Mot de passe", "type": "password"},
+            {"label": "Facture", "type": "file"},
+            {"label": "Circonstances", "type": "textarea", "width": "full", "help": "Décrivez les faits en quelques lignes."},
+            {"label": "Tiers impliqué", "type": "radio", "options": ["Oui", "Non"]},
+            {"label": "J'accepte les conditions", "type": "checkbox", "required": true}
+          ]},
+          {"type": "table", "variant": "striped", "headers": ["Date", "Étape", "Statut"], "rows": [["12/10", "Déclaration", "Reçue"], ["15/10", "Expertise", "En cours"]]}
+        ]},
+        {"type": "stack", "children": [
+          {"type": "card", "title": "Votre conseiller", "text": "Camille, du lundi au vendredi.", "actions": [{"text": "Écrire", "variant": "outline"}]},
+          {"type": "grid", "columns": 2, "children": [
+            {"type": "stat", "label": "Montant", "value": "1 240 €", "text": "estimé"},
+            {"type": "stat", "label": "Délai", "value": "12 j"}
+          ]},
+          {"type": "badge", "text": "Prioritaire", "variant": "danger"},
+          {"type": "list", "variant": "check", "items": ["Constat reçu", "Photos reçues"]},
+          {"type": "search", "placeholder": "Rechercher un document", "text": "OK"},
+          {"type": "nav", "variant": "vertical", "items": ["Contrat auto", "Contrat habitation"]},
+          {"type": "link", "text": "Conditions générales", "href": "#cg"},
+          {"type": "divider"},
+          {"type": "image", "alt": "Photo du véhicule", "height": 120},
+          {"type": "box", "width": 48, "height": 8, "background": "secondary", "radius": "full"},
+          {"type": "spacer", "size": "sm"},
+          {"type": "text", "text": "Mis à jour il y a 2 heures.", "muted": true, "size": "sm"},
+          {"type": "buttons", "items": [{"text": "Annuler", "variant": "ghost"}, {"text": "Supprimer", "variant": "danger"}]},
+          {"type": "button", "text": "Télécharger le récapitulatif", "variant": "primary", "size": "lg"}
+        ]}
+      ]}
+    ]},
+    {"type": "footer", "groups": [{"title": "Aide", "items": ["FAQ", "Contact"]}, {"title": "Légal", "items": ["Mentions légales"]}], "text": "© Assur'Plus"}
+  ]
+}

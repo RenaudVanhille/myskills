@@ -4,12 +4,14 @@
   "receives": [
     "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
     "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
-    "Le dossier de sortie et ce que l'utilisateur attend : pages HTML, design system, ou les deux"
+    "Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend"
   ],
   "produces": [
     "design-system.json, .css, .tokens.json, .md : tokens du design system, contrôlés (contrastes WCAG), et leur documentation",
     "design-system.styleguide.html : page de référence des couleurs, de la typographie, des espacements et des composants",
-    "<écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png)"
+    "<écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png)",
+    "Sur demande : la page en Bootstrap (rendue et comparée) ou en React MUI / Ant Design (<Nom>Page.tsx, theme.ts, App.tsx)",
+    "Sur demande : decoupage.md, .json, .csv (composants, motifs répétés, écrans, lots à trois points) et decoupage.lots.json pour le chiffrage"
   ],
   "never": [
     "Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON",
@@ -20,17 +22,36 @@
     {
       "to": "document-extractor",
       "when": "les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images",
-      "send": ["le document", "le dossier où ranger les images"]
+      "send": [
+        "le document",
+        "le dossier où ranger les images"
+      ]
+    },
+    {
+      "to": "solution-estimator",
+      "when": "un chiffrage complet est demandé : reprendre les lots frontend",
+      "send": [
+        "decoupage.lots.json",
+        "options.json et exigences.json s'ils existent",
+        "le composant web de l'option"
+      ]
     },
     {
       "to": "document-publisher",
       "when": "la documentation du design system doit être livrée en Word, HTML ou XWiki",
-      "send": ["design-system.md", "l'outil cible"]
+      "send": [
+        "design-system.md",
+        "l'outil cible"
+      ]
     },
     {
       "to": "architecture-workflow",
       "when": "les maquettes sont traitées pour une avant-vente en cours : rendre la main au workflow",
-      "send": ["les pages et le design system produits", "les écarts restants (similarité, accessibilité)", "le dossier du workflow"]
+      "send": [
+        "les pages et le design system produits",
+        "les écarts restants (similarité, accessibilité)",
+        "le dossier du workflow"
+      ]
     }
   ]
 }

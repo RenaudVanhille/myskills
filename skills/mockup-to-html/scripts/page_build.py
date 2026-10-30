@@ -23,7 +23,12 @@ avec une maquette, <nom>.compare.png (maquette, rendu, écarts côte à côte) :
 le modèle ne regarde que cette image, et seulement si la similarité est
 faible.
 
-    uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--no-render] [--min-similarity 0.6] | --schema
+Cibles (--target) : html (défaut), bootstrap (classes et thème Bootstrap, rendu et
+comparé de même), react-mui et react-antd (page TSX, thème tiré des tokens et
+App ; JSX contrôlé, rendu non vérifié : la cible html sert de référence).
+
+    uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd]
+        [--no-render] [--min-similarity 0.6] | --schema
 """
 
 import argparse
@@ -36,7 +41,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "targets"))
 import local_tools  # noqa: E402
+import react  # noqa: E402
 import skill_paths  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
@@ -81,6 +88,7 @@ VARIANTS = {"button": ["primary", "secondary", "outline", "ghost", "danger"], "n
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 EXTERNAL = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 MOBILE = 390
+TARGET_NAMES = ["html", "bootstrap", "react-mui", "react-antd"]
 SELECTED, STEP = 'aria-selected="true"', ' aria-current="step"'
 
 CSS = """*,*::before,*::after{box-sizing:border-box}
@@ -121,6 +129,8 @@ p{margin:0}img{display:block;max-width:100%}a{color:var(--color-primary)}
 .c-field>label{font-weight:600;font-size:var(--text-sm)}
 .c-field--check{flex-direction:row;align-items:center;gap:var(--space-sm)}.c-field--check>label{font-weight:400;font-size:var(--text-md)}
 .c-field__help{font-size:var(--text-sm);color:var(--color-muted)}
+fieldset.c-field{border:0;padding:0;margin:0;min-width:0}fieldset.c-field>legend{float:none;font-weight:600;font-size:var(--text-sm);line-height:inherit;padding:0;margin:0 0 var(--space-xs)}
+fieldset.c-field>label{display:inline-flex;align-items:center;gap:.375em;margin-right:var(--space-md)}
 input,select,textarea{font:inherit;padding:.625em .75em;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-background);color:inherit;width:100%}
 input[type=checkbox],input[type=radio]{width:auto}
 .c-table{width:100%;border-collapse:collapse}
@@ -167,6 +177,7 @@ class Page:
         self.headings: list[tuple[int, str]] = []
         self.count = 0
         self.fields = 0
+        self.sources: dict[int, str] = {}  # image locale de chaque nœud (cibles React)
 
     # --- tokens
     def token(self, where: str, kind: str, value, extra=()):
@@ -248,8 +259,8 @@ class Page:
     def link(self, item: dict) -> str:
         return html.escape(item.get("href", "#"), quote=True)
 
-    def image(self, node: dict, where: str, css: str = "c-image") -> str:
-        alt = node.get("alt")
+    def image(self, node: dict, where: str, css: str = "c-image", default_alt: str | None = None) -> str:
+        alt = node.get("alt", default_alt)
         if alt is None:
             self.warnings.append(f"{where} : image sans texte alternatif (alt, \"\" si décorative)")
         source = None
@@ -263,6 +274,7 @@ class Page:
             value = self.token(f"{where}/radius", "radius", radius)
             height = height[:-1] + f';border-radius:{value}"' if height else f' style="border-radius:{value}"'
         if source:
+            self.sources[id(node)] = source
             return f'<img class="{css}" src="{html.escape(source)}" alt="{html.escape(alt or "")}"{height}>'
         label = html.escape(alt or "Image")
         return f'<div class="{css} c-image--placeholder" role="img" aria-label="{label}"{height}>{label}</div>'
@@ -364,7 +376,7 @@ class Page:
         if kind == "header":
             logo = ""
             if "crop" in node or "src" in node:
-                logo = self.image({**node, "alt": node.get("alt", node.get("text", "Logo"))}, where, "c-header__mark")
+                logo = self.image(node, where, "c-header__mark", node.get("text", "Logo"))
             logo = f'<a class="c-header__logo" href="#">{logo}{e(node.get("text", ""))}</a>'
             nav = f'<nav class="c-nav" aria-label="Navigation principale"><ul>{self.nav_list(node["items"])}</ul></nav>' \
                 if node.get("items") else '<div class="c-nav"></div>'
@@ -453,12 +465,12 @@ class Page:
             extra = {} if variant == "neutral" else {
                 "color": f"var(--color-{variant})", "border-color": f"var(--color-{variant})",
                 "background": f"color-mix(in srgb,var(--color-{variant}) 12%,var(--color-background))"}
-            return f'<span{self.attrs(node, where, "c-badge", extra=extra)}>{e(node["text"])}</span>'
+            return f'<span{self.attrs(node, where, "c-badge", f"c-badge--{variant}", extra=extra)}>{e(node["text"])}</span>'
         if kind == "alert":
             variant = node.get("variant", "info")
             title = f"<strong>{e(node['title'])}</strong>" if node.get("title") else ""
             role = "alert" if variant in ("danger", "warning") else "status"
-            return (f'<div{self.attrs(node, where, "c-alert", extra={"--tone": f"var(--color-{variant})"})} role="{role}">'
+            return (f'<div{self.attrs(node, where, "c-alert", f"c-alert--{variant}", extra={"--tone": f"var(--color-{variant})"})} role="{role}">'
                     f'{title}{"<p>" + e(node["text"]) + "</p>" if node.get("text") else ""}</div>')
         if kind == "tabs":
             return (f'<div{self.attrs(node, where, "c-tabs")}><ul role="tablist">'
@@ -475,7 +487,7 @@ class Page:
                     f'<span class="c-stat__value">{e(node["value"])}</span>{delta}</div>')
         if kind == "search":
             label = e(node.get("placeholder", "Rechercher"))
-            return (f'<form{self.attrs(node, where, "c-search")} role="search"><input type="search" '
+            return (f'<form{self.attrs(node, where, "c-search")} role="search"><input class="c-input" type="search" '
                     f'aria-label="{label}" placeholder="{label}"><button class="c-button c-button--primary" '
                     f'type="submit">{e(node.get("text", "Rechercher"))}</button></form>')
         if kind == "divider":
@@ -507,7 +519,7 @@ class Page:
         if kind in ("select", "radio") and not field.get("options"):
             self.errors.append(f"{where} : options manquantes pour un champ {kind}")
         if kind == "checkbox":
-            return (f'<div class="c-field c-field--check{full}"><input type="checkbox" id="{ident}"{required}>'
+            return (f'<div class="c-field c-field--check{full}"><input class="c-check" type="checkbox" id="{ident}"{required}>'
                     f'<label for="{ident}">{e(field["label"])}{star}</label>{help_}</div>')
         if kind == "radio":
             options = "".join(f'<label><input type="radio" name="{ident}" value="{e(o)}"> {e(o)}</label>'
@@ -516,11 +528,11 @@ class Page:
                     f'{options}{help_}</fieldset>')
         if kind == "select":
             options = "".join(f"<option>{e(o)}</option>" for o in field.get("options", []))
-            control = f'<select id="{ident}"{required}>{options}</select>'
+            control = f'<select class="c-select" id="{ident}"{required}>{options}</select>'
         elif kind == "textarea":
-            control = f'<textarea id="{ident}" rows="4"{placeholder}{required}></textarea>'
+            control = f'<textarea class="c-input" id="{ident}" rows="4"{placeholder}{required}></textarea>'
         else:
-            control = f'<input type="{kind}" id="{ident}"{placeholder}{required}>'
+            control = f'<input class="c-input" type="{kind}" id="{ident}"{placeholder}{required}>'
         return f'<div class="c-field{full}"><label for="{ident}">{e(field["label"])}{star}</label>{control}{help_}</div>'
 
     def build(self) -> tuple[str, str]:
@@ -561,6 +573,49 @@ class Page:
         for (before, _), (level, where) in zip(self.headings, self.headings[1:]):
             if level > before + 1:
                 self.warnings.append(f"{where} : titre de niveau {level} après un niveau {before} (niveau sauté)")
+
+
+# --- Cibles : Bootstrap (classes et thème), React (MUI, Ant Design) ------------------------------------
+
+TARGETS_DIR = Path(__file__).resolve().parent / "targets"
+
+
+def bootstrap(markup: str, css: str, out_dir: Path, report: dict) -> tuple[str, str]:
+    """Classes des composants remplacées par celles de Bootstrap ; feuille de Bootstrap (version fixée, empreinte
+    vérifiée, cache local) copiée dans vendor/ ; thème Bootstrap tiré des tokens."""
+    target = json.loads((TARGETS_DIR / "bootstrap.json").read_text(encoding="utf-8"))
+    package = local_tools.npm_package(target["package"])
+    version, entry, _ = local_tools.PACKAGES[target["package"]]
+    vendor = out_dir / "vendor" / f"bootstrap-{version}.min.css"
+    vendor.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(package / entry, vendor)
+    report["outputs"].append(str(vendor))
+    classes = target["classes"]
+
+    def swap(match):
+        names = [n for c in match.group(1).split() for n in (classes[c].split() if c in classes else [c])]
+        return f'class="{" ".join(names)}"'
+    markup = re.sub(r'class="([^"]*)"', swap, markup)
+    markup = markup.replace('<link rel="stylesheet" href=', f'<link rel="stylesheet" href="vendor/{vendor.name}">\n'
+                                                         '<link rel="stylesheet" href=', 1)
+    return markup, css + "/* Thème Bootstrap tiré des tokens (targets/bootstrap.json). */\n" + "\n".join(target["css"]) + "\n"
+
+
+def write_react(target: str, spec: dict, theme: dict, page: "Page", out_dir: Path, stem: str, report: dict) -> int:
+    """Page TSX, thème et App pour MUI ou Ant Design ; JSX contrôlé (balises, imports), rendu non vérifié."""
+    name, code, used = react.page_file(target, spec, theme, stem, page.sources)
+    errors = react.check_jsx(code, used)
+    if errors:
+        report["errors"] += [f"{name}.tsx : {e}" for e in errors]
+        return 1
+    files = {f"{name}.tsx": code, "theme.ts": react.theme_file(target, theme), "App.tsx": react.app_file(target, name)}
+    for file, text in files.items():
+        (out_dir / file).write_text(text, encoding="utf-8")
+    report["outputs"] = [str(out_dir / f) for f in files] + [str(a) for a in page.assets]
+    report["library"] = used
+    report["warnings"].append(f"rendu {react.TARGETS[target]['label']} non vérifié (pas de Node ni de bundler pendant le "
+                              "run) : la page HTML de la même description (--target html) sert de référence visuelle")
+    return 0
 
 
 # --- Rendu et comparaison -----------------------------------------------------------------------------------
@@ -656,12 +711,13 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path)
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--min-similarity", type=float, default=0.6)
+    parser.add_argument("--target", choices=TARGET_NAMES, default="html")
     parser.add_argument("--schema", action="store_true")
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
-    report = {"input": str(args.spec), "outputs": [], "components": 0, "tokens": None, "rendered": False,
+    report = {"input": str(args.spec), "target": args.target, "outputs": [], "library": [], "components": 0, "tokens": None, "rendered": False,
               "similarity": None, "height_ratio": None, "zones": [], "mobile_overflow": None, "blocked": [],
               "errors": [], "warnings": []}
 
@@ -725,9 +781,18 @@ def main() -> int:
             if asset.parent.name == "assets" and asset.name.startswith(stem + "-"):
                 asset.unlink(missing_ok=True)
         return done(1)
+    if args.target.startswith("react-"):
+        return done(write_react(args.target, spec, theme, page, out_dir, stem, report))
+    if args.target == "bootstrap":
+        try:
+            markup, css = bootstrap(markup, css, out_dir, report)
+        except local_tools.PackageError as error:
+            report["errors"].append(f"Bootstrap : {error}")
+            return done(1)
     (out_dir / f"{stem}.html").write_text(markup, encoding="utf-8")
     (out_dir / f"{stem}.css").write_text(css, encoding="utf-8")
-    report["outputs"] = [str(out_dir / f"{stem}.html"), str(out_dir / f"{stem}.css")] + [str(a) for a in page.assets]
+    report["outputs"] = [str(out_dir / f"{stem}.html"), str(out_dir / f"{stem}.css")] + \
+        [str(a) for a in page.assets] + report["outputs"]
     if args.no_render:
         report["warnings"].append("rendu non vérifié (--no-render)")
         return done(0)

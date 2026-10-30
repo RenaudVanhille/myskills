@@ -10,23 +10,26 @@
     "<nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive",
     "<nom>.css : variables CSS des tokens puis styles des composants",
     "assets/ : zones découpées dans la maquette (logos, photos, illustrations)",
-    "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte"
+    "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte",
+    "Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target bootstrap : vendor/bootstrap-<version>.min.css",
+    "decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate"
   ],
   "scripts": [
     {
       "name": "page_build.py",
-      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile.",
-      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--no-render] [--min-similarity 0.6] | --schema",
+      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé, rendu non vérifié, la cible HTML sert de référence).",
+      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd] [--no-render] [--min-similarity 0.6] | --schema",
       "options": {
         "PAGE.json": "description de la page",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
+        "--target": "html (défaut) ; bootstrap ; react-mui, react-antd (<Nom>Page.tsx, theme.ts, App.tsx)",
         "--no-render": "sans rendu ni comparaison (page non vérifiée, signalé)",
         "--min-similarity": "similarité en dessous de laquelle la page est signalée (défaut 0.6)",
         "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
       },
       "exit_codes": {
         "0": "page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur)",
-        "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent ; aucun fichier produit"
+        "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX mal formé ; aucun fichier produit"
       },
       "input": {
         "format": "json",
@@ -490,7 +493,9 @@
           "additionalProperties": false,
           "required": [
             "input",
+            "target",
             "outputs",
+            "library",
             "components",
             "tokens",
             "rendered",
@@ -505,6 +510,21 @@
           "properties": {
             "input": {
               "type": "string"
+            },
+            "target": {
+              "enum": [
+                "html",
+                "bootstrap",
+                "react-mui",
+                "react-antd"
+              ]
+            },
+            "library": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "composants de la bibliothèque React employés"
             },
             "outputs": {
               "type": "array",
@@ -597,6 +617,283 @@
           }
         }
       }
+    },
+    {
+      "name": "ui_breakdown.py",
+      "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables.",
+      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd] [--rules REGLES.json] [--component ID] | --schema",
+      "options": {
+        "PAGE": "descriptions de pages de page_build.py",
+        "--out": "chemin des fichiers produits, sans extension (défaut : decoupage à côté de la première page)",
+        "--target": "bibliothèque visée : ses composants comptent pour library_factor de l'abaque",
+        "--rules": "règles et abaques propres (fusionnées avec celles par défaut)",
+        "--component": "composant de l'option d'architecture que les lots réalisent (le front web)",
+        "--schema": "affiche le schéma JSON des règles sur une ligne, puis s'arrête"
+      },
+      "exit_codes": {
+        "0": "découpage et lots écrits",
+        "1": "page ou règles invalides, lots hors du schéma de solution-estimate ; aucun fichier produit"
+      },
+      "input": {
+        "format": "json",
+        "description": "Règles et abaques du chiffrage frontend (--rules), facultatives.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Règles du chiffrage frontend, fusionnées avec celles par défaut (seules les clés données changent).",
+          "properties": {
+            "profile": {
+              "type": "string",
+              "minLength": 1,
+              "description": "profil des lots (défaut dev-front), celui des taux du chiffrage"
+            },
+            "days": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "faible": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "[mini, probable, maxi] en jours"
+                },
+                "moyenne": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "[mini, probable, maxi] en jours"
+                },
+                "elevee": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "[mini, probable, maxi] en jours"
+                },
+                "tres-elevee": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "[mini, probable, maxi] en jours"
+                }
+              },
+              "description": "abaque d'un composant réutilisable par complexité (développement, tests, documentation)"
+            },
+            "library_factor": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1,
+              "description": "part de l'abaque pour un composant fourni par la bibliothèque visée (défaut 0.4)"
+            },
+            "types": {
+              "type": "object",
+              "additionalProperties": {
+                "enum": [
+                  "faible",
+                  "moyenne",
+                  "elevee",
+                  "tres-elevee"
+                ]
+              },
+              "description": "complexité de base par type de composant"
+            },
+            "escalate": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "form_fields": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "table_columns": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "variants": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "description": "seuils qui montent la complexité d'un cran"
+            },
+            "layout": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "[mini, probable, maxi] en jours"
+            },
+            "screen": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "base",
+                "per_component"
+              ],
+              "properties": {
+                "base": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "[mini, probable, maxi] en jours"
+                },
+                "per_component": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "description": "intégration d'un écran : base, plus des jours par composant"
+            },
+            "transverse": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "phase"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "phase": {
+                    "enum": [
+                      "cadrage",
+                      "conception",
+                      "realisation",
+                      "integration",
+                      "tests",
+                      "deploiement",
+                      "migration",
+                      "conduite-changement",
+                      "pilotage"
+                    ]
+                  },
+                  "effort": {
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "[mini, probable, maxi] en jours"
+                  },
+                  "per_screen": {
+                    "type": "array",
+                    "items": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "[mini, probable, maxi] en jours"
+                  }
+                }
+              },
+              "description": "lots transverses : charge fixe (effort) ou par écran (per_screen)"
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Écrans, composants, motifs, lots et charge totale à trois points.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inputs",
+            "target",
+            "outputs",
+            "screens",
+            "components",
+            "patterns",
+            "lots",
+            "days",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "target": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "screens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "components": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "patterns": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "lots": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "charge frontend totale [mini, probable, maxi], en jours"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "requires": [
@@ -604,6 +901,12 @@
       "skill": "design-system",
       "script": "ds_build.py",
       "why": "tokens : schéma, valeurs par défaut, couleurs dérivées, variables CSS et contraste"
+    },
+    {
+      "skill": "solution-estimate",
+      "script": "estimate_build.py",
+      "why": "contrôler les lots frontend contre le schéma des lots du chiffrage",
+      "optional": true
     }
   ],
   "handoffs": [
@@ -611,6 +914,11 @@
       "to": "design-system",
       "kind": "skill",
       "when": "les tokens (couleurs, typographie, espacements) ne sont pas encore définis : ds_extract.py --draft depuis les maquettes"
+    },
+    {
+      "to": "solution-estimate",
+      "kind": "skill",
+      "when": "chiffrer le frontend : estimate_build.py --draft --frontend decoupage.lots.json"
     },
     {
       "to": "document-extractor",

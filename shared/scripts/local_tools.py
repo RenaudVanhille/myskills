@@ -26,6 +26,9 @@ PACKAGES = {
                 "sha512-ZudVx73BwrMJfCFmSSJT84y6u5brEoV8DOItdHomNLz32uBjNrelm7mg95X7g+C6UoQH/W6mBLGDEDv73JdxBg=="),
     "@excalidraw/utils": ("0.1.7", "dist/prod/index.js",
                           "sha512-yxIemG1JiR76OOKi1+ILTWPSwZfmyKJR0a9suAh9Tb2tNFjkva5TUBBAy1lymAoLnkib+kO71v4bv6k2mqTZhA=="),
+    # Pages HTML à la charte Bootstrap (mockup-to-html, page_build.py --target bootstrap).
+    "bootstrap": ("5.3.3", "dist/css/bootstrap.min.css",
+                  "sha512-8HLCdWgyoMguSO9o+aH+iuZ+aht+mzW0u3HIMzVu7Srrpv7EBBxTnrFlSCskwdY1+EOFQSm7uMJhNQHkdPcmjg=="),
 }
 
 

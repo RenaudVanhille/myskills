@@ -53,6 +53,7 @@
     {"prompt": "L'appel d'offres contient des maquettes d'écrans en PNG : fais-en des pages HTML.", "skill": "mockup-to-html"},
     {"prompt": "Transforme cette capture d'écran de l'application en page HTML et CSS.", "skill": "mockup-to-html"},
     {"prompt": "Aide-moi à définir un design system à partir de ces maquettes : couleurs, typographie, espacements.", "skill": "design-system"},
-    {"prompt": "Vérifie l'accessibilité des couleurs de notre charte et donne-moi les design tokens.", "skill": "design-system"}
+    {"prompt": "Vérifie l'accessibilité des couleurs de notre charte et donne-moi les design tokens.", "skill": "design-system"},
+    {"prompt": "Découpe ces écrans en composants React MUI et estime la charge du front.", "skill": "mockup-to-html"}
   ]
 }
