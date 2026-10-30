@@ -24,7 +24,8 @@ courante (`entry`), sans autre commande.
 
 Tout fichier généré porte une marque cachée « généré par IA » (règlement
 (UE) 2024/1689, AI Act, article 50), propre à son format. Les scripts des
-skills marquent leurs livrables. Un fichier que vous écrivez vous-même, sans
+skills marquent leurs livrables ; un Markdown porte en plus, sous son
+titre, la mention visible « Document généré par IA ». Un fichier que vous écrivez vous-même, sans
 script (note, page, code), se marque avant le rapport final ; jamais un
 fichier fourni par l'utilisateur :
 

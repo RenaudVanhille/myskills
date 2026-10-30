@@ -466,7 +466,9 @@ celles qui sont mécaniques (cas `regles`).
 - Transparence (AI Act, art. 50) : chaque fichier généré par un skill ou un
   agent porte une marque cachée « généré par IA » propre à son format
   (frontmatter `genere-par-ia: true`, meta HTML, commentaire, propriétés
-  Word, PowerPoint et Excel, métadonnées PNG avec le type de source IPTC).
+  Word, PowerPoint et Excel, métadonnées PNG avec le type de source IPTC) ;
+  un Markdown porte en plus, sous son titre, la mention visible « Document
+  généré par IA : à relire et valider avant tout usage ».
   Un fichier fourni par l'utilisateur n'est jamais marqué ; son export ne
   l'est pas non plus.
 - Sobriété en tokens : ce qui est mécanique (nettoyage, styles, rendu, validation)

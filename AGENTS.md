@@ -64,7 +64,8 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 - **Marque IA** (règlement (UE) 2024/1689, AI Act, art. 50) : tout fichier
   généré par un skill ou un agent porte une marque cachée « généré par IA »
   propre à son format (frontmatter, meta HTML, commentaire, attributs
-  draw.io, chunk PNG, propriétés Office), posée par `scripts/lib/ai_mark.py`
+  draw.io, chunk PNG, propriétés Office) et, dans un Markdown, une mention
+  visible « Document généré par IA » sous le titre, posées par `scripts/lib/ai_mark.py`
   (copie de `shared/scripts/ai_mark.py` faite par `build.py` pour tout skill
   qui l'importe) : `ai_mark.write_text` à l'écriture, `ai_mark.mark` pour un
   fichier écrit par un outil. Jamais sur un fichier fourni par l'utilisateur
