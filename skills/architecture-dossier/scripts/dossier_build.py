@@ -248,7 +248,7 @@ def main() -> int:
             elif kind == "files":
                 body.append(f"- [{piece.relative_to(folder).as_posix()}]({rel})")
             else:
-                text, piece_title = demote(piece.read_text(encoding="utf-8"), 2 if len(pieces) > 1 else 1)
+                text, piece_title = demote(ai_mark.strip(piece.read_text(encoding="utf-8")), 2 if len(pieces) > 1 else 1)
                 if len(pieces) > 1:
                     body += [f"### {piece_title or piece.stem}", ""]
                 body += [relink(text, piece.resolve(), out_dir), ""]

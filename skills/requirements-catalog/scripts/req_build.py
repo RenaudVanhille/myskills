@@ -119,7 +119,9 @@ def glossary_refs(spec: dict) -> dict[str, list[str]]:
 
 
 def load_sources(folder: Path) -> dict[str, list[str]]:
-    return {path.relative_to(folder).as_posix(): path.read_text(encoding="utf-8", errors="replace").splitlines()
+    # Sans la mention « généré par IA » (lignes gardées) : ni citée ni lue par un modèle.
+    return {path.relative_to(folder).as_posix():
+            ai_mark.strip(path.read_text(encoding="utf-8", errors="replace")).splitlines()
             for path in sorted(folder.rglob("*.md")) if ".myskills-tmp" not in path.parts}
 
 

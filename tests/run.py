@@ -208,6 +208,9 @@ def check_marks(case: dict, out: Path, provided: set[Path], failures: list[str])
                 failures.append(f"fichier fourni marqué généré par IA : {rel}")
         elif not ai_mark.is_marked(path):
             failures.append(f"livrable sans marque « généré par IA » : {rel}")
+        elif path.suffix.lower() == ".md" and len(ai_mark.COMMENT.findall(path.read_text(encoding="utf-8"))) > 1:
+            # Un Markdown recopié dans un autre passe par ai_mark.strip : une seule mention par fichier.
+            failures.append(f"mention « généré par IA » répétée (ai_mark.strip manquant ?) : {rel}")
 
 
 def check_outputs(case: dict, out: Path, failures: list[str]) -> None:

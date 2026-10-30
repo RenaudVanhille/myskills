@@ -5,8 +5,8 @@ d'IA soient marqués de façon lisible par une machine. Chaque script marque les
 livrables qu'il écrit, jamais un fichier fourni par l'utilisateur : la marque
 est invisible au rendu et propre à chaque format.
 
-    .md            frontmatter genere-par-ia: true (et generateur), sinon commentaire HTML en tête,
-                   plus une mention visible « Document généré par IA » sous le titre
+    .md            commentaire HTML en tête (après le frontmatter), invisible au rendu ;
+                   strip() l'ôte de ce qu'un script passe à un modèle
     .html .htm     <meta name="genere-par-ia"> dans <head>, sinon commentaire
     .svg .xml .vue commentaire XML ; .drawio : attributs de <mxfile>
     .yaml .mmd .c4 .likec4 .css .scss .js .jsx .ts .tsx : commentaire de leur syntaxe
@@ -19,6 +19,7 @@ supported() le dit. Marquer est idempotent.
 
     ai_mark.write_text(chemin, texte)   écrit le texte marqué (UTF-8)
     ai_mark.marked(texte, suffixe)      texte marqué, sans écrire
+    ai_mark.strip(texte)                texte sans la mention (lu par un modèle, recopié ailleurs)
     ai_mark.mark(chemin)                marque un fichier déjà écrit (outil externe, binaire)
     ai_mark.inherit(source, chemins)    export ou conversion : marque si la source la porte
     ai_mark.is_marked(chemin)           le fichier porte-t-il la marque ?
@@ -45,10 +46,7 @@ _here = Path(__file__).resolve().parent
 # Skill qui a écrit le fichier : la copie vit dans skills/<skill>/scripts/lib/.
 GENERATOR = "myskills/" + (_here.parents[1].name if _here.name == "lib" else "myskills")
 LINE = f"{KEY}: true · generateur: {GENERATOR} · {NOTICE}"
-# Mention visible des Markdown, lisible partout (Obsidian, GitHub, Word après export).
-DISCLAIMER = "*Document généré par IA"
-DISCLAIMER_TEXT = (f"> {DISCLAIMER} ({GENERATOR}) : à relire et valider avant tout usage. "
-                   "Mention de transparence, règlement (UE) 2024/1689 (AI Act), article 50.*\n")
+COMMENT = re.compile(rf"<!-- {KEY}: [^\n]*?-->")
 
 COMMENTS = {".svg": ("<!-- ", " -->"), ".xml": ("<!-- ", " -->"), ".vue": ("<!-- ", " -->"),
             ".yaml": ("# ", ""), ".yml": ("# ", ""), ".mmd": ("%% ", ""), ".c4": ("// ", ""),
@@ -74,38 +72,15 @@ def _frontmatter(text: str) -> int:
 
 def _has_mark(text: str, suffix: str) -> bool:
     if suffix in (".md", ".markdown"):
-        end = _frontmatter(text)
-        if end > 0 and re.search(rf"^{KEY}:", text[:end], re.M):
-            return True
+        return KEY in text[:max(_frontmatter(text), 0) + HEAD]
     return KEY in text[:HEAD]
 
 
-def _disclaimer(text: str) -> str:
-    """Mention visible en tête du document : après le titre # s'il ouvre le texte, sinon avant le texte
-    (toujours après le frontmatter et la marque cachée)."""
-    if DISCLAIMER in text:
-        return text
-    end = _frontmatter(text)
-    cut = text.index("\n", end) + 1 if end > 0 and "\n" in text[end:] else 0
-    comment = re.match(r"<!--[^\n]*-->\r?\n", text[cut:])
-    cut += comment.end() if comment else 0
-    blank = re.match(r"(\s*\n)?", text[cut:])
-    first = cut + blank.end()
-    title = re.match(r"# [^\n]*(\n|$)", text[first:])
-    if title:
-        cut = first + title.end()
-        rest = text[cut:]
-        gap = "\n" if rest and not rest.startswith(("\n", "\r\n")) else ""
-        return text[:cut] + ("" if text[cut - 1:cut] == "\n" else "\n") + "\n" + DISCLAIMER_TEXT + gap + rest
-    return text[:cut] + DISCLAIMER_TEXT + "\n" + text[cut:]
-
-
 def marked(text: str, suffix: str) -> str:
-    """Le texte avec la marque de son format ; inchangé s'il la porte déjà ou si le format n'en a pas.
-    Un Markdown reçoit aussi la mention visible (DISCLAIMER), une seule fois."""
+    """Le texte avec la marque de son format ; inchangé s'il la porte déjà ou si le format n'en a pas."""
     suffix = suffix.lower()
     if suffix in (".md", ".markdown"):
-        return _disclaimer(_hidden_md(text))
+        return _hidden_md(text)
     if suffix not in TEXT or _has_mark(text, suffix):
         return text
     comment = f"<!-- {LINE} -->\n"
@@ -142,15 +117,22 @@ def marked(text: str, suffix: str) -> str:
 
 
 def _hidden_md(text: str) -> str:
-    """Marque cachée d'un Markdown : clés du frontmatter, sinon commentaire HTML en tête."""
+    """Mention en commentaire HTML, invisible au rendu (Obsidian, GitHub, pandoc) : en tête, ou juste après
+    le frontmatter, qui doit rester en première ligne."""
     if _has_mark(text, ".md"):
         return text
     end = _frontmatter(text)
     if end < 0:
         return f"<!-- {LINE} -->\n" + text
-    newline = "\r\n" if "\r\n" in text[:end] else "\n"
-    owner = "" if re.search(r"^genere:", text[:end], re.M) else f"generateur: {GENERATOR}{newline}"
-    return text[:end] + f"{KEY}: true{newline}{owner}" + text[end:]
+    close = text.find("\n", end)
+    cut = close + 1 if close >= 0 else len(text)
+    return text[:cut] + ("" if close >= 0 else "\n") + f"<!-- {LINE} -->\n" + text[cut:]
+
+
+def strip(text: str) -> str:
+    """Le texte sans la mention, pour ce qu'un script passe à un modèle ou recopie dans un autre document ;
+    les lignes gardent leur numéro."""
+    return COMMENT.sub("", text)
 
 
 def write_text(path, text: str) -> Path:

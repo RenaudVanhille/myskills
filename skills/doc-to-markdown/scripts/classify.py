@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
 
@@ -86,7 +87,8 @@ def read_start(path: Path) -> tuple[str, dict]:
     """Renvoie le début du texte et, pour un PDF, les pages sans texte."""
     suffix = path.suffix.lower()
     if suffix in TEXT:
-        return path.read_text(encoding="utf-8", errors="replace")[:MAX_CHARS], {}
+        # Sans la mention « généré par IA » : le modèle n'a pas à la lire.
+        return ai_mark.strip(path.read_text(encoding="utf-8", errors="replace"))[:MAX_CHARS], {}
     if suffix in PDF:
         from pypdf import PdfReader
 

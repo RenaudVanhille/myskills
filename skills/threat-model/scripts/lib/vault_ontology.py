@@ -265,9 +265,6 @@ def render(data: dict) -> str:
             lines += [f"{key}:"] + [f"  - {write(v)}" for v in value]
         else:
             lines.append(f"{key}: {write(value)}")
-        if key == "genere" and "genere-par-ia" not in data:
-            # Note écrite par un skill : marque « généré par IA » (AI Act, art. 50), voir ai_mark.py.
-            lines.append("genere-par-ia: true")
     return "\n".join(lines + ["---"]) + "\n"
 
 
@@ -311,7 +308,7 @@ class Notes:
                 if items:
                     kept[name] = items if isinstance(value, list) else items[0]
             self.metas[rel] = meta(self.onto, kind, props, kept, tags, genere=self.genere)
-            # Note générée : mention « Document généré par IA » sous son titre (ai_mark.py).
+            # Note générée : mention « généré par IA » en commentaire, invisible au rendu (ai_mark.py).
             self.texts[rel] = ai_mark.marked(render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n", ".md")
 
     def resolve(self, path: str):

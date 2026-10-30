@@ -11,8 +11,6 @@
     "id": {"type": "string", "minLength": 1, "description": "Identifiant stable dans son workflow ou son référentiel (EF-001, D-003, option-A)."},
     "genere": {"type": "string", "pattern": "^[a-z0-9-]+$", "description": "Skill qui a écrit la note et la réécrit ; absente : note tenue par l'utilisateur, jamais touchée par un script."},
     "ontologie": {"type": "integer", "minimum": 1, "description": "Version de l'ontologie suivie par la note."},
-    "genere-par-ia": {"type": "boolean", "description": "Contenu généré par IA (règlement (UE) 2024/1689, AI Act, art. 50) : posée par le skill qui écrit la note (shared/scripts/ai_mark.py), jamais sur une note de l'utilisateur."},
-    "generateur": {"type": "string", "pattern": "^myskills/[a-z0-9-]+$", "description": "Skill qui a produit un livrable Markdown hors vault (myskills/<skill>), avec genere-par-ia."},
     "tags": {"type": "array", "items": {"type": "string"}},
     "aliases": {"type": "array", "items": {"type": "string"}},
     "source": {"type": "string", "description": "Document ou fichier d'origine."},
