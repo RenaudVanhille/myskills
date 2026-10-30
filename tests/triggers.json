@@ -49,6 +49,13 @@
     {"prompt": "Combien coûterait l'architecture retenue, en jours de réalisation et en infrastructure ?", "skill": "solution-estimate"},
     {"prompt": "Estime le coût total sur trois ans de la solution, maintenance comprise, et dis-moi si on tient le budget.", "skill": "solution-estimate"},
     {"prompt": "Combien coûtera par mois l'hébergement de chaque option chez AWS et chez OVHcloud ?", "skill": "cloud-cost"},
-    {"prompt": "Reprends ce fichier .drawio existant pour y ajouter un service de notification.", "skill": "drawio-diagram"}
+    {"prompt": "Reprends ce fichier .drawio existant pour y ajouter un service de notification.", "skill": "drawio-diagram"},
+    {"prompt": "L'appel d'offres contient des maquettes d'écrans en PNG : fais-en des pages HTML.", "skill": "mockup-to-html"},
+    {"prompt": "Transforme cette capture d'écran de l'application en page HTML et CSS.", "skill": "mockup-to-html"},
+    {"prompt": "Aide-moi à définir un design system à partir de ces maquettes : couleurs, typographie, espacements.", "skill": "design-system"},
+    {"prompt": "Vérifie l'accessibilité des couleurs de notre charte et donne-moi les design tokens.", "skill": "design-system"},
+    {"prompt": "Découpe ces écrans en composants React MUI et estime la charge du front.", "skill": "mockup-to-html"},
+    {"prompt": "Génère ces maquettes en Angular Material, et aussi en Vue avec Vuetify.", "skill": "mockup-to-html"},
+    {"prompt": "Voici le design system du client en tokens JSON : reprends-le pour nos maquettes.", "skill": "design-system"}
   ]
 }

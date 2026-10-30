@@ -42,18 +42,9 @@ from script_report import print_report  # noqa: E402
 
 LIKEC4 = "likec4@1"
 MERMAID_BLOCK = re.compile(r"^```mermaid[ \t]*\n(.*?)^```", re.M | re.S)
-# Pendant un rendu, rien ne doit sortir de la machine : les navigateurs passent
-# par un proxy qui n'existe pas (les fichiers locaux n'en ont pas besoin), ce qui
-# coupe aussi leurs requêtes de fond (mises à jour de composants, pings).
-DEAD_PROXY = "http://127.0.0.1:9"
-QUIET_CHROMIUM = [f"--proxy-server={DEAD_PROXY}", "--proxy-bypass-list=<-loopback>",
-    "--disable-background-networking", "--disable-component-update", "--no-pings",
-    "--disable-domain-reliability", "--no-first-run", "--no-default-browser-check",
-    "--disable-features=OptimizationHints,MediaRouter,Translate,AutofillServerCommunication,"
-    "CertificateTransparencyComponentUpdater",
-]
+DEAD_PROXY = local_tools.DEAD_PROXY
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
-NO_SANDBOX = platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0
+NO_SANDBOX = local_tools.NO_SANDBOX
 
 
 class ExportError(Exception):
@@ -251,18 +242,10 @@ def npm_package(name: str) -> Path:
 
 
 def launch_browser(pw):
-    custom = os.environ.get("MYSKILLS_BROWSER")
-    args = (["--no-sandbox"] if NO_SANDBOX else []) + QUIET_CHROMIUM
-    attempts = [{"executable_path": custom}] if custom else []
-    attempts += [{"channel": "msedge"}, {"channel": "chrome"}, {}]
-    last = None
-    for options in attempts:
-        try:
-            return pw.chromium.launch(args=args, proxy={"server": DEAD_PROXY}, **options)
-        except Exception as error:  # navigateur absent : on essaie le suivant
-            last = error
-    raise ExportError("Aucun navigateur trouvé (Edge, Chrome ou Chromium de Playwright) : "
-                      "lancez `uvx playwright install chromium`. " + str(last).splitlines()[0])
+    try:
+        return local_tools.launch_chromium(pw)
+    except local_tools.PackageError as error:
+        raise ExportError(str(error)) from error
 
 
 @contextmanager

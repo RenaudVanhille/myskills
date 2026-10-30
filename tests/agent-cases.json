@@ -1055,6 +1055,52 @@
         "Elle relève la chaîne synchrone API vente, API compte, service de paiement au moment de la commande.",
         "Elle écrit un scénario pour le pic de la rentrée (5 000 achats par minute) et le juge à risque ou à vérifier."
       ]
+    },
+    {
+      "id": "maquettes-html",
+      "agent": "ui-designer",
+      "prompt": "L'appel d'offres fournit la maquette accueil.png de la page d'accueil. Propose le design system et reproduis la page en HTML dans site/.",
+      "inputs": [
+        {
+          "from": "fixtures/maquettes/accueil.png",
+          "to": "accueil.png"
+        }
+      ],
+      "output": "site/accueil.html",
+      "checks": [
+        {
+          "file": "site/accueil.html",
+          "contains": [
+            "<main>",
+            "Déclarez votre sinistre en ligne",
+            "Mes sinistres"
+          ]
+        },
+        {
+          "file": "site/accueil.json",
+          "json": "body",
+          "min": 3
+        },
+        {
+          "file": "site/design-system.json",
+          "contains": [
+            "#0b3d91"
+          ]
+        },
+        {
+          "file": "site/design-system.md",
+          "contains": [
+            "Contrastes"
+          ]
+        }
+      ],
+      "rubric": [
+        "La page reprend l'en-tête avec le logo, la navigation et le bouton de déclaration.",
+        "Elle reprend le bandeau bleu avec son titre, son sous-titre et le bouton Commencer.",
+        "Elle reprend les trois cartes Auto, Habitation et Santé, puis le pied de page.",
+        "Le design system a le bleu #0b3d91 et l'orange #f97316 de la maquette, et ses contrastes sont contrôlés.",
+        "La réponse donne la similarité avec la maquette, sans recopier le HTML."
+      ]
     }
   ]
 }

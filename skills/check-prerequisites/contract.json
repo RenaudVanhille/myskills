@@ -2,7 +2,7 @@
   "skill": "check-prerequisites",
   "level": "simple",
   "inputs": [
-    "Un groupe : extraction, video, schemas, publication, revue ou tout (défaut)",
+    "Un groupe : extraction, video, schemas, maquettes, publication, revue ou tout (défaut)",
     "Facultatif : --prefetch, pour préparer une machine qui travaillera hors ligne",
     "Facultatif : --models-from DOSSIER, pour copier les modèles locaux depuis un dossier"
   ],
@@ -13,7 +13,7 @@
     {
       "name": "doctor.py",
       "role": "Vérifie les outils locaux et donne la commande d'installation des manquants ; avec --prefetch, remplit le cache des bibliothèques de rendu (version fixée, empreinte vérifiée) pour travailler hors ligne. Avec les groupes extraction (Docling, Laya) et video (Whisper), télécharge aussi les modèles locaux depuis leur source épinglée (model-sources.json) : un run n'en télécharge aucun.",
-      "usage": "uv run scripts/doctor.py [extraction|video|schemas|publication|revue|tout] [--prefetch] [--models-from DOSSIER]",
+      "usage": "uv run scripts/doctor.py [extraction|video|schemas|maquettes|publication|revue|tout] [--prefetch] [--models-from DOSSIER]",
       "report": {
         "format": "json",
         "description": "Un objet : chaque outil avec son statut (ok, manquant, absent pour un facultatif) et sa commande d'installation ; missing liste les obligatoires manquants.",
@@ -50,6 +50,7 @@
                       "extraction",
                       "video",
                       "schemas",
+                      "maquettes",
                       "publication",
                       "revue"
                     ]
@@ -93,7 +94,7 @@
         "1": "au moins un outil obligatoire manque, groupe inconnu, ou préchargement impossible (réseau, empreinte différente)"
       },
       "options": {
-        "GROUPE": "extraction, video, schemas, publication, revue ou tout (défaut)",
+        "GROUPE": "extraction, video, schemas, maquettes, publication, revue ou tout (défaut)",
         "--prefetch": "télécharge Mermaid et Excalidraw dans le cache de myskills et vérifie leur empreinte SHA-512 ; ensuite MYSKILLS_OFFLINE=1 interdit tout téléchargement ; groupes extraction (Docling, Laya) et video (Whisper) : modèles de model-sources.json, depuis leur source épinglée, empreinte SHA-256 vérifiée",
         "--models-from": "copie les modèles depuis ce dossier (copie du cache ou fichiers du modèle) au lieu de la source (mêmes empreintes vérifiées) ; implique --prefetch"
       }

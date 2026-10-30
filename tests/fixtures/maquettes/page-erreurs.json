@@ -1,0 +1,12 @@
+{
+  "title": "Page aux erreurs",
+  "mockup": "accueil.png",
+  "tokens": "design-system.json",
+  "body": [
+    {"type": "heading", "level": 1, "text": "Titre", "fields": [{"label": "x"}]},
+    {"type": "button", "text": "Envoyer", "variant": "primery"},
+    {"type": "image", "src": "https://exemple.fr/logo.png", "alt": "Logo"},
+    {"type": "image", "crop": [1200, 800, 200, 200], "alt": "Photo"},
+    {"type": "section", "background": "primay", "children": [{"type": "text", "text": "Bandeau"}]}
+  ]
+}

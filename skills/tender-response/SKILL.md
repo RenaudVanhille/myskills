@@ -32,6 +32,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Passe la main** au skill `requirements-catalog` : le dépouillement est fait : cataloguer les exigences du cahier des charges.
 - **Passe la main** au skill `architecture-dossier` : assembler le mémoire technique selon les critères (dossier_build.py --template memoire --tender ao.json).
 - **Passe la main** au skill `decision-log` : noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue.
+- **Passe la main** à l'agent `ui-designer` : le dossier de consultation contient des maquettes d'écrans à reproduire en HTML ou un design system à proposer.
 
 ## 1. Dépouiller le dossier de consultation
 

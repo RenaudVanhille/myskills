@@ -48,6 +48,8 @@ def model_row(model: str, need: str, group: str) -> tuple:
             lambda: model_known(model) and model_store.local_model(model) is not None,
             f"uv run scripts/doctor.py {group} --prefetch")
 
+# Bibliothèques des pages HTML (groupe maquettes) ; les autres paquets servent aux schémas.
+MOCKUP_PACKAGES = ["bootstrap"]
 UV = ("uv", "obligatoire", lambda: shutil.which("uv") is not None, "https://docs.astral.sh/uv/")
 # (outil, obligatoire ou facultatif, test, commande ou page d'installation)
 GROUPS = {
@@ -78,7 +80,15 @@ GROUPS = {
          lambda: shutil.which("likec4") is not None, "npm install -g likec4"),
         *((f"{name} {version} dans le cache (rendus hors ligne)", "facultatif",
            lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py --prefetch")
-          for name, (version, _, _) in local_tools.PACKAGES.items()),
+          for name, (version, _, _) in local_tools.PACKAGES.items() if name not in MOCKUP_PACKAGES),
+    ],
+    "maquettes": [
+        UV,
+        ("Navigateur pour Playwright (Edge, Chrome ou Chromium) : rendu et comparaison des pages", "obligatoire",
+         local_tools.browser_available, "uvx playwright install chromium"),
+        *((f"{name} {local_tools.PACKAGES[name][0]} dans le cache (pages Bootstrap hors ligne)", "facultatif",
+           lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py maquettes --prefetch")
+          for name in MOCKUP_PACKAGES),
     ],
     "publication": [
         UV,

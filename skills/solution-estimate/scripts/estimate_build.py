@@ -42,11 +42,12 @@ construire ou à intégrer, avec ses exigences, les lots transverses (cadrage,
 recette, tests de sécurité si des exigences de sécurité existent, mise en
 production, formation), pilotage, provision et run aux valeurs usuelles
 (`_draft` les liste), budget tiré des exigences de coût et lignes
-d'infrastructure de cloud-cost (`--infra <nom>.infra.json`). Le modèle n'y
+d'infrastructure de cloud-cost (`--infra <nom>.infra.json`), lots frontend tirés des
+maquettes (`--frontend`, ui_breakdown.py de mockup-to-html). Le modèle n'y
 écrit que les charges (`effort`, vide dans chaque lot), les taux et ce qu'il
 corrige.
 
-    uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json]
+    uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--frontend decoupage.lots.json]
 
 Avec `--vault`, le chiffrage va aussi dans le vault Obsidian du workflow, selon
 son ontologie : une note chiffrage (coût total, charge, budget, hébergeur ;
@@ -201,7 +202,7 @@ DEFAULTS = {"pilotage": 12, "contingency": 10, "run": 15}
 MONEY = re.compile(r"(\d[\d  .]*)\s*(?:€|euros?|eur)\s*(?:par|/)\s*(mois|an)", re.I)
 
 
-def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dict]) -> dict:
+def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dict], frontend: Path | None = None) -> dict:
     """Écrit le brouillon de chiffrage.json ; rapport court (lots, charges à estimer)."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -220,6 +221,14 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
             lines = json.loads(infra.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
             errors.append(f"--infra : {infra} illisible ({error})")
+    front = {}
+    if frontend:
+        try:
+            front = json.loads(frontend.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"--frontend : {frontend} illisible ({error})")
+    if front and not isinstance(front.get("work"), list):
+        errors.append(f"--frontend : {frontend} sans liste work (<nom>.lots.json de ui_breakdown.py, mockup-to-html)")
     if errors or not option:
         return report
     catalog = [r for r in (cat or {}).get("requirements", []) if r.get("status") != "retiree"]
@@ -231,6 +240,16 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
         work.append({"id": "", "name": f"Intégration avec {comp['label']}" if external else comp["label"],
                      "phase": "integration" if external or comp.get("role") == "queue" else "realisation",
                      "component": comp["id"], "effort": {}})
+    # Lots frontend tirés des maquettes (mockup-to-html) : ils remplacent le lot global de leur composant.
+    if front.get("work"):
+        known = {c["id"] for c in option["components"]}
+        if front.get("component") and front["component"] not in known:
+            errors.append(f"--frontend : composant « {front['component']} » absent de l'option {option['id']} "
+                          f"({', '.join(sorted(known))})")
+            return report
+        work = [w for w in work if not front.get("component") or w.get("component") != front["component"]]
+        work += [{**w, "id": ""} for w in front["work"]]
+        warnings.append(f"--frontend : {len(front['work'])} lots frontend repris avec leurs charges d'abaque, à relire")
     work.append({"id": "", "name": "Cadrage et architecture détaillée", "phase": "cadrage", "effort": {}})
     for rule in rules:
         if rule.get("draft") and applies(rule, catalog, option, bool(lines)):
@@ -261,12 +280,12 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
             refs.append(r["id"])
     if budget:
         spec["budget"] = {**budget, "refs": sorted(set(refs))}
-    invalid = validate({**spec, "work": [{**w, "effort": {"x": 1}} for w in work]}, __file__)
+    invalid = validate({**spec, "work": [{**w, "effort": w["effort"] or {"x": 1}} for w in work]}, __file__)
     if invalid:
         errors.extend(invalid)
         return report
     path.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    report.update(outputs=[str(path)], option=option["id"], lots=len(work), to_estimate=len(work))
+    report.update(outputs=[str(path)], option=option["id"], lots=len(work), to_estimate=sum(1 for w in work if not w["effort"]))
     return report
 
 
@@ -1124,6 +1143,7 @@ def main() -> int:
                         help="écrire le brouillon de la description (lots, transverses, budget), charges à estimer")
     parser.add_argument("--option", help="avec --draft : option à chiffrer (défaut : décision, sinon recommandation)")
     parser.add_argument("--infra", type=Path, help="avec --draft : lignes d'infrastructure de cost_build.py --infra")
+    parser.add_argument("--frontend", type=Path, help="avec --draft : lots frontend de ui_breakdown.py (mockup-to-html)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -1138,7 +1158,7 @@ def main() -> int:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
     if args.draft:
-        report = draft(args.spec, args.option, args.infra, rules)
+        report = draft(args.spec, args.option, args.infra, rules, args.frontend)
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.

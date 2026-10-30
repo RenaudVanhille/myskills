@@ -7,7 +7,7 @@
   "required": ["agent", "status", "files", "tools", "level", "corrections", "todo", "next"],
   "additionalProperties": false,
   "properties": {
-    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator", "orientation"]},
+    "agent": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator", "orientation", "ui-designer"]},
     "status": {"enum": ["ok", "partiel", "echec"], "description": "ok : tout est livré ; partiel : il reste des points dans todo ; echec : rien d'utilisable."},
     "files": {"type": "array", "items": {"type": "string"}, "description": "Fichiers produits."},
     "tools": {"type": "string", "description": "Moteur ou format utilisé, et pourquoi en une phrase."},
