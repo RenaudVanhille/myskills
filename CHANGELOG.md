@@ -1,5 +1,14 @@
 # Journal des versions
 
+## [0.10.0](https://github.com/RenaudVanhille/myskills/compare/v0.9.0...v0.10.0) (2026-10-30)
+
+
+### Ajouts
+
+* **doc-to-markdown:** vidéo en local, modèles et flux réseau limités aux sources identifiées ([#44](https://github.com/RenaudVanhille/myskills/issues/44)) ([b8647e1](https://github.com/RenaudVanhille/myskills/commit/b8647e1d16ffade21b9b6f8024faaba88f7dc0e8))
+* maquettes vers HTML/CSS, Bootstrap, React, Vue ou Angular, design system et chiffrage frontend ([#47](https://github.com/RenaudVanhille/myskills/issues/47)) ([0a045b8](https://github.com/RenaudVanhille/myskills/commit/0a045b8395b3956b09b8a97e4a55b320b773ac08))
+* modèles Docling et Laya préparés avant le run, prérequis et architecture dans le README ([#46](https://github.com/RenaudVanhille/myskills/issues/46)) ([ab8f10f](https://github.com/RenaudVanhille/myskills/commit/ab8f10fc95320aa40b58e56f2e4ff7fc11909542))
+
 ## [0.9.0](https://github.com/RenaudVanhille/myskills/compare/v0.8.0...v0.9.0) (2026-10-28)
 
 
