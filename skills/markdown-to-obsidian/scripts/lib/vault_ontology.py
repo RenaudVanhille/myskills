@@ -263,6 +263,9 @@ def render(data: dict) -> str:
             lines += [f"{key}:"] + [f"  - {write(v)}" for v in value]
         else:
             lines.append(f"{key}: {write(value)}")
+        if key == "genere" and "genere-par-ia" not in data:
+            # Note écrite par un skill : marque « généré par IA » (AI Act, art. 50), voir ai_mark.py.
+            lines.append("genere-par-ia: true")
     return "\n".join(lines + ["---"]) + "\n"
 
 

@@ -40,6 +40,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 import vault_ontology  # noqa: E402
@@ -597,8 +598,7 @@ def main() -> int:
     result = {"input": str(args.spec), "output": None, "providers": sorted(clouds), "scope": args.scope, "rules": len(rules),
               "counts": counts, "findings": findings, "vault": None, "errors": errors, "warnings": warnings}
     if not errors:
-        out.write_text(markdown(str(spec.get("title", "architecture")), findings, clouds, len(rules)),
-                       encoding="utf-8")
+        ai_mark.write_text(out, markdown(str(spec.get("title", "architecture")), findings, clouds, len(rules)))
         result["output"] = str(out)
         if args.vault:
             result["vault"] = write_vault(args.vault, args.folder, spec, findings, clouds, out, args.option, errors)

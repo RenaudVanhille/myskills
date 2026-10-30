@@ -29,6 +29,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import external_skill  # noqa: E402
 from spec_schema import check  # noqa: E402
 
@@ -166,6 +167,7 @@ def main() -> int:
     if report["errors"]:
         out.unlink(missing_ok=True)
         return done(1)
+    ai_mark.inherit(doc, [out])
     report["output"] = str(out)
     return done(0)
 

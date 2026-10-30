@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 STATUS = {"a-traiter": "à traiter", "traitee": "traitée", "acceptee": "acceptée", "ecartee": "écartée"}
@@ -179,7 +180,7 @@ def main() -> int:
     if report["errors"]:
         return stop()
     out = args.out or model_path.with_suffix(".md")
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    ai_mark.write_text(out, "\n".join(lines) + "\n")
     report["output"] = str(out)
     print(json.dumps(report, ensure_ascii=False))
     return 0

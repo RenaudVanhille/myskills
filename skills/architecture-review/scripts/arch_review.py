@@ -54,6 +54,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import external_skill  # noqa: E402
 import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
@@ -1263,8 +1264,7 @@ def main() -> int:
               "cloud": found["cloud"], "vault": None, "errors": errors, "warnings": warnings}
     if not errors:
         out.parent.mkdir(parents=True, exist_ok=True)
-        with open(out, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(markdown(spec, found, verdict))
+        ai_mark.write_text(out, markdown(spec, found, verdict))
         result["output"] = str(out)
         if args.vault:
             result["vault"] = write_vault(args.vault, args.folder, spec, found, verdict, out, errors)

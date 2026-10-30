@@ -22,6 +22,7 @@ Usage :
 import argparse
 import concurrent.futures
 import difflib
+import fnmatch
 import json
 import os
 import re
@@ -85,6 +86,8 @@ print("ok" if not problems else " ; ".join(problems))
 FORBIDDEN_EXTRAS = ("all", "audio-transcription", "az-doc-intel", "youtube-transcription")
 sys.path.insert(0, str(ROOT / "scripts"))
 import contracts_lib  # noqa: E402
+sys.path.insert(0, str(ROOT / "shared" / "scripts"))
+import ai_mark  # noqa: E402
 from jsonschema import Draft202012Validator  # noqa: E402
 from jsonschema.exceptions import best_match  # noqa: E402
 from referencing import Registry, Resource  # noqa: E402
@@ -134,14 +137,16 @@ def lookup(data, dotted: str):
     return data
 
 
-def run_step(step: dict, out: Path, failures: list[str]) -> None:
+def run_step(step: dict, out: Path, failures: list[str], provided: set[Path]) -> None:
     if "copy" in step:  # prépare un fichier ou un dossier de travail : {"copy": [source, destination]}
         source, target = (Path(expand(p, out)) for p in step["copy"])
         target.parent.mkdir(parents=True, exist_ok=True)
         if source.is_dir():
             shutil.copytree(source, target, dirs_exist_ok=True)
+            provided.update(p for p in target.rglob("*") if p.is_file())
         else:
             shutil.copyfile(source, target)
+            provided.add(target)
         return
     script = expand(step["script"], out)
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
@@ -186,6 +191,23 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
             continue
         if text not in json.dumps(got, ensure_ascii=False):
             failures.append(f"{name} : {key} ne contient pas « {text} »")
+
+
+def check_marks(case: dict, out: Path, provided: set[Path], failures: list[str]) -> None:
+    """Chaque livrable écrit par un script porte la marque « généré par IA » de son format (AI Act,
+    art. 50) ; un fichier fourni (copié par le cas) n'en porte jamais. 'sans_marque' : motifs des
+    fichiers produits qui ne sont pas générés (images extraites d'un document, copies du dépôt...)."""
+    for path in sorted(out.rglob("*")):
+        if not path.is_file() or not ai_mark.supported(path):
+            continue
+        rel = path.relative_to(out).as_posix()
+        if any(fnmatch.fnmatch(rel, pattern) for pattern in case.get("sans_marque", [])):
+            continue
+        if path in provided:
+            if path.suffix.lower() in ai_mark.BINARY and ai_mark.is_marked(path):
+                failures.append(f"fichier fourni marqué généré par IA : {rel}")
+        elif not ai_mark.is_marked(path):
+            failures.append(f"livrable sans marque « généré par IA » : {rel}")
 
 
 def check_outputs(case: dict, out: Path, failures: list[str]) -> None:
@@ -570,9 +592,11 @@ def run_case(case: dict, keep: bool) -> dict:
     out = Path(tempfile.mkdtemp(prefix=f"myskills-{case['id']}-"))
     failures: list[str] = []
     try:
+        provided: set[Path] = set()
         for step in case["steps"]:
-            run_step(step, out, failures)
+            run_step(step, out, failures, provided)
         check_outputs(case, out, failures)
+        check_marks(case, out, provided, failures)
     finally:
         if not keep:
             shutil.rmtree(out, ignore_errors=True)

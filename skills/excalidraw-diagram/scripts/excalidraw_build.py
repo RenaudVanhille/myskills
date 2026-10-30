@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import export_image  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
@@ -251,8 +252,7 @@ def main() -> int:
     name = args.spec.name.removesuffix(".json").removesuffix(".diagram")
     out = args.out or args.spec.with_name(name + ".excalidraw")
     if not errors:
-        with open(out, "w", encoding="utf-8", newline="\n") as handle:
-            json.dump(document, handle, ensure_ascii=False, indent=2)
+        ai_mark.write_text(out, json.dumps(document, ensure_ascii=False, indent=2))
     report = {"input": str(args.spec), "output": None if errors else str(out),
               "elements": len(document["elements"]), "errors": errors, "warnings": warnings}
     if args.export and not errors:

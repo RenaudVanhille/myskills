@@ -29,6 +29,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, find_script, load_module  # noqa: E402
 from spec_schema import check, input_schema, validate  # noqa: E402
 
@@ -236,8 +237,7 @@ def main() -> int:
     text, report["sections"], report["images"] = build(args.folder.resolve(), spec, criteria, ranking, catalog,
                                                        out.resolve(), report["warnings"])
     out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    ai_mark.write_text(out, text)
     report.update(output=str(out), decided=(spec.get("decision") or {}).get("option"))
     return done(0)
 

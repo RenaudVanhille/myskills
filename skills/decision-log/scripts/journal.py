@@ -80,6 +80,7 @@ from lib.skill_paths import SKILLS, absent, find_script  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
 from lib import workspace  # noqa: E402  (après vault_sync, qui met lib/ dans le chemin)
+from lib import ai_mark  # noqa: E402
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 
@@ -400,8 +401,7 @@ def save(folder: Path, state: dict) -> None:
     with open(folder / STATE, "w", encoding="utf-8", newline="\n") as handle:
         json.dump(state, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
-    with open(folder / JOURNAL, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render(state))
+    ai_mark.write_text(folder / JOURNAL, render(state))
 
 
 def read_review(note: Path) -> tuple[str | None, str]:

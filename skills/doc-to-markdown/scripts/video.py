@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import model_store  # noqa: E402
 
 NETWORK_WARNINGS: list[str] = []
@@ -151,7 +152,7 @@ def convert(path: Path, out: Path, args) -> dict:
     report["needs_vision"] = bool(frames)
     out.mkdir(parents=True, exist_ok=True)
     target = out / f"{stem}.md"
-    target.write_text(markdown(path, stem, frames, segments, duration, note), encoding="utf-8", newline="\n")
+    ai_mark.write_text(target, markdown(path, stem, frames, segments, duration, note))
     result = check(target, obsidian=False)
     report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
     return report

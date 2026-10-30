@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 PRIORITY = {"haute": "P1", "moyenne": "P2", "basse": "P3",
@@ -205,7 +206,7 @@ def main() -> int:
     base = Path(args.out) if args.out else args.folder / "plan-actions"
     base.parent.mkdir(parents=True, exist_ok=True)
     md, table = base.with_name(base.name + ".md"), base.with_name(base.name + ".csv")
-    md.write_text(render(title, ordered), encoding="utf-8")
+    ai_mark.write_text(md, render(title, ordered))
     with open(table, "w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle, delimiter=";")
         writer.writerow(COLUMNS)

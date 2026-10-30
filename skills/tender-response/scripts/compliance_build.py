@@ -39,6 +39,7 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -318,11 +319,12 @@ def main() -> int:
              + (f" ; taux de conformité {str(report['rate']).replace('.', ',')} %." if report["rate"] is not None else "."),
              "", "| " + " | ".join(HEADER[:6]) + " |", "| " + " | ".join(["---"] * 6) + " |"]
     lines += ["| " + " | ".join(cell(v) for v in row[:6]) + " |" for row in rows[1:]]
-    md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    ai_mark.write_text(md, "\n".join(lines) + "\n")
     # utf-8-sig : Excel sous Windows reconnaît alors les accents.
     with open(csv_path, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(rows)
     write_xlsx(xlsx, rows, statuses)
+    ai_mark.mark(xlsx)
     try:
         read = read_xlsx(xlsx)
     except (zipfile.BadZipFile, ElementTree.ParseError, KeyError) as error:

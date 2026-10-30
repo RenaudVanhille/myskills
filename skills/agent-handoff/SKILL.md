@@ -20,6 +20,23 @@ fautif, la valeur reçue et les valeurs possibles). Dans le dossier d'un
 workflow (`workflow.json`), le message est noté au journal à l'étape
 courante (`entry`), sans autre commande.
 
+## Marquer les fichiers générés
+
+Tout fichier généré porte une marque cachée « généré par IA » (règlement
+(UE) 2024/1689, AI Act, article 50), propre à son format. Les scripts des
+skills marquent leurs livrables. Un fichier que vous écrivez vous-même, sans
+script (note, page, code), se marque avant le rapport final ; jamais un
+fichier fourni par l'utilisateur :
+
+```bash
+uv run scripts/mark_generated.py sortie/synthese.md sortie/page.html
+```
+
+`check_message.py report` signale en avertissement chaque fichier livré
+sans marque. Un export ou une mise en forme d'un fichier de l'utilisateur
+(Word d'un Markdown, PNG d'un schéma) n'est pas marqué : il reprend la
+marque de sa source.
+
 Les champs des deux messages sont dans la section « Contrat » de chaque
 agent ; les schémas qui font foi sont `shared/schemas/handoff.schema.json`
 et `shared/schemas/agent-report.schema.json`. Un nouvel agent n'a rien à
@@ -53,8 +70,9 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Dossier de travail, ou dossier d'un workflow (workflow.json) ; Un message de passage (shared/schemas/handoff.schema.json) ou un rapport final d'agent (shared/schemas/agent-report.schema.json), en JSON ; Pour le routage : la demande de l'utilisateur et les fichiers fournis (route.py).
-- **Sorties** : Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md).
-- **`check_message.py`** : Valide un message de passage ou un rapport final d'agent contre son schéma, vérifie que chaque fichier cité existe et, dans un dossier de workflow, le note au journal (skill decision-log). Rapport JSON, codes de sortie : 0 message conforme, fichiers présents (et tracé au journal s'il y a un workflow) ; 1 message illisible, non conforme à son schéma ou fichier cité introuvable.
+- **Sorties** : Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md) ; Avec mark_generated.py : les fichiers générés cités, marqués « généré par IA » sur place.
+- **`check_message.py`** : Valide un message de passage ou un rapport final d'agent contre son schéma, vérifie que chaque fichier cité existe (et, dans un rapport final, signale un fichier livré sans marque « généré par IA ») et, dans un dossier de workflow, le note au journal (skill decision-log). Rapport JSON, codes de sortie : 0 message conforme, fichiers présents (et tracé au journal s'il y a un workflow) ; 1 message illisible, non conforme à son schéma ou fichier cité introuvable.
+- **`mark_generated.py`** : Marque « généré par IA » (AI Act, art. 50) les fichiers que l'agent écrit lui-même sans script, jamais un fichier fourni par l'utilisateur : marque cachée propre au format (frontmatter, meta HTML, commentaire, chunk PNG, propriétés Office), relue après écriture ; --check vérifie sans écrire. Rapport JSON, codes de sortie : 0 fichiers marqués (ou déjà marqués) ; 1 fichier introuvable, marque impossible ou, avec --check, fichier sans marque.
 - **`route.py`** : Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation ; dans une mission (mission.json), donne sa nature, ses workflows et son vault, et met ses workflows devant. Rapport JSON, codes de sortie : 0 liste rendue (avertissement si aucun mot commun ou égalité en tête) ; 1 ni --query ni --list, ou catalogue de routage illisible.
 - **`route_laya.py`** : Pose au modèle local Laya (CPU, sans service en ligne) la question fermée de route.py --laya : quel candidat traite la demande, d'après les descriptions ; lancé par route.py dans son propre environnement. Rapport JSON, codes de sortie : 0 choix rendu ; 1 description invalide ou Laya indisponible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.

@@ -36,6 +36,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
@@ -195,7 +196,7 @@ def write(spec: dict, plan: list[list[dict]], out_dir: Path, stem: str, warnings
         lines += [f"- {w}" for w in warnings]
     outputs = []
     md = out_dir / f"{stem}.md"
-    md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    ai_mark.write_text(md, "\n".join(lines) + "\n")
     outputs.append(str(md))
     path = out_dir / f"{stem}.csv"
     with open(path, "w", encoding="utf-8", newline="") as handle:

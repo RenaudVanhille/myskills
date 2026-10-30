@@ -19,6 +19,7 @@ from pathlib import Path
 
 LIB = Path(__file__).resolve().parent / "lib"
 sys.path.insert(0, str(LIB))
+import ai_mark  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import check  # noqa: E402
 
@@ -44,6 +45,14 @@ def errors_of(kind: str, message, folder: Path) -> list[str]:
             if not (Path(f).exists() or (folder / f).exists())]
 
 
+def unmarked(files: list[str], folder: Path) -> list[str]:
+    """Fichiers livrés sans la marque « généré par IA » de leur format (AI Act, art. 50)."""
+    found = [Path(f) if Path(f).exists() else folder / f for f in files]
+    return [f"files : {p.name} sans marque « généré par IA » ; s'il est généré (pas fourni par "
+            f"l'utilisateur) : mark_generated.py {p}" for p in found
+            if p.is_file() and ai_mark.supported(p) and not ai_mark.is_marked(p)]
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -65,6 +74,8 @@ def main() -> int:
         report["errors"] += errors_of(args.kind, message, args.folder)
         if isinstance(message, dict) and isinstance(message.get("agent"), str):
             report["agent"] = message["agent"]
+        if args.kind == "report" and not report["errors"]:
+            report["warnings"] += unmarked(message["files"], args.folder)
     # Hors d'un dossier de workflow, rien à tracer : la validation suffit.
     if not report["errors"] and (args.folder / "workflow.json").is_file():
         journal = load_module("decision-log", "journal.py")

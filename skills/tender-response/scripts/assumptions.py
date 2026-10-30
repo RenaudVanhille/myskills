@@ -38,6 +38,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 KINDS = {"HYP": "hypothese", "EXC": "exclusion", "PRE": "prerequis", "QUE": "question"}
@@ -238,7 +239,7 @@ def main() -> int:
              f"{len(open_questions)} question(s) à poser{when}.", ""]
     lines += [f"{n}. {i['text']}{refs(i)}" + (" *(envoyée)*" if i.get("status") == "envoyee" else "")
               for n, i in enumerate(open_questions, 1)] or ["Aucune question en attente."]
-    questions_md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    ai_mark.write_text(questions_md, "\n".join(lines) + "\n")
     register_md = out_dir / f"{args.spec.stem}.md"
     lines = [f"# {spec.get('title') or 'Hypothèses, exclusions et prérequis'}", "",
              f"Fichier généré par `assumptions.py` depuis `{args.spec.name}`, qui fait foi : à reprendre dans l'offre."]
@@ -254,7 +255,7 @@ def main() -> int:
     if unanswered:
         lines += ["", "## Questions restées sans réponse", ""] + [f"- **{i['id']}** {i['text']}{refs(i)}"
                                                                   for i in unanswered]
-    register_md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    ai_mark.write_text(register_md, "\n".join(lines) + "\n")
     register_csv = out_dir / f"{args.spec.stem}.csv"
     with open(register_csv, "w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.writer(handle, delimiter=";")

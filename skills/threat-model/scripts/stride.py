@@ -34,6 +34,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 import vault_ontology  # noqa: E402
@@ -239,7 +240,7 @@ def main() -> int:
     result = {"input": str(args.spec), "output": None, "model": None,
               **{k: v for k, v in report.items() if k != "by_stride"}, "vault": None}
     if not report["errors"]:
-        out.write_text(text, encoding="utf-8")
+        ai_mark.write_text(out, text)
         head = text.split("## Menaces", 1)[0]
         data.write_text(json.dumps({"title": spec.get("title", "architecture"), "head": head, "threats": threats},
                                    ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

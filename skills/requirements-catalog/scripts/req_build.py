@@ -50,6 +50,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import check as check_schema, print_schema, validate  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
@@ -590,8 +591,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
     md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
-    with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, items, ignored, counts.get("glossary")))
+    ai_mark.write_text(md, render_md(spec, items, ignored, counts.get("glossary")))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

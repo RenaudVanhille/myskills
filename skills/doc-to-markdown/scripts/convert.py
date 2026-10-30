@@ -76,6 +76,7 @@ from validate import check
 
 LIB = Path(__file__).resolve().parent / "lib"
 sys.path.insert(0, str(LIB))
+import ai_mark  # noqa: E402
 import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
 
@@ -469,8 +470,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
         report["vision_pages"] = render_pages(path, profile["scanned_pages"],
                                               out / ".myskills-tmp" / f"{stem}-pages")
     out.mkdir(parents=True, exist_ok=True)
-    with open(out / f"{stem}.md", "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(markdown.rstrip() + "\n")
+    ai_mark.write_text(out / f"{stem}.md", markdown.rstrip() + "\n")
     result = check(out / f"{stem}.md", obsidian=False)
     report["validation"] = {key: result[key] for key in ("ok", "errors", "warnings")}
     return report

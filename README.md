@@ -328,7 +328,7 @@ lire par un autre agent ou outil qui appelle myskills.
 | `api-contract` | Contrats d'interface OpenAPI 3.1 et AsyncAPI 3.0 écrits par script depuis une description courte : doublons, types, exigences et composants de l'option contrôlés, exigence sans interface signalée, YAML relu (`api_build.py`) |
 | `architecture-deck` | Présentation du dossier d'architecture assemblée depuis les fichiers validés du workflow, à rendre en PowerPoint par `markdown-publish` |
 | `decision-log` | État d'un workflow à portes de revue (étapes en graphe : les étapes indépendantes se mènent en parallèle, validation par l'utilisateur, retour qui invalide la suite), journal des décisions, workflows décrits en JSON, revue différentielle, retours de revue capitalisés d'une mission à l'autre (`lessons.py` : retours récurrents, règles de complétude proposées puis appliquées sur décision de l'utilisateur), et mémoire partagée dans un vault Obsidian pilotée par la définition (une note par exigence, terme, option, décision et étape, schémas intégrés) |
-| `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow ; liste compacte des agents et workflows classés pour une demande (`route.py`) |
+| `agent-handoff` | Validation des messages de passage et des rapports finaux des agents (schéma, fichiers cités), notés au journal d'un workflow ; liste compacte des agents et workflows classés pour une demande (`route.py`) ; marque « généré par IA » des fichiers écrits par un agent sans script (`mark_generated.py`) |
 | `cloud-architecture` | Architecture cloud AWS, Azure, GCP, Kubernetes aux icônes officielles : déploiement, réseau et matrice des flux, PRA, pipeline data ou CI/CD, vue des menaces ; description tirée de Terraform, CloudFormation, Bicep, docker-compose ou Kubernetes |
 | `threat-model` | Modèle de menaces STRIDE d'une architecture cloud : frontières de confiance, flux qui les traversent, menace et mesure type par catégorie ; flux chiffrés proposés comme traités ; décisions du modèle (règles groupées, mesure retenue, statut, raison) reportées par script depuis un court JSON (`threat_review.py`) |
 | `architecture-review` | Revue d'architecture logicielle ou solution à la manière d'ATAM : arbre d'utilité (scénarios de qualité évalués), risques, sensibilités, compromis, décisions ; structure, traçabilité des exigences et avis calculés par script ; code comparé à l'architecture avec graphify (code analysé en local), y compris plusieurs dépôts (microservices : appels entre services lus dans la configuration et les contrats, base partagée, flux sans trace) ; piliers Well-Architected d'une option cloud ; scénarios attendus selon les exigences (pointe, panne, sinistre, attaque, croissance, incident) ; brouillon des scénarios tiré des exigences (`--draft`) ; principes d'architecture du client tirés de la mission ; revue versée au vault Obsidian (notes typées de l'ontologie) |
@@ -463,6 +463,12 @@ celles qui sont mécaniques (cas `regles`).
   `tests/run.py` valide chaque rapport contre son JSON Schema. On modifie le
   contrat JSON, jamais la section « Contrat » générée.
 - La conversion de documents reste locale, sans service en ligne.
+- Transparence (AI Act, art. 50) : chaque fichier généré par un skill ou un
+  agent porte une marque cachée « généré par IA » propre à son format
+  (frontmatter `genere-par-ia: true`, meta HTML, commentaire, propriétés
+  Word, PowerPoint et Excel, métadonnées PNG avec le type de source IPTC).
+  Un fichier fourni par l'utilisateur n'est jamais marqué ; son export ne
+  l'est pas non plus.
 - Sobriété en tokens : ce qui est mécanique (nettoyage, styles, rendu, validation)
   est fait par un script ; le modèle ne décide que ce qui demande du jugement,
   sur des rapports courts. `tests/cost.py` mesure l'effet de chaque changement.

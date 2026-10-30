@@ -7,12 +7,13 @@
     "Pour le routage : la demande de l'utilisateur et les fichiers fournis (route.py)"
   ],
   "outputs": [
-    "Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md)"
+    "Aucun fichier ; dans un dossier de workflow, une entrée « passage » ou « rapport » au journal (workflow.json, journal.md)",
+    "Avec mark_generated.py : les fichiers générés cités, marqués « généré par IA » sur place"
   ],
   "scripts": [
     {
       "name": "check_message.py",
-      "role": "Valide un message de passage ou un rapport final d'agent contre son schéma, vérifie que chaque fichier cité existe et, dans un dossier de workflow, le note au journal (skill decision-log).",
+      "role": "Valide un message de passage ou un rapport final d'agent contre son schéma, vérifie que chaque fichier cité existe (et, dans un rapport final, signale un fichier livré sans marque « généré par IA ») et, dans un dossier de workflow, le note au journal (skill decision-log).",
       "usage": "uv run scripts/check_message.py handoff|report DOSSIER --json '{...}' | --file MESSAGE.json",
       "options": {
         "handoff|report": "message de passage ou rapport final",
@@ -78,6 +79,63 @@
       "exit_codes": {
         "0": "message conforme, fichiers présents (et tracé au journal s'il y a un workflow)",
         "1": "message illisible, non conforme à son schéma ou fichier cité introuvable"
+      }
+    },
+    {
+      "name": "mark_generated.py",
+      "role": "Marque « généré par IA » (AI Act, art. 50) les fichiers que l'agent écrit lui-même sans script, jamais un fichier fourni par l'utilisateur : marque cachée propre au format (frontmatter, meta HTML, commentaire, chunk PNG, propriétés Office), relue après écriture ; --check vérifie sans écrire.",
+      "usage": "uv run scripts/mark_generated.py FICHIER... [--check]",
+      "options": {
+        "FICHIER...": "fichiers générés à marquer",
+        "--check": "vérifier la marque sans rien écrire"
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers marqués, déjà marqués, sans marque (--check), formats sans marque possible en avertissement.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "required": [
+            "marked",
+            "already",
+            "unmarked",
+            "errors",
+            "warnings"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "marked": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "already": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unmarked": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "fichiers marqués (ou déjà marqués)",
+        "1": "fichier introuvable, marque impossible ou, avec --check, fichier sans marque"
       }
     },
     {

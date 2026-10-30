@@ -33,6 +33,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, run_script  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
@@ -225,7 +226,7 @@ def main() -> int:
         lines += ["", f"**Décision : {CHOICES[decision['choice']]}**, par {decision.get('by', 'utilisateur')}"
                   + (f" : {decision['why']}" if decision.get("why") else ".")]
         lines += [f"- Condition : {c}" for c in decision.get("conditions", [])]
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    ai_mark.write_text(out, "\n".join(lines) + "\n")
     report.update(output=str(out), decision=decision["choice"] if decision else None)
     if args.log and decision:
         if not (base / "workflow.json").exists():

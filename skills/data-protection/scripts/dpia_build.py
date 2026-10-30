@@ -49,6 +49,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
@@ -489,8 +490,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     for suffix, text in ((".registre.md", registre(spec)), (".aipd.md", aipd(spec, result))):
         path = out_dir / f"{stem}{suffix}"
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        ai_mark.write_text(path, text)
         report["outputs"].append(str(path))
     if args.vault:
         report["vault"] = write_vault(args.vault, args.folder, spec, result, errors)

@@ -33,6 +33,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
+import ai_mark  # noqa: E402
 sys.path.insert(0, str(HERE / "targets"))
 import react  # noqa: E402
 import templates  # noqa: E402
@@ -242,7 +243,7 @@ def write(result: dict, base: Path) -> list[Path]:
              base.with_suffix(".md"): "\n".join(md),
              base.parent / f"{base.name}.lots.json": json.dumps(result["lots"], ensure_ascii=False, indent=1) + "\n"}
     for path, text in paths.items():
-        path.write_text(text, encoding="utf-8")
+        ai_mark.write_text(path, text)
     csv_path = base.with_suffix(".csv")
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         out = csv.writer(handle, delimiter=";")

@@ -32,6 +32,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, export_image, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -242,8 +243,7 @@ def main() -> int:
         folder = args.out_dir or source.with_name(f"{stem}-c4")
         folder.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SPECIFICATION, folder / "specification.c4")
-        with open(folder / "model.c4", "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        ai_mark.write_text(folder / "model.c4", text)
         report["output"] = str(folder)
         errors += likec4_validate(folder, warnings)
         if args.export and not errors:

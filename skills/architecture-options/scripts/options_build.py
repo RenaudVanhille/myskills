@@ -50,6 +50,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
@@ -535,22 +536,19 @@ def main() -> int:
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     trace_md, trace_csv = out_dir / "tracabilite.md", out_dir / "tracabilite.csv"
-    with open(trace_md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_trace(rows, target))
+    ai_mark.write_text(trace_md, render_trace(rows, target))
     with open(trace_csv, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(rows)
     if args.decision:
         adr = out_dir / "adr-architecture.md"
-        with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog, idx, reviews, wa))
+        ai_mark.write_text(adr, render_adr(spec, ranking, catalog, idx, reviews, wa))
         report["outputs"] = [str(adr), str(trace_md), str(trace_csv)]
         print(json.dumps(report, ensure_ascii=False))
         return 0
     (out_dir / "schemas").mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
     md, diagrams = out_dir / f"{stem}.md", out_dir / "schemas" / "architectures.json"
-    with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, criteria, ranking, catalog, impacts, idx, reviews, wa))
+    ai_mark.write_text(md, render_md(spec, criteria, ranking, catalog, impacts, idx, reviews, wa))
     pages = [{"name": f"Option {o['id']}", "title": f"Option {o['id']} : {o['name']}", "elements": layout(o)}
              for o in spec["options"]]
     with open(diagrams, "w", encoding="utf-8", newline="\n") as handle:
@@ -569,16 +567,14 @@ def main() -> int:
         option = next(o for o in spec["options"] if o["id"] == review["option"])
         target_wa = out_dir / "schemas" / f"option-{review['option'].lower()}.wa.md"
         rules = sum(1 for v in wa.RULES.values() if v[0] != "conventions")
-        with open(target_wa, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(wa.markdown(f"Option {option['id']} : {option['name']}", review["findings"],
-                                     review["clouds"], rules))
+        ai_mark.write_text(target_wa, wa.markdown(f"Option {option['id']} : {option['name']}", review["findings"],
+                                                  review["clouds"], rules))
         report["outputs"].append(str(target_wa))
     if idx is not None:
         report["outputs"] += POS.write_targets(pos_data, spec, out_dir / "schemas")
     if decision:
         adr = out_dir / "adr-architecture.md"
-        with open(adr, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_adr(spec, ranking, catalog, idx, reviews, wa))
+        ai_mark.write_text(adr, render_adr(spec, ranking, catalog, idx, reviews, wa))
         report["outputs"].append(str(adr))
     print(json.dumps(report, ensure_ascii=False))
     return 0

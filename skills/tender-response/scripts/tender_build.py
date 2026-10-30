@@ -38,6 +38,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 MONTHS = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
@@ -480,7 +481,7 @@ def main() -> int:
     out = (args.out_dir or args.spec.resolve().parent) / f"{args.spec.stem}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     text = render(spec, today)
-    out.write_text(text, encoding="utf-8", newline="\n")
+    ai_mark.write_text(out, text)
     # Relecture : chaque identifiant figure dans le fichier produit.
     written = out.read_text(encoding="utf-8")
     missing = [i["id"] for f in ("dates", "criteria", "pieces", "clauses") for i in spec.get(f, [])

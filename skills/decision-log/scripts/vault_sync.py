@@ -32,6 +32,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
+import ai_mark  # noqa: E402
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import vault_ontology  # noqa: E402
 from skill_paths import schema_of  # noqa: E402
@@ -390,8 +391,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        ai_mark.write_text(path, text)
     # Copies des livrables : Fichiers/ est entièrement généré (un Markdown copié porte la marque).
     for rel, source in copies.items():
         path = vault / rel

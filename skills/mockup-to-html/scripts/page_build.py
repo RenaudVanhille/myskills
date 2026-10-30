@@ -41,6 +41,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent / "targets"))
 import local_tools  # noqa: E402
 import react  # noqa: E402
@@ -611,7 +612,7 @@ def write_react(target: str, spec: dict, theme: dict, page: "Page", out_dir: Pat
         return 1
     files = {f"{name}.tsx": code, "theme.ts": react.theme_file(target, theme), "App.tsx": react.app_file(target, name)}
     for file, text in files.items():
-        (out_dir / file).write_text(text, encoding="utf-8")
+        ai_mark.write_text(out_dir / file, text)
     report["outputs"] = [str(out_dir / f) for f in files] + [str(a) for a in page.assets]
     report["library"] = used
     report["warnings"].append(f"rendu {react.TARGETS[target]['label']} non vérifié (pas de Node ni de bundler pendant le "
@@ -628,7 +629,7 @@ def write_templates(target: str, spec: dict, theme: dict, page: "Page", out_dir:
         report["errors"] += errors
         return 1
     for file, text in files.items():
-        (out_dir / file).write_text(text, encoding="utf-8")
+        ai_mark.write_text(out_dir / file, text)
     report["outputs"] = [str(out_dir / f) for f in files] + [str(a) for a in page.assets]
     report["library"] = used
     report["warnings"].append(f"rendu {templates.TARGETS[target]['label']} non vérifié (pas de Node ni de bundler "
@@ -810,8 +811,8 @@ def main() -> int:
         except local_tools.PackageError as error:
             report["errors"].append(f"Bootstrap : {error}")
             return done(1)
-    (out_dir / f"{stem}.html").write_text(markup, encoding="utf-8")
-    (out_dir / f"{stem}.css").write_text(css, encoding="utf-8")
+    ai_mark.write_text(out_dir / f"{stem}.html", markup)
+    ai_mark.write_text(out_dir / f"{stem}.css", css)
     report["outputs"] = [str(out_dir / f"{stem}.html"), str(out_dir / f"{stem}.css")] + \
         [str(a) for a in page.assets] + report["outputs"]
     if args.no_render:
@@ -828,6 +829,8 @@ def main() -> int:
     except local_tools.PackageError as error:
         report["warnings"].append(f"rendu non vérifié : {error}")
         return done(0)
+    # Rendu de la page générée : il en reprend la marque « généré par IA ».
+    ai_mark.inherit(out_dir / f"{stem}.html", [png])
     report.update(rendered=True, mobile_overflow=shot["mobile_overflow"], blocked=shot["blocked"])
     report["outputs"].append(str(png))
     if shot["blocked"]:
@@ -837,6 +840,7 @@ def main() -> int:
     if mockup is not None:
         compare_png = out_dir / f"{stem}.compare.png"
         result = compare(mockup, png, compare_png)
+        ai_mark.inherit(png, [compare_png])
         report.update(similarity=result["similarity"], height_ratio=result["height_ratio"], zones=result["zones"])
         report["outputs"].append(str(compare_png))
         if result["similarity"] < args.min_similarity:

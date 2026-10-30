@@ -39,6 +39,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import local_tools  # noqa: E402
 from script_report import print_report  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
@@ -367,6 +368,7 @@ def publish(doc: Path, args, exporter) -> dict:
                     rendered = render_docx(target, args.pdf, args.preview, headings)
                     if rendered.get("warning"):
                         report["warnings"].append(rendered.pop("warning"))
+            ai_mark.inherit(doc, [target])
             found = check_output(target, fmt)
             report["outputs"].append({"format": fmt, "file": str(target), **found, **rendered})
             if found["images"] < prepared.images:

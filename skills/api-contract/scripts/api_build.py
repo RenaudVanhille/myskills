@@ -35,6 +35,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -209,8 +210,9 @@ def to_yaml(value, indent: int = 0) -> list[str]:
 
 
 def from_yaml(text: str):
-    """Relit le YAML écrit par to_yaml (indentation de 2, chaînes JSON)."""
-    rows = [(len(line) - len(line.lstrip(" ")), line.strip()) for line in text.splitlines() if line.strip()]
+    """Relit le YAML écrit par to_yaml (indentation de 2, chaînes JSON ; commentaires # ignorés)."""
+    rows = [(len(line) - len(line.lstrip(" ")), line.strip()) for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
 
     def value_of(raw: str):
         return {} if raw == "{}" else [] if raw == "[]" else json.loads(raw)
@@ -422,7 +424,7 @@ def main() -> int:
     outputs = []
     for kind, doc in documents.items():
         path = out_dir / f"{stem}.{kind}.yaml"
-        path.write_text("\n".join(to_yaml(doc)) + "\n", encoding="utf-8")
+        ai_mark.write_text(path, "\n".join(to_yaml(doc)) + "\n")
         # Relecture : le YAML écrit redonne le document, et chaque $ref se résout.
         reread = from_yaml(path.read_text(encoding="utf-8"))
         if reread != doc:
@@ -430,7 +432,7 @@ def main() -> int:
         errors += [f"{path.name} : $ref « {ref} » sans cible" for ref in refs_of(reread or {}, []) if not resolve(reread, ref)]
         outputs.append(path)
     summary = out_dir / f"{stem}.api.md"
-    summary.write_text(markdown(spec, covered, uncovered, outputs), encoding="utf-8")
+    ai_mark.write_text(summary, markdown(spec, covered, uncovered, outputs))
     report["outputs"] = [str(p) for p in [*outputs, summary]]
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0

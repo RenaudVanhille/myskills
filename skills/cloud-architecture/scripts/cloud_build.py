@@ -35,6 +35,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from drawio_xml import (edge as new_edge, html, new_file, new_page, text_lines, text_width, vertex,  # noqa: E402
                         waypoints, write)
 from skill_paths import absent, export_image, load_module  # noqa: E402
@@ -633,7 +634,7 @@ def main() -> int:
         report["output"] = str(out)
         if args.matrix or "network" in report["views"]:
             target = out.with_name(out.name.removesuffix(".drawio") + ".flows.md")
-            target.write_text(matrix(str(spec.get("title", name)), pages), encoding="utf-8")
+            ai_mark.write_text(target, matrix(str(spec.get("title", name)), pages))
             report["matrix"] = str(target)
         check = load_check()
         if check:

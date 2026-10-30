@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -218,8 +219,7 @@ def main() -> int:
             text = "\n".join(head + body) + "\n"
         else:
             text = "\n".join([f"# {spec['title']}", "", "```mermaid", *head, *body, "```"]) + "\n"
-        with open(out, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        ai_mark.write_text(out, text)
         report["output"] = str(out)
         warnings.append(f"rendu à vérifier : uv run ../diagram-export/scripts/export.py {out.name} --check")
     print(json.dumps(report, ensure_ascii=False))

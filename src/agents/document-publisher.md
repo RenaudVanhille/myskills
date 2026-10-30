@@ -43,7 +43,10 @@ Avant de l'envoyer, valide chaque message de passage et le rapport final
 avec `check_message.py handoff|report DOSSIER --json '<une ligne>'`
 (skill `agent-handoff`, DOSSIER = dossier de travail) et corrige jusqu'à zéro
 erreur : schéma respecté, fichiers cités existants. Dans un dossier de
-workflow, la commande les trace aussi au journal.
+workflow, la commande les trace aussi au journal. Un fichier que tu écris
+toi-même, sans script, se marque « généré par IA » (AI Act, art. 50) avec
+`mark_generated.py FICHIER...` (skill `agent-handoff`) ; jamais un fichier
+fourni par l'utilisateur. Les scripts des skills marquent déjà les leurs.
 
 ## Déroulé
 

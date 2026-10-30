@@ -34,6 +34,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import skill_paths  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
@@ -416,7 +417,7 @@ def main() -> int:
         guide["tokens"] = str(args.tokens.resolve())
     files[f"{stem}.styleguide.json"] = json.dumps(guide, ensure_ascii=False, indent=2) + "\n"
     for name, text in files.items():
-        (out_dir / name).write_text(text, encoding="utf-8")
+        ai_mark.write_text(out_dir / name, text)
         report["outputs"].append(str(out_dir / name))
     if args.render and skill_paths.find_script("mockup-to-html", "page_build.py") is None:
         warnings.append(f"styleguide non rendu : {skill_paths.absent('mockup-to-html', 'page_build.py')}")

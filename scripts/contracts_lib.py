@@ -77,6 +77,13 @@ def generated_libs() -> dict[Path, str]:
         files[lib / "model-sources.json"] = (REPO / "shared" / "model-sources.json").read_text(encoding="utf-8")
         files[lib / "model-sources.schema.json"] = (SCHEMAS / "model-sources.schema.json").read_text(encoding="utf-8")
         files[lib / "spec_schema.py"] = validator
+    # Marque « généré par IA » (AI Act, art. 50) : pour chaque skill dont un script ou un module copié l'importe.
+    marker = (shared / "ai_mark.py").read_text(encoding="utf-8")
+    for folder in sorted((REPO / "skills").glob("*/scripts")):
+        copied = [text for path, text in files.items() if path.parent == folder / "lib"]
+        own = [p.read_text(encoding="utf-8") for p in folder.rglob("*.py") if p.parent.name != "lib"]
+        if any(re.search(r"^\s*(from lib )?import ai_mark\b", text, re.M) for text in copied + own):
+            files[folder / "lib" / "ai_mark.py"] = marker
     # Accès déclaré aux scripts des autres skills (champ requires du contrat).
     paths = (shared / "skill_paths.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
@@ -295,7 +302,10 @@ def render_agent(contract: dict) -> str:
               "avec `check_message.py handoff|report DOSSIER --json '<une ligne>'`",
               "(skill `agent-handoff`, DOSSIER = dossier de travail) et corrige jusqu'à zéro",
               "erreur : schéma respecté, fichiers cités existants. Dans un dossier de",
-              "workflow, la commande les trace aussi au journal."]
+              "workflow, la commande les trace aussi au journal. Un fichier que tu écris",
+              "toi-même, sans script, se marque « généré par IA » (AI Act, art. 50) avec",
+              "`mark_generated.py FICHIER...` (skill `agent-handoff`) ; jamais un fichier",
+              "fourni par l'utilisateur. Les scripts des skills marquent déjà les leurs."]
     return "\n".join(lines) + "\n"
 
 

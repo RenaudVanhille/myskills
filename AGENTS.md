@@ -61,6 +61,18 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 - **Sortie** : le livrable est vérifié par un script avant d'être rendu
   (`check_drawio.py`, `validate.py`, export et relecture de l'image...).
   Un livrable non vérifié est signalé comme tel dans le rapport final.
+- **Marque IA** (règlement (UE) 2024/1689, AI Act, art. 50) : tout fichier
+  généré par un skill ou un agent porte une marque cachée « généré par IA »
+  propre à son format (frontmatter, meta HTML, commentaire, attributs
+  draw.io, chunk PNG, propriétés Office), posée par `scripts/lib/ai_mark.py`
+  (copie de `shared/scripts/ai_mark.py` faite par `build.py` pour tout skill
+  qui l'importe) : `ai_mark.write_text` à l'écriture, `ai_mark.mark` pour un
+  fichier écrit par un outil. Jamais sur un fichier fourni par l'utilisateur
+  ni sur une copie d'un fichier du dépôt ; un export ou une mise en forme
+  reprend la marque de sa source (`ai_mark.inherit`). Un fichier que l'agent
+  écrit sans script se marque avec `mark_generated.py` (`agent-handoff`)
+  **(vérifiée : chaque fichier produit par les cas de `tests/cases.json`,
+  hors motifs `sans_marque`)**.
 - **Rapport** : un script écrit un rapport JSON court sur la sortie standard,
   dont le JSON Schema est dans le contrat **(vérifiée : schéma présent et
   valide)** ; `tests/run.py` valide chaque rapport contre ce schéma. Le

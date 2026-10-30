@@ -37,6 +37,7 @@ from pathlib import Path
 from urllib.parse import quote, unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import local_tools  # noqa: E402
 from script_report import print_report  # noqa: E402
 
@@ -396,6 +397,8 @@ def main() -> int:
                 out.mkdir(parents=True, exist_ok=True)
                 try:
                     files = EXPORTERS[kind](src, out, fmt, args.scale, args.transparent)
+                    if not args.check:
+                        ai_mark.inherit(src, files)
                     report["outputs"] = [] if args.check else [str(f) for f in files]
                     report["rendered"] = len(files)
                     report["warnings"] = [w for f in files for w in image_warnings(Path(f))]

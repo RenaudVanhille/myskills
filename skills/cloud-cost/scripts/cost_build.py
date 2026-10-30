@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -278,7 +279,7 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
     md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
-    md.write_text(render(spec, results, currency), encoding="utf-8")
+    ai_mark.write_text(md, render(spec, results, currency))
     write_csv(table, results)
     report["errors"] = verify_csv(table, results)
     report["outputs"] = [str(md), str(table)]

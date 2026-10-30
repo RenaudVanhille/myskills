@@ -67,6 +67,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 import vault_ontology  # noqa: E402
@@ -1214,8 +1215,7 @@ def main() -> int:
     md, table, hypo = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.hypotheses.csv"
     charge_md, charge_table = out_dir / f"{stem}.charges.md", out_dir / f"{stem}.charges.csv"
     if priced:
-        with open(md, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_md(spec, option, status, found, providers))
+        ai_mark.write_text(md, render_md(spec, option, status, found, providers))
         with open(table, "w", encoding="utf-8-sig", newline="") as handle:
             csv.writer(handle, delimiter=";").writerows(csv_rows(found))
         with open(hypo, "w", encoding="utf-8-sig", newline="") as handle:
@@ -1223,8 +1223,7 @@ def main() -> int:
         errors += verify_csv(table, found["totals"], spec.get("contingency", 0) / 100)
         errors += verify_scenarios(hypo, found, spec)
         report["outputs"] = [str(md), str(table), str(hypo)]
-    with open(charge_md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_charges(spec, option, status, found))
+    ai_mark.write_text(charge_md, render_charges(spec, option, status, found))
     with open(charge_table, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(charge_csv(found))
     errors += verify_charges(charge_table, found)

@@ -34,6 +34,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
@@ -283,8 +284,7 @@ def main() -> int:
     if broken:
         warnings.append(f"{len(broken)} lien(s) ou image(s) introuvable(s) : {', '.join(broken[:5])}")
     out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    ai_mark.write_text(out, text)
     report["output"] = str(out)
     print(json.dumps(report, ensure_ascii=False))
     return 0

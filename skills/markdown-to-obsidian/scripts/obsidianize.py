@@ -34,6 +34,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
 from script_report import print_report  # noqa: E402
@@ -107,6 +108,7 @@ def callouts(text: str) -> tuple[str, int]:
 
 def process(path: Path, args, classification: dict | None = None) -> dict:
     text = path.read_text(encoding="utf-8")
+    source_marked = ai_mark.is_marked(path)
     report = {"input": str(path), "output": None, "embeds": 0, "wikilinks": 0,
               "callouts": 0, "attachments_copied": 0, "missing": []}
     extra = {}
@@ -158,8 +160,10 @@ def process(path: Path, args, classification: dict | None = None) -> dict:
     else:
         target = path
     target.parent.mkdir(parents=True, exist_ok=True)
+    # Simple mise en forme : la note garde la marque « généré par IA » de sa source, sans l'ajouter.
+    text = text.rstrip() + "\n"
     with open(target, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text.rstrip() + "\n")
+        handle.write(ai_mark.marked(text, ".md") if source_marked else text)
     report["output"] = str(target)
     if args.vault and args.move and target.resolve() != path:
         for image in images:

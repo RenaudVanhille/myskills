@@ -31,6 +31,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 LONG = 26
@@ -162,7 +163,7 @@ def write(spec: dict, items: list[dict], plan: dict, out_dir: Path, stem: str) -
             lines.append(f"  {label(it['name'])} :{', '.join(tags + [ident])}, {early[it['id']][0]}, {days}d")
     lines += ["```", ""]
     md = out_dir / f"{stem}.md"
-    md.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    ai_mark.write_text(md, "\n".join(lines))
     path = out_dir / f"{stem}.csv"
     with open(path, "w", encoding="utf-8", newline="") as handle:
         writer = csv.writer(handle, delimiter=";")

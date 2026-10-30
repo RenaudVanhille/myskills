@@ -17,6 +17,8 @@ qui écrivent du draw.io par scripts/build.py. Ne modifiez pas les copies.
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import ai_mark
+
 # Largeur moyenne d'un caractère et hauteur de ligne, en fraction de la taille de police.
 CHAR_WIDTH, LINE_HEIGHT = 0.6, 1.4
 
@@ -88,4 +90,4 @@ def text_size(text: str, size: float) -> tuple[float, float]:
 def write(mxfile: ET.Element, out: Path) -> None:
     """Écrit le fichier en XML clair et indenté (diff lisible, modifiable par drawio-diagram)."""
     ET.indent(mxfile)
-    ET.ElementTree(mxfile).write(out, encoding="utf-8", xml_declaration=False)
+    ai_mark.write_text(out, ET.tostring(mxfile, encoding="unicode"))

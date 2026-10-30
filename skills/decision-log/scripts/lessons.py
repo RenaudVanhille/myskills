@@ -38,6 +38,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import ai_mark  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 import workspace  # noqa: E402
@@ -361,7 +362,7 @@ def main() -> int:
     if not errors:
         out_dir.mkdir(parents=True, exist_ok=True)
         md, data = out_dir / "lecons.md", out_dir / "lecons.json"
-        md.write_text(render(found, args.min_missions) + "\n", encoding="utf-8")
+        ai_mark.write_text(md, render(found, args.min_missions) + "\n")
         data.write_text(json.dumps({"lessons": found["lessons"]}, ensure_ascii=False, indent=1) + "\n",
                         encoding="utf-8")
         # Relu : chaque leçon et chaque règle proposée figurent dans le Markdown écrit.
