@@ -20,6 +20,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+import ai_mark
+
 try:
     from .spec_schema import check
 except ImportError:
@@ -309,7 +311,8 @@ class Notes:
                 if items:
                     kept[name] = items if isinstance(value, list) else items[0]
             self.metas[rel] = meta(self.onto, kind, props, kept, tags, genere=self.genere)
-            self.texts[rel] = render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+            # Note générée : mention « Document généré par IA » sous son titre (ai_mark.py).
+            self.texts[rel] = ai_mark.marked(render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n", ".md")
 
     def resolve(self, path: str):
         if path in self.metas:

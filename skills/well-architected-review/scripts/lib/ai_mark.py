@@ -5,7 +5,8 @@ d'IA soient marqués de façon lisible par une machine. Chaque script marque les
 livrables qu'il écrit, jamais un fichier fourni par l'utilisateur : la marque
 est invisible au rendu et propre à chaque format.
 
-    .md            frontmatter genere-par-ia: true (et generateur), sinon commentaire HTML en tête
+    .md            frontmatter genere-par-ia: true (et generateur), sinon commentaire HTML en tête,
+                   plus une mention visible « Document généré par IA » sous le titre
     .html .htm     <meta name="genere-par-ia"> dans <head>, sinon commentaire
     .svg .xml .vue commentaire XML ; .drawio : attributs de <mxfile>
     .yaml .mmd .c4 .likec4 .css .scss .js .jsx .ts .tsx : commentaire de leur syntaxe
@@ -44,6 +45,10 @@ _here = Path(__file__).resolve().parent
 # Skill qui a écrit le fichier : la copie vit dans skills/<skill>/scripts/lib/.
 GENERATOR = "myskills/" + (_here.parents[1].name if _here.name == "lib" else "myskills")
 LINE = f"{KEY}: true · generateur: {GENERATOR} · {NOTICE}"
+# Mention visible des Markdown, lisible partout (Obsidian, GitHub, Word après export).
+DISCLAIMER = "*Document généré par IA"
+DISCLAIMER_TEXT = (f"> {DISCLAIMER} ({GENERATOR}) : à relire et valider avant tout usage. "
+                   "Mention de transparence, règlement (UE) 2024/1689 (AI Act), article 50.*\n")
 
 COMMENTS = {".svg": ("<!-- ", " -->"), ".xml": ("<!-- ", " -->"), ".vue": ("<!-- ", " -->"),
             ".yaml": ("# ", ""), ".yml": ("# ", ""), ".mmd": ("%% ", ""), ".c4": ("// ", ""),
@@ -75,19 +80,35 @@ def _has_mark(text: str, suffix: str) -> bool:
     return KEY in text[:HEAD]
 
 
+def _disclaimer(text: str) -> str:
+    """Mention visible en tête du document : après le titre # s'il ouvre le texte, sinon avant le texte
+    (toujours après le frontmatter et la marque cachée)."""
+    if DISCLAIMER in text:
+        return text
+    end = _frontmatter(text)
+    cut = text.index("\n", end) + 1 if end > 0 and "\n" in text[end:] else 0
+    comment = re.match(r"<!--[^\n]*-->\r?\n", text[cut:])
+    cut += comment.end() if comment else 0
+    blank = re.match(r"(\s*\n)?", text[cut:])
+    first = cut + blank.end()
+    title = re.match(r"# [^\n]*(\n|$)", text[first:])
+    if title:
+        cut = first + title.end()
+        rest = text[cut:]
+        gap = "\n" if rest and not rest.startswith(("\n", "\r\n")) else ""
+        return text[:cut] + ("" if text[cut - 1:cut] == "\n" else "\n") + "\n" + DISCLAIMER_TEXT + gap + rest
+    return text[:cut] + DISCLAIMER_TEXT + "\n" + text[cut:]
+
+
 def marked(text: str, suffix: str) -> str:
-    """Le texte avec la marque de son format ; inchangé s'il la porte déjà ou si le format n'en a pas."""
+    """Le texte avec la marque de son format ; inchangé s'il la porte déjà ou si le format n'en a pas.
+    Un Markdown reçoit aussi la mention visible (DISCLAIMER), une seule fois."""
     suffix = suffix.lower()
+    if suffix in (".md", ".markdown"):
+        return _disclaimer(_hidden_md(text))
     if suffix not in TEXT or _has_mark(text, suffix):
         return text
     comment = f"<!-- {LINE} -->\n"
-    if suffix in (".md", ".markdown"):
-        end = _frontmatter(text)
-        if end < 0:
-            return comment + text
-        newline = "\r\n" if "\r\n" in text[:end] else "\n"
-        owner = "" if re.search(r"^genere:", text[:end], re.M) else f"generateur: {GENERATOR}{newline}"
-        return text[:end] + f"{KEY}: true{newline}{owner}" + text[end:]
     if suffix in (".html", ".htm"):
         head = re.search(r"<head(\s[^>]*)?>", text[:HEAD], re.I)
         if head:
@@ -118,6 +139,18 @@ def marked(text: str, suffix: str) -> str:
         close = text.find("\n", _frontmatter(text))
         cut, line = (close + 1, line) if close >= 0 else (len(text), "\n" + line)
     return text[:cut] + line + text[cut:]
+
+
+def _hidden_md(text: str) -> str:
+    """Marque cachée d'un Markdown : clés du frontmatter, sinon commentaire HTML en tête."""
+    if _has_mark(text, ".md"):
+        return text
+    end = _frontmatter(text)
+    if end < 0:
+        return f"<!-- {LINE} -->\n" + text
+    newline = "\r\n" if "\r\n" in text[:end] else "\n"
+    owner = "" if re.search(r"^genere:", text[:end], re.M) else f"generateur: {GENERATOR}{newline}"
+    return text[:end] + f"{KEY}: true{newline}{owner}" + text[end:]
 
 
 def write_text(path, text: str) -> Path:
@@ -234,7 +267,7 @@ def mark(path) -> bool:
     suffix = path.suffix.lower()
     if suffix in TEXT:
         text = path.read_text(encoding="utf-8")
-        if not _has_mark(text, suffix):
+        if marked(text, suffix) != text:
             write_text(path, text)
         return True
     if suffix == ".png":

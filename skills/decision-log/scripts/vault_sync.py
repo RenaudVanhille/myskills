@@ -388,6 +388,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     # Une note inchangée n'est pas réécrite : pas de bruit pour Obsidian Sync ou git.
     for rel, text in notes.items():
         path = vault / f"{rel}.md"
+        text = ai_mark.marked(text, ".md")
         if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
