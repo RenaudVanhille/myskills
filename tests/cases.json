@@ -1351,6 +1351,16 @@
       {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage.json", "--draft", "--frontend", "{out}/decoupage.lots.json"], "exit": 0, "report": {"lots": 35, "to_estimate": 10, "errors": []}, "report_contains": {"warnings": "25 lots frontend repris"}},
       {"script": "{skills}/mockup-to-html/scripts/ui_breakdown.py", "args": ["{fixtures}/maquettes/accueil.json", "--out", "{out}/x", "--rules", "{fixtures}/maquettes/regles-invalides.json"], "exit": 1, "report_contains": {"errors": "vouliez-vous « library_factor »"}},
       {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/autre.json", "--draft", "--frontend", "{out}/decoupage.lots.json", "--option", "B"], "exit": 1, "report_contains": {"errors": "composant « portail » absent de l'option B"}}
+    ]},
+    {"id": "design-system-fourni", "skill": "design-system", "_note": "Design system du client repris depuis des tokens W3C (alias, rem, rgb), des variables CSS, un thème MUI en .ts et un thème Ant Design : rôles tirés des noms, source verrouillée ; maquette comparée au design system fourni ; thème illisible refusé.", "files": ["w3c.json", "css.json", "mui.json", "antd.json", "w3c.css"], "absent": ["casse.json"], "contains": {"w3c.json": ["\"locked\": true", "\"font_sizes\"", "\"primary\": \"#0b3d91\"", "\"danger\": \"#b91c1c\""], "mui.json": ["\"md\": 8.0"]}, "steps": [
+      {"script": "{skills}/design-system/scripts/ds_import.py", "args": ["{fixtures}/maquettes/ds-client/tokens.json", "--out", "{out}/w3c.json", "--name", "Client"], "exit": 0, "report": {"format": "tokens", "mapped.primary": "color.brand.primary", "mapped.danger": "color.error", "ignored": 1, "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_import.py", "args": ["{fixtures}/maquettes/ds-client/variables.css", "--out", "{out}/css.json"], "exit": 0, "report": {"format": "css", "mapped.primary": "--brand", "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_import.py", "args": ["{fixtures}/maquettes/ds-client/theme.ts", "--out", "{out}/mui.json"], "exit": 0, "report": {"format": "mui", "mapped.on-primary": "palette.primary.contrastText", "mapped.surface": "palette.background.paper", "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_import.py", "args": ["{fixtures}/maquettes/ds-client/antd.json", "--out", "{out}/antd.json"], "exit": 0, "report": {"format": "antd", "mapped.primary": "colorPrimary", "mapped.text": "colorTextBase", "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_extract.py", "args": ["{fixtures}/maquettes/accueil.png", "--against", "{out}/w3c.json"], "exit": 0, "report": {"deviations": [], "errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_extract.py", "args": ["{fixtures}/maquettes/accueil.png", "--against", "{out}/antd.json"], "exit": 0, "report": {"deviations.0.hex": "#f97316"}},
+      {"script": "{skills}/design-system/scripts/ds_build.py", "args": ["{out}/w3c.json"], "exit": 0, "report": {"errors": []}},
+      {"script": "{skills}/design-system/scripts/ds_import.py", "args": ["{fixtures}/maquettes/ds-client/casse.ts", "--out", "{out}/casse.json"], "exit": 1, "report_contains": {"errors": "illisible"}}
     ]}
   ]
 }

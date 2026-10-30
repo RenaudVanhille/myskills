@@ -18,7 +18,10 @@ rôle, les autres valeurs par défaut. Le modèle relit les rôles sur une
 maquette, nomme le design system et corrige ; il n'écrit pas la palette.
 Les images ne sont lues qu'en local.
 
-    uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM]
+Avec --against TOKENS.json (design system fourni, ds_import.py), signale les
+couleurs des maquettes qui s'en écartent et le token le plus proche.
+
+    uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--against TOKENS.json]
 """
 
 import argparse
@@ -31,7 +34,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ds_build  # noqa: E402
 
 IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
-MERGE = 12  # distance RGB sous laquelle deux couleurs sont la même
+MERGE = 12
+TOLERANCE = 20  # distance RGB au-delà de laquelle une couleur de maquette s'écarte du design system  # distance RGB sous laquelle deux couleurs sont la même
 SIDE = 320  # côté maximal de l'image réduite
 
 
@@ -117,8 +121,9 @@ def main() -> int:
     parser.add_argument("--colors", type=int, default=12)
     parser.add_argument("--draft", type=Path)
     parser.add_argument("--name", default="")
+    parser.add_argument("--against", type=Path)
     args = parser.parse_args()
-    report = {"inputs": [str(p) for p in args.images], "palette": [], "roles": {}, "draft": None,
+    report = {"inputs": [str(p) for p in args.images], "palette": [], "roles": {}, "draft": None, "deviations": [],
               "errors": [], "warnings": []}
     counts: dict[str, int] = {}
     for path in args.images:
@@ -147,6 +152,30 @@ def main() -> int:
     if missing:
         report["warnings"].append(f"rôle non trouvé : {', '.join(missing)} ; valeur par défaut gardée, à choisir "
                                   "dans la palette")
+    if args.against:
+        # Design system fourni : les couleurs des maquettes qui s'en écartent, avec le token le plus proche.
+        try:
+            tokens = json.loads(args.against.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            report["errors"].append(f"--against : {args.against} illisible ({error})")
+            print(json.dumps(report, ensure_ascii=False))
+            return 1
+        report["errors"] += ds_build.tokens_errors(tokens)
+        if report["errors"]:
+            print(json.dumps(report, ensure_ascii=False))
+            return 1
+        theme, _ = ds_build.complete(tokens)
+        for hex_, share in colors:
+            if share < 0.005:
+                continue
+            nearest = min(theme["colors"], key=lambda k: ds_build.distance(theme["colors"][k], hex_))
+            gap = round(ds_build.distance(theme["colors"][nearest], hex_), 1)
+            if gap > TOLERANCE:
+                report["deviations"].append({"hex": hex_, "share": share, "nearest": nearest,
+                                             "token": theme["colors"][nearest], "distance": gap})
+        if report["deviations"]:
+            report["warnings"].append(f"{len(report['deviations'])} couleur(s) des maquettes hors du design system fourni "
+                                      "(deviations) : à prendre le token le plus proche, ou à signaler au client")
     if args.draft:
         name = args.name or args.draft.stem.replace("-", " ").capitalize()
         draft = {"name": name, "description": f"Tiré de {len(args.images)} maquette(s) par ds_extract.py, à relire.",

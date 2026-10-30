@@ -450,7 +450,7 @@
       "level": "complexe",
       "receives": [
         "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
-        "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+        "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA)",
         "Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend"
       ],
       "produces": [
@@ -463,7 +463,8 @@
       "never": [
         "Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON",
         "Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local",
-        "Inventer un texte illisible de la maquette : il se signale"
+        "Inventer un texte illisible de la maquette : il se signale",
+        "Modifier un design system fourni par le client : un écart de maquette ou un contraste insuffisant se signale"
       ],
       "handoffs": [
         {
@@ -6655,6 +6656,7 @@
       "inputs": [
         "Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette",
         "Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu",
+        "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes",
         "Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants",
         "Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA)"
       ],
@@ -6667,17 +6669,18 @@
       "scripts": [
         {
           "name": "ds_extract.py",
-          "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide.",
-          "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM]",
+          "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide. Avec --against, compare les maquettes à un design system fourni et liste les couleurs qui s'en écartent.",
+          "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--against TOKENS.json]",
           "options": {
             "IMAGE": "maquettes (PNG, JPEG, WebP, BMP, GIF)",
             "--colors": "couleurs gardées dans la palette du rapport (défaut 12)",
             "--draft": "écrit le brouillon de tokens",
-            "--name": "nom du design system (défaut : tiré du fichier)"
+            "--name": "nom du design system (défaut : tiré du fichier)",
+            "--against": "design system fourni (tokens de ds_import.py) : couleurs des maquettes qui s'en écartent, avec le token le plus proche"
           },
           "exit_codes": {
             "0": "palette mesurée (et brouillon écrit)",
-            "1": "image illisible ou format non reconnu ; aucun fichier produit"
+            "1": "image illisible, format non reconnu ou tokens --against invalides ; aucun fichier produit"
           },
           "report": {
             "format": "json",
@@ -6691,6 +6694,7 @@
                 "palette",
                 "roles",
                 "draft",
+                "deviations",
                 "errors",
                 "warnings"
               ],
@@ -6740,6 +6744,126 @@
                     "string",
                     "null"
                   ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "deviations": {
+                  "type": "array",
+                  "description": "couleurs des maquettes hors du design system fourni (--against)",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "hex",
+                      "share",
+                      "nearest",
+                      "token",
+                      "distance"
+                    ],
+                    "properties": {
+                      "hex": {
+                        "type": "string"
+                      },
+                      "share": {
+                        "type": "number"
+                      },
+                      "nearest": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      },
+                      "distance": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "ds_import.py",
+          "role": "Reprend un design system existant (tokens W3C, Style Dictionary ou Tokens Studio avec alias, variables CSS, thème MUI ou Ant Design en JSON ou .ts/.js, tokens de myskills) : valeurs normalisées, tokens rangés par nature, rôles des couleurs tirés des noms, couleurs sans rôle gardées ; écrit des tokens valides marqués source.locked (le design system fourni prime sur les maquettes).",
+          "usage": "uv run scripts/ds_import.py FICHIER [...] --out design-system.json [--name NOM]",
+          "options": {
+            "FICHIER": "design system fourni : .json (W3C, Style Dictionary, thème MUI ou antd), .css, .scss, .ts, .js",
+            "--out": "fichier de tokens écrit",
+            "--name": "nom du design system (défaut : tiré de --out)"
+          },
+          "exit_codes": {
+            "0": "design system repris (avertissements possibles : rôles absents, tokens non repris)",
+            "1": "fichier introuvable ou illisible, aucun token, tokens repris invalides ; aucun fichier produit"
+          },
+          "report": {
+            "format": "json",
+            "description": "Format reconnu, rôles trouvés et leur token d'origine, couleurs gardées, tokens non repris.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "inputs",
+                "format",
+                "output",
+                "colors",
+                "mapped",
+                "kept",
+                "ignored",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "format": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "colors": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "mapped": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "rôle -> token du design system fourni"
+                },
+                "kept": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "couleurs sans rôle gardées sous leur nom"
+                },
+                "ignored": {
+                  "type": "integer",
+                  "minimum": 0
                 },
                 "errors": {
                   "type": "array",
@@ -6946,6 +7070,29 @@
                     }
                   },
                   "additionalProperties": false
+                },
+                "source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "format",
+                    "locked"
+                  ],
+                  "description": "design system fourni par le client, repris par ds_import.py ; locked : il prime sur les maquettes, qui ne le modifient pas",
+                  "properties": {
+                    "format": {
+                      "type": "string"
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "locked": {
+                      "type": "boolean"
+                    }
+                  }
                 }
               }
             }
@@ -7103,9 +7250,14 @@
           "to": "utilisateur",
           "kind": "utilisateur",
           "when": "une couleur de la charte du client échoue au contraste : garder la marque ou prendre la teinte proposée"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une maquette s'écarte du design system fourni : prendre le token le plus proche ou demander au client"
         }
       ],
-      "description": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette.",
+      "description": "Aide à définir un design system ou reprend celui du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime alors sur les maquettes : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette.",
       "path": "skills/design-system"
     },
     {

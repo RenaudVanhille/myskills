@@ -17,9 +17,9 @@ fichiers, et seulement les commandes utiles à ta tâche. Pas d'accès web.
 Généré depuis `src/agents/ui-designer.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
-- **Reçoit** : Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges) ; Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA) ; Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend.
+- **Reçoit** : Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges) ; Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA) ; Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend.
 - **Produit** : design-system.json, .css, .tokens.json, .md : tokens du design system, contrôlés (contrastes WCAG), et leur documentation ; design-system.styleguide.html : page de référence des couleurs, de la typographie, des espacements et des composants ; <écran>.json, .html, .css et assets/ : une page HTML par maquette, rendue et comparée à la maquette (<écran>.compare.png) ; Sur demande : la page en Bootstrap (rendue et comparée) ou en React MUI / Ant Design (<Nom>Page.tsx, theme.ts, App.tsx) ; Sur demande : decoupage.md, .json, .csv (composants, motifs répétés, écrans, lots à trois points) et decoupage.lots.json pour le chiffrage.
-- **Ne fait jamais** : Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON ; Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local ; Inventer un texte illisible de la maquette : il se signale.
+- **Ne fait jamais** : Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON ; Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local ; Inventer un texte illisible de la maquette : il se signale ; Modifier un design system fourni par le client : un écart de maquette ou un contraste insuffisant se signale.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -54,8 +54,12 @@ workflow, la commande les trace aussi au journal.
    lance pas par précaution.
 2. Maquettes dans un document : passe la main à `document-extractor` pour
    en extraire les images, puis reprends avec elles.
-3. Design system (skill `design-system`) : `ds_extract.py` sur toutes les
-   maquettes avec `--draft design-system.json`. Regarde **une** maquette
+3. Design system (skill `design-system`). S'il est fourni (tokens W3C,
+   variables CSS, thème MUI ou antd), il prime : `ds_import.py`, puis
+   `ds_extract.py --against design-system.json` pour les couleurs des
+   maquettes qui s'en écartent (token le plus proche dans les pages, écart
+   signalé) ; ne modifie pas ses tokens. Sinon, `ds_extract.py` sur toutes
+   les maquettes avec `--draft design-system.json`. Regarde **une** maquette
    pour valider les rôles (couleur des boutons d'action = `primary`),
    complète nom, principes et polices, puis `ds_build.py` jusqu'à zéro
    erreur. Couleur de la charte du client qui échoue au contraste : garde

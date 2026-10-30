@@ -3,7 +3,7 @@
   "level": "complexe",
   "receives": [
     "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
-    "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+    "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA)",
     "Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend"
   ],
   "produces": [
@@ -16,7 +16,8 @@
   "never": [
     "Écrire du HTML, du CSS ou une palette à la main : les scripts les écrivent depuis les descriptions JSON",
     "Charger une ressource externe (police, image, bibliothèque) ou envoyer une maquette à un service en ligne : tout se rend en local",
-    "Inventer un texte illisible de la maquette : il se signale"
+    "Inventer un texte illisible de la maquette : il se signale",
+    "Modifier un design system fourni par le client : un écart de maquette ou un contraste insuffisant se signale"
   ],
   "handoffs": [
     {

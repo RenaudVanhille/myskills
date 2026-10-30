@@ -32,8 +32,9 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - Maquettes dans un PDF, un PowerPoint ou un Word : l'agent
   `document-extractor` en extrait d'abord les images.
-- Tokens : si le design system n'existe pas, faites-le d'abord avec le
-  skill `design-system` (`ds_extract.py maquettes/*.png --draft
+- Tokens : un design system fourni par le client se reprend avec
+  `ds_import.py` (skill `design-system`) et prime sur les maquettes ;
+  sinon, faites-le d'abord avec le skill `design-system` (`ds_extract.py maquettes/*.png --draft
   design-system.json`, puis `ds_build.py`). Plusieurs maquettes d'un même
   dossier partagent un seul fichier de tokens.
 

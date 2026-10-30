@@ -187,8 +187,10 @@ def audit(tokens: dict, theme: dict, minimum: float, errors: list[str], warnings
         if not entry["ok"]:
             fix = accessible(colors[fg], colors[bg], need)
             entry["suggestion"] = fix
+            locked = tokens.get("source", {}).get("locked")
             warnings.append(f"contraste {fg} sur {bg} : {ratio}:1, {need}:1 attendu ({usage})"
-                            + (f" ; proposition {fg} = {fix}" if fix else ""))
+                            + (f" ; proposition {fg} = {fix}" if fix else "")
+                            + (" ; design system fourni : écart à signaler au client, pas à corriger" if locked else ""))
         checks.append(entry)
     for fg, bg in tokens.get("contrast", {}).get("pairs", []):
         for name in (fg, bg):

@@ -77,7 +77,7 @@
    "description": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React MUI ou Ant Design sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend.",
    "receives": [
     "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
-    "Facultatif : la charte graphique ou les couleurs imposées par le client, le niveau d'accessibilité visé (AA par défaut, AAA)",
+    "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA)",
     "Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend"
    ],
    "match": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React MUI ou Ant Design sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend. Adapte l'effort de chaque action pour limiter les coûts."
@@ -335,14 +335,15 @@
   {
    "name": "design-system",
    "level": "complexe",
-   "description": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local.",
+   "description": "Aide à définir un design system ou reprend celui du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime alors sur les maquettes : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local.",
    "inputs": [
     "Maquettes d'écrans en image (PNG, JPEG, WebP), pour en tirer la palette",
     "Tokens du design system en JSON (ds_build.py --schema), souvent le brouillon de ds_extract.py relu",
+    "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes",
     "Facultatif : descriptions des pages de mockup-to-html, pour l'inventaire des composants",
     "Facultatif : charte graphique ou contraintes du client (couleurs imposées, niveau d'accessibilité AA ou AAA)"
    ],
-   "match": "Aide à définir un design system : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette."
+   "match": "Aide à définir un design system ou reprend celui du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime alors sur les maquettes : palette tirée des maquettes par script, rôles des couleurs proposés, tokens (couleurs, typographie, espacements, rayons, ombres) contrôlés (contrastes WCAG avec teinte corrigée proposée, couleurs en double, échelle irrégulière), inventaire des composants employés dans les pages, variables CSS, tokens au format W3C Design Tokens, documentation Markdown et page de référence (styleguide) rendue en local. À utiliser pour créer ou documenter un design system, une charte d'interface, des design tokens ou vérifier l'accessibilité d'une palette."
   },
   {
    "name": "diagram-brief",
