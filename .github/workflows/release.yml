@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: k3s-priv
     steps:
       - uses: googleapis/release-please-action@v4
         with:
