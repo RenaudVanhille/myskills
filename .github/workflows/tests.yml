@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [k3s-priv]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
   # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
   # pas télécharger.
   rendus:
-    runs-on: ubuntu-latest
+    runs-on: k3s-priv
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
