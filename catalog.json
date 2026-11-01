@@ -11451,7 +11451,13 @@
                         "search",
                         "divider",
                         "spacer",
-                        "footer"
+                        "footer",
+                        "sidebar",
+                        "icon",
+                        "avatar",
+                        "pagination",
+                        "modal",
+                        "graph"
                       ]
                     },
                     "id": {
@@ -11465,7 +11471,8 @@
                       "type": "string"
                     },
                     "label": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "stat : libellé ; icon : texte alternatif (sans lui, icône décorative)"
                     },
                     "value": {
                       "type": "string"
@@ -11478,11 +11485,11 @@
                     "size": {
                       "type": "string",
                       "minLength": 1,
-                      "description": "heading, text : token font_sizes ; spacer : token spacing ; button : sm, md, lg"
+                      "description": "heading, text, icon : token font_sizes ; spacer : token spacing ; button : sm, md, lg ; avatar : sm, md, lg"
                     },
                     "variant": {
                       "type": "string",
-                      "description": "button : primary, secondary, outline, ghost, danger ; nav : horizontal, vertical ; table : plain, striped ; list : bullet, ordered, check, plain ; badge, alert : info, success, warning, danger (badge : neutral)"
+                      "description": "button : primary, secondary, outline, ghost, danger ; nav : horizontal, vertical ; table : plain, striped ; list : bullet, ordered, check, plain ; badge, alert : info, success, warning, danger (badge : neutral) ; graph : bar, line, donut"
                     },
                     "muted": {
                       "type": "boolean"
@@ -11549,13 +11556,13 @@
                           "maximum": 3840
                         }
                       ],
-                      "description": "section : full ou contained (défaut) ; box, button : px"
+                      "description": "section : full ou contained (défaut) ; box, button, sidebar : px"
                     },
                     "height": {
                       "type": "integer",
                       "minimum": 1,
                       "maximum": 4000,
-                      "description": "image, box : px ; card : hauteur minimale en px"
+                      "description": "image, box, graph : px ; card : hauteur minimale en px"
                     },
                     "columns": {
                       "anyOf": [
@@ -11609,6 +11616,54 @@
                               },
                               "variant": {
                                 "type": "string"
+                              },
+                              "icon": {
+                                "enum": [
+                                  "arrow-right",
+                                  "bell",
+                                  "calendar",
+                                  "cart",
+                                  "chart",
+                                  "check",
+                                  "chevron-down",
+                                  "chevron-left",
+                                  "chevron-right",
+                                  "close",
+                                  "dashboard",
+                                  "download",
+                                  "edit",
+                                  "eye",
+                                  "file",
+                                  "filter",
+                                  "folder",
+                                  "heart",
+                                  "help",
+                                  "home",
+                                  "info",
+                                  "list",
+                                  "lock",
+                                  "logout",
+                                  "mail",
+                                  "menu",
+                                  "minus",
+                                  "more",
+                                  "phone",
+                                  "plus",
+                                  "refresh",
+                                  "search",
+                                  "settings",
+                                  "star",
+                                  "trash",
+                                  "upload",
+                                  "user",
+                                  "users",
+                                  "warning"
+                                ],
+                                "description": "nav, sidebar : icône du jeu intégré"
+                              },
+                              "value": {
+                                "type": "number",
+                                "description": "graph : valeur de la série"
                               }
                             }
                           }
@@ -11653,7 +11708,7 @@
                     "current": {
                       "type": "integer",
                       "minimum": 1,
-                      "description": "tabs, stepper : rang de l'élément actif, à partir de 1"
+                      "description": "tabs, stepper : rang de l'élément actif, à partir de 1 ; pagination : page courante"
                     },
                     "src": {
                       "type": "string",
@@ -11707,7 +11762,8 @@
                               "select",
                               "textarea",
                               "checkbox",
-                              "radio"
+                              "radio",
+                              "switch"
                             ]
                           },
                           "placeholder": {
@@ -11802,6 +11858,56 @@
                           }
                         }
                       }
+                    },
+                    "name": {
+                      "enum": [
+                        "arrow-right",
+                        "bell",
+                        "calendar",
+                        "cart",
+                        "chart",
+                        "check",
+                        "chevron-down",
+                        "chevron-left",
+                        "chevron-right",
+                        "close",
+                        "dashboard",
+                        "download",
+                        "edit",
+                        "eye",
+                        "file",
+                        "filter",
+                        "folder",
+                        "heart",
+                        "help",
+                        "home",
+                        "info",
+                        "list",
+                        "lock",
+                        "logout",
+                        "mail",
+                        "menu",
+                        "minus",
+                        "more",
+                        "phone",
+                        "plus",
+                        "refresh",
+                        "search",
+                        "settings",
+                        "star",
+                        "trash",
+                        "upload",
+                        "user",
+                        "users",
+                        "warning"
+                      ],
+                      "description": "icon : icône du jeu intégré (SVG local)"
+                    },
+                    "pages": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9999,
+                      "description": "pagination : nombre de pages"
                     }
                   }
                 }

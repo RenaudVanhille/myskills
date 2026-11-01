@@ -47,6 +47,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "targets"))
 import local_tools  # noqa: E402
+import graphics  # noqa: E402
 import react  # noqa: E402
 import templates  # noqa: E402
 import skill_paths  # noqa: E402
@@ -82,15 +83,22 @@ PROPS = {
     "divider": set(),
     "spacer": {"size"},
     "footer": {"groups", "text"},
+    "sidebar": {"text", "src", "crop", "alt", "items", "width", "children"},
+    "icon": {"name", "label", "size", "crop", "alt"},
+    "avatar": {"text", "src", "crop", "alt", "size"},
+    "pagination": {"current", "pages"},
+    "modal": {"title", "text", "children", "actions"},
+    "graph": {"title", "variant", "items", "height"},
 }
 REQUIRED = {"heading": ["text"], "text": ["text"], "link": ["text"], "button": ["text"], "badge": ["text"],
             "buttons": ["items"], "nav": ["items"], "breadcrumb": ["items"], "list": ["items"], "tabs": ["items"],
             "stepper": ["items"], "form": ["fields"], "table": ["rows"], "stat": ["label", "value"],
-            "row": ["children"], "grid": ["children"], "stack": ["children"], "section": ["children"]}
+            "row": ["children"], "grid": ["children"], "stack": ["children"], "section": ["children"],
+            "sidebar": ["items"], "pagination": ["pages"], "graph": ["items"], "modal": ["title"]}
 VARIANTS = {"button": ["primary", "secondary", "outline", "ghost", "danger"], "nav": ["horizontal", "vertical"],
             "table": ["plain", "striped"], "list": ["bullet", "ordered", "check", "plain"],
             "badge": ["neutral", "info", "success", "warning", "danger"],
-            "alert": ["info", "success", "warning", "danger"]}
+            "alert": ["info", "success", "warning", "danger"], "graph": graphics.CHART_VARIANTS}
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 EXTERNAL = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 MOBILE = 390
@@ -166,6 +174,30 @@ input[type=checkbox],input[type=radio]{width:auto}
 .c-footer{background:var(--color-surface);padding:var(--space-2xl) 0;font-size:var(--text-sm)}
 .c-footer>.container{display:flex;flex-direction:column;gap:var(--space-lg)}
 .c-footer__groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-lg)}
+.c-shell{display:flex;align-items:stretch;min-height:100vh}
+.c-shell__main{flex:1;min-width:0;display:flex;flex-direction:column}
+.c-shell__main>:not(.c-section){margin:var(--space-lg)}
+.c-sidebar{background:var(--color-surface);border-right:1px solid var(--color-border);padding:var(--space-lg) var(--space-md);display:flex;flex-direction:column;gap:var(--space-lg)}
+.c-sidebar__brand{display:flex;align-items:center;gap:var(--space-sm);font-weight:700;font-size:var(--text-lg);color:inherit;text-decoration:none}
+.c-sidebar__brand img{max-height:36px;width:auto}
+.c-sidebar .c-nav a{display:flex;align-items:center;gap:var(--space-sm);padding:var(--space-sm) var(--space-md);border-radius:var(--radius-md)}
+.c-sidebar .c-nav a[aria-current]{background:color-mix(in srgb,var(--color-primary) 12%,transparent)}
+.c-nav a svg{flex:none}
+.c-icon{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.c-avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--color-primary);color:var(--color-on-primary);font-weight:600;object-fit:cover;flex:none}
+.c-avatar--sm{width:28px;height:28px;font-size:var(--text-xs)}.c-avatar--md{width:40px;height:40px;font-size:var(--text-sm)}.c-avatar--lg{width:64px;height:64px;font-size:var(--text-lg)}
+.c-pagination ul{display:flex;list-style:none;margin:0;padding:0;gap:var(--space-xs);align-items:center}
+.c-pagination a{display:inline-flex;align-items:center;justify-content:center;min-width:2.25em;height:2.25em;padding:0 .5em;border:1px solid var(--color-border);border-radius:var(--radius-md);color:inherit;text-decoration:none}
+.c-pagination a[aria-current]{background:var(--color-primary);border-color:var(--color-primary);color:var(--color-on-primary);font-weight:600}
+.c-modal__backdrop{background:rgba(15,23,42,.45);padding:var(--space-2xl) var(--space-lg);display:flex;justify-content:center}
+.c-modal{background:var(--color-background);color:var(--color-text);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:var(--space-lg);width:100%;max-width:560px;display:flex;flex-direction:column;gap:var(--space-md)}
+.c-modal__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-md)}.c-modal__head h2{font-size:var(--text-xl)}
+.c-modal__close{color:var(--color-muted);line-height:0}.c-modal__actions{justify-content:flex-end}
+.c-chart{margin:0;display:flex;flex-direction:column;gap:var(--space-sm)}.c-chart figcaption{font-weight:600}
+input.c-switch{appearance:none;width:2.5em;height:1.4em;flex:none;border-radius:999px;background:var(--color-border);position:relative;padding:0;border:0;cursor:pointer}
+@media (max-width:768px){.c-shell{flex-direction:column}.c-sidebar{width:auto!important;flex:none!important;border-right:0;border-bottom:1px solid var(--color-border)}}
+.c-switch::after{content:"";position:absolute;top:.2em;left:.2em;width:1em;height:1em;border-radius:50%;background:var(--color-background);transition:left .15s}
+.c-switch:checked{background:var(--color-primary)}.c-switch:checked::after{left:1.3em}
 .c-footer h2{font-size:var(--text-sm);margin-bottom:var(--space-sm)}
 .c-footer ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:var(--space-xs)}.c-footer a{color:inherit}
 .is-left{text-align:left;align-items:flex-start}.is-center{text-align:center;align-items:center;justify-content:center}.is-right{text-align:right;align-items:flex-end;justify-content:flex-end}
@@ -186,6 +218,7 @@ class Page:
         self.count = 0
         self.fields = 0
         self.sources: dict[int, str] = {}  # image locale de chaque nœud (cibles React)
+        self.shell = False  # page en coque d'application (sidebar) : <main> dans la coque
 
     # --- tokens
     def token(self, where: str, kind: str, value, extra=()):
@@ -334,8 +367,9 @@ class Page:
         for i, raw in enumerate(items):
             item = self.item(raw)
             active = item.get("active") or (current == i + 1)
+            mark = graphics.write(graphics.icon(item["icon"], 18)) if item.get("icon") else ""
             out.append(f'<li><a href="{self.link(item)}"{" " + current_attr if active else ""}>'
-                       f'{html.escape(item["text"])}</a></li>')
+                       f'{mark}{html.escape(item["text"])}</a></li>')
         return "".join(out)
 
     def contrast(self, node: dict, where: str, inherited_bg: str, inherited_fg: str) -> tuple[str, str]:
@@ -509,6 +543,67 @@ class Page:
         if kind == "spacer":
             extra = {"height": self.token(f"{where}/size", "space", node.get("size", "lg"))}
             return f'<div{self.attrs(node, where, "c-spacer", extra=extra)} aria-hidden="true"></div>'
+        if kind == "sidebar":
+            return self.sidebar(node, where, sub())
+        if kind == "icon":
+            if "crop" in node or "src" in node:
+                return self.image(node, where, "c-icon", node.get("label", ""))
+            if "name" not in node:
+                self.errors.append(f"{where} : name (icône du jeu intégré) ou crop attendu pour icon")
+                return ""
+            size = self.theme["font_sizes"].get(node.get("size", "lg"))
+            if size is None:
+                self.token(f"{where}/size", "text", node["size"])
+                size = 20
+            svg = graphics.write(graphics.icon(node["name"], size, node.get("label")))
+            return f'<span{self.attrs(node, where, "c-icon")}>{svg}</span>'
+        if kind == "avatar":
+            size = node.get("size", "md")
+            if size not in ("sm", "md", "lg"):
+                self.errors.append(f"{where}/size : « {size} » non permis pour avatar (sm, md, lg)")
+            if "crop" in node or "src" in node:
+                return self.image(node, where, f"c-avatar c-avatar--{size}", node.get("text", ""))
+            label = node.get("text", "")
+            return (f'<span{self.attrs(node, where, "c-avatar", f"c-avatar--{size}")} role="img" aria-label="{e(label)}">'
+                    f'{e(graphics.initials(label))}</span>')
+        if kind == "pagination":
+            pages, current = node["pages"], node.get("current", 1)
+            if current > pages:
+                self.errors.append(f"{where}/current : page {current} au-delà de pages ({pages})")
+            shown = sorted({1, pages, current - 1, current, current + 1} & set(range(1, pages + 1)))
+            lis, last = [], 0
+            for n in shown:
+                if n - last > 1:
+                    lis.append('<li aria-hidden="true">…</li>')
+                attr = ' aria-current="page"' if n == current else ""
+                lis.append(f'<li><a href="#"{attr}>{n}</a></li>')
+                last = n
+            prev = f'<li><a href="#" aria-label="Page précédente">{graphics.write(graphics.icon("chevron-left", 16))}</a></li>'
+            nxt = f'<li><a href="#" aria-label="Page suivante">{graphics.write(graphics.icon("chevron-right", 16))}</a></li>'
+            return (f'<nav{self.attrs(node, where, "c-pagination")} aria-label="Pagination"><ul>{prev}{"".join(lis)}{nxt}'
+                    f'</ul></nav>')
+        if kind == "modal":
+            level = 2
+            self.headings.append((level, where))
+            ident = f"modal-{len(self.headings)}"
+            text = f'<p>{e(node["text"])}</p>' if node.get("text") else ""
+            actions = f'<div class="c-buttons c-modal__actions">{self.buttons(node["actions"], where + "/actions", "primary", "ghost")}</div>' \
+                if node.get("actions") else ""
+            close = f'<a class="c-modal__close" href="#" aria-label="Fermer">{graphics.write(graphics.icon("close", 18))}</a>'
+            return (f'<div class="c-modal__backdrop"><div{self.attrs(node, where, "c-modal")} role="dialog" aria-modal="true" '
+                    f'aria-labelledby="{ident}"><div class="c-modal__head"><h2 id="{ident}">{e(node["title"])}</h2>{close}</div>'
+                    f'{text}{sub()}{actions}</div></div>')
+        if kind == "graph":
+            variant = node.get("variant", "bar")
+            items = [self.item(i) for i in node["items"]]
+            for i, item in enumerate(items):
+                if not isinstance(item.get("value"), (int, float)):
+                    self.errors.append(f"{where}/items/{i} : value (nombre) attendue pour graph")
+                    return ""
+            title = f'<figcaption>{e(node["title"])}</figcaption>' if node.get("title") else ""
+            svg = graphics.write(graphics.chart(variant, items, graphics.css_colors(), node.get("height", 240),
+                                                node.get("title", "")))
+            return f'<figure{self.attrs(node, where, "c-chart")}>{title}{svg}</figure>'
         if kind == "footer":
             groups = ""
             for i, group in enumerate(node.get("groups", [])):
@@ -519,6 +614,21 @@ class Page:
             text = f'<p class="c-text--muted">{e(node["text"])}</p>' if node.get("text") else ""
             return f'<footer{self.attrs(node, where, "c-footer")}><div class="container">{groups}{text}</div></footer>'
         return ""
+
+    def sidebar(self, node: dict, where: str, inner: str) -> str:
+        """Coque d'application : barre latérale de navigation et zone principale (enfants)."""
+        e = html.escape
+        width = node.get("width", 240)
+        if not isinstance(width, int):
+            self.errors.append(f"{where}/width : largeur en pixels (entier) attendue pour sidebar")
+            width = 240
+        logo = self.image(node, where, "c-sidebar__mark", node.get("text", "Logo")) if ("crop" in node or "src" in node) else ""
+        brand = f'<a class="c-sidebar__brand" href="#">{logo}{e(node.get("text", ""))}</a>' if (logo or node.get("text")) else ""
+        nav = f'<nav class="c-nav c-nav--vertical" aria-label="Navigation principale"><ul>{self.nav_list(node["items"])}</ul></nav>'
+        style = self.style(node, where, {"width": f"{width}px", "flex": f"0 0 {width}px"})
+        self.shell = True
+        return (f'<div class="c-shell"><aside{NODE_ATTR.format(where)} class="c-sidebar"{style}>{brand}{nav}</aside>'
+                f'<main class="c-shell__main">{inner}</main></div>')
 
     def field(self, field: dict, where: str) -> str:
         e = html.escape
@@ -532,6 +642,9 @@ class Page:
         help_ = f'<span class="c-field__help">{e(field["help"])}</span>' if field.get("help") else ""
         if kind in ("select", "radio") and not field.get("options"):
             self.errors.append(f"{where} : options manquantes pour un champ {kind}")
+        if kind == "switch":
+            return (f'<div class="c-field c-field--check{full}"><input class="c-switch" type="checkbox" role="switch" '
+                    f'id="{ident}"{required}><label for="{ident}">{e(field["label"])}{star}</label>{help_}</div>')
         if kind == "checkbox":
             return (f'<div class="c-field c-field--check{full}"><input class="c-check" type="checkbox" id="{ident}"{required}>'
                     f'<label for="{ident}">{e(field["label"])}{star}</label>{help_}</div>')
@@ -554,12 +667,15 @@ class Page:
         head = [n for n in body if n.get("type") == "header"]
         foot = [n for n in body if n.get("type") == "footer"]
         parts, main = [], []
+        shells = [n for n in body if n.get("type") == "sidebar"]
+        if len(shells) > 1 or (shells and len(body) - len(head) - len(foot) > 1):
+            self.warnings.append("sidebar : une seule par page, seule entre header et footer ; le contenu va dans ses children")
         for i, node in enumerate(body):
             where = f"body/{i}"
             out = self.node(node, where)
             if node.get("type") in ("header", "footer"):
                 parts.append((node["type"], out))
-            elif node.get("type") == "section":
+            elif node.get("type") in ("section", "sidebar"):
                 main.append(out)
             else:
                 main.append(f'<div class="container">{out}</div>')
@@ -575,7 +691,8 @@ class Page:
                 f'<title>{html.escape(self.spec["title"])}</title>\n'
                 + (f'<meta name="description" content="{html.escape(description)}">\n' if description else "")
                 + f'<link rel="stylesheet" href="{self.stem}.css">\n</head>\n<body>\n'
-                f'{top}\n<main>\n{chr(10).join(main)}\n</main>\n{bottom}\n</body>\n</html>\n')
+                f'{top}\n' + (chr(10).join(main) if self.shell else f'<main>\n{chr(10).join(main)}\n</main>')
+                + f'\n{bottom}\n</body>\n</html>\n')
         css = "/* Généré par page_build.py (mockup-to-html) : tokens du design system, puis composants. */\n" \
               + self.ds.css_variables(self.theme) + CSS
         return page, css

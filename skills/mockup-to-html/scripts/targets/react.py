@@ -11,13 +11,17 @@ s'ajoute par une entrée de TARGETS et ses fonctions.
 import json
 import re
 
+import graphics
+
 TARGETS = {
     "react-mui": {"module": "@mui/material", "label": "MUI (Material UI) 7",
                   "provides": ["header", "nav", "breadcrumb", "button", "buttons", "card", "form", "table", "list",
-                               "badge", "alert", "tabs", "stepper", "search", "divider", "image"]},
+                               "badge", "alert", "tabs", "stepper", "search", "divider", "image", "sidebar", "avatar",
+                               "pagination", "modal"]},
     "react-antd": {"module": "antd", "label": "Ant Design 5",
                    "provides": ["header", "nav", "breadcrumb", "button", "buttons", "card", "form", "table", "list",
-                                "badge", "alert", "tabs", "stepper", "stat", "search", "divider", "image"]},
+                                "badge", "alert", "tabs", "stepper", "stat", "search", "divider", "image", "sidebar",
+                                "avatar", "pagination", "modal"]},
 }
 SEVERITY = {"info": "info", "success": "success", "warning": "warning", "danger": "error"}
 
@@ -118,7 +122,67 @@ class Emitter:
         return (f"<{self.tag('Box')}{self.style(node, extra)} />" if self.mui
                 else f"<div aria-hidden{self.style(node, extra)} />")
 
+    def svg_icon(self, name: str, size: float = 20, label: str | None = None) -> str:
+        return graphics.write(graphics.icon(name, size, label), jsx=True)
+
+    def any_icon(self, node, depth):
+        src = self.image_src(node)
+        if src:
+            return f"<img src={js(src)} alt={js(node.get('label', ''))} style={{{{ height: 24 }}}} />"
+        size = self.theme["font_sizes"].get(node.get("size", "lg"), 20)
+        return f"<span style={{{{ display: \"inline-flex\", lineHeight: 0 }}}}>{self.svg_icon(node['name'], size, node.get('label'))}</span>"
+
+    def any_graph(self, node, depth):
+        colors = graphics.theme_colors(self.theme)
+        svg = graphics.write(graphics.chart(node.get("variant", "bar"), self.items(node["items"]), colors,
+                                            node.get("height", 240), node.get("title", "")), jsx=True)
+        caption = f"<figcaption style={{{{ fontWeight: 600 }}}}>{text(node['title'])}</figcaption>" if node.get("title") else ""
+        return f"<figure style={{{{ margin: 0 }}}}>\n  {caption}\n  {svg}\n</figure>" if caption else f"<figure style={{{{ margin: 0 }}}}>{svg}</figure>"
+
+    def initials(self, node) -> str:
+        return graphics.initials(node.get("text", ""))
+
     # --- MUI
+    def mui_sidebar(self, node, depth):
+        width = node.get("width", 240)
+        bg = self.color(node.get("background")) or "\"background.default\""
+        src = self.image_src(node)
+        logo = f"<{self.tag('Box')} component=\"img\" src={js(src)} alt={js(node.get('alt', ''))} sx={{{{ height: 36 }}}} />" if src else ""
+        brand = (f"  <{self.tag('Stack')} direction=\"row\" spacing={{1}} alignItems=\"center\">{logo}<{self.tag('Typography')} variant=\"h6\" "
+                 f"sx={{{{ fontWeight: 700 }}}}>{text(node.get('text', ''))}</Typography></Stack>\n") if (src or node.get("text")) else ""
+        rows = ""
+        for item in self.items(node["items"]):
+            mark = f"<{self.tag('ListItemIcon')} sx={{{{ minWidth: 32 }}}}>{self.svg_icon(item['icon'], 18)}</ListItemIcon>" if item.get("icon") else ""
+            selected = " selected" if item.get("active") else ""
+            rows += (f"    <{self.tag('ListItemButton')} component=\"a\" href={js(item.get('href', '#'))}{selected}>{mark}"
+                     f"<{self.tag('ListItemText')} primary={js(item['text'])} /></ListItemButton>\n")
+        nav = f"  <{self.tag('List')} component=\"nav\" aria-label=\"Navigation principale\">\n{rows}  </List>\n"
+        main = self.indent(self.kids(node, 0), 2)
+        return (f"<{self.tag('Box')} sx={{{{ display: \"flex\", minHeight: \"100vh\" }}}}>\n"
+                f"  <Box component=\"aside\" sx={{{{ width: {width}, flexShrink: 0, bgcolor: {bg}, borderRight: 1, borderColor: \"divider\", p: 2 }}}}>\n"
+                f"{self.indent(brand + nav)}  </Box>\n  <Box component=\"main\" sx={{{{ flex: 1, minWidth: 0 }}}}>\n{main}  </Box>\n</Box>")
+
+    def mui_avatar(self, node, depth):
+        size = {"sm": 28, "md": 40, "lg": 64}.get(node.get("size", "md"), 40)
+        src = self.image_src(node)
+        if src:
+            return f"<{self.tag('Avatar')} src={js(src)} alt={js(node.get('alt', node.get('text', '')))} sx={{{{ width: {size}, height: {size} }}}} />"
+        return (f"<{self.tag('Avatar')} aria-label={js(node.get('text', ''))} sx={{{{ width: {size}, height: {size}, bgcolor: \"primary.main\" }}}}>"
+                f"{text(self.initials(node))}</Avatar>")
+
+    def mui_pagination(self, node, depth):
+        return f"<{self.tag('Pagination')} count={{{node['pages']}}} page={{{node.get('current', 1)}}} color=\"primary\" shape=\"rounded\" />"
+
+    def mui_modal(self, node, depth):
+        body = f"    <{self.tag('DialogContentText')}>{text(node['text'])}</DialogContentText>\n" if node.get("text") else ""
+        body += self.indent(self.kids(node, 0), 2)
+        actions = "".join("    " + self.mui_button({"text": a["text"], "variant": a.get("variant") or (
+            "primary" if n == len(node["actions"]) - 1 else "ghost")}, 0) + "\n" for n, a in enumerate(self.items(node.get("actions"))))
+        foot = f"  <{self.tag('DialogActions')}>\n{actions}  </DialogActions>\n" if actions else ""
+        return (f"<{self.tag('Dialog')} open aria-labelledby=\"dialog-title\">\n"
+                f"  <{self.tag('DialogTitle')} id=\"dialog-title\">{text(node['title'])}</DialogTitle>\n"
+                f"  <{self.tag('DialogContent')}>\n{body}  </DialogContent>\n{foot}</Dialog>")
+
     def mui_section(self, node, depth):
         inner = self.indent(self.kids(node, 0), 2)
         container = f"  <{self.tag('Container')} maxWidth=\"lg\">\n  <{self.tag('Stack')} spacing={{3}}>\n{inner}  </Stack>\n  </Container>\n" \
@@ -241,6 +305,8 @@ class Emitter:
         ph = f" placeholder={js(field['placeholder'])}" if field.get("placeholder") else ""
         if kind == "checkbox":
             return (f"<{self.tag('FormControlLabel')} control={{<{self.tag('Checkbox')}{req} />}} label={js(field['label'])} />")
+        if kind == "switch":
+            return (f"<{self.tag('FormControlLabel')} control={{<{self.tag('Switch')}{req} />}} label={js(field['label'])} />")
         if kind == "radio":
             opts = "".join(f"  <FormControlLabel value={js(o)} control={{<{self.tag('Radio')} />}} label={js(o)} />\n"
                            for o in field.get("options", []))
@@ -363,6 +429,46 @@ class Emitter:
                 f"    <Menu mode=\"horizontal\" items={{{items}}} style={{{{ flex: 1, borderBottom: 0, justifyContent: \"center\" }}}} aria-label=\"Navigation principale\" />\n"
                 f"    <Space>\n{actions}    </Space>\n  </Flex>\n</header>")
 
+    def antd_sidebar(self, node, depth):
+        width = node.get("width", 240)
+        selected = [str(n) for n, i in enumerate(self.items(node["items"])) if i.get("active")]
+        entries = ", ".join("{ key: " + js(str(n)) + ", label: " + js(i["text"])
+                            + (f", icon: {self.svg_icon(i['icon'], 18)}" if i.get("icon") else "") + " }"
+                            for n, i in enumerate(self.items(node["items"])))
+        src = self.image_src(node)
+        logo = f"<img src={js(src)} alt={js(node.get('alt', ''))} style={{{{ height: 36 }}}} />" if src else ""
+        brand = (f"    <Flex align=\"center\" gap={{8}} style={{{{ padding: 16 }}}}>{logo}<Typography.Text strong style={{{{ fontSize: 20 }}}}>"
+                 f"{text(node.get('text', ''))}</Typography.Text></Flex>\n") if (src or node.get("text")) else ""
+        bg = self.color(node["background"]) if node.get("background") else "tokens.colors.surface"
+        self.used.update({"Layout", "Menu", "Flex", "Typography"})
+        main = self.indent(self.kids(node, 0), 2)
+        return (f"<Layout style={{{{ minHeight: \"100vh\" }}}}>\n"
+                f"  <Layout.Sider width={{{width}}} theme=\"light\" style={{{{ background: {bg} }}}}>\n{brand}"
+                f"    <Menu mode=\"inline\" selectedKeys={{{js(selected)}}} items={{[{entries}]}} style={{{{ background: \"transparent\", borderInlineEnd: 0 }}}} aria-label=\"Navigation principale\" />\n"
+                f"  </Layout.Sider>\n  <Layout.Content style={{{{ background: tokens.colors.background }}}}>\n{main}  </Layout.Content>\n</Layout>")
+
+    def antd_avatar(self, node, depth):
+        size = {"sm": 28, "md": 40, "lg": 64}.get(node.get("size", "md"), 40)
+        src = self.image_src(node)
+        if src:
+            return f"<{self.tag('Avatar')} size={{{size}}} src={js(src)} alt={js(node.get('alt', node.get('text', '')))} />"
+        return (f"<{self.tag('Avatar')} size={{{size}}} aria-label={js(node.get('text', ''))} style={{{{ background: tokens.colors.primary }}}}>"
+                f"{text(self.initials(node))}</Avatar>")
+
+    def antd_pagination(self, node, depth):
+        return (f"<{self.tag('Pagination')} current={{{node.get('current', 1)}}} total={{{node['pages'] * 10}}} "
+                f"showSizeChanger={{false}} />")
+
+    def antd_modal(self, node, depth):
+        body = f"  <{self.tag('Typography')}.Paragraph>{text(node['text'])}</Typography.Paragraph>\n" if node.get("text") else ""
+        body += self.indent(self.kids(node, 0))
+        actions = "".join("    " + self.antd_button({"text": a["text"], "variant": a.get("variant") or (
+            "primary" if n == len(node["actions"]) - 1 else "ghost")}, 0) + "\n" for n, a in enumerate(self.items(node.get("actions"))))
+        if actions:
+            self.used.add("Flex")
+            body += f"  <Flex justify=\"end\" gap={{8}}>\n{actions}  </Flex>\n"
+        return f"<{self.tag('Modal')} open title={js(node['title'])} footer={{null}} closable>\n{body}</Modal>"
+
     def antd_nav(self, node, depth):
         items = js([{"key": str(n), "label": i["text"]} for n, i in enumerate(self.items(node["items"]))])
         mode = "inline" if node.get("variant") == "vertical" else "horizontal"
@@ -444,6 +550,9 @@ class Emitter:
             "radio": f"<{self.tag('Radio')}.Group options={{{js(field.get('options', []))}}} />",
             "file": f"<{self.tag('Upload')}><Button>{text(field.get('placeholder', 'Choisir un fichier'))}</Button></Upload>",
         }.get(kind)
+        if kind == "switch":
+            return (f"<Form.Item label={js(field['label'])} name={js(f'f{n}')} valuePropName=\"checked\">\n"
+                    f"  <{self.tag('Switch')} />\n</Form.Item>")
         if kind == "checkbox":
             return (f"<Form.Item name={js(f'f{n}')} valuePropName=\"checked\"{' rules={[{ required: true }]}' if field.get('required') else ''}>\n"
                     f"  <{self.tag('Checkbox')}>{text(field['label'])}</Checkbox>\n</Form.Item>")

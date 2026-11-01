@@ -14,15 +14,17 @@ import html
 import json
 import re
 
+import graphics
 from react import pascal
 
 TARGETS = {
     "vue-vuetify": {"label": "Vue 3 avec Vuetify 3",
                     "provides": ["header", "nav", "breadcrumb", "button", "buttons", "card", "form", "table", "list",
-                                 "badge", "alert", "tabs", "stepper", "search", "divider", "image"]},
+                                 "badge", "alert", "tabs", "stepper", "search", "divider", "image", "sidebar",
+                                 "avatar", "pagination", "modal"]},
     "angular-material": {"label": "Angular avec Angular Material",
                          "provides": ["header", "nav", "button", "buttons", "card", "form", "table", "list", "badge",
-                                      "tabs", "stepper", "search", "divider"]},
+                                      "tabs", "stepper", "search", "divider", "sidebar", "pagination"]},
 }
 SEVERITY = {"info": "info", "success": "success", "warning": "warning", "danger": "error"}
 VOID = {"img", "input", "hr", "br"}
@@ -114,6 +116,46 @@ class Base:
 
     def size(self, node: dict) -> dict:
         return {"fontSize": self.px("font_sizes", node["size"])} if node.get("size") else {}
+
+    # communs : SVG en ligne (icônes, graphiques)
+    def svg(self, tree) -> El:
+        if isinstance(tree, str):
+            return tree
+        tag, attrs, children = tree
+        texts = [c for c in children if isinstance(c, str)]
+        return El(tag, attrs, *[self.svg(c) for c in children if not isinstance(c, str)],
+                  text=texts[0] if texts else None)
+
+    def n_icon(self, node):
+        src = self.image_src(node)
+        if src:
+            return El("img", {"src": src, "alt": node.get("label", ""), "height": "24"})
+        size = self.theme["font_sizes"].get(node.get("size", "lg"), 20)
+        return El("span", {"class": "icon"}, self.svg(graphics.icon(node["name"], size, node.get("label"))))
+
+    def n_graph(self, node):
+        tree = graphics.chart(node.get("variant", "bar"), self.items(node["items"]), graphics.theme_colors(self.theme),
+                              node.get("height", 240), node.get("title", ""))
+        caption = El("figcaption", {"class": "chart-title"}, text=node["title"]) if node.get("title") else None
+        return El("figure", {"class": "chart"}, caption, self.svg(tree))
+
+    def n_avatar(self, node):
+        size = {"sm": 28, "md": 40, "lg": 64}.get(node.get("size", "md"), 40)
+        src = self.image_src(node)
+        style = f"width: {size}px; height: {size}px"
+        if src:
+            return El("img", {"class": "avatar", "src": src, "alt": node.get("alt", node.get("text", "")), "style": style})
+        return El("span", {"class": "avatar", "role": "img", "aria-label": node.get("text", ""), "style": style},
+                  text=graphics.initials(node.get("text", "")))
+
+    def n_modal(self, node):
+        body = [El("p", {}, text=node["text"])] if node.get("text") else []
+        actions = [self.n_button({"text": a["text"], "variant": a.get("variant") or (
+            "primary" if n == len(node["actions"]) - 1 else "ghost")}) for n, a in enumerate(self.items(node.get("actions")))]
+        return El("div", {"class": "modal-backdrop"},
+                  El("div", {"class": "modal", "role": "dialog", "aria-modal": "true", "aria-labelledby": "modal-title"},
+                     El("h2", {"id": "modal-title"}, text=node["title"]), *body, *self.kids(node),
+                     El("div", {"class": "actions modal-actions"}, *actions) if actions else None))
 
     # communs : balises HTML et styles
     def n_spacer(self, node):
@@ -256,6 +298,41 @@ class Vuetify(Base):
                                                           for a in self.items(node["actions"])]))
         return self.tag("v-card", {"variant": "outlined", "class": "h-100", **self.style(node)}, *parts)
 
+    def n_sidebar(self, node):
+        src = self.image_src(node)
+        brand = El("div", {"class": "d-flex align-center ga-2 pa-4"},
+                   El("img", {"src": src, "alt": node.get("alt", ""), "height": "36"}) if src else None,
+                   El("strong", {"class": "text-h6"}, text=node.get("text", ""))) if (src or node.get("text")) else None
+        items = [self.tag("v-list-item", {"href": i.get("href", "#"), "title": i["text"], "active": True if i.get("active") else None,
+                                          "color": "primary"},
+                          El("template", {"#prepend": True}, El("span", {"class": "icon me-3"}, self.svg(graphics.icon(i["icon"], 18))))
+                          if i.get("icon") else None)
+                 for i in self.items(node["items"])]
+        nav = self.tag("v-list", {"nav": True, "density": "compact", "aria-label": "Navigation principale"}, *items)
+        drawer = self.tag("v-navigation-drawer", {"permanent": True, "width": str(node.get("width", 240)),
+                                                  "color": node.get("background") or "surface"}, brand, nav)
+        return self.tag("v-layout", {}, drawer, self.tag("v-main", {}, *self.kids(node)))
+
+    def n_avatar(self, node):
+        size = {"sm": "28", "md": "40", "lg": "64"}.get(node.get("size", "md"), "40")
+        src = self.image_src(node)
+        if src:
+            return self.tag("v-avatar", {"size": size, "image": src})
+        return self.tag("v-avatar", {"size": size, "color": "primary", "aria-label": node.get("text", "")},
+                        text=graphics.initials(node.get("text", "")))
+
+    def n_pagination(self, node):
+        return self.tag("v-pagination", {":length": str(node["pages"]), ":model-value": str(node.get("current", 1)),
+                                         "rounded": True, "density": "comfortable"})
+
+    def n_modal(self, node):
+        body = ([El("p", {}, text=node["text"])] if node.get("text") else []) + self.kids(node)
+        actions = [self.n_button({"text": a["text"], "variant": a.get("variant") or (
+            "primary" if n == len(node["actions"]) - 1 else "ghost")}) for n, a in enumerate(self.items(node.get("actions")))]
+        card = self.tag("v-card", {"title": node["title"]}, self.tag("v-card-text", {}, *body) if body else None,
+                        self.tag("v-card-actions", {"class": "justify-end"}, *actions) if actions else None)
+        return self.tag("v-dialog", {":model-value": "true", "max-width": "560"}, card)
+
     def field(self, f: dict, n: int):
         kind = f.get("type", "text")
         common = {"label": f["label"], "placeholder": f.get("placeholder"), "hint": f.get("help"),
@@ -267,6 +344,8 @@ class Vuetify(Base):
             return self.tag("v-textarea", {**common, "rows": "4"})
         if kind == "checkbox":
             return self.tag("v-checkbox", {"label": f["label"], ":rules": common[":rules"], "hide-details": "auto"})
+        if kind == "switch":
+            return self.tag("v-switch", {"label": f["label"], "color": "primary", "hide-details": "auto"})
         if kind == "radio":
             return self.tag("v-radio-group", {"label": f["label"], "inline": True},
                             *[self.tag("v-radio", {"label": o, "value": o}) for o in f.get("options", [])])
@@ -331,7 +410,8 @@ class Material(Base):
                "mat-form-field": "MatFormFieldModule", "matInput": "MatInputModule", "mat-select": "MatSelectModule",
                "mat-checkbox": "MatCheckboxModule", "mat-radio": "MatRadioModule", "mat-list": "MatListModule",
                "mat-chip": "MatChipsModule", "mat-tab": "MatTabsModule", "mat-stepper": "MatStepperModule",
-               "mat-divider": "MatDividerModule", "ngStyle": "NgStyle"}
+               "mat-divider": "MatDividerModule", "ngStyle": "NgStyle", "mat-sidenav": "MatSidenavModule",
+               "mat-paginator": "MatPaginatorModule", "mat-slide-toggle": "MatSlideToggleModule"}
 
     def use(self, module: str):
         self.used.add(module)
@@ -416,6 +496,28 @@ class Material(Base):
                                                       for a in self.items(node["actions"])]))
         return El("mat-card", {"appearance": "outlined", "class": "full-height", **self.style(node)}, *parts)
 
+    def n_sidebar(self, node):
+        self.use("mat-sidenav")
+        self.use("mat-list")
+        src = self.image_src(node)
+        brand = El("div", {"class": "brand sidenav-brand"},
+                   El("img", {"src": src, "alt": node.get("alt", ""), "height": "36"}) if src else None,
+                   El("strong", {}, text=node.get("text", ""))) if (src or node.get("text")) else None
+        links = [El("a", {"mat-list-item": True, "href": i.get("href", "#"), "class": "is-active" if i.get("active") else None,
+                          "aria-current": "page" if i.get("active") else None},
+                    El("span", {"matListItemIcon": True, "class": "icon"}, self.svg(graphics.icon(i["icon"], 18))) if i.get("icon") else None,
+                    El("span", {"matListItemTitle": True}, text=i["text"]))
+                 for i in self.items(node["items"])]
+        side = El("mat-sidenav", {"mode": "side", "opened": True, "class": "sidenav", "style": f"width: {node.get('width', 240)}px",
+                                  **self.style({k: v for k, v in node.items() if k in ("background", "color")})},
+                  brand, El("mat-nav-list", {"aria-label": "Navigation principale"}, *links))
+        return El("mat-sidenav-container", {"class": "shell"}, side, El("mat-sidenav-content", {}, El("main", {}, *self.kids(node))))
+
+    def n_pagination(self, node):
+        self.use("mat-paginator")
+        return El("mat-paginator", {"[length]": str(node["pages"]), "[pageSize]": "1", "[pageIndex]": str(node.get("current", 1) - 1),
+                                    "[hidePageSize]": "true", "[showFirstLastButtons]": "true", "aria-label": "Pagination"})
+
     def field(self, f: dict, n: int):
         kind = f.get("type", "text")
         required = True if f.get("required") else None
@@ -423,6 +525,9 @@ class Material(Base):
         if kind == "checkbox":
             self.use("mat-checkbox")
             return El("mat-checkbox", {"required": required}, text=f["label"])
+        if kind == "switch":
+            self.use("mat-slide-toggle")
+            return El("mat-slide-toggle", {"required": required}, text=f["label"])
         if kind == "radio":
             self.use("mat-radio")
             return El("div", {"class": "field"}, El("label", {"class": "field-label"}, text=f["label"]),
@@ -529,13 +634,25 @@ footer a { color: inherit; }
 .footer-groups ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
 .footer-title { font-size: 14px; margin: 0 0 8px; }
 h1, h2, h3, h4, p { margin: 0; }
+.icon { display: inline-flex; line-height: 0; }
+.chart { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.chart-title { font-weight: 600; }
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: {primary}; color: {onprimary}; font-weight: 600; object-fit: cover; }
+.modal-backdrop { background: rgba(15, 23, 42, .45); padding: 48px 24px; display: flex; justify-content: center; }
+.modal { background: {bg}; border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
+.modal-actions { justify-content: flex-end; }
+.shell { min-height: 100vh; }
+.sidenav { padding: 16px; border-right: 1px solid {border}; }
+.sidenav-brand { display: flex; align-items: center; gap: 8px; padding: 8px 16px 16px; }
 """
 
 
 def page_css(theme: dict, extra: str = "") -> str:
     return (PAGE_CSS.replace("{max}", f"{theme['max_width']:g}").replace("{muted}", theme["colors"]["muted"])
             .replace("{link}", theme["colors"].get("link", theme["colors"]["primary"]))
-            .replace("{stat}", f"{theme['font_sizes'].get('2xl', 32):g}") + extra)
+            .replace("{stat}", f"{theme['font_sizes'].get('2xl', 32):g}")
+            .replace("{primary}", theme["colors"]["primary"]).replace("{onprimary}", theme["colors"].get("on-primary", "#ffffff"))
+            .replace("{bg}", theme["colors"]["background"]).replace("{border}", theme["colors"]["border"]) + extra)
 
 
 MATERIAL_CSS = """.grid { display: grid; }
@@ -643,7 +760,8 @@ MODULE_PATH = {"MatToolbarModule": "toolbar", "MatButtonModule": "button", "MatC
                "MatFormFieldModule": "form-field", "MatInputModule": "input", "MatSelectModule": "select",
                "MatCheckboxModule": "checkbox", "MatRadioModule": "radio", "MatListModule": "list",
                "MatChipsModule": "chips", "MatTabsModule": "tabs", "MatStepperModule": "stepper",
-               "MatDividerModule": "divider"}
+               "MatDividerModule": "divider", "MatSidenavModule": "sidenav", "MatPaginatorModule": "paginator",
+               "MatSlideToggleModule": "slide-toggle"}
 
 TAG = re.compile(r"<(/?)([A-Za-z][\w.-]*)((?:\s+[^<>]*?)?)\s*(/?)>")
 
