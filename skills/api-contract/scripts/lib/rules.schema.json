@@ -1,0 +1,394 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "Règles de complétude et principes d'architecture",
+ "description": "Postes attendus d'un chiffrage (solution-estimate), scénarios attendus d'une revue et principes d'architecture du client, vérifiés par la revue (architecture-review). Les règles livrées sont dans le references/ de chaque skill ; celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) puis celles de la mission (references.regles, puis references.principes de mission.json) s'y ajoutent, et une règle de même id remplace la précédente ({\"id\", \"off\": true} la retire). Écrit par lessons.py --apply (decision-log) ou à la main.",
+ "type": "object",
+ "additionalProperties": false,
+ "patternProperties": {
+  "^_": {}
+ },
+ "properties": {
+  "chiffrage": {
+   "type": "array",
+   "items": {
+    "anyOf": [
+     {
+      "$ref": "#/$defs/off"
+     },
+     {
+      "$ref": "#/$defs/poste"
+     }
+    ]
+   }
+  },
+  "revue": {
+   "type": "array",
+   "items": {
+    "anyOf": [
+     {
+      "$ref": "#/$defs/off"
+     },
+     {
+      "$ref": "#/$defs/scenario"
+     }
+    ]
+   }
+  },
+  "principes": {
+   "type": "array",
+   "description": "Principes d'architecture du client : règles en plus pour arch_review.py (architecture-review), le plus souvent ceux d'une mission.",
+   "items": {
+    "anyOf": [
+     {
+      "$ref": "#/$defs/off"
+     },
+     {
+      "$ref": "#/$defs/principe"
+     }
+    ]
+   }
+  }
+ },
+ "$defs": {
+  "id": {
+   "type": "string",
+   "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+  },
+  "off": {
+   "type": "object",
+   "required": [
+    "id",
+    "off"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "off": {
+     "enum": [
+      true
+     ]
+    },
+    "source": {
+     "type": "string"
+    }
+   }
+  },
+  "when": {
+   "type": "object",
+   "description": "Conditions, toutes requises (aucune : toujours).",
+   "additionalProperties": false,
+   "properties": {
+    "categories": {
+     "type": "array",
+     "minItems": 1,
+     "description": "Une exigence retenue de l'une de ces catégories existe (pour une revue : non fonctionnelle, indispensable ou importante).",
+     "items": {
+      "enum": [
+       "performance",
+       "disponibilite",
+       "securite",
+       "conformite",
+       "exploitabilite",
+       "maintenabilite",
+       "evolutivite",
+       "interoperabilite",
+       "utilisabilite",
+       "portabilite",
+       "cout",
+       "autre"
+      ]
+     }
+    },
+    "roles": {
+     "type": "array",
+     "minItems": 1,
+     "description": "Un composant de l'architecture a l'un de ces rôles.",
+     "items": {
+      "enum": [
+       "person",
+       "system",
+       "external",
+       "db",
+       "queue"
+      ]
+     }
+    },
+    "infra": {
+     "type": "boolean",
+     "description": "Chiffrage : des lignes d'infrastructure existent."
+    },
+    "cloud": {
+     "type": "boolean",
+     "description": "Chiffrage : l'option est hébergée chez un fournisseur cloud et chiffrée avec son infrastructure."
+    }
+   }
+  },
+  "poste": {
+   "type": "object",
+   "required": [
+    "id",
+    "label",
+    "pattern"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Poste attendu, tel qu'il apparaît dans l'avertissement."
+    },
+    "pattern": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Expression régulière cherchée, sans accents ni majuscules, dans les lots, l'infrastructure, les hypothèses et les exclusions."
+    },
+    "phase": {
+     "enum": [
+      "cadrage",
+      "conception",
+      "realisation",
+      "integration",
+      "tests",
+      "deploiement",
+      "migration",
+      "conduite-changement",
+      "pilotage"
+     ],
+     "description": "Phase dont un lot suffit à couvrir le poste."
+    },
+    "draft": {
+     "type": "object",
+     "required": [
+      "name",
+      "phase"
+     ],
+     "additionalProperties": false,
+     "description": "Lot transverse que --draft ajoute quand la règle s'applique.",
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1
+      },
+      "phase": {
+       "enum": [
+        "cadrage",
+        "conception",
+        "realisation",
+        "integration",
+        "tests",
+        "deploiement",
+        "migration",
+        "conduite-changement",
+        "pilotage"
+       ]
+      }
+     }
+    },
+    "when": {
+     "$ref": "#/$defs/when"
+    },
+    "source": {
+     "type": "string",
+     "description": "D'où vient la règle : revue passée, retour du journal, référentiel."
+    }
+   }
+  },
+  "scenario": {
+   "type": "object",
+   "required": [
+    "id",
+    "label",
+    "attribute",
+    "pattern"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Scénario attendu, tel qu'il apparaît dans le constat."
+    },
+    "attribute": {
+     "enum": [
+      "performance",
+      "disponibilite",
+      "securite",
+      "conformite",
+      "exploitabilite",
+      "maintenabilite",
+      "evolutivite",
+      "interoperabilite",
+      "utilisabilite",
+      "portabilite",
+      "cout",
+      "autre"
+     ],
+     "description": "Attribut des scénarios où le chercher."
+    },
+    "pattern": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Expression régulière cherchée, sans accents ni majuscules, dans le stimulus, l'environnement et la réponse."
+    },
+    "draft": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Stimulus du squelette de scénario que --draft propose quand la règle s'applique."
+    },
+    "when": {
+     "$ref": "#/$defs/when"
+    },
+    "source": {
+     "type": "string"
+    }
+   }
+  },
+  "match": {
+   "type": "object",
+   "additionalProperties": false,
+   "description": "Champs du composant (tech, label, layer) ou du flux (style, protocol, label) : expression régulière, sans accents ni majuscules ; count_min : nombre d'instances minimal d'un composant.",
+   "properties": {
+    "tech": {
+     "type": "string",
+     "minLength": 1
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1
+    },
+    "layer": {
+     "type": "string",
+     "minLength": 1
+    },
+    "protocol": {
+     "type": "string",
+     "minLength": 1
+    },
+    "style": {
+     "enum": [
+      "sync",
+      "async"
+     ]
+    },
+    "count_min": {
+     "type": "integer",
+     "minimum": 1
+    }
+   }
+  },
+  "principe": {
+   "type": "object",
+   "required": [
+    "id",
+    "label",
+    "target"
+   ],
+   "additionalProperties": false,
+   "properties": {
+    "id": {
+     "$ref": "#/$defs/id"
+    },
+    "label": {
+     "type": "string",
+     "minLength": 1,
+     "description": "Principe, tel qu'il apparaît dans le constat."
+    },
+    "target": {
+     "enum": [
+      "composants",
+      "flux"
+     ]
+    },
+    "severity": {
+     "enum": [
+      "haute",
+      "moyenne",
+      "basse"
+     ],
+     "description": "Gravité du constat (défaut : moyenne)."
+    },
+    "select": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Éléments visés, toutes conditions requises (aucune : tous).",
+     "properties": {
+      "roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       },
+       "description": "composants de ces rôles"
+      },
+      "tech": {
+       "type": "string",
+       "minLength": 1
+      },
+      "label": {
+       "type": "string",
+       "minLength": 1
+      },
+      "from_roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       }
+      },
+      "to_roles": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "enum": [
+         "person",
+         "system",
+         "external",
+         "db",
+         "queue"
+        ]
+       }
+      },
+      "style": {
+       "enum": [
+        "sync",
+        "async"
+       ]
+      }
+     }
+    },
+    "require": {
+     "$ref": "#/$defs/match",
+     "description": "chaque champ doit correspondre"
+    },
+    "forbid": {
+     "$ref": "#/$defs/match",
+     "description": "aucun champ ne doit correspondre"
+    },
+    "source": {
+     "type": "string",
+     "description": "référentiel du client d'où vient le principe"
+    }
+   }
+  }
+ }
+}

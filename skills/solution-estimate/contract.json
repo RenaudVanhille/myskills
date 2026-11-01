@@ -8,10 +8,11 @@
     "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
     "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
     "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
-    "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission"
+    "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission",
+    "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
   ],
   "outputs": [
-    "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
+    "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, points à challenger et réemploi, couverture, hypothèses, exclusions)",
     "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script",
     "<nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script",
     "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates"
@@ -19,8 +20,8 @@
   "scripts": [
     {
       "name": "estimate_build.py",
-      "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots frontend tirés des maquettes) pour que le modèle n'écrive que les charges.",
-      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--frontend decoupage.lots.json] | --schema",
+      "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer.",
+      "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--abaques ABAQUES.json] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots LOTS.json ...] | --schema",
       "options": {
         "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
@@ -30,7 +31,9 @@
         "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
         "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
         "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
-        "--frontend": "avec --draft : lots frontend de ui_breakdown.py (mockup-to-html), avec leurs charges d'abaque ; ils remplacent le lot global de leur composant"
+        "--lots": "avec --draft : lots d'un expert au format des lots (work), répétable : frontend de ui_breakdown.py (mockup-to-html), backend d'api_breakdown.py (api-contract) ; ils remplacent le lot global de chaque composant qu'ils couvrent, leurs réemplois (reuse.from) suivent la renumérotation",
+        "--frontend": "avec --draft : comme --lots (lots frontend de ui_breakdown.py), gardé pour les appels existants",
+        "--abaques": "abaques propres (shared/schemas/abaques.schema.json, section challenge : seuils des points à challenger), après ceux de l'utilisateur (~/.myskills/abaques.json ou MYSKILLS_ABAQUES) et de la mission (references.abaques)"
       },
       "input": {
         "format": "json",
@@ -219,6 +222,33 @@
                         "type": "number",
                         "minimum": 0.05,
                         "maximum": 3
+                      }
+                    }
+                  },
+                  "reuse": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "percent",
+                      "basis"
+                    ],
+                    "description": "Réemploi : part de la charge déjà faite par un autre lot (from) ou par un existant (sans from) ; la charge saisie est celle sans réemploi, le script la réduit.",
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
+                        "description": "Lot réutilisé (identifiant d'un lot de ce chiffrage)."
+                      },
+                      "percent": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 90,
+                        "description": "Part de la charge épargnée, en %."
+                      },
+                      "basis": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Ce qui est réutilisé et pourquoi (même gabarit, composant commun, existant du client)."
                       }
                     }
                   }
@@ -647,7 +677,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer.",
+        "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer. Réemploi (lots, jours épargnés, taux), points à challenger avec leurs seuils, abaques lus.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
@@ -674,7 +704,10 @@
                 "errors",
                 "warnings",
                 "mode",
-                "charges"
+                "charges",
+                "reuse",
+                "challenge",
+                "abaques"
               ],
               "properties": {
                 "input": {
@@ -1271,6 +1304,126 @@
                       "description": "Phases hors de la fourchette (part sous 0,67 fois le mini ou au-dessus de 1,5 fois le maxi) ou absentes alors que toutes les missions comparées l'ont."
                     }
                   }
+                },
+                "reuse": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "lots",
+                    "gross_days",
+                    "saved_days",
+                    "rate"
+                  ],
+                  "description": "Réemploi entre fonctionnalités : lots concernés, jours bruts et épargnés, taux.",
+                  "properties": {
+                    "lots": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "gross_days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "saved_days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "challenge": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "margin",
+                    "realisation_share",
+                    "days_per_requirement",
+                    "large",
+                    "similar",
+                    "reuse_rate",
+                    "points",
+                    "calibrated"
+                  ],
+                  "description": "Points à challenger : marges cumulées en % (pilotage, provision, asymétrie des trois points, total), part de la réalisation et de l'intégration, jours de lots par exigence retenue, lots trop gros, paires de lots semblables sans réemploi, taux de réemploi, constats au-delà des seuils, seuils tirés d'abaques fournis ou non.",
+                  "properties": {
+                    "margin": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "pilotage",
+                        "contingency",
+                        "skew",
+                        "total"
+                      ],
+                      "properties": {
+                        "pilotage": {
+                          "type": "number"
+                        },
+                        "contingency": {
+                          "type": "number"
+                        },
+                        "skew": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "realisation_share": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "days_per_requirement": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "large": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "similar": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "reuse_rate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "calibrated": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "abaques": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
                 }
               }
             },
@@ -1288,7 +1441,10 @@
                 "uncovered",
                 "uncertain",
                 "errors",
-                "warnings"
+                "warnings",
+                "reuse",
+                "challenge",
+                "abaques"
               ],
               "description": "Sans rates : charges seules.",
               "properties": {
@@ -1536,6 +1692,126 @@
                       "description": "Phases hors de la fourchette (part sous 0,67 fois le mini ou au-dessus de 1,5 fois le maxi) ou absentes alors que toutes les missions comparées l'ont."
                     }
                   }
+                },
+                "reuse": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "lots",
+                    "gross_days",
+                    "saved_days",
+                    "rate"
+                  ],
+                  "description": "Réemploi entre fonctionnalités : lots concernés, jours bruts et épargnés, taux.",
+                  "properties": {
+                    "lots": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "gross_days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "saved_days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "rate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "challenge": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "margin",
+                    "realisation_share",
+                    "days_per_requirement",
+                    "large",
+                    "similar",
+                    "reuse_rate",
+                    "points",
+                    "calibrated"
+                  ],
+                  "description": "Points à challenger : marges cumulées en % (pilotage, provision, asymétrie des trois points, total), part de la réalisation et de l'intégration, jours de lots par exigence retenue, lots trop gros, paires de lots semblables sans réemploi, taux de réemploi, constats au-delà des seuils, seuils tirés d'abaques fournis ou non.",
+                  "properties": {
+                    "margin": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "pilotage",
+                        "contingency",
+                        "skew",
+                        "total"
+                      ],
+                      "properties": {
+                        "pilotage": {
+                          "type": "number"
+                        },
+                        "contingency": {
+                          "type": "number"
+                        },
+                        "skew": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "realisation_share": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "days_per_requirement": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "large": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "similar": {
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "minItems": 2,
+                        "maxItems": 2,
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "reuse_rate": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "points": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "calibrated": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "abaques": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
                 }
               }
             },

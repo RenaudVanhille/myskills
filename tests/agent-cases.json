@@ -466,7 +466,56 @@
         "Chaque ligne d'infrastructure a une base de prix, présentée comme une hypothèse quand aucun devis n'est fourni.",
         "Le coût total sur 3 ans et le fonctionnement mensuel sont comparés au budget de 8 000 euros par mois (ENF-005).",
         "Aucune exigence retenue n'est laissée sans lot, ou elle est listée comme exclue avec sa raison.",
-        "Le chiffrage compare trois hypothèses de production, sans IA, avec IA et dev IA natif, avec leur coût total et la base de leurs valeurs."
+        "Le chiffrage compare trois hypothèses de production, sans IA, avec IA et dev IA natif, avec leur coût total et la base de leurs valeurs.",
+        "Les lots backend viennent d'un découpage par l'expert backend (ressources, opérations, intégrations), avec le réemploi déclaré.",
+        "Le chiffrage a une section Points à challenger, et chaque point est corrigé ou justifié dans les hypothèses."
+      ]
+    },
+    {
+      "id": "chiffrage-backend",
+      "agent": "backend-estimator",
+      "prompt": "Pour le chiffrage de l'option recommandée du portail de sinistres, découpe et estime le backend à partir des interfaces api/api.json.",
+      "inputs": [
+        {
+          "from": "fixtures/api/api.json",
+          "to": "api/api.json"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "workflow/exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "workflow/options.json"
+        }
+      ],
+      "output": "api/decoupage-back.lots.json",
+      "checks": [
+        {
+          "file": "api/decoupage-back.lots.json",
+          "json": "work",
+          "min": 10
+        },
+        {
+          "file": "api/decoupage-back.lots.json",
+          "contains": [
+            "\"reuse\"",
+            "Intégration avec Outil de gestion des sinistres"
+          ]
+        },
+        {
+          "file": "api/decoupage-back.md",
+          "contains": [
+            "à calibrer"
+          ]
+        }
+      ],
+      "rubric": [
+        "Les lots backend viennent du script de découpage (ressources, opérations, événement, intégrations, transverses), pas d'une estimation globale.",
+        "Le réemploi entre opérations est déclaré avec sa part et sa base.",
+        "La réponse dit que les abaques sont ceux par défaut, à calibrer.",
+        "Aucun lot ne contient de marge de pilotage ou de provision.",
+        "Le rapport final passe la main à solution-estimator avec decoupage-back.lots.json."
       ]
     },
     {

@@ -187,6 +187,11 @@
                   "minLength": 1,
                   "description": "Principes d'architecture du client (liste principes de shared/schemas/rules.schema.json), vérifiés par la revue (arch_review.py) comme des règles en plus."
                 },
+                "abaques": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Abaques du chiffrage de la mission (shared/schemas/abaques.schema.json) : charges backend par complexité, réemploi, seuils des points à challenger ; remplacent ceux de l'utilisateur."
+                },
                 "gabarit-docx": {
                   "type": "string",
                   "minLength": 1,

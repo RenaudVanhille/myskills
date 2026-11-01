@@ -270,7 +270,7 @@ def check_contracts() -> dict:
             if source and source.startswith("shared/schemas/"):
                 if not (ROOT / source).is_file():
                     failures.append(f"{name}/{script['name']} : input.same_as « {source} » introuvable")
-            elif source and tuple(source.split("/", 1)) not in required:
+            elif source and source.split("/", 1)[0] != name and tuple(source.split("/", 1)) not in required:
                 failures.append(f"{name}/{script['name']} : input.same_as « {source} » absent de requires")
         for handoff in contract.get("handoffs", []):
             known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
@@ -585,6 +585,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     # Règles de complétude de l'utilisateur (~/.myskills/regles.json) ignorées : résultats reproductibles.
     os.environ["MYSKILLS_REGLES"] = ""
+    os.environ["MYSKILLS_ABAQUES"] = ""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--only", help="identifiants des cas, séparés par des virgules")
     parser.add_argument("--slow", action="store_true", help="lancer aussi les cas lents")

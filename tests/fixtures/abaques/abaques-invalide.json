@@ -1,0 +1,4 @@
+{
+  "backend": {"days": {"faible": [1, 2]}, "operations": {"GET": "facile"}},
+  "challenge": {"max_margn": 20}
+}

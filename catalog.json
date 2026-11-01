@@ -176,6 +176,42 @@
       ]
     },
     {
+      "agent": "backend-estimator",
+      "level": "moyen",
+      "receives": [
+        "Un message de passage de solution-estimator : le dossier du chiffrage, exigences.json et options.json, l'option à chiffrer",
+        "Facultatif : la description des interfaces (api.json d'api-contract) ou ses contrats OpenAPI et AsyncAPI ; les abaques de l'utilisateur ou de la mission"
+      ],
+      "produces": [
+        "api.json, s'il n'existait pas : description des interfaces, contrôlée par api_build.py (contrats OpenAPI et AsyncAPI écrits)",
+        "decoupage-back.lots.json : lots backend à trois points au format de solution-estimate, avec le réemploi déclaré, repris par estimate_build.py --draft --lots",
+        "decoupage-back.md : découpage backend pour la revue (lot, complexité, charge, réemploi, base)"
+      ],
+      "never": [
+        "Écrire des lots ou des charges hors des scripts : on ajuste la complexité ou la charge d'un lot du découpage, avec sa raison dans note",
+        "Chiffrer le frontend, l'infrastructure, le run, le pilotage ou la provision : ils reviennent à ui-designer et à solution-estimator",
+        "Retirer un réemploi déduit sans dire ce qui diffère, ou en ajouter sans base",
+        "Modifier exigences.json ou options.json : un écart se signale à solution-estimator"
+      ],
+      "handoffs": [
+        {
+          "to": "solution-estimator",
+          "when": "les lots backend sont prêts : les fusionner dans le chiffrage",
+          "send": [
+            "decoupage-back.lots.json",
+            "les lots ajustés et leur raison, les hypothèses à valider",
+            "si les abaques sont ceux par défaut (à calibrer)"
+          ]
+        }
+      ],
+      "description": "Expert du chiffrage backend : à partir des exigences, de l'option d'architecture et des interfaces (api.json, OpenAPI, AsyncAPI), découpe le backend en lots à trois points par ressource, opération, événement et intégration, avec le réemploi entre fonctionnalités, et rend des lots traçables à l'orchestrateur du chiffrage. Abaques de l'utilisateur ou de la mission, sinon par défaut et signalés à calibrer. Adapte l'effort de chaque action pour limiter les coûts.",
+      "skills": [
+        "check-prerequisites",
+        "api-contract",
+        "agent-handoff"
+      ]
+    },
+    {
       "agent": "document-extractor",
       "level": "moyen",
       "receives": [
@@ -401,11 +437,12 @@
       "receives": [
         "Le catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là",
-        "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning"
+        "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning",
+        "Facultatif : les abaques de l'utilisateur ou de la mission (~/.myskills/abaques.json, references.abaques de mission.json), donnés avant le lancement ; sans eux, valeurs par défaut à calibrer"
       ],
       "produces": [
         "chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py",
-        "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, couverture, hypothèses)",
+        "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses)",
         "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
         "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
         "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers"
@@ -413,9 +450,28 @@
       "never": [
         "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
         "Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base",
-        "Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient"
+        "Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient",
+        "Ajouter une marge dans un lot alors que pilotage et provision existent, ou garder un point à challenger sans le justifier dans assumptions"
       ],
       "handoffs": [
+        {
+          "to": "backend-estimator",
+          "when": "au début du chiffrage, en parallèle de ui-designer, si api.json existe, si un détail du backend est demandé ou en avant-vente : découper et estimer le backend",
+          "send": [
+            "le dossier du chiffrage",
+            "exigences.json et options.json, l'option et ses composants serveur",
+            "api.json s'il existe, les abaques s'ils sont fournis"
+          ]
+        },
+        {
+          "to": "ui-designer",
+          "when": "au début du chiffrage, s'il y a des maquettes : découper le frontend en lots",
+          "send": [
+            "les maquettes ou les descriptions de pages",
+            "le composant web de l'option et la bibliothèque visée",
+            "le dossier du chiffrage"
+          ]
+        },
         {
           "to": "architecture-workflow",
           "when": "le chiffrage est fait pour un workflow : rendre la main pour la soumission",
@@ -434,11 +490,13 @@
           ]
         }
       ],
-      "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts.",
+      "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : confie le découpage du frontend et du backend à des agents experts en parallèle, fusionne leurs lots, estime le reste à trois points, pose les hypothèses d'infrastructure et de run, fait calculer par script la charge, la fourchette, le réemploi, le coût total et le respect du budget, puis fait challenger le chiffrage (marges cumulées, lots gonflés ou semblables) avant de le rendre. Adapte l'effort de chaque action pour limiter les coûts.",
       "skills": [
         "check-prerequisites",
         "solution-estimate",
         "cloud-cost",
+        "api-contract",
+        "mockup-to-html",
         "requirements-catalog",
         "architecture-options",
         "decision-log",
@@ -895,12 +953,14 @@
       "level": "moyen",
       "inputs": [
         "Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements",
-        "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)"
+        "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)",
+        "Pour le chiffrage backend : abaques donnés avant le lancement (shared/schemas/abaques.schema.json, section backend) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; sans eux, valeurs par défaut à calibrer"
       ],
       "outputs": [
         "<nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST",
         "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
-        "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences"
+        "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences",
+        "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue"
       ],
       "scripts": [
         {
@@ -1225,6 +1285,350 @@
               }
             }
           }
+        },
+        {
+          "name": "api_breakdown.py",
+          "role": "Découpe le backend décrit par les interfaces en lots de chiffrage à trois points : un lot par ressource (modèle, persistance, migrations ; complexité selon le nombre de champs), par opération (selon la méthode, montée d'un cran pour une grosse ressource reçue ou beaucoup d'erreurs métier), par événement et par système externe relié dans l'option (intégration), plus les lots transverses du backend (socle, authentification si l'API est sécurisée, messagerie s'il y a des événements, observabilité, tests d'intégration par opération) ; déclare le réemploi entre fonctionnalités (opération de même forme qu'une précédente, ou sur une ressource déjà exposée : reuse avec sa part et sa base) ; contrôle les lots contre le schéma de solution-estimate et écrit les lots et leur découpage. Jours tirés des abaques donnés avant le lancement (utilisateur, mission, --abaques), sinon de valeurs par défaut à calibrer, signalées.",
+          "usage": "uv run scripts/api_breakdown.py api.json [--out decoupage-back] [--abaques ABAQUES.json] | --schema",
+          "options": {
+            "api.json": "description des interfaces d'api_build.py (validée contre son schéma) ; son option d'architecture (source) donne les systèmes externes à intégrer",
+            "--out": "chemin des fichiers produits, sans extension (défaut : decoupage-back à côté de api.json)",
+            "--abaques": "abaques propres (section backend), après ceux de l'utilisateur (~/.myskills/abaques.json ou MYSKILLS_ABAQUES) et de la mission (references.abaques)",
+            "--schema": "affiche le schéma JSON de la description des interfaces sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description des interfaces d'api_build.py, validée avant tout travail ; les abaques (--abaques, et ceux de l'utilisateur et de la mission) sont validés contre shared/schemas/abaques.schema.json (copie : scripts/lib/abaques.schema.json).",
+            "same_as": "api-contract/api_build.py",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "resources"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "security": {
+                  "enum": [
+                    "oauth2",
+                    "oidc",
+                    "bearer",
+                    "apikey",
+                    "none"
+                  ],
+                  "description": "schéma de sécurité de toute l'API (défaut : none)"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+                },
+                "source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "options",
+                    "option"
+                  ],
+                  "description": "option d'architecture dont les composants portent les interfaces",
+                  "properties": {
+                    "options": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "option": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "resources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "fields"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                      },
+                      "required": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "enums": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "method",
+                      "path",
+                      "summary"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][A-Za-z0-9]*$"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "request": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "response": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 400,
+                          "maximum": 599
+                        }
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "component": {
+                        "type": "string",
+                        "description": "composant de l'option qui porte l'opération"
+                      },
+                      "public": {
+                        "type": "boolean",
+                        "description": "sans authentification, par choix"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "channel",
+                      "payload"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "channel": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "payload": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "action": {
+                        "enum": [
+                          "send",
+                          "receive"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Au moins une opération (operations) ou un événement (events)."
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Ressources, opérations, événements, intégrations, lots, lots en réemploi, charge totale à trois points après réemploi, abaques lus et s'ils sont fournis.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "resources",
+                "operations",
+                "events",
+                "integrations",
+                "lots",
+                "reused",
+                "days",
+                "abaques",
+                "calibrated",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "resources": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "operations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "events": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "integrations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "lots": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reused": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "charge backend totale [mini, probable, maxi] après réemploi, en jours"
+                },
+                "abaques": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "calibrated": {
+                  "type": "boolean",
+                  "description": "section backend fournie par l'utilisateur ou la mission"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "lots et découpage écrits (avertissements possibles : abaques par défaut, option non citée)",
+            "1": "description ou abaques invalides, ressource inconnue, option introuvable, lots hors du schéma de solution-estimate ; aucun fichier produit"
+          }
         }
       ],
       "requires": [
@@ -1238,6 +1642,12 @@
           "skill": "architecture-options",
           "script": "options_build.py",
           "why": "valider options.json et reprendre les composants de l'option",
+          "optional": true
+        },
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "why": "contrôler les lots backend contre le schéma des lots du chiffrage",
           "optional": true
         }
       ],
@@ -1256,6 +1666,11 @@
           "to": "utilisateur",
           "kind": "utilisateur",
           "when": "une exigence fonctionnelle indispensable n'a pas d'interface : l'ajouter ou dire qu'elle est hors API"
+        },
+        {
+          "to": "backend-estimator",
+          "kind": "agent",
+          "when": "un chiffrage du backend est demandé : découper et estimer les lots depuis les interfaces"
         }
       ],
       "description": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences. Le script écrit le YAML, contrôle doublons, types, ressources, exigences et composants de l'option d'architecture, et relit chaque contrat. À utiliser pour concevoir ou documenter une API, un contrat d'interface, des échanges par événements ou les interfaces de l'option retenue.",
@@ -10848,6 +11263,11 @@
                       "minLength": 1,
                       "description": "Principes d'architecture du client (liste principes de shared/schemas/rules.schema.json), vérifiés par la revue (arch_review.py) comme des règles en plus."
                     },
+                    "abaques": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Abaques du chiffrage de la mission (shared/schemas/abaques.schema.json) : charges backend par complexité, réemploi, seuils des points à challenger ; remplacent ceux de l'utilisateur."
+                    },
                     "gabarit-docx": {
                       "type": "string",
                       "minLength": 1,
@@ -13387,10 +13807,11 @@
         "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
         "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
         "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
-        "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission"
+        "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission",
+        "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
       ],
       "outputs": [
-        "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, couverture, hypothèses, exclusions)",
+        "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, points à challenger et réemploi, couverture, hypothèses, exclusions)",
         "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script",
         "<nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script",
         "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates"
@@ -13398,8 +13819,8 @@
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots frontend tirés des maquettes) pour que le modèle n'écrive que les charges.",
-          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--frontend decoupage.lots.json] | --schema",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer.",
+          "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--abaques ABAQUES.json] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots LOTS.json ...] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
@@ -13409,7 +13830,9 @@
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
             "--vault": "vault Obsidian où écrire aussi le chiffrage, selon son ontologie : une note chiffrage (évalue l'option) et une note par lot (porte sur ses exigences)",
             "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
-            "--frontend": "avec --draft : lots frontend de ui_breakdown.py (mockup-to-html), avec leurs charges d'abaque ; ils remplacent le lot global de leur composant"
+            "--lots": "avec --draft : lots d'un expert au format des lots (work), répétable : frontend de ui_breakdown.py (mockup-to-html), backend d'api_breakdown.py (api-contract) ; ils remplacent le lot global de chaque composant qu'ils couvrent, leurs réemplois (reuse.from) suivent la renumérotation",
+            "--frontend": "avec --draft : comme --lots (lots frontend de ui_breakdown.py), gardé pour les appels existants",
+            "--abaques": "abaques propres (shared/schemas/abaques.schema.json, section challenge : seuils des points à challenger), après ceux de l'utilisateur (~/.myskills/abaques.json ou MYSKILLS_ABAQUES) et de la mission (references.abaques)"
           },
           "input": {
             "format": "json",
@@ -13598,6 +14021,33 @@
                             "type": "number",
                             "minimum": 0.05,
                             "maximum": 3
+                          }
+                        }
+                      },
+                      "reuse": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "percent",
+                          "basis"
+                        ],
+                        "description": "Réemploi : part de la charge déjà faite par un autre lot (from) ou par un existant (sans from) ; la charge saisie est celle sans réemploi, le script la réduit.",
+                        "properties": {
+                          "from": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
+                            "description": "Lot réutilisé (identifiant d'un lot de ce chiffrage)."
+                          },
+                          "percent": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 90,
+                            "description": "Part de la charge épargnée, en %."
+                          },
+                          "basis": {
+                            "type": "string",
+                            "minLength": 1,
+                            "description": "Ce qui est réutilisé et pourquoi (même gabarit, composant commun, existant du client)."
                           }
                         }
                       }
@@ -14026,7 +14476,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer.",
+            "description": "Option chiffrée, nombre de lots, réalisation (jours et coût, fourchette, provision), infrastructure, run, fonctionnement mensuel, coût total, trois hypothèses de production (sans IA, avec IA, IA natif), budget dépassé, exigences et composants non chiffrés, estimations incertaines, charges en jours et en heures (tâches par complexité, hypothèses), fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, lots et charges à estimer. Réemploi (lots, jours épargnés, taux), points à challenger avec leurs seuils, abaques lus.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -14053,7 +14503,10 @@
                     "errors",
                     "warnings",
                     "mode",
-                    "charges"
+                    "charges",
+                    "reuse",
+                    "challenge",
+                    "abaques"
                   ],
                   "properties": {
                     "input": {
@@ -14650,6 +15103,126 @@
                           "description": "Phases hors de la fourchette (part sous 0,67 fois le mini ou au-dessus de 1,5 fois le maxi) ou absentes alors que toutes les missions comparées l'ont."
                         }
                       }
+                    },
+                    "reuse": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "lots",
+                        "gross_days",
+                        "saved_days",
+                        "rate"
+                      ],
+                      "description": "Réemploi entre fonctionnalités : lots concernés, jours bruts et épargnés, taux.",
+                      "properties": {
+                        "lots": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "gross_days": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "saved_days": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    },
+                    "challenge": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "margin",
+                        "realisation_share",
+                        "days_per_requirement",
+                        "large",
+                        "similar",
+                        "reuse_rate",
+                        "points",
+                        "calibrated"
+                      ],
+                      "description": "Points à challenger : marges cumulées en % (pilotage, provision, asymétrie des trois points, total), part de la réalisation et de l'intégration, jours de lots par exigence retenue, lots trop gros, paires de lots semblables sans réemploi, taux de réemploi, constats au-delà des seuils, seuils tirés d'abaques fournis ou non.",
+                      "properties": {
+                        "margin": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "pilotage",
+                            "contingency",
+                            "skew",
+                            "total"
+                          ],
+                          "properties": {
+                            "pilotage": {
+                              "type": "number"
+                            },
+                            "contingency": {
+                              "type": "number"
+                            },
+                            "skew": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "realisation_share": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "days_per_requirement": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "large": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "similar": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "reuse_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "points": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "calibrated": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "abaques": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
                     }
                   }
                 },
@@ -14667,7 +15240,10 @@
                     "uncovered",
                     "uncertain",
                     "errors",
-                    "warnings"
+                    "warnings",
+                    "reuse",
+                    "challenge",
+                    "abaques"
                   ],
                   "description": "Sans rates : charges seules.",
                   "properties": {
@@ -14915,6 +15491,126 @@
                           "description": "Phases hors de la fourchette (part sous 0,67 fois le mini ou au-dessus de 1,5 fois le maxi) ou absentes alors que toutes les missions comparées l'ont."
                         }
                       }
+                    },
+                    "reuse": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "lots",
+                        "gross_days",
+                        "saved_days",
+                        "rate"
+                      ],
+                      "description": "Réemploi entre fonctionnalités : lots concernés, jours bruts et épargnés, taux.",
+                      "properties": {
+                        "lots": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "gross_days": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "saved_days": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    },
+                    "challenge": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "margin",
+                        "realisation_share",
+                        "days_per_requirement",
+                        "large",
+                        "similar",
+                        "reuse_rate",
+                        "points",
+                        "calibrated"
+                      ],
+                      "description": "Points à challenger : marges cumulées en % (pilotage, provision, asymétrie des trois points, total), part de la réalisation et de l'intégration, jours de lots par exigence retenue, lots trop gros, paires de lots semblables sans réemploi, taux de réemploi, constats au-delà des seuils, seuils tirés d'abaques fournis ou non.",
+                      "properties": {
+                        "margin": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "pilotage",
+                            "contingency",
+                            "skew",
+                            "total"
+                          ],
+                          "properties": {
+                            "pilotage": {
+                              "type": "number"
+                            },
+                            "contingency": {
+                              "type": "number"
+                            },
+                            "skew": {
+                              "type": "number"
+                            },
+                            "total": {
+                              "type": "number"
+                            }
+                          }
+                        },
+                        "realisation_share": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "days_per_requirement": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "large": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "similar": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "reuse_rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "points": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "calibrated": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "abaques": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
                     }
                   }
                 },

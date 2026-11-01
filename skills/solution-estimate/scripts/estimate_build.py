@@ -42,12 +42,22 @@ construire ou à intégrer, avec ses exigences, les lots transverses (cadrage,
 recette, tests de sécurité si des exigences de sécurité existent, mise en
 production, formation), pilotage, provision et run aux valeurs usuelles
 (`_draft` les liste), budget tiré des exigences de coût et lignes
-d'infrastructure de cloud-cost (`--infra <nom>.infra.json`), lots frontend tirés des
-maquettes (`--frontend`, ui_breakdown.py de mockup-to-html). Le modèle n'y
-écrit que les charges (`effort`, vide dans chaque lot), les taux et ce qu'il
-corrige.
+d'infrastructure de cloud-cost (`--infra <nom>.infra.json`), et les lots des experts
+(`--lots`, répétable : frontend de ui_breakdown.py, mockup-to-html ; backend
+d'api_breakdown.py, api-contract), qui remplacent le lot global de chaque
+composant qu'ils couvrent. Le modèle n'y écrit que les charges (`effort`, vide
+dans chaque lot), les taux et ce qu'il corrige.
 
-    uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--frontend decoupage.lots.json]
+    uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots front.lots.json --lots api.lots.json]
+
+Réemploi : un lot qui réutilise un autre lot ou un existant (`reuse` : from,
+percent, basis) voit sa charge baisser de la part réutilisée ; le taux de
+réemploi est donné. Points à challenger : marges cumulées (pilotage,
+provision, asymétrie des trois points), part de la réalisation, lots trop
+gros, lots semblables sans réemploi déclaré, jours par exigence, avec les
+seuils des abaques donnés avant le lancement (~/.myskills/abaques.json ou
+MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques), sinon des
+seuils par défaut à calibrer.
 
 Avec `--vault`, le chiffrage va aussi dans le vault Obsidian du workflow, selon
 son ontologie : une note chiffrage (coût total, charge, budget, hébergeur ;
@@ -87,6 +97,10 @@ PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
 SCENARIOS = Path(__file__).resolve().parent.parent / "references" / "hypotheses-ia.json"
 STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier
 QUALIFIED_KINDS = ("cloud", "service")  # lignes soumises aux qualifications exigées
+# Seuils des points à challenger, à calibrer : remplacés par la section challenge des abaques de
+# l'utilisateur ou de la mission (shared/schemas/abaques.schema.json, workspace.abaques).
+CHALLENGE = {"max_margin": 35, "realisation_min_share": 0.4, "max_lot_days": 40, "similarity": 0.8}
+BUILD_PHASES = ("realisation", "integration")
 
 
 def cell(text) -> str:
@@ -95,6 +109,11 @@ def cell(text) -> str:
 
 def money(value: float, currency: str) -> str:
     return f"{value:,.0f}".replace(",", " ") + f" {currency}"
+
+
+def pct(share: float) -> str:
+    """Part (0 à 1) en pourcentage, à la française."""
+    return f"{share * 100:.0f} %"
 
 
 def days(value: float) -> str:
@@ -202,7 +221,7 @@ DEFAULTS = {"pilotage": 12, "contingency": 10, "run": 15}
 MONEY = re.compile(r"(\d[\d  .]*)\s*(?:€|euros?|eur)\s*(?:par|/)\s*(mois|an)", re.I)
 
 
-def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dict], frontend: Path | None = None) -> dict:
+def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dict], lots: list[Path] | None = None) -> dict:
     """Écrit le brouillon de chiffrage.json ; rapport court (lots, charges à estimer)."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -221,14 +240,18 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
             lines = json.loads(infra.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
             errors.append(f"--infra : {infra} illisible ({error})")
-    front = {}
-    if frontend:
+    # Lots des experts (frontend : ui_breakdown.py, backend : api_breakdown.py) : même format, {work: [...]}.
+    experts = []
+    for file in lots or []:
         try:
-            front = json.loads(frontend.read_text(encoding="utf-8"))
+            data = json.loads(file.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
-            errors.append(f"--frontend : {frontend} illisible ({error})")
-    if front and not isinstance(front.get("work"), list):
-        errors.append(f"--frontend : {frontend} sans liste work (<nom>.lots.json de ui_breakdown.py, mockup-to-html)")
+            errors.append(f"--lots : {file} illisible ({error})")
+            continue
+        if not isinstance(data, dict) or not isinstance(data.get("work"), list) or not data["work"]:
+            errors.append(f"--lots : {file} sans liste work (<nom>.lots.json de ui_breakdown.py ou api_breakdown.py)")
+            continue
+        experts.append((file, data))
     if errors or not option:
         return report
     catalog = [r for r in (cat or {}).get("requirements", []) if r.get("status") != "retiree"]
@@ -240,24 +263,42 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
         work.append({"id": "", "name": f"Intégration avec {comp['label']}" if external else comp["label"],
                      "phase": "integration" if external or comp.get("role") == "queue" else "realisation",
                      "component": comp["id"], "effort": {}})
-    # Lots frontend tirés des maquettes (mockup-to-html) : ils remplacent le lot global de leur composant.
-    if front.get("work"):
-        known = {c["id"] for c in option["components"]}
-        if front.get("component") and front["component"] not in known:
-            errors.append(f"--frontend : composant « {front['component']} » absent de l'option {option['id']} "
-                          f"({', '.join(sorted(known))})")
-            return report
-        work = [w for w in work if not front.get("component") or w.get("component") != front["component"]]
-        work += [{**w, "id": ""} for w in front["work"]]
-        warnings.append(f"--frontend : {len(front['work'])} lots frontend repris avec leurs charges d'abaque, à relire")
+    # Lots des experts : ils remplacent le lot global de chaque composant qu'ils couvrent.
+    known = {c["id"] for c in option["components"]}
+    for file, data in experts:
+        covered = {data["component"]} if data.get("component") else set()
+        covered |= {w["component"] for w in data["work"] if isinstance(w, dict) and w.get("component")}
+        unknown = sorted(covered - known)
+        if unknown:
+            errors += [f"--lots : {file.name} : composant « {u} » absent de l'option {option['id']} "
+                       f"({', '.join(sorted(known))})" for u in unknown]
+            continue
+        work = [w for w in work if w.get("component") not in covered]
+        work += [{**w, "_from": (file.name, w.get("id"))} for w in data["work"] if isinstance(w, dict)]
+        domain = data.get("domain") or ("frontend" if data["work"][0].get("id", "").startswith("F") else "d'expert")
+        warnings.append(f"--lots : {len(data['work'])} lots {domain} repris de {file.name} avec leurs charges "
+                        "d'abaque, à relire")
+    if errors:
+        return report
     work.append({"id": "", "name": "Cadrage et architecture détaillée", "phase": "cadrage", "effort": {}})
     for rule in rules:
         if rule.get("draft") and applies(rule, catalog, option, bool(lines)):
             work.append({"id": "", "name": rule["draft"]["name"], "phase": rule["draft"]["phase"], "effort": {}})
     order = list(PHASES)
     work.sort(key=lambda w: order.index(w["phase"]))
+    renamed, owner = {}, {}
     for n, task in enumerate(work, 1):
+        if "_from" in task:
+            key = task.pop("_from")
+            renamed[key], owner[n] = f"L{n}", key[0]
         task["id"] = f"L{n}"
+    # Réemploi déclaré par un expert : il vise un lot de son propre fichier, renuméroté ici.
+    for n, task in enumerate(work, 1):
+        source = task.get("reuse", {}).get("from")
+        if source and (owner.get(n), source) in renamed:
+            target = renamed[(owner[n], source)]
+            task["reuse"] = {**task["reuse"], "from": target,
+                             "basis": re.sub(rf"\b{re.escape(source)}\b", target, task["reuse"]["basis"])}
     spec = {"title": f"Chiffrage : {option['name']}", "option": option["id"], "work": work,
             "overheads": [{"id": "P1", "name": "Pilotage", "percent": DEFAULTS["pilotage"],
                            "profile": "chef-de-projet"}],
@@ -295,6 +336,123 @@ def three_points(value) -> tuple[float, float, float, float, float]:
         low, likely, high = value
         return low, likely, high, (low + 4 * likely + high) / 6, (high - low) / 6
     return value, value, value, float(value), 0.0
+
+
+def apply_reuse(spec: dict, errors: list[str]) -> dict:
+    """Réemploi entre fonctionnalités : la charge d'un lot qui réutilise un autre lot (ou un existant) baisse
+    de sa part réutilisée. Les charges de la description deviennent nettes ; renvoie le bilan du réemploi."""
+    ids = [w["id"] for w in spec["work"]]
+    gross = saved = 0.0
+    items = []
+    for index, task in enumerate(spec["work"]):
+        expected = sum(three_points(v)[3] for v in task["effort"].values()
+                       if not isinstance(v, list) or len(v) == 3)
+        gross += expected
+        reuse = task.get("reuse")
+        if not reuse:
+            continue
+        where = f"work/{index} ({task['id']})/reuse"
+        source = reuse.get("from")
+        if source == task["id"]:
+            errors.append(f"{where}/from : un lot ne se réutilise pas lui-même")
+            continue
+        if source and source not in ids:
+            errors.append(f"{where}/from : lot inconnu « {source} »{hint(source, ids)}")
+            continue
+        keep = 1 - reuse["percent"] / 100
+        task["effort"] = {name: [round(x * keep, 2) for x in value] if isinstance(value, list) else round(value * keep, 2)
+                          for name, value in task["effort"].items()}
+        saved += expected * reuse["percent"] / 100
+        items.append({"id": task["id"], "from": source or "", "percent": reuse["percent"], "basis": reuse["basis"],
+                      "saved": round(expected * reuse["percent"] / 100, 2)})
+    return {"lots": len(items), "gross_days": round(gross, 1), "saved_days": round(saved, 1),
+            "rate": round(saved / gross, 3) if gross else 0.0, "items": items}
+
+
+def challenge(spec: dict, found: dict, catalog: dict, conf: dict, reuse: dict, sources: list[str],
+              warnings: list[str]) -> dict:
+    """Points à challenger, pour qu'un relecteur les fasse justifier : marges cumulées, réalisation noyée dans
+    les lots transverses, lots trop gros, lots semblables sans réemploi déclaré, jours par exigence."""
+    limits = {**CHALLENGE, **conf}
+    lots = [x for x in found["lines"] if x["type"] == "lot"]
+    expected = sum(x["days"] for x in lots)
+    likely = sum(x["likely"] for x in lots)
+    skew = (expected - likely) / likely if likely else 0.0
+    pilotage = sum(o["percent"] for o in spec.get("overheads", [])) / 100
+    contingency = spec.get("contingency", 0) / 100
+    total = (1 + pilotage) * (1 + contingency) * (1 + skew) - 1
+    size: dict[str, float] = {}
+    for line in lots:
+        size[line["id"]] = size.get(line["id"], 0.0) + line["days"]
+    build = sum(x["days"] for x in lots if x["phase"] in BUILD_PHASES)
+    share = build / expected if expected else 0.0
+    large = [i for i, d in size.items() if d > limits["max_lot_days"]]
+    linked = {(t["id"], t["reuse"]["from"]) for t in spec["work"] if t.get("reuse", {}).get("from")}
+    reusing = {t["id"] for t in spec["work"] if t.get("reuse")}
+    similar = []
+    work = spec["work"]
+    for i, a in enumerate(work):
+        for b in work[i + 1:]:
+            # Deux lots d'un même découpage d'expert : son script a déjà déduit leur réemploi.
+            expert = all("abaque" in t.get("note", "") for t in (a, b))
+            if expert or a["phase"] != b["phase"] or a.get("component") != b.get("component") \
+                    or (a["id"], b["id"]) in linked or (b["id"], a["id"]) in linked or b["id"] in reusing:
+                continue
+            close = difflib.SequenceMatcher(None, plain(a["name"]), plain(b["name"])).ratio() >= limits["similarity"]
+            if close or (a.get("refs") and sorted(a["refs"]) == sorted(b.get("refs", []))):
+                similar.append([a["id"], b["id"]])
+    retained = sum(1 for r in catalog.values()
+                   if r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre")
+    per_req = round(expected / retained, 2) if retained else None
+    found_points = []
+    if total * 100 > limits["max_margin"]:
+        found_points.append(f"marges cumulées {pct(total)} (pilotage {pct(pilotage)}, provision {pct(contingency)}, "
+                            f"maxima des trois points {pct(skew)}) au-delà de {limits['max_margin']:g} % : "
+                            "une marge par risque, pas une par niveau")
+    if expected and share < limits["realisation_min_share"]:
+        found_points.append(f"réalisation et intégration à {pct(share)} de la charge des lots, sous "
+                            f"{pct(limits['realisation_min_share'])} : lots transverses à justifier")
+    if large:
+        found_points.append(f"lot(s) de plus de {limits['max_lot_days']:g} j espérés : {', '.join(large)} ; "
+                            "les découper pour les estimer")
+    if similar:
+        found_points.append("lots semblables sans réemploi déclaré : "
+                            + ", ".join(f"{a}/{b}" for a, b in similar[:10]) + " ; déclarer reuse ou dire ce qui diffère")
+    span = limits.get("days_per_requirement")
+    if span and per_req is not None and not span[0] <= per_req <= span[1]:
+        found_points.append(f"{days(per_req)} j de lots par exigence retenue, hors de {span[0]:g} à {span[1]:g}")
+    warnings += [f"challenge : {text}" for text in found_points]
+    return {"margin": {"pilotage": round(pilotage * 100, 1), "contingency": round(contingency * 100, 1),
+                       "skew": round(skew * 100, 1), "total": round(total * 100, 1)},
+            "realisation_share": round(share, 3), "days_per_requirement": per_req, "large": large,
+            "similar": similar, "reuse_rate": reuse["rate"], "points": found_points,
+            "limits": {k: v for k, v in limits.items()}, "calibrated": bool(sources), "abaques": sources}
+
+
+def render_challenge(found: dict) -> list[str]:
+    """Section du chiffrage : réemploi et points à challenger, avec les seuils utilisés."""
+    ch, reuse = found["challenge"], found["reuse"]
+    m, lim = ch["margin"], ch["limits"]
+    origin = "abaques fournis" if ch["calibrated"] else "par défaut, à calibrer"
+    out = ["## Points à challenger", "", f"Seuils : {origin}.", "", "| Indicateur | Valeur | Seuil |", "| --- | --- | --- |",
+           f"| Marges cumulées (pilotage {days(m['pilotage'])} %, provision {days(m['contingency'])} %, maxima des "
+           f"trois points {days(m['skew'])} %) | {days(m['total'])} % | {lim['max_margin']:g} % |",
+           f"| Part de la réalisation et de l'intégration | {pct(ch['realisation_share'])} | "
+           f"au moins {pct(lim['realisation_min_share'])} |",
+           f"| Lots de plus de {lim['max_lot_days']:g} j | {', '.join(ch['large']) or 'aucun'} | 0 |",
+           f"| Lots semblables sans réemploi | {', '.join('/'.join(p) for p in ch['similar'][:10]) or 'aucun'} | 0 |",
+           f"| Taux de réemploi | {pct(reuse['rate'])} ({days(reuse['saved_days'])} j sur {days(reuse['gross_days'])} j bruts) | |"]
+    if ch["days_per_requirement"] is not None:
+        span = lim.get("days_per_requirement")
+        out.append(f"| Jours de lots par exigence retenue | {days(ch['days_per_requirement'])} | "
+                   f"{f'{span[0]:g} à {span[1]:g}' if span else 'non fixé'} |")
+    out.append("")
+    out += [f"- {cell(p)}" for p in ch["points"]] or ["Aucun point au-delà des seuils."]
+    if reuse["items"]:
+        out += ["", "### Réemploi", "", "| Lot | Réutilise | Part | Jours épargnés | Base |", "| --- | --- | --- | --- | --- |"]
+        out += [f"| {r['id']} | {r['from'] or 'existant'} | {r['percent']:g} % | {days(r['saved'])} | {cell(r['basis'])} |"
+                for r in reuse["items"]]
+    return out + [""]
 
 
 def phase_shares(spec: dict) -> dict[str, float]:
@@ -901,6 +1059,7 @@ def render_md(spec: dict, option: dict, status: str, found: dict, providers: dic
             f"{money(yearly, cur)} |" for year in range(1, horizon + 1)]
     out += [f"| **Total** | | | | **{money(t['tco']['total'], cur)}** |", ""]
 
+    out += render_challenge(found)
     out += ["## Couverture", ""]
     out.append("- Exigences retenues qu'aucun lot ne porte : "
                + (", ".join(found["unestimated"]) if found["unestimated"] else "aucune") + ".")
@@ -990,6 +1149,7 @@ def render_charges(spec: dict, option: dict, status: str, found: dict) -> str:
         out += [f"| {PHASES.get(k, k)} | {days(v[0])} | {hrs(v[0], per_day)} | " + " | ".join(days(x) for x in v[1:]) + " |"
                 for k, v in groups.items()]
     out.append("")
+    out += render_challenge(found)
     for key, label in (("assumptions", "Hypothèses"), ("exclusions", "Exclusions")):
         if spec.get(key):
             out += [f"## {label}", ""] + [f"- {cell(x)}" for x in spec[key]] + [""]
@@ -1143,7 +1303,11 @@ def main() -> int:
                         help="écrire le brouillon de la description (lots, transverses, budget), charges à estimer")
     parser.add_argument("--option", help="avec --draft : option à chiffrer (défaut : décision, sinon recommandation)")
     parser.add_argument("--infra", type=Path, help="avec --draft : lignes d'infrastructure de cost_build.py --infra")
-    parser.add_argument("--frontend", type=Path, help="avec --draft : lots frontend de ui_breakdown.py (mockup-to-html)")
+    parser.add_argument("--lots", type=Path, action="append", default=[],
+                        help="avec --draft : lots d'un expert (ui_breakdown.py, api_breakdown.py), répétable")
+    parser.add_argument("--frontend", type=Path, help="avec --draft : comme --lots, lots de ui_breakdown.py")
+    parser.add_argument("--abaques", type=Path, help="abaques propres (seuils des points à challenger), après ceux "
+                                                     "de l'utilisateur et de la mission")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
     args = parser.parse_args()
@@ -1158,7 +1322,7 @@ def main() -> int:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
     if args.draft:
-        report = draft(args.spec, args.option, args.infra, rules, args.frontend)
+        report = draft(args.spec, args.option, args.infra, rules, args.lots + ([args.frontend] if args.frontend else []))
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
@@ -1181,6 +1345,12 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
     base = args.spec.parent
+    # Abaques donnés avant le lancement (utilisateur, mission, --abaques) : seuils des points à challenger.
+    abaques, sources, invalid = workspace.abaques([args.spec], args.abaques)
+    if invalid:
+        print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
+        return 1
+    reuse = apply_reuse(spec, errors)
     arch = load_json(base, spec.get("architecture", "options.json"), "architecture",
                      "architecture-options", "options_build.py", errors, warnings)
     cat = load_json(base, spec.get("requirements", "exigences.json"), "requirements",
@@ -1189,6 +1359,9 @@ def main() -> int:
     option, status = pick_option(spec, arch, errors, warnings) if arch else (None, "")
     providers, checked = load_providers(base, spec, errors, warnings)
     found = analyse(spec, catalog, option, providers, checked, errors, warnings, rules) if option else None
+    if found and not errors:
+        found["reuse"] = reuse
+        found["challenge"] = challenge(spec, found, catalog, abaques.get("challenge", {}), reuse, sources, warnings)
     if args.vault and not args.vault.is_dir():
         errors.append(f"--vault : dossier introuvable {args.vault}")
     report = {"input": str(args.spec), "outputs": [], "option": option["id"] if option else None,
@@ -1205,7 +1378,10 @@ def main() -> int:
         del report["currency"]
     report.update({"lots": sum(1 for x in found["lines"] if x["type"] == "lot"), "charges": found["charges"],
                    "unestimated": found["unestimated"], "uncovered": found["uncovered"],
-                   "uncertain": found["uncertain"], "missing": found["missing"]})
+                   "uncertain": found["uncertain"], "missing": found["missing"],
+                   "reuse": {k: v for k, v in reuse.items() if k != "items"},
+                   "challenge": {k: v for k, v in found["challenge"].items() if k not in ("limits", "abaques")},
+                   "abaques": sources})
     report["analogy"] = analogy(args.spec, spec, errors, warnings)
 
     out_dir = args.out_dir or base

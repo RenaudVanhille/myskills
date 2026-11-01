@@ -1,0 +1,30 @@
+{
+  "agent": "backend-estimator",
+  "level": "moyen",
+  "receives": [
+    "Un message de passage de solution-estimator : le dossier du chiffrage, exigences.json et options.json, l'option à chiffrer",
+    "Facultatif : la description des interfaces (api.json d'api-contract) ou ses contrats OpenAPI et AsyncAPI ; les abaques de l'utilisateur ou de la mission"
+  ],
+  "produces": [
+    "api.json, s'il n'existait pas : description des interfaces, contrôlée par api_build.py (contrats OpenAPI et AsyncAPI écrits)",
+    "decoupage-back.lots.json : lots backend à trois points au format de solution-estimate, avec le réemploi déclaré, repris par estimate_build.py --draft --lots",
+    "decoupage-back.md : découpage backend pour la revue (lot, complexité, charge, réemploi, base)"
+  ],
+  "never": [
+    "Écrire des lots ou des charges hors des scripts : on ajuste la complexité ou la charge d'un lot du découpage, avec sa raison dans note",
+    "Chiffrer le frontend, l'infrastructure, le run, le pilotage ou la provision : ils reviennent à ui-designer et à solution-estimator",
+    "Retirer un réemploi déduit sans dire ce qui diffère, ou en ajouter sans base",
+    "Modifier exigences.json ou options.json : un écart se signale à solution-estimator"
+  ],
+  "handoffs": [
+    {
+      "to": "solution-estimator",
+      "when": "les lots backend sont prêts : les fusionner dans le chiffrage",
+      "send": [
+        "decoupage-back.lots.json",
+        "les lots ajustés et leur raison, les hypothèses à valider",
+        "si les abaques sont ceux par défaut (à calibrer)"
+      ]
+    }
+  ]
+}
