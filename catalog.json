@@ -456,7 +456,7 @@
       "handoffs": [
         {
           "to": "backend-estimator",
-          "when": "au début du chiffrage, en parallèle de ui-designer : découper et estimer le backend",
+          "when": "au début du chiffrage, en parallèle de ui-designer, si api.json existe, si un détail du backend est demandé ou en avant-vente : découper et estimer le backend",
           "send": [
             "le dossier du chiffrage",
             "exigences.json et options.json, l'option et ses composants serveur",

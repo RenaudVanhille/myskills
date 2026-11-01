@@ -25,7 +25,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
-| `backend-estimator` | au début du chiffrage, en parallèle de ui-designer : découper et estimer le backend | le dossier du chiffrage ; exigences.json et options.json, l'option et ses composants serveur ; api.json s'il existe, les abaques s'ils sont fournis |
+| `backend-estimator` | au début du chiffrage, en parallèle de ui-designer, si api.json existe, si un détail du backend est demandé ou en avant-vente : découper et estimer le backend | le dossier du chiffrage ; exigences.json et options.json, l'option et ses composants serveur ; api.json s'il existe, les abaques s'ils sont fournis |
 | `ui-designer` | au début du chiffrage, s'il y a des maquettes : découper le frontend en lots | les maquettes ou les descriptions de pages ; le composant web de l'option et la bibliothèque visée ; le dossier du chiffrage |
 | `architecture-workflow` | le chiffrage est fait pour un workflow : rendre la main pour la soumission | chiffrage.md et chiffrage.csv ; les hypothèses à valider et les avertissements restants ; le dossier du workflow |
 | `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
@@ -67,12 +67,14 @@ workflow, la commande les trace aussi au journal.
    rappelle-le à la livraison, sans poser de question.
 4. Experts, en parallèle et avec un message de passage court (dossier,
    `exigences.json`, `options.json`, option, composant) : `backend-estimator`
-   dès qu'un composant serveur est à construire, même sans `api.json` (il
-   l'écrit), rend `decoupage-back.lots.json` ; `ui-designer` s'il y a des
-   maquettes, rend `decoupage.lots.json`. Sans sous-agent, fais leur travail
-   toi-même (skill `api-contract` : `api.json`, `api_build.py`,
-   `api_breakdown.py` ; `ui_breakdown.py`). Ne réestime pas un lot d'expert
-   sans raison écrite dans `note`.
+   si `api.json` existe, si l'utilisateur demande un détail du backend, ou
+   dans une mission d'avant-vente (`nature` de `mission.json`), même sans
+   `api.json` (il l'écrit, c'est un livrable) ; il rend
+   `decoupage-back.lots.json`. Sinon, chiffre le backend par composant.
+   `ui-designer` s'il y a des maquettes, rend `decoupage.lots.json`. Sans
+   sous-agent, fais leur travail toi-même (skill `api-contract` :
+   `api.json`, `api_build.py`, `api_breakdown.py` ; `ui_breakdown.py`). Ne
+   réestime pas un lot d'expert sans raison écrite dans `note`.
 5. Pour une option cloud, décris ses consommations dans `couts.json` (skill
    `cloud-cost`) et lance `cost_build.py couts.json --infra <option>`. Puis
    `estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json

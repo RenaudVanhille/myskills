@@ -171,7 +171,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
 | Agent | Quand | À transmettre |
 | --- | --- | --- |
-| `backend-estimator` | au début du chiffrage, en parallèle de ui-designer : découper et estimer le backend | le dossier du chiffrage ; exigences.json et options.json, l'option et ses composants serveur ; api.json s'il existe, les abaques s'ils sont fournis |
+| `backend-estimator` | au début du chiffrage, en parallèle de ui-designer, si api.json existe, si un détail du backend est demandé ou en avant-vente : découper et estimer le backend | le dossier du chiffrage ; exigences.json et options.json, l'option et ses composants serveur ; api.json s'il existe, les abaques s'ils sont fournis |
 | `ui-designer` | au début du chiffrage, s'il y a des maquettes : découper le frontend en lots | les maquettes ou les descriptions de pages ; le composant web de l'option et la bibliothèque visée ; le dossier du chiffrage |
 | `architecture-workflow` | le chiffrage est fait pour un workflow : rendre la main pour la soumission | chiffrage.md et chiffrage.csv ; les hypothèses à valider et les avertissements restants ; le dossier du workflow |
 | `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
