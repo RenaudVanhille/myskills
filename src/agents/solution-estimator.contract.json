@@ -4,11 +4,12 @@
   "receives": [
     "Le catalogue d'exigences validé (exigences.json de requirements-catalog)",
     "Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là",
-    "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning"
+    "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning",
+    "Facultatif : les abaques de l'utilisateur ou de la mission (~/.myskills/abaques.json, references.abaques de mission.json), donnés avant le lancement ; sans eux, valeurs par défaut à calibrer"
   ],
   "produces": [
     "chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py",
-    "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, couverture, hypothèses)",
+    "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses)",
     "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
     "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
     "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers"
@@ -16,9 +17,28 @@
   "never": [
     "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
     "Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base",
-    "Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient"
+    "Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient",
+    "Ajouter une marge dans un lot alors que pilotage et provision existent, ou garder un point à challenger sans le justifier dans assumptions"
   ],
   "handoffs": [
+    {
+      "to": "backend-estimator",
+      "when": "au début du chiffrage, en parallèle de ui-designer : découper et estimer le backend",
+      "send": [
+        "le dossier du chiffrage",
+        "exigences.json et options.json, l'option et ses composants serveur",
+        "api.json s'il existe, les abaques s'ils sont fournis"
+      ]
+    },
+    {
+      "to": "ui-designer",
+      "when": "au début du chiffrage, s'il y a des maquettes : découper le frontend en lots",
+      "send": [
+        "les maquettes ou les descriptions de pages",
+        "le composant web de l'option et la bibliothèque visée",
+        "le dossier du chiffrage"
+      ]
+    },
     {
       "to": "architecture-workflow",
       "when": "le chiffrage est fait pour un workflow : rendre la main pour la soumission",

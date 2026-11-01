@@ -29,6 +29,16 @@
    "match": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
   },
   {
+   "name": "backend-estimator",
+   "level": "moyen",
+   "description": "Expert du chiffrage backend : à partir des exigences, de l'option d'architecture et des interfaces (api.json, OpenAPI, AsyncAPI), découpe le backend en lots à trois points par ressource, opération, événement et intégration, avec le réemploi entre fonctionnalités, et rend des lots traçables à l'orchestrateur du chiffrage.",
+   "receives": [
+    "Un message de passage de solution-estimator : le dossier du chiffrage, exigences.json et options.json, l'option à chiffrer",
+    "Facultatif : la description des interfaces (api.json d'api-contract) ou ses contrats OpenAPI et AsyncAPI ; les abaques de l'utilisateur ou de la mission"
+   ],
+   "match": "Expert du chiffrage backend : à partir des exigences, de l'option d'architecture et des interfaces (api.json, OpenAPI, AsyncAPI), découpe le backend en lots à trois points par ressource, opération, événement et intégration, avec le réemploi entre fonctionnalités, et rend des lots traçables à l'orchestrateur du chiffrage. Abaques de l'utilisateur ou de la mission, sinon par défaut et signalés à calibrer. Adapte l'effort de chaque action pour limiter les coûts."
+  },
+  {
    "name": "document-extractor",
    "level": "moyen",
    "description": "Extrait le contenu de documents PDF, DOCX, PPTX, XLSX ou d'images, ou une vidéo (atelier, réunion, présentation), vers Markdown ou Obsidian.",
@@ -63,13 +73,14 @@
   {
    "name": "solution-estimator",
    "level": "complexe",
-   "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget.",
+   "description": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : confie le découpage du frontend et du backend à des agents experts en parallèle, fusionne leurs lots, estime le reste à trois points, pose les hypothèses d'infrastructure et de run, fait calculer par script la charge, la fourchette, le réemploi, le coût total et le respect du budget, puis fait challenger le chiffrage (marges cumulées, lots gonflés ou semblables) avant de le rendre.",
    "receives": [
     "Le catalogue d'exigences validé (exigences.json de requirements-catalog)",
     "Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là",
-    "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning"
+    "Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning",
+    "Facultatif : les abaques de l'utilisateur ou de la mission (~/.myskills/abaques.json, references.abaques de mission.json), donnés avant le lancement ; sans eux, valeurs par défaut à calibrer"
    ],
-   "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : découpe en lots par composant, estime chaque lot à trois points, pose les hypothèses d'infrastructure et de run, puis fait calculer par script la charge, la fourchette, le coût d'infrastructure, le run, le coût total sur plusieurs années et le respect du budget. Adapte l'effort de chaque action pour limiter les coûts."
+   "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : confie le découpage du frontend et du backend à des agents experts en parallèle, fusionne leurs lots, estime le reste à trois points, pose les hypothèses d'infrastructure et de run, fait calculer par script la charge, la fourchette, le réemploi, le coût total et le respect du budget, puis fait challenger le chiffrage (marges cumulées, lots gonflés ou semblables) avant de le rendre. Adapte l'effort de chaque action pour limiter les coûts."
   },
   {
    "name": "ui-designer",
@@ -214,7 +225,8 @@
    "description": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences.",
    "inputs": [
     "Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements",
-    "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)"
+    "Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options)",
+    "Pour le chiffrage backend : abaques donnés avant le lancement (shared/schemas/abaques.schema.json, section backend) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; sans eux, valeurs par défaut à calibrer"
    ],
    "match": "Écrit les contrats d'interface d'une solution, OpenAPI 3.1 pour les opérations REST et AsyncAPI 3.0 pour les événements, à partir d'une description JSON courte : ressources, opérations, événements, composant porteur et exigences. Le script écrit le YAML, contrôle doublons, types, ressources, exigences et composants de l'option d'architecture, et relit chaque contrat. À utiliser pour concevoir ou documenter une API, un contrat d'interface, des échanges par événements ou les interfaces de l'option retenue."
   },
@@ -480,7 +492,8 @@
     "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
     "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
     "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
-    "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission"
+    "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission",
+    "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
    ],
    "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA."
   },

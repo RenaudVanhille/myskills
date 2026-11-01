@@ -30,11 +30,11 @@ Généré depuis `src/agents/ui-designer.contract.json`, qui fait foi.
 | `architecture-workflow` | les maquettes sont traitées pour une avant-vente en cours : rendre la main au workflow | les pages et le design system produits ; les écarts restants (similarité, accessibilité) ; le dossier du workflow |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
-Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
+Termine toujours par le **rapport final**, en JSON sur une ligne. Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet) ; `next` est un message de passage, ou null s'il n'y a
 rien à passer. Exemple, avec un message de passage dans `next` :
 
 ```json

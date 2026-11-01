@@ -1,0 +1,6 @@
+{
+  "_doc": "Abaques d'une équipe : charges backend plus basses, réemploi plus fort, seuils de challenge serrés.",
+  "basis": "mesure de l'équipe sur trois projets, 2026",
+  "backend": {"days": {"faible": [0.25, 0.5, 1]}, "reuse": {"same_shape": 50, "same_resource": 30}},
+  "challenge": {"max_margin": 20, "days_per_requirement": [1, 5]}
+}

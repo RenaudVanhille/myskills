@@ -25,7 +25,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 # Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
-WORKSPACE_USERS = ["agent-handoff"]
+WORKSPACE_USERS = ["agent-handoff", "api-contract"]
 # Modèles locaux : sources autorisées (shared/model-sources.json), son schéma et model_store.py.
 MODEL_USERS = ["doc-to-markdown", "check-prerequisites", "requirements-catalog", "agent-handoff"]
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
@@ -64,11 +64,13 @@ def generated_libs() -> dict[Path, str]:
     workspace = (shared / "workspace.py").read_text(encoding="utf-8")
     mission = (SCHEMAS / "mission.schema.json").read_text(encoding="utf-8")
     completeness = (SCHEMAS / "rules.schema.json").read_text(encoding="utf-8")
+    abaques = (SCHEMAS / "abaques.schema.json").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():
         if contract.get("vault") or name in WORKSPACE_USERS:
             files[REPO / "skills" / name / "scripts" / "lib" / "workspace.py"] = workspace
             files[REPO / "skills" / name / "scripts" / "lib" / "mission.schema.json"] = mission
             files[REPO / "skills" / name / "scripts" / "lib" / "rules.schema.json"] = completeness
+            files[REPO / "skills" / name / "scripts" / "lib" / "abaques.schema.json"] = abaques
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
     # Modèles locaux : sources épinglées, cache vérifié, flux réseau filtrés à l'exécution.
     for name in MODEL_USERS:
@@ -101,7 +103,7 @@ def generated_libs() -> dict[Path, str]:
 
 
 def shared_inputs() -> dict[Path, str]:
-    """Contrats dont un script lit la même entrée qu'un script d'un autre skill (`input.same_as`) :
+    """Contrats dont un script lit la même entrée qu'un autre script, du même skill ou d'un autre (`input.same_as`) :
     le schéma est recopié de la source, une seule définition à faire évoluer."""
     contracts = skill_contracts()
     files: dict[Path, str] = {}

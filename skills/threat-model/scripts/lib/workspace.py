@@ -11,6 +11,7 @@ vault, le dossier des notes ni les dépôts de code à chaque appel.
     repos(racine, mission)                   -> dépôts, chemins résolus
     inside(racine, chemin)                   -> le chemin reste dans la mission
     rules("chiffrage", livrées, [entrées])   -> (règles de complétude, sources, erreurs)
+    abaques([entrées], fichier)              -> (abaques fusionnés, sources, erreurs)
 
 Cloisonnement : dans une mission, un script n'écrit que dans le vault de la
 mission ; un --vault qui en désigne un autre est refusé.
@@ -35,9 +36,13 @@ _SCHEMA = next((p for p in (_HERE / "mission.schema.json", _HERE.parent / "schem
                 if p.is_file()), None)
 _RULES = next((p for p in (_HERE / "rules.schema.json", _HERE.parent / "schemas" / "rules.schema.json")
                if p.is_file()), None)
+_ABAQUES = next((p for p in (_HERE / "abaques.schema.json", _HERE.parent / "schemas" / "abaques.schema.json")
+                 if p.is_file()), None)
 # Règles de complétude de l'utilisateur, communes à ses missions : ce fichier, ou ~/.myskills/regles.json
 # (vide : aucune).
 RULES_ENV = "MYSKILLS_REGLES"
+# Abaques du chiffrage de l'utilisateur, communs à ses missions : ce fichier, ou ~/.myskills/abaques.json.
+ABAQUES_ENV = "MYSKILLS_ABAQUES"
 
 
 def schema() -> dict:
@@ -191,3 +196,44 @@ def rules(kind: str, builtin: Path | None, starts=()) -> tuple[list[dict], list[
             if not rule.get("off"):
                 merged[rule["id"]] = {**rule, "file": str(path)}
     return list(merged.values()), [str(p) for p in files], errors
+
+
+def user_abaques() -> Path | None:
+    """Fichier des abaques de l'utilisateur, s'il existe."""
+    value = os.environ.get(ABAQUES_ENV)
+    path = Path(value) if value else None if value is not None else Path.home() / ".myskills" / "abaques.json"
+    return path if path and path.is_file() else None
+
+
+def abaques(starts=(), explicit: Path | None = None) -> tuple[dict, list[str], list[str]]:
+    """Abaques du chiffrage donnés avant le lancement : ceux de l'utilisateur, puis ceux de la mission des
+    entrées (references.abaques), puis le fichier explicite (--abaques). Chaque fichier est validé
+    (shared/schemas/abaques.schema.json) ; une section remplace clé à clé celle d'avant.
+    Renvoie (abaques fusionnés, fichiers lus, erreurs) ; aucun fichier : ({}, [], []), valeurs par défaut."""
+    files = [user_abaques()] if user_abaques() else []
+    root = find(*starts)
+    if root is not None:
+        mission, _ = load(root)
+        if mission and mission.get("references", {}).get("abaques"):
+            files.append(Path(root) / mission["references"]["abaques"])
+    if explicit:
+        files.append(Path(explicit))
+    schema = json.loads(_ABAQUES.read_text(encoding="utf-8"))
+    merged: dict = {}
+    errors: list[str] = []
+    for path in files:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"abaques {path} illisibles : {error}")
+            continue
+        invalid = check(data, schema, schema)
+        if invalid:
+            errors += [f"abaques {path.name} : {e}" for e in invalid]
+            continue
+        for key, value in data.items():
+            if key.startswith("_"):
+                continue
+            merged[key] = {**merged[key], **value} if isinstance(value, dict) and isinstance(merged.get(key), dict) \
+                else value
+    return merged, [str(p) for p in files], errors
