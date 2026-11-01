@@ -905,7 +905,11 @@ def theme_of(tokens_path: Path | None, report: dict) -> tuple[dict | None, objec
 
 
 def relative(path: Path, start: Path) -> str:
-    return Path(os.path.relpath(path.resolve(), start.resolve())).as_posix()
+    """Chemin relatif au dossier de la description ; absolu s'ils sont sur deux lecteurs (Windows)."""
+    try:
+        return Path(os.path.relpath(path.resolve(), start.resolve())).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
 
 
 def main() -> int:
