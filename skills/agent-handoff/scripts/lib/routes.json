@@ -74,13 +74,13 @@
   {
    "name": "ui-designer",
    "level": "complexe",
-   "description": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material) sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend.",
+   "description": "Agent UX/UI : reproduit fidèlement en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges), mesurées en local puis comparées bloc par bloc à leur rendu, et définit le design system (palette et échelles mesurées, tokens contrôlés, contrastes WCAG) ; revue UX et accessibilité de chaque écran (contrôles WCAG sur le rendu, heuristiques de Nielsen) ; page en HTML, Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material) sur demande ; découpe les écrans en composants et en tire les lots du chiffrage frontend.",
    "receives": [
     "Des maquettes d'écrans en image (PNG, JPEG, WebP), ou le document qui les contient (appel d'offres, cahier des charges)",
-    "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA)",
+    "Facultatif : le design system existant du client (tokens W3C, variables CSS, thème MUI ou Ant Design), qui prime sur les maquettes, ou sa charte graphique ; le niveau d'accessibilité visé (AA par défaut, AAA) ; les utilisateurs cibles et leurs parcours clés",
     "Le dossier de sortie et ce que l'utilisateur attend : pages HTML ou dans une bibliothèque (Bootstrap, MUI, Ant Design), design system, découpage en composants, chiffrage frontend"
    ],
-   "match": "Reproduit en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges) et aide à définir le design system : palette tirée des maquettes, tokens contrôlés (contrastes WCAG), une page par écran rendue en local et comparée à sa maquette, en HTML, Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material) sur demande, documentation et page de référence ; découpe les écrans en composants et en tire les lots du chiffrage frontend. Adapte l'effort de chaque action pour limiter les coûts."
+   "match": "Agent UX/UI : reproduit fidèlement en HTML/CSS les maquettes d'écrans fournies en image (appel d'offres, cahier des charges), mesurées en local puis comparées bloc par bloc à leur rendu, et définit le design system (palette et échelles mesurées, tokens contrôlés, contrastes WCAG) ; revue UX et accessibilité de chaque écran (contrôles WCAG sur le rendu, heuristiques de Nielsen) ; page en HTML, Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material) sur demande ; découpe les écrans en composants et en tire les lots du chiffrage frontend. Adapte le modèle à chaque étape pour limiter les coûts."
   }
  ],
  "workflows": [

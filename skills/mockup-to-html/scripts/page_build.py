@@ -771,8 +771,11 @@ def write_templates(target: str, spec: dict, theme: dict, page: "Page", out_dir:
 
 # --- Rendu et comparaison -----------------------------------------------------------------------------------
 
-def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -> dict:
-    """Capture pleine page à la largeur donnée, puis débordement à la largeur mobile ; réseau coupé."""
+def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path | None, audit: str | None = None) -> dict:
+    """Capture pleine page à la largeur donnée, puis débordement à la largeur mobile ; réseau coupé.
+
+    audit : script évalué dans la page après chargement (ux_review.py), son résultat dans "audit".
+    """
     from playwright.sync_api import sync_playwright
 
     blocked: list[str] = []
@@ -799,8 +802,10 @@ def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -
             page.route("**/*", block)
             page.route("http://local.myskills/**", serve)
             page.goto(f"http://local.myskills/{page_name}", wait_until="load")
-            page.screenshot(path=str(png), full_page=True)
+            if png:
+                page.screenshot(path=str(png), full_page=True)
             dom = page.evaluate(ui_analyze.DOM_SCRIPT)
+            audited = page.evaluate(audit) if audit else None
             mobile = browser.new_page(viewport={"width": MOBILE, "height": 800})
             mobile.route("**/*", block)
             mobile.route("http://local.myskills/**", serve)
@@ -808,7 +813,7 @@ def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -
             overflow = mobile.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
         finally:
             browser.close()
-    return {"blocked": sorted(set(blocked)), "mobile_overflow": bool(overflow), "dom": dom}
+    return {"blocked": sorted(set(blocked)), "mobile_overflow": bool(overflow), "dom": dom, "audit": audited}
 
 
 def compare(mockup, render_png: Path, out: Path) -> dict:
@@ -855,6 +860,59 @@ def compare(mockup, render_png: Path, out: Path) -> dict:
     return {"similarity": similarity, "height_ratio": height_ratio, "zones": worst}
 
 
+def prepare(spec_path: Path | None, out_arg: Path | None, report: dict) -> dict | None:
+    """Description validée, tokens complétés, maquette lue et page prête à construire ; None si erreur (report)."""
+    if spec_path is None:
+        report["errors"].append("description de la page manquante (PAGE.json)")
+        return None
+    try:
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        report["errors"].append(f"{spec_path} illisible : {error}")
+        return None
+    report["errors"] = validate(spec, __file__)
+    if report["errors"]:
+        return None
+    ds = skill_paths.load_module("design-system", "ds_build.py")
+    if ds is None:
+        report["errors"].append(skill_paths.absent("design-system", "ds_build.py"))
+        return None
+    base = spec_path.parent
+    tokens = {}
+    if spec.get("tokens"):
+        path = base / spec["tokens"]
+        report["tokens"] = str(path)
+        try:
+            tokens = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            report["errors"].append(f"tokens : {spec['tokens']} illisible ({error}) ; ds_extract.py --draft l'écrit")
+            return None
+        report["errors"] += ds.tokens_errors(tokens)
+        if report["errors"]:
+            return None
+    theme, _ = ds.complete(tokens)
+    if spec.get("max_width"):
+        theme["max_width"] = spec["max_width"]
+    mockup = None
+    if spec.get("mockup"):
+        try:
+            from PIL import Image
+            mockup = Image.open(base / spec["mockup"])
+            mockup.load()
+        except ImportError:
+            report["errors"].append("Pillow manquant : lancez ce script avec `uv run`")
+            return None
+        except OSError as error:
+            report["errors"].append(f"mockup : {spec['mockup']} illisible ({error})")
+            return None
+    out_dir = out_arg or base
+    stem = spec_path.stem
+    page = Page(spec, theme, ds, base, out_dir, stem, mockup)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return {"spec": spec, "theme": theme, "ds": ds, "mockup": mockup, "page": page, "out_dir": out_dir, "stem": stem,
+            "base": base}
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -878,53 +936,10 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return code
 
-    if args.spec is None:
-        report["errors"].append("description de la page manquante (PAGE.json)")
+    ready = prepare(args.spec, args.out_dir, report)
+    if ready is None:
         return done(1)
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        report["errors"].append(f"{args.spec} illisible : {error}")
-        return done(1)
-    report["errors"] = validate(spec, __file__)
-    if report["errors"]:
-        return done(1)
-    ds = skill_paths.load_module("design-system", "ds_build.py")
-    if ds is None:
-        report["errors"].append(skill_paths.absent("design-system", "ds_build.py"))
-        return done(1)
-    base = args.spec.parent
-    tokens = {}
-    if spec.get("tokens"):
-        path = base / spec["tokens"]
-        report["tokens"] = str(path)
-        try:
-            tokens = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as error:
-            report["errors"].append(f"tokens : {spec['tokens']} illisible ({error}) ; ds_extract.py --draft l'écrit")
-            return done(1)
-        report["errors"] += ds.tokens_errors(tokens)
-        if report["errors"]:
-            return done(1)
-    theme, _ = ds.complete(tokens)
-    if spec.get("max_width"):
-        theme["max_width"] = spec["max_width"]
-    mockup = None
-    if spec.get("mockup"):
-        try:
-            from PIL import Image
-            mockup = Image.open(base / spec["mockup"])
-            mockup.load()
-        except ImportError:
-            report["errors"].append("Pillow manquant : lancez ce script avec `uv run`")
-            return done(1)
-        except OSError as error:
-            report["errors"].append(f"mockup : {spec['mockup']} illisible ({error})")
-            return done(1)
-    out_dir = args.out_dir or base
-    stem = args.spec.stem
-    page = Page(spec, theme, ds, base, out_dir, stem, mockup)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    spec, theme, mockup, page, out_dir, stem = (ready[k] for k in ("spec", "theme", "mockup", "page", "out_dir", "stem"))
     markup, css = page.build()
     report["components"] = page.count
     report["errors"] += page.errors

@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "ux-ecarts.json"
+  ],
+  "findings": [
+    {
+      "heuristic": "h11",
+      "severity": 5,
+      "node": "body/9",
+      "problem": "x",
+      "fix": "y",
+      "note": "z"
+    }
+  ]
+}

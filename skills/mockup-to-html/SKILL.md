@@ -16,9 +16,11 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Maquettes d'écrans en image (PNG, JPEG, WebP), par exemple tirées d'un appel d'offres par doc-to-markdown ; Description JSON de chaque page (page_build.py --schema) : arbre de composants, textes, tokens ; Facultatif : tokens du design system (design-system, ds_build.py --schema).
-- **Sorties** : <maquette>.analysis.json : mise en page mesurée (bandes, colonnes, cadres, textes, mesures) ; avec --draft, <maquette>.json : ébauche de description de page ; <nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive ; <nom>.css : variables CSS des tokens puis styles des composants ; assets/ : zones découpées dans la maquette (logos, photos, illustrations) ; <nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; dans le rapport, fidélité bloc par bloc et écarts rattachés aux nœuds ; Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css ; decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate.
+- **Sorties** : <maquette>.analysis.json : mise en page mesurée (bandes, colonnes, cadres, textes, mesures) ; avec --draft, <maquette>.json : ébauche de description de page ; <nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive ; <nom>.css : variables CSS des tokens puis styles des composants ; assets/ : zones découpées dans la maquette (logos, photos, illustrations) ; <nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; dans le rapport, fidélité bloc par bloc et écarts rattachés aux nœuds ; Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css ; <nom>.ux.md : revue UX et accessibilité (contrôles WCAG sur le rendu, constats par heuristique de Nielsen, triés par gravité) ; decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate.
 - **`ui_analyze.py`** : Mesure la mise en page d'une maquette d'écran, en local et sans modèle téléchargé : bandes (fond, filet), colonnes, cadres (aplats, cadres à bordure, images, rayon), textes avec position, taille de police estimée et couleur par OCR local (Tesseract ; sans lui, mise en page seule, signalé), tailles, espacements et rayons récurrents ; écrit l'analyse et, avec --draft, une ébauche de description de page pour page_build.py (bandes en sections, colonnes en grille ou rangée, cartes, titres, textes exacts, boutons, tokens les plus proches, largeur du conteneur), contrôlée contre son schéma ; un espacement ou une taille sans token proche est signalé avec la valeur à ajouter au design system. Rapport JSON, codes de sortie : 0 analyse (et ébauche) écrite pour chaque maquette (avertissements possibles : Tesseract absent, couleur ou mesure sans token proche) ; 1 maquette illisible, tokens invalides, description existante sans --force, design-system absent ; rien d'écrit pour la maquette en échec.
 - **`page_build.py`** : Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette bloc par bloc (fidélité : textes présents, position et taille des textes, bandes, cadres, image ; écarts rattachés au nœud de la description, en px CSS, avec le token proche) et en similarité d'image et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence. Rapport JSON, codes de sortie : 0 page écrite (avertissements possibles : fidélité ou similarité faible, accessibilité, rendu non vérifié faute de navigateur, textes non comparés faute de Tesseract) ; 1 description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX ou gabarit mal formé ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`ux_review.py`** : Revue UX et accessibilité des pages décrites, sans modèle pour les contrôles : rendu local (Playwright, réseau coupé) de la même description que page_build.py, contraste réel de chaque texte sur son fond (WCAG 1.4.3, AAA 1.4.6), nom accessible des boutons, liens et champs (4.1.2), image sans alt (1.1.1), taille des cibles (2.5.8 avec son exception d'espacement, 44 px en AAA), texte sous 12 px, tableau sans en-tête, langue, zone principale, débordement à 390 px, plus d'un bouton primary ; chaque écart rattaché au nœud de la description. Valide les constats de jugement du modèle (heuristiques de Nielsen h1 à h10 ou a11y, gravité 1 à 4, nœud existant) et écrit <page>.ux.md trié par gravité. Rapport JSON, codes de sortie : 0 revue écrite pour chaque page (écarts et avertissements possibles) ; 1 revue invalide, page illisible ou hors schéma, nœud ou page inconnus ; rien d'écrit pour la page en échec.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`ui_breakdown.py`** : Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables. Rapport JSON, codes de sortie : 0 découpage et lots écrits ; 1 page ou règles invalides, lots hors du schéma de solution-estimate ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
@@ -63,17 +65,13 @@ Un fichier par écran, `accueil.json` (`uv run scripts/page_build.py
 fichier), `tokens` (`design-system.json`), `scale` si la maquette est
 exportée en 2x, et `body`, la liste des blocs de haut en bas.
 
-Composants : `header` (`text` du logo ou `crop` de son image, `items` de
-navigation, `actions`), `section` (bande pleine largeur, `background`,
-`children`), `row` (`columns` en proportions `[2, 1]`), `grid` (`columns`
-en nombre), `stack`, `heading` (`level`, `size`), `text` (`muted`, `size`),
-`button` et `buttons` (`variant` : primary, secondary, outline, ghost,
-danger), `link`, `image` (`crop` : zone `[x, y, largeur, hauteur]` de la
-maquette, ou `src` local ; `alt` toujours), `card` (`title`, `text`,
-`crop`, `actions`), `form` (`fields` : `label`, `type`, `options`,
-`required` ; `columns` 1 ou 2), `table` (`headers`, `rows`), `list`,
-`badge`, `alert`, `tabs`, `stepper`, `breadcrumb` (`items`, `current`),
-`stat`, `search`, `box`, `divider`, `spacer`, `footer` (`groups`, `text`).
+Composants : `section`, `row`, `grid`, `stack`, `box`, `sidebar`
+(application avec barre latérale), `header`, `breadcrumb`, `tabs`,
+`stepper`, `pagination`, `footer`, `heading`, `text`, `link`, `list`,
+`badge`, `alert`, `image`, `icon`, `avatar`, `card`, `stat`, `graph` (barres,
+courbe, anneau), `table`, `button`, `buttons`, `search`, `form` (dont
+`switch`), `modal`, `divider`, `spacer`. Détail dans
+`references/composants.md`, à lire seulement pour un composant inconnu.
 
 - Largeurs et hauteurs en pixels seulement où aucun token ne convient :
   `width` d'un `button` ou d'une `box`, `height` d'une `card` (hauteur
@@ -118,7 +116,23 @@ avertissements d'accessibilité (titre, `alt`, contraste) et
 `mobile_overflow`. Sans navigateur, la page est écrite mais non vérifiée :
 dites-le et proposez `check-prerequisites` (groupe `maquettes`).
 
-## 4. Cibler une bibliothèque
+## 4. Revoir l'UX et l'accessibilité
+
+```bash
+uv run scripts/ux_review.py revue.json
+```
+
+`revue.json` (`--schema`) : `pages`, `level` (AA, AAA) et `findings`.
+Premier passage avec `"findings": []` : le script rend chaque page et
+contrôle contraste réel, noms accessibles, taille des cibles, textes sous
+12 px, tableaux, langue, boutons primary ; `issues` cite le nœud.
+Corrigez les gravités 3 et 4 dans la description. Puis, sur **une**
+lecture de la maquette et des `issues`, écrivez vos constats de jugement
+(heuristique h1 à h10 de Nielsen ou a11y, gravité 1 à 4, nœud, problème,
+correction : parcours, libellés, retour d'état, prévention des erreurs) et
+relancez : `<page>.ux.md` est la revue à livrer.
+
+## 5. Cibler une bibliothèque
 
 Sur demande, la même description donne la page dans une bibliothèque
 (`--target`) ; ne réécrivez rien :
@@ -140,7 +154,7 @@ dites que le rendu reste à vérifier dans le projet. Une autre
 bibliothèque (PrimeVue, PrimeNG, Tailwind) : prenez la plus proche et
 dites l'écart.
 
-## 5. Découper et chiffrer le frontend
+## 6. Découper et chiffrer le frontend
 
 ```bash
 uv run scripts/ui_breakdown.py --target react-mui --component portail --out decoupage pages/*.json
@@ -156,7 +170,7 @@ chiffrage, `estimate_build.py chiffrage.json --draft --frontend
 decoupage.lots.json` (skill `solution-estimate`) reprend ces lots à la
 place du lot global du portail.
 
-## 6. Livrer
+## 7. Livrer
 
 Le dossier (`.html`, `.css`, `assets/`) s'ouvre tel quel dans un
 navigateur. Plusieurs écrans : une description chacun, les mêmes tokens,

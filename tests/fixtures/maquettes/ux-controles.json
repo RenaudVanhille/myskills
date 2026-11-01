@@ -1,0 +1,8 @@
+{
+  "pages": [
+    "ux-ecarts.json",
+    "backoffice.json"
+  ],
+  "level": "AA",
+  "findings": []
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Écarts UX volontaires",
+  "lang": "fr",
+  "tokens": "design-system.json",
+  "body": [
+    {"type": "section", "children": [
+      {"type": "heading", "level": 1, "text": "Mon espace"},
+      {"type": "text", "text": "Texte presque invisible sur fond blanc.", "color": "#cbd5e1"},
+      {"type": "stack", "children": [
+        {"type": "button", "text": "Enregistrer", "variant": "primary"},
+        {"type": "button", "text": "Envoyer", "variant": "primary"}
+      ]}
+    ]}
+  ]
+}

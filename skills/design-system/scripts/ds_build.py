@@ -117,10 +117,11 @@ def complete(tokens: dict) -> tuple[dict, list[str]]:
     colors, derived = theme["colors"], []
     given = tokens.get("colors", {})
     bg, text = colors["background"], colors["text"]
-    # Texte secondaire : le plus proche du fond qui garde un contraste de 4,5.
-    muted = next((mix(text, bg, p / 100) for p in range(50, -1, -2) if contrast(mix(text, bg, p / 100), bg) >= 4.5),
-                 text)
-    for name, value in (("surface", mix(bg, text, 0.04)), ("border", mix(bg, text, 0.14)), ("muted", muted)):
+    surface = colors.get("surface", mix(bg, text, 0.04))
+    # Texte secondaire : le plus proche du fond qui garde un contraste de 4,5 sur le fond et sur la surface.
+    muted = next((mix(text, bg, p / 100) for p in range(50, -1, -2)
+                  if min(contrast(mix(text, bg, p / 100), bg), contrast(mix(text, bg, p / 100), surface)) >= 4.5), text)
+    for name, value in (("surface", surface), ("border", mix(bg, text, 0.14)), ("muted", muted)):
         if name not in colors:
             colors[name] = value
             derived.append(name)
@@ -170,7 +171,8 @@ def contrast_pairs(theme: dict, extra: list) -> list[tuple[str, str, float, str]
     """(texte, fond, minimum, usage) des paires à contrôler."""
     colors = theme["colors"]
     pairs = [("text", "background", 4.5, "texte courant"), ("text", "surface", 4.5, "texte sur surface"),
-             ("muted", "background", 4.5, "texte secondaire"), ("primary", "background", 4.5, "lien")]
+             ("muted", "background", 4.5, "texte secondaire"), ("muted", "surface", 4.5, "texte secondaire sur surface"),
+             ("primary", "background", 4.5, "lien")]
     pairs += [(f"on-{n}", n, 4.5, f"texte sur {n}") for n in FILLS if n in colors]
     pairs += [(n, "background", 3.0, f"statut {n} (icône, bordure)") for n in STATUS if n in colors]
     pairs += [(fg, bg, 4.5, "paire déclarée") for fg, bg in extra]
