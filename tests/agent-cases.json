@@ -1108,7 +1108,7 @@
     {
       "id": "maquettes-html",
       "agent": "ui-designer",
-      "prompt": "L'appel d'offres fournit la maquette accueil.png de la page d'accueil. Propose le design system et reproduis la page en HTML dans site/.",
+      "prompt": "L'appel d'offres fournit la maquette accueil.png de la page d'accueil. Propose le design system, reproduis la page en HTML dans site/ et fais sa revue UX et accessibilité.",
       "inputs": [
         {
           "from": "fixtures/maquettes/accueil.png",
@@ -1141,12 +1141,20 @@
           "contains": [
             "Contrastes"
           ]
+        },
+        {
+          "file": "site/accueil.ux.md",
+          "contains": [
+            "Revue UX et accessibilité",
+            "## Constats de la revue"
+          ]
         }
       ],
       "rubric": [
         "La page reprend l'en-tête avec le logo, la navigation et le bouton de déclaration.",
         "Elle reprend le bandeau bleu avec son titre, son sous-titre et le bouton Commencer.",
         "Elle reprend les trois cartes Auto, Habitation et Santé, puis le pied de page.",
+        "La revue UX contient au moins un constat rangé par heuristique, rattaché à un nœud, avec une correction.",
         "Le design system a le bleu #0b3d91 et l'orange #f97316 de la maquette, et ses contrastes sont contrôlés.",
         "La réponse donne la similarité avec la maquette, sans recopier le HTML."
       ]

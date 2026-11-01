@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pillow>=10"]
+# dependencies = ["pillow>=10", "numpy>=1.24"]
 # ///
 """Tire la palette de couleurs de maquettes (PNG, JPEG, WebP) et propose un brouillon de tokens.
 
@@ -18,10 +18,16 @@ rôle, les autres valeurs par défaut. Le modèle relit les rôles sur une
 maquette, nomme le design system et corrige ; il n'écrit pas la palette.
 Les images ne sont lues qu'en local.
 
+Avec --draft, si le skill mockup-to-html est installé, ses mesures
+(ui_analyze.py) remplacent les échelles par défaut : tailles de texte
+relevées par l'OCR local (Tesseract, facultatif ; celle du texte courant
+devient md), espacements entre blocs (grille de 4 px) et rayons des cadres. --scale
+donne les pixels d'image par pixel CSS (2 pour une maquette exportée en 2x).
+
 Avec --against TOKENS.json (design system fourni, ds_import.py), signale les
 couleurs des maquettes qui s'en écartent et le token le plus proche.
 
-    uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--against TOKENS.json]
+    uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--scale 1] [--against TOKENS.json]
 """
 
 import argparse
@@ -31,7 +37,9 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import ds_build  # noqa: E402
+import skill_paths  # noqa: E402
 
 IMAGES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 MERGE = 12
@@ -113,6 +121,58 @@ def roles(colors: list[tuple[str, float]]) -> dict[str, str]:
     return found
 
 
+def snap(values: list[float], defaults: dict, step: int = 1) -> dict:
+    """Place chaque valeur mesurée sur la clé par défaut la plus proche (en rapport), garde l'échelle croissante."""
+    scale = dict(defaults)
+    keys = [k for k, v in defaults.items() if 0 < v < 999]
+    taken: set[str] = set()
+    for value in values:
+        value = max(step, round(value / step) * step)
+        key = min(keys, key=lambda k: abs(defaults[k] - value) / defaults[k])
+        if key not in taken and abs(defaults[key] - value) / defaults[key] <= 0.5:
+            scale[key] = value
+            taken.add(key)
+    ordered = sorted(keys, key=lambda k: defaults[k])
+    for low, high in zip(ordered, ordered[1:]):
+        if scale[high] <= scale[low]:
+            scale[high] = scale[low] + step
+    return scale
+
+
+def measures(images: list[Path], scale: float, report: dict) -> dict | None:
+    """Tailles de texte, espacements et rayons mesurés par ui_analyze.py (mockup-to-html), en px CSS."""
+    module = skill_paths.load_module("mockup-to-html", "ui_analyze.py")
+    if module is None:
+        report["warnings"].append(f"échelles par défaut : {skill_paths.absent('mockup-to-html', 'ui_analyze.py')}")
+        return None
+    langs = module.tesseract_langs("fr")
+    if not langs:
+        report["warnings"].append("tailles de texte par défaut : Tesseract absent (check-prerequisites, groupe maquettes)")
+    sizes: list[float] = []
+    weighted: list[float] = []
+    spacing: list[float] = []
+    radii: list[float] = []
+    for path in images:
+        analysis = module.analyze(path, langs)
+        sizes += [line["font_px"] / scale for line in analysis["texts"]]
+        # Le texte courant porte le plus de caractères : médiane pondérée par la longueur.
+        weighted += [line["font_px"] / scale for line in analysis["texts"] for _ in line["text"]]
+        spacing += [v / scale for v in analysis["measures"]["spacing"]]
+        radii += [v / scale for v in analysis["measures"]["radii"]]
+    found: dict = {"font_sizes": None, "spacing": None, "radii": None}
+    if sizes:
+        body = sorted(weighted)[len(weighted) // 2]
+        ratio = body / ds_build.DEFAULTS["font_sizes"]["md"]
+        base = {k: v * ratio for k, v in ds_build.DEFAULTS["font_sizes"].items()}
+        found["font_sizes"] = snap([body] + module.cluster(sizes), base)
+        found["font_sizes"] = {k: max(8, min(128, round(v))) for k, v in found["font_sizes"].items()}
+    if spacing:
+        found["spacing"] = snap([v for v in module.cluster(spacing, 0.2) if v <= 96], ds_build.DEFAULTS["spacing"], 4)
+    if radii:
+        found["radii"] = snap(module.cluster(radii, 0.3), ds_build.DEFAULTS["radii"])
+    return found
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -122,8 +182,9 @@ def main() -> int:
     parser.add_argument("--draft", type=Path)
     parser.add_argument("--name", default="")
     parser.add_argument("--against", type=Path)
+    parser.add_argument("--scale", type=float, default=1.0)
     args = parser.parse_args()
-    report = {"inputs": [str(p) for p in args.images], "palette": [], "roles": {}, "draft": None, "deviations": [],
+    report = {"inputs": [str(p) for p in args.images], "palette": [], "roles": {}, "draft": None, "measures": None, "deviations": [],
               "errors": [], "warnings": []}
     counts: dict[str, int] = {}
     for path in args.images:
@@ -186,6 +247,11 @@ def main() -> int:
                  "spacing": ds_build.DEFAULTS["spacing"], "radii": ds_build.DEFAULTS["radii"]}
         if "primary" not in found:
             draft["colors"]["primary"] = ds_build.DEFAULTS["colors"]["primary"]
+        measured = measures(args.images, args.scale if args.scale > 0 else 1.0, report)
+        if measured:
+            report["measures"] = measured
+            draft.update({k: v for k, v in measured.items() if v})
+            draft["description"] += " Échelles mesurées par ui_analyze.py (mockup-to-html)."
         errors = ds_build.tokens_errors(draft)
         if errors:
             report["errors"] += errors

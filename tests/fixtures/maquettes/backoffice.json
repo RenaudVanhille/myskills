@@ -1,0 +1,34 @@
+{
+  "title": "Assur'Plus : gestion des sinistres",
+  "tokens": "design-system.json",
+  "body": [
+    {"type": "sidebar", "text": "Assur'Plus", "width": 240, "items": [
+      {"text": "Tableau de bord", "icon": "dashboard", "active": true},
+      {"text": "Sinistres", "icon": "file"},
+      {"text": "Clients", "icon": "users"},
+      {"text": "Paramètres", "icon": "settings"}
+    ], "children": [
+      {"type": "section", "padding": "lg", "children": [
+        {"type": "row", "columns": [3, 1], "valign": "center", "children": [
+          {"type": "heading", "level": 1, "text": "Sinistres en cours", "size": "2xl"},
+          {"type": "stack", "children": [{"type": "avatar", "text": "Camille Martin", "size": "md"}]}
+        ]},
+        {"type": "grid", "columns": 3, "children": [
+          {"type": "stat", "label": "Ouverts", "value": "128"},
+          {"type": "stat", "label": "À instruire", "value": "42"},
+          {"type": "stat", "label": "Clos ce mois", "value": "311"}
+        ]},
+        {"type": "graph", "title": "Déclarations par mois", "variant": "bar", "height": 200, "items": [
+          {"text": "Jan", "value": 40}, {"text": "Fév", "value": 55}, {"text": "Mar", "value": 32}, {"text": "Avr", "value": 61}
+        ]},
+        {"type": "form", "columns": 2, "fields": [
+          {"label": "Recherche", "type": "search"},
+          {"label": "Urgents seulement", "type": "switch"}
+        ], "submit": "Filtrer"},
+        {"type": "table", "headers": ["N°", "Client", "Statut"], "rows": [["S-1024", "Durand", "Ouvert"], ["S-1025", "Petit", "À instruire"]]},
+        {"type": "pagination", "pages": 12, "current": 3},
+        {"type": "modal", "title": "Clore le sinistre S-1024 ?", "text": "Le client sera notifié par courriel.", "actions": [{"text": "Annuler", "variant": "ghost"}, {"text": "Clore", "variant": "primary"}]}
+      ]}
+    ]}
+  ]
+}

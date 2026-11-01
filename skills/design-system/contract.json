@@ -17,13 +17,14 @@
   "scripts": [
     {
       "name": "ds_extract.py",
-      "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide. Avec --against, compare les maquettes à un design system fourni et liste les couleurs qui s'en écartent.",
-      "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--against TOKENS.json]",
+      "role": "Tire la palette des maquettes en local (réduction sans lissage, comptage, fusion des couleurs proches, part de surface), propose les rôles background, text, primary, secondary, surface et border, et écrit avec --draft un brouillon de tokens valide, dont les échelles (tailles de texte, espacements, rayons) sont mesurées par ui_analyze.py de mockup-to-html s'il est installé. Avec --against, compare les maquettes à un design system fourni et liste les couleurs qui s'en écartent.",
+      "usage": "uv run scripts/ds_extract.py IMAGE [...] [--colors 12] [--draft TOKENS.json] [--name NOM] [--scale 1] [--against TOKENS.json]",
       "options": {
         "IMAGE": "maquettes (PNG, JPEG, WebP, BMP, GIF)",
         "--colors": "couleurs gardées dans la palette du rapport (défaut 12)",
         "--draft": "écrit le brouillon de tokens",
         "--name": "nom du design system (défaut : tiré du fichier)",
+        "--scale": "pixels d'image par pixel CSS pour les mesures (défaut 1 ; 2 pour une maquette exportée en 2x)",
         "--against": "design system fourni (tokens de ds_import.py) : couleurs des maquettes qui s'en écartent, avec le token le plus proche"
       },
       "exit_codes": {
@@ -32,7 +33,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Palette (couleur, part de surface, rôle proposé), rôles et brouillon.",
+        "description": "Palette (couleur, part de surface, rôle proposé), rôles, échelles mesurées et brouillon.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -42,6 +43,7 @@
             "palette",
             "roles",
             "draft",
+            "measures",
             "deviations",
             "errors",
             "warnings"
@@ -132,6 +134,48 @@
                     "type": "string"
                   },
                   "distance": {
+                    "type": "number"
+                  }
+                }
+              }
+            },
+            "measures": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "échelles mesurées sur les maquettes (--draft, mockup-to-html installé), null sinon",
+              "additionalProperties": false,
+              "required": [
+                "font_sizes",
+                "spacing",
+                "radii"
+              ],
+              "properties": {
+                "font_sizes": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                },
+                "spacing": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                },
+                "radii": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
                     "type": "number"
                   }
                 }
@@ -580,6 +624,12 @@
       "skill": "mockup-to-html",
       "script": "page_build.py",
       "why": "construire et rendre la page de référence (--render)",
+      "optional": true
+    },
+    {
+      "skill": "mockup-to-html",
+      "script": "ui_analyze.py",
+      "why": "mesurer tailles de texte, espacements et rayons des maquettes pour le brouillon (--draft)",
       "optional": true
     }
   ],

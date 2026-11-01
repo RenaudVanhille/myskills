@@ -13,6 +13,7 @@
     "assets/ : zones découpées dans la maquette (logos, photos, illustrations)",
     "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; dans le rapport, fidélité bloc par bloc et écarts rattachés aux nœuds",
     "Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css",
+    "<nom>.ux.md : revue UX et accessibilité (contrôles WCAG sur le rendu, constats par heuristique de Nielsen, triés par gravité)",
     "decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate"
   ],
   "scripts": [
@@ -270,7 +271,13 @@
                     "search",
                     "divider",
                     "spacer",
-                    "footer"
+                    "footer",
+                    "sidebar",
+                    "icon",
+                    "avatar",
+                    "pagination",
+                    "modal",
+                    "graph"
                   ]
                 },
                 "id": {
@@ -284,7 +291,8 @@
                   "type": "string"
                 },
                 "label": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "stat : libellé ; icon : texte alternatif (sans lui, icône décorative)"
                 },
                 "value": {
                   "type": "string"
@@ -297,11 +305,11 @@
                 "size": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "heading, text : token font_sizes ; spacer : token spacing ; button : sm, md, lg"
+                  "description": "heading, text, icon : token font_sizes ; spacer : token spacing ; button : sm, md, lg ; avatar : sm, md, lg"
                 },
                 "variant": {
                   "type": "string",
-                  "description": "button : primary, secondary, outline, ghost, danger ; nav : horizontal, vertical ; table : plain, striped ; list : bullet, ordered, check, plain ; badge, alert : info, success, warning, danger (badge : neutral)"
+                  "description": "button : primary, secondary, outline, ghost, danger ; nav : horizontal, vertical ; table : plain, striped ; list : bullet, ordered, check, plain ; badge, alert : info, success, warning, danger (badge : neutral) ; graph : bar, line, donut"
                 },
                 "muted": {
                   "type": "boolean"
@@ -368,13 +376,13 @@
                       "maximum": 3840
                     }
                   ],
-                  "description": "section : full ou contained (défaut) ; box, button : px"
+                  "description": "section : full ou contained (défaut) ; image, box, button, sidebar : px"
                 },
                 "height": {
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 4000,
-                  "description": "image, box : px ; card : hauteur minimale en px"
+                  "description": "image, box, graph : px ; card : hauteur minimale en px"
                 },
                 "columns": {
                   "anyOf": [
@@ -428,6 +436,54 @@
                           },
                           "variant": {
                             "type": "string"
+                          },
+                          "icon": {
+                            "enum": [
+                              "arrow-right",
+                              "bell",
+                              "calendar",
+                              "cart",
+                              "chart",
+                              "check",
+                              "chevron-down",
+                              "chevron-left",
+                              "chevron-right",
+                              "close",
+                              "dashboard",
+                              "download",
+                              "edit",
+                              "eye",
+                              "file",
+                              "filter",
+                              "folder",
+                              "heart",
+                              "help",
+                              "home",
+                              "info",
+                              "list",
+                              "lock",
+                              "logout",
+                              "mail",
+                              "menu",
+                              "minus",
+                              "more",
+                              "phone",
+                              "plus",
+                              "refresh",
+                              "search",
+                              "settings",
+                              "star",
+                              "trash",
+                              "upload",
+                              "user",
+                              "users",
+                              "warning"
+                            ],
+                            "description": "nav, sidebar : icône du jeu intégré"
+                          },
+                          "value": {
+                            "type": "number",
+                            "description": "graph : valeur de la série"
                           }
                         }
                       }
@@ -472,7 +528,7 @@
                 "current": {
                   "type": "integer",
                   "minimum": 1,
-                  "description": "tabs, stepper : rang de l'élément actif, à partir de 1"
+                  "description": "tabs, stepper : rang de l'élément actif, à partir de 1 ; pagination : page courante"
                 },
                 "src": {
                   "type": "string",
@@ -526,7 +582,8 @@
                           "select",
                           "textarea",
                           "checkbox",
-                          "radio"
+                          "radio",
+                          "switch"
                         ]
                       },
                       "placeholder": {
@@ -621,6 +678,56 @@
                       }
                     }
                   }
+                },
+                "name": {
+                  "enum": [
+                    "arrow-right",
+                    "bell",
+                    "calendar",
+                    "cart",
+                    "chart",
+                    "check",
+                    "chevron-down",
+                    "chevron-left",
+                    "chevron-right",
+                    "close",
+                    "dashboard",
+                    "download",
+                    "edit",
+                    "eye",
+                    "file",
+                    "filter",
+                    "folder",
+                    "heart",
+                    "help",
+                    "home",
+                    "info",
+                    "list",
+                    "lock",
+                    "logout",
+                    "mail",
+                    "menu",
+                    "minus",
+                    "more",
+                    "phone",
+                    "plus",
+                    "refresh",
+                    "search",
+                    "settings",
+                    "star",
+                    "trash",
+                    "upload",
+                    "user",
+                    "users",
+                    "warning"
+                  ],
+                  "description": "icon : icône du jeu intégré (SVG local)"
+                },
+                "pages": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9999,
+                  "description": "pagination : nombre de pages"
                 }
               }
             }
@@ -866,6 +973,253 @@
                     "type": "string"
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "ux_review.py",
+      "role": "Revue UX et accessibilité des pages décrites, sans modèle pour les contrôles : rendu local (Playwright, réseau coupé) de la même description que page_build.py, contraste réel de chaque texte sur son fond (WCAG 1.4.3, AAA 1.4.6), nom accessible des boutons, liens et champs (4.1.2), image sans alt (1.1.1), taille des cibles (2.5.8 avec son exception d'espacement, 44 px en AAA), texte sous 12 px, tableau sans en-tête, langue, zone principale, débordement à 390 px, plus d'un bouton primary ; chaque écart rattaché au nœud de la description. Valide les constats de jugement du modèle (heuristiques de Nielsen h1 à h10 ou a11y, gravité 1 à 4, nœud existant) et écrit <page>.ux.md trié par gravité.",
+      "usage": "uv run scripts/ux_review.py REVUE.json [--out-dir DOSSIER] [--no-render] | --schema",
+      "options": {
+        "REVUE.json": "pages revues, niveau visé et constats du modèle (--schema) ; premier passage avec findings vide",
+        "--out-dir": "dossier de <page>.ux.md (défaut : celui de la description)",
+        "--no-render": "contrôles de la description seuls (bouton primary), sans navigateur",
+        "--schema": "affiche le schéma de la revue sur une ligne"
+      },
+      "exit_codes": {
+        "0": "revue écrite pour chaque page (écarts et avertissements possibles)",
+        "1": "revue invalide, page illisible ou hors schéma, nœud ou page inconnus ; rien d'écrit pour la page en échec"
+      },
+      "input": {
+        "format": "json",
+        "description": "Revue écrite par le modèle : pages (descriptions de page_build.py, chemins relatifs à la revue), niveau, constats.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pages",
+            "findings"
+          ],
+          "properties": {
+            "pages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "\\.json$"
+              },
+              "description": "descriptions de page (page_build.py), relatives à la revue"
+            },
+            "level": {
+              "enum": [
+                "AA",
+                "AAA"
+              ],
+              "description": "niveau WCAG visé (défaut AA)"
+            },
+            "summary": {
+              "type": "string",
+              "maxLength": 600,
+              "description": "synthèse en deux ou trois phrases"
+            },
+            "findings": {
+              "type": "array",
+              "maxItems": 40,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "heuristic",
+                  "severity",
+                  "problem",
+                  "fix"
+                ],
+                "properties": {
+                  "page": {
+                    "type": "string",
+                    "description": "description concernée (accueil ou accueil.json), obligatoire avec un nœud si plusieurs pages"
+                  },
+                  "heuristic": {
+                    "enum": [
+                      "h1",
+                      "h2",
+                      "h3",
+                      "h4",
+                      "h5",
+                      "h6",
+                      "h7",
+                      "h8",
+                      "h9",
+                      "h10",
+                      "a11y"
+                    ],
+                    "description": "h1 visibilité de l'état, h2 monde réel, h3 contrôle et liberté, h4 cohérence, h5 prévention des erreurs, h6 reconnaître plutôt que se souvenir, h7 flexibilité, h8 minimalisme, h9 diagnostic des erreurs, h10 aide ; a11y accessibilité"
+                  },
+                  "severity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4,
+                    "description": "1 mineur, 2 gênant, 3 majeur, 4 bloquant"
+                  },
+                  "node": {
+                    "type": "string",
+                    "pattern": "^body(/[a-z_]+|/[0-9]+)*$",
+                    "description": "nœud de la description, ex. body/2/children/0"
+                  },
+                  "problem": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "fix": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Un résultat par page : contrôles menés, écarts (20 au plus, les plus graves d'abord), constats, gravités.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "input",
+                  "outputs",
+                  "rendered",
+                  "checked",
+                  "issue_count",
+                  "issues",
+                  "findings",
+                  "severity",
+                  "errors",
+                  "warnings"
+                ],
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "outputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "rendered": {
+                    "type": "boolean"
+                  },
+                  "checked": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "integer"
+                    },
+                    "description": "éléments contrôlés par sorte"
+                  },
+                  "issue_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "issues": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "node",
+                        "severity",
+                        "message"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "contrast",
+                            "name",
+                            "target",
+                            "text-size",
+                            "alt",
+                            "table",
+                            "lang",
+                            "main",
+                            "mobile",
+                            "primary"
+                          ]
+                        },
+                        "node": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "severity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 4
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "findings": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "severity": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "integer"
+                    },
+                    "description": "nombre d'écarts et de constats par gravité"
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
               }
             }
           }
