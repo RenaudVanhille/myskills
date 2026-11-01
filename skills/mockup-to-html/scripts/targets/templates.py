@@ -283,7 +283,7 @@ class Vuetify(Base):
                                         "aria-label": node.get("alt", "Image"), "class": "d-flex align-center justify-center"},
                             text=node.get("alt", "Image"))
         return self.tag("v-img", {"src": src, "alt": node.get("alt", ""), "height": str(node["height"]) if node.get("height") else None,
-                                  "cover": True})
+                                  "width": str(node["width"]) if isinstance(node.get("width"), int) else None, "cover": True})
 
     def n_card(self, node):
         src = self.image_src(node)
@@ -479,8 +479,10 @@ class Material(Base):
         if not src:
             return El("div", {"class": "placeholder", "role": "img", "aria-label": node.get("alt", "Image"),
                               "style": f"min-height: {node.get('height', 160)}px"}, text=node.get("alt", "Image"))
+        sizes = [f"height: {node['height']}px" if node.get("height") else "",
+                 f"width: {node['width']}px" if isinstance(node.get("width"), int) else ""]
         return El("img", {"src": src, "alt": node.get("alt", ""), "class": "cover",
-                          "style": f"height: {node['height']}px" if node.get("height") else None})
+                          "style": "; ".join(x for x in sizes if x) or None})
 
     def n_card(self, node):
         self.use("mat-card")

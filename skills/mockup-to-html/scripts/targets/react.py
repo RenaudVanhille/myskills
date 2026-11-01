@@ -279,7 +279,8 @@ class Emitter:
         if not src:
             return (f"<{self.tag('Box')} role=\"img\" aria-label={js(node.get('alt', 'Image'))} sx={{{{ bgcolor: \"action.hover\", minHeight: {node.get('height', 160)}, "
                     f"display: \"flex\", alignItems: \"center\", justifyContent: \"center\" }}}}>{text(node.get('alt', 'Image'))}</Box>")
-        return f"<{self.tag('Box')} component=\"img\" src={js(src)} alt={js(node.get('alt', ''))} sx={{{{ width: \"100%\", objectFit: \"cover\"{height} }}}} />"
+        width = node["width"] if isinstance(node.get("width"), int) else "\"100%\""
+        return f"<{self.tag('Box')} component=\"img\" src={js(src)} alt={js(node.get('alt', ''))} sx={{{{ width: {width}, objectFit: \"cover\"{height} }}}} />"
 
     def mui_card(self, node, depth):
         src = self.image_src(node)
@@ -520,7 +521,8 @@ class Emitter:
             return (f"<div role=\"img\" aria-label={js(node.get('alt', 'Image'))} style={{{{ background: tokens.colors.surface, minHeight: {node.get('height', 160)}, "
                     f"display: \"flex\", alignItems: \"center\", justifyContent: \"center\" }}}}>{text(node.get('alt', 'Image'))}</div>")
         height = f" height={{{node['height']}}}" if node.get("height") else ""
-        return f"<{self.tag('Image')} src={js(src)} alt={js(node.get('alt', ''))} preview={{false}} width=\"100%\"{height} style={{{{ objectFit: \"cover\" }}}} />"
+        width = f"{{{node['width']}}}" if isinstance(node.get("width"), int) else "\"100%\""
+        return f"<{self.tag('Image')} src={js(src)} alt={js(node.get('alt', ''))} preview={{false}} width={width}{height} style={{{{ objectFit: \"cover\" }}}} />"
 
     def antd_card(self, node, depth):
         src = self.image_src(node)

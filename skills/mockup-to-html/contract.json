@@ -375,7 +375,7 @@
                       "maximum": 3840
                     }
                   ],
-                  "description": "section : full ou contained (défaut) ; box, button, sidebar : px"
+                  "description": "section : full ou contained (défaut) ; image, box, button, sidebar : px"
                 },
                 "height": {
                   "type": "integer",

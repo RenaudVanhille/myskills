@@ -68,7 +68,7 @@ PROPS = {
     "link": {"text", "href"},
     "button": {"text", "variant", "size", "href", "width"},
     "buttons": {"items"},
-    "image": {"src", "crop", "alt", "height", "radius"},
+    "image": {"src", "crop", "alt", "height", "width", "radius"},
     "box": {"width", "height", "radius", "shadow"},
     "card": {"title", "text", "src", "crop", "alt", "children", "actions", "shadow", "radius", "height"},
     "form": {"title", "fields", "submit", "columns"},
@@ -309,7 +309,9 @@ class Page:
             source = self.crop(node["crop"], f"{where}/crop")
         elif "src" in node:
             source = self.copy(node["src"], f"{where}/src")
-        height = f' style="height:{node["height"]}px"' if node.get("height") else ""
+        sizes = ([f'height:{node["height"]}px'] if node.get("height") else []) + \
+            ([f'width:{node["width"]}px;flex:none'] if node.get("type") == "image" and isinstance(node.get("width"), int) else [])
+        height = f' style="{";".join(sizes)}"' if sizes else ""
         radius = node.get("radius")
         if radius:
             value = self.token(f"{where}/radius", "radius", radius)

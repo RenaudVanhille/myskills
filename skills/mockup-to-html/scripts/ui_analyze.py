@@ -330,7 +330,7 @@ def lines_of(words: list[dict]) -> list[dict]:
     return sorted(out, key=lambda line: (line["y"], line["x"]))
 
 
-def texts(image, arr, frames_: list[dict], page_bands: list[dict], langs: str) -> list[dict]:
+def texts(image, arr, frames_: list[dict], page_bands: list[dict], langs: str, side: dict | None = None) -> list[dict]:
     """Lignes de texte de la page ; les aplats sans texte reconnu sont relus seuls (texte clair sur fond coloré)."""
     from PIL import ImageOps
     words = ocr(image, langs)
@@ -352,7 +352,10 @@ def texts(image, arr, frames_: list[dict], page_bands: list[dict], langs: str) -
         found += lines_of(extra)
     for line in found:
         band = band_at(page_bands, line["y"] + line["height"] / 2)
-        line["color"] = ink(arr, line, page_bands[band]["rgb"] if band is not None else (255, 255, 255))
+        background = page_bands[band]["rgb"] if band is not None else (255, 255, 255)
+        if side and line["x"] + line["width"] / 2 < side["width"]:
+            background = side["rgb"]
+        line["color"] = ink(arr, line, background)
         for word in line["words"]:
             word.pop("line", None)
     return sorted(found, key=lambda line: (line["y"], line["x"]))
@@ -389,21 +392,54 @@ def cluster(values: list[float], tolerance: float = 0.12) -> list[int]:
     return sorted({round(sorted(g)[len(g) // 2]) for g in groups[:8]})
 
 
+def sidebar(arr) -> dict | None:
+    """Barre latérale à gauche : colonnes de même fond sur presque toute la hauteur, distinct du reste de la page."""
+    height, width = arr.shape[:2]
+    step_y = max(1, height // 240)
+    cols = [mode_color(arr[::step_y, x]) for x in range(0, min(width, 420), 2)]
+    rest, _ = mode_color(arr[::step_y, min(width - 1, 420)::4])
+    first, share = cols[0]
+    if share < 0.6 or distance(first, rest) <= 12:
+        return None
+    edge = 0
+    for i, (color, part) in enumerate(cols):
+        if distance(color, first) > 8 or part < 0.6:
+            break
+        edge = (i + 1) * 2
+    if not 120 <= edge <= min(360, 0.35 * width):
+        return None
+    border = arr[::step_y, edge:edge + 3]
+    line, part = mode_color(border)
+    if part >= 0.8 and distance(line, rest) > 8 and distance(line, first) > 8:
+        edge += next((k for k in range(3) if distance(mode_color(arr[::step_y, edge + k])[0], rest) <= 8), 3)
+    return {"x": 0, "y": 0, "width": edge, "height": height, "rgb": first, "background": hexa(first)}
+
+
 def analyze(image, langs: str | None) -> dict:
-    """Bandes, colonnes, cadres, textes et mesures récurrentes d'une image (maquette ou rendu)."""
+    """Bandes, colonnes, cadres, textes et mesures récurrentes d'une image (maquette ou rendu).
+
+    Une barre latérale repérée à gauche est mesurée à part ; les bandes ne couvrent que la zone principale.
+    """
     from PIL import Image
     image = image.convert("RGB") if hasattr(image, "convert") else Image.open(image).convert("RGB")
-    arr = load(image)
-    height, width = arr.shape[:2]
+    full = load(image)
+    height, width = full.shape[:2]
+    side = sidebar(full)
+    x0 = side["width"] if side else 0
+    arr = full[:, x0:]
     page_bands = bands(arr)
     all_frames: list[dict] = []
     gaps: list[float] = []
+    if side:
+        side_frames = frames(full[:, :x0], {**side, "border": None}, x0)
+        side["frames"] = side_frames
+        all_frames += side_frames
     for band in page_bands:
         sub = arr[band["y"]:band["y"] + band["height"]]
         mask = content_mask(sub, band["rgb"])
         if band.get("border"):
             mask[-4:] = False
-        band["columns"] = columns(mask)
+        band["columns"] = columns(mask, x0)
         for col in band["columns"]:
             col["top"] += band["y"]
             col["bottom"] += band["y"]
@@ -413,14 +449,19 @@ def analyze(image, langs: str | None) -> dict:
             gaps += [top] + [b["x"] - (a["x"] + a["width"]) for a, b in zip(band["columns"], band["columns"][1:])]
         else:
             band["padding"] = [0, 0]
-        band_frames = frames(arr, band, width)
+        band_frames = frames(arr, band, width - x0)
+        for frame in band_frames:
+            frame["x"] += x0
         all_frames += band_frames
-    page_texts = texts(image, arr, all_frames, page_bands, langs) if langs else []
+    page_texts = texts(image, full, all_frames, page_bands, langs, side) if langs else []
     for i, band in enumerate(page_bands):
         band.pop("rgb", None)
+        band["x"] = x0
+    if side:
+        side.pop("rgb", None)
     sizes = [line["font_px"] for line in page_texts]
     return {"width": width, "height": height, "background": page_bands[0]["background"] if page_bands else "#ffffff",
-            "bands": page_bands, "frames": all_frames, "texts": page_texts, "ocr": bool(langs),
+            "sidebar": side, "bands": page_bands, "frames": all_frames, "texts": page_texts, "ocr": bool(langs),
             "measures": {"font_px": cluster(sizes), "spacing": cluster(gaps, 0.2),
                          "radii": cluster([f["radius"] for f in all_frames if f["kind"] != "image"], 0.3)}}
 
@@ -514,33 +555,91 @@ class Draft:
         return node
 
     def content(self, region: dict, lines: list[dict], frames_: list[dict]) -> list[dict]:
-        """Blocs d'une colonne de haut en bas : textes, boutons, images, cadres."""
-        items: list[tuple[float, float, dict]] = []
+        """Blocs d'une colonne de haut en bas ; éléments alignés en lignes : grille, rangée, statistiques, tableau."""
+        entries: list[dict] = []  # y, x, h, w, node
         used: set[int] = set()
         for frame in frames_:
             label = [line for line in lines if inside(line, frame)]
+            box = {"y": frame["y"], "x": frame["x"], "h": frame["height"], "w": frame["width"]}
             if frame["kind"] == "fill" and label and frame["height"] <= 80:
                 used.update(id(line) for line in label)
                 text = " ".join(l["text"] for l in label)
-                items.append((frame["y"], frame["x"], {"button": self.wide(frame, text, self.button(frame, text))}))
+                entries.append({**box, "button": self.wide(frame, text, self.button(frame, text))})
             elif frame["kind"] in ("fill", "image") and not label:
-                box = [frame["x"], frame["y"], frame["width"], frame["height"]]
-                items.append((frame["y"], frame["x"], {"type": "image", "crop": box, "alt": ""}))
+                image = {"type": "image", "crop": [frame["x"], frame["y"], frame["width"], frame["height"]], "alt": ""}
+                if frame["width"] < 0.8 * region["width"]:  # image plus étroite que sa colonne : taille gardée
+                    image.update(width=round(self.px(frame["width"])), height=round(self.px(frame["height"])))
+                entries.append({**box, "node": image})
         for line in self.paragraphs([line for line in lines if id(line) not in used]):
-            items.append((line["y"], line["x"], self.text_node(line, region)))
-        items.sort(key=lambda item: (round(item[0] / 12), item[1]))
-        out: list[dict] = []
-        for _, _, node in items:
-            if "button" in node and "width" in node["button"]:
-                out.append({"type": "button", **node["button"]})
-            elif "button" in node:
-                if out and out[-1].get("type") == "buttons":
-                    out[-1]["items"].append(node["button"])
-                else:
-                    out.append({"type": "buttons", "items": [node["button"]]})
+            entries.append({"y": line["y"], "x": line["x"], "h": line["height"], "w": line["width"],
+                            "px": line["font_px"], "node": self.text_node(line, region)})
+        rows: list[list[dict]] = []
+        for entry in sorted(entries, key=lambda e: (e["y"], e["x"])):
+            last = rows[-1] if rows else None
+            if last and abs(entry["y"] - last[0]["y"]) <= max(8 * self.scale, 0.6 * min(entry["h"], last[0]["h"])):
+                last.append(entry)
             else:
-                out.append(node)
+                rows.append([entry])
+        for row in rows:
+            row.sort(key=lambda e: e["x"])
+        out: list[dict] = []
+        i = 0
+        while i < len(rows):
+            row = rows[i]
+            if len(row) < 2 or all("button" in e for e in row):
+                for entry in row:
+                    self.append(out, entry)
+                i += 1
+                continue
+            j = i + 1
+            while j < len(rows) and len(rows[j]) == len(row) and \
+                    all(abs(a["x"] - b["x"]) <= 16 * self.scale for a, b in zip(rows[j], row)):
+                j += 1
+            run = rows[i:j]
+            texts_only = all(e.get("node", {}).get("type") in ("text", "heading") for r in run for e in r)
+            if texts_only and len(run) >= 3:
+                out.append(self.table(run))
+            elif texts_only and len(run) == 2 and all(a["px"] < b["px"] for a, b in zip(run[0], run[1])):
+                stats = [{"type": "stat", "label": a["node"]["text"], "value": b["node"]["text"]} for a, b in zip(run[0], run[1])]
+                out.append({"type": "grid", "columns": len(stats), "children": stats})
+            else:
+                for r in run:
+                    out.append(self.line(r, region))
+            i = j
         return out
+
+    def append(self, out: list[dict], entry: dict) -> None:
+        if "button" in entry and "width" in entry["button"]:
+            out.append({"type": "button", **entry["button"]})
+        elif "button" in entry:
+            if out and out[-1].get("type") == "buttons":
+                out[-1]["items"].append(entry["button"])
+            else:
+                out.append({"type": "buttons", "items": [entry["button"]]})
+        else:
+            out.append(entry["node"])
+
+    def line(self, row: list[dict], region: dict) -> dict:
+        """Éléments côte à côte : rangée aux proportions de leurs positions."""
+        right = region["x"] + region["width"]
+        spans = [max(1, (b["x"] if b is not None else right) - a["x"]) for a, b in zip(row, row[1:] + [None])]
+        base = min(spans)
+        children = []
+        for entry in row:
+            holder: list[dict] = []
+            self.append(holder, entry)
+            children.append(holder[0])
+        return {"type": "row", "columns": [round(s / base, 1) for s in spans], "valign": "center", "children": children}
+
+    def table(self, run: list[list[dict]]) -> dict:
+        """Lignes alignées sur les mêmes colonnes : tableau ; première ligne en en-tête si plus petite ou atténuée."""
+        cells = [[e["node"]["text"] for e in r] for r in run]
+        head = run[0]
+        node: dict = {"type": "table"}
+        if all(e["node"].get("muted") or e["px"] < run[1][0]["px"] * 0.95 for e in head):
+            node["headers"] = cells.pop(0)
+        node["rows"] = cells
+        return node
 
     def card(self, frame: dict, lines: list[dict], frames_: list[dict]) -> dict:
         inner = [line for line in lines if inside(line, frame)]
@@ -570,8 +669,10 @@ class Draft:
     def band(self, i: int, band: dict) -> dict | None:
         a = self.a
         y0, y1 = band["y"], band["y"] + band["height"]
-        lines = [line for line in a["texts"] if y0 <= line["y"] + line["height"] / 2 < y1]
-        frames_ = [f for f in a["frames"] if y0 <= f["y"] + f["height"] / 2 < y1]
+        x0 = band.get("x", 0)
+        lines = [line for line in a["texts"] if y0 <= line["y"] + line["height"] / 2 < y1
+                 and line["x"] + line["width"] / 2 >= x0]
+        frames_ = [f for f in a["frames"] if y0 <= f["y"] + f["height"] / 2 < y1 and f["x"] + f["width"] / 2 >= x0]
         where = f"bande {i + 1}"
         if i == 0 and band["height"] <= 120 * self.scale and lines and len(a["bands"]) > 1:
             return self.header(band, lines, frames_)
@@ -631,15 +732,42 @@ class Draft:
 
     def max_width(self) -> int | None:
         """Largeur du conteneur : bord gauche le plus fréquent des contenus, moins la marge intérieure (lg)."""
-        lefts = [b["columns"][0]["x"] for b in self.a["bands"] if b["columns"]]
+        lefts = [b["columns"][0]["x"] - b.get("x", 0) for b in self.a["bands"] if b["columns"]]
         if not lefts:
             return None
+        area = self.a["width"] - (self.a["sidebar"]["width"] if self.a.get("sidebar") else 0)
         left = max(set(lefts), key=lefts.count) / self.scale
-        width = self.a["width"] / self.scale - 2 * max(0, left - self.theme["spacing"].get("lg", 24))
-        return int(width) if 320 <= width < self.a["width"] / self.scale else None
+        width = area / self.scale - 2 * max(0, left - self.theme["spacing"].get("lg", 24))
+        return int(width) if 320 <= width < area / self.scale else None
+
+    def sidebar(self, children: list[dict]) -> dict:
+        """Barre latérale : marque (premier texte en haut), entrées de navigation, entrée active sur un aplat."""
+        side = self.a["sidebar"]
+        lines = sorted((l for l in self.a["texts"] if l["x"] + l["width"] / 2 < side["width"]), key=lambda l: l["y"])
+        node: dict = {"type": "sidebar", "width": round(self.px(side["width"]))}
+        if side["background"] != self.a["background"]:
+            node["background"] = self.color(side["background"], "sidebar/background")
+        if lines and (lines[0]["font_px"] > 1.15 * self.body_px or len(lines) > 1 and lines[1]["y"] - lines[0]["y"] > 40 * self.scale):
+            node["text"] = lines.pop(0)["text"]
+        items = []
+        for line in lines:
+            words = line["text"].split()
+            if len(words) > 1 and len(words[0]) == 1:  # pictogramme lu comme une lettre
+                words = words[1:]
+            item: dict = {"text": " ".join(words)}
+            if any(f["kind"] == "fill" and inside(line, f) for f in side.get("frames", [])):
+                item["active"] = True
+            items.append(item)
+        node["items"] = items or [{"text": "Accueil"}]
+        if not items:
+            self.warnings.append("sidebar : aucune entrée lue ; recopiez les entrées de navigation")
+        node["children"] = children
+        return node
 
     def page(self, title_hint: str) -> list[dict]:
         body = [n for n in (self.band(i, b) for i, b in enumerate(self.a["bands"])) if n]
+        if self.a.get("sidebar"):
+            body = [self.sidebar(body)]
         if not self.h1:
             for node in self.walk(body):
                 if node.get("type") == "heading":
