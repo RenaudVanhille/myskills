@@ -292,6 +292,12 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,17,0.2717,29,40494,549820,5439,0,53,1.0
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,11,0.2277,19,38285,327449,4145,0,41,1.0
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,13,0.2194,17,38141,305188,3604,0,34,1.0
+2026-11-01T19:58:23,avant-experts,a60b251,chiffrage,solution-estimator,sonnet,True,12,0.3792,22,55601,475185,10892,0,109,
+2026-11-01T19:58:23,avant-experts,a60b251,chiffrage,solution-estimator,sonnet,True,14,0.2982,20,49548,355699,6393,0,78,
+2026-11-01T19:58:23,avant-experts,a60b251,chiffrage,solution-estimator,sonnet,True,11,0.3811,22,57360,469477,10441,0,108,
 2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,True,14,0.4481,28,60093,632912,14406,0,112,
 2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,True,9,0.3283,16,49991,306069,9735,0,74,
 2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,False,16,0.4972,31,63022,766863,16795,0,124,
+2026-11-01T23:03:39,apres-experts-2,1fae504,chiffrage,solution-estimator,sonnet,True,19,0.6403,29,71889,719453,12723,1,130,
+2026-11-01T23:03:39,apres-experts-2,1fae504,chiffrage,solution-estimator,sonnet,True,12,0.3967,20,62954,425929,10185,0,83,
+2026-11-01T23:03:39,apres-experts-2,1fae504,chiffrage,solution-estimator,sonnet,True,20,0.5952,33,78314,852659,19624,0,160,
