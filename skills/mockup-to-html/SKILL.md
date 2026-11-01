@@ -5,9 +5,10 @@ description: "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (a
 
 # mockup-to-html
 
-Les chemins `scripts/...` sont relatifs au dossier de ce skill. Vous
-regardez la maquette et décrivez la page ; le script écrit le HTML et le
-CSS, puis vérifie le rendu. N'écrivez jamais de HTML ni de CSS à la main.
+Les chemins `scripts/...` sont relatifs au dossier de ce skill. Un script
+mesure la maquette et en tire une ébauche ; vous la corrigez en regardant
+la maquette ; le script écrit le HTML et le CSS, puis compare le rendu à la
+maquette bloc par bloc. N'écrivez jamais de HTML ni de CSS à la main.
 
 ## Contrat
 
@@ -15,8 +16,9 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Maquettes d'écrans en image (PNG, JPEG, WebP), par exemple tirées d'un appel d'offres par doc-to-markdown ; Description JSON de chaque page (page_build.py --schema) : arbre de composants, textes, tokens ; Facultatif : tokens du design system (design-system, ds_build.py --schema).
-- **Sorties** : <nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive ; <nom>.css : variables CSS des tokens puis styles des composants ; assets/ : zones découpées dans la maquette (logos, photos, illustrations) ; <nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css ; decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate.
-- **`page_build.py`** : Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence. Rapport JSON, codes de sortie : 0 page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur) ; 1 description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX ou gabarit mal formé ; aucun fichier produit.
+- **Sorties** : <maquette>.analysis.json : mise en page mesurée (bandes, colonnes, cadres, textes, mesures) ; avec --draft, <maquette>.json : ébauche de description de page ; <nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive ; <nom>.css : variables CSS des tokens puis styles des composants ; assets/ : zones découpées dans la maquette (logos, photos, illustrations) ; <nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; dans le rapport, fidélité bloc par bloc et écarts rattachés aux nœuds ; Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css ; decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate.
+- **`ui_analyze.py`** : Mesure la mise en page d'une maquette d'écran, en local et sans modèle téléchargé : bandes (fond, filet), colonnes, cadres (aplats, cadres à bordure, images, rayon), textes avec position, taille de police estimée et couleur par OCR local (Tesseract ; sans lui, mise en page seule, signalé), tailles, espacements et rayons récurrents ; écrit l'analyse et, avec --draft, une ébauche de description de page pour page_build.py (bandes en sections, colonnes en grille ou rangée, cartes, titres, textes exacts, boutons, tokens les plus proches, largeur du conteneur), contrôlée contre son schéma ; un espacement ou une taille sans token proche est signalé avec la valeur à ajouter au design system. Rapport JSON, codes de sortie : 0 analyse (et ébauche) écrite pour chaque maquette (avertissements possibles : Tesseract absent, couleur ou mesure sans token proche) ; 1 maquette illisible, tokens invalides, description existante sans --force, design-system absent ; rien d'écrit pour la maquette en échec.
+- **`page_build.py`** : Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette bloc par bloc (fidélité : textes présents, position et taille des textes, bandes, cadres, image ; écarts rattachés au nœud de la description, en px CSS, avec le token proche) et en similarité d'image et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence. Rapport JSON, codes de sortie : 0 page écrite (avertissements possibles : fidélité ou similarité faible, accessibilité, rendu non vérifié faute de navigateur, textes non comparés faute de Tesseract) ; 1 description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX ou gabarit mal formé ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`ui_breakdown.py`** : Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables. Rapport JSON, codes de sortie : 0 découpage et lots écrits ; 1 page ou règles invalides, lots hors du schéma de solution-estimate ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
@@ -40,6 +42,22 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 ## 2. Décrire la page
 
+Commencez par mesurer la maquette, sans rien estimer à l'œil :
+
+```bash
+uv run scripts/ui_analyze.py maquettes/accueil.png --tokens design-system.json --draft --out-dir pages
+```
+
+Le script mesure bandes, colonnes, cadres, rayons et, par OCR local
+(Tesseract), les textes exacts et leur taille ; il écrit
+`pages/accueil.json`, une ébauche de description, et signale les mesures
+sans token proche (valeur à ajouter au design system). Regardez **une
+fois** la maquette pour corriger l'ébauche : rôle des blocs (carte,
+formulaire, tableau, onglets...), composants que le script ne devine pas,
+textes mal lus, niveaux de titres. Ne déplacez rien à l'œil : les
+positions et tailles viennent des mesures. Sans Tesseract, l'ébauche n'a
+pas les textes : recopiez-les.
+
 Un fichier par écran, `accueil.json` (`uv run scripts/page_build.py
 --schema` donne sa forme) : `title`, `mockup` (l'image, relative au
 fichier), `tokens` (`design-system.json`), `scale` si la maquette est
@@ -57,6 +75,9 @@ maquette, ou `src` local ; `alt` toujours), `card` (`title`, `text`,
 `badge`, `alert`, `tabs`, `stepper`, `breadcrumb` (`items`, `current`),
 `stat`, `search`, `box`, `divider`, `spacer`, `footer` (`groups`, `text`).
 
+- Largeurs et hauteurs en pixels seulement où aucun token ne convient :
+  `width` d'un `button` ou d'une `box`, `height` d'une `card` (hauteur
+  minimale), d'une `image` ou d'une `box`.
 - Couleurs, tailles et espacements par **nom de token** (`"background":
   "primary"`, `"gap": "lg"`) ; une couleur en `#rrggbb` est signalée hors
   design system. Sur un fond coloré, le texte prend `on-<fond>` seul.
@@ -73,15 +94,24 @@ uv run scripts/page_build.py accueil.json
 ```
 
 Corrigez jusqu'à zéro erreur (le chemin, la valeur et les valeurs permises
-sont donnés). Puis lisez `similarity` (0 : pas mieux qu'une page unie,
-1 : identique) et `zones` (cadres de la maquette les plus éloignés, en
-pixels) :
+sont donnés). Puis lisez `fidelity` : la maquette et le rendu sont
+analysés de la même façon et comparés bloc par bloc (`texts` : textes de
+la maquette présents ; `positions` : place et taille des textes ;
+`bands` : bandes de la page ; `frames` : cartes, boutons, images ;
+`image` : similarité d'image). `issues` donne les écarts, les plus graves
+d'abord, chacun rattaché au nœud de la description (`body/2/children/0`),
+en px CSS, avec le token proche :
 
-- au-dessus de 0,6 sans avertissement de mise en page : livrez ;
-- en dessous, ou `height_ratio` hors de 0,85 à 1,15 : regardez **une
-  fois** `accueil.compare.png` (maquette, rendu, écarts en rouge),
-  corrigez la description sur les zones signalées et relancez ; deux
-  reprises au plus, puis livrez en disant ce qui reste.
+- `score` d'au moins 0,85 : livrez ;
+- en dessous : corrigez les nœuds cités dans `issues` (padding, taille,
+  hauteur, texte manquant ou inventé) et relancez, trois reprises au plus,
+  puis livrez en disant ce qui reste. Un écart que le vocabulaire ne sait
+  pas corriger se signale, il ne se force pas.
+
+Regardez `accueil.compare.png` (maquette, rendu, écarts en rouge) seulement
+si `issues` n'explique pas un score bas. `similarity` et `zones` restent
+dans le rapport pour mémoire ; seuls, ils ne voient ni le texte ni les
+petits écarts.
 
 Ne relisez ni `accueil.html` ni le CSS : le rapport suffit. Traitez les
 avertissements d'accessibilité (titre, `alt`, contraste) et

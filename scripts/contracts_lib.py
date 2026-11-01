@@ -21,7 +21,7 @@ FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 # Modules partagés (shared/scripts/) copiés dans scripts/lib/ des skills qui s'en servent.
 LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish", "mockup-to-html"],
              "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
-                                  "drawio-diagram"],
+                                  "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 # Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.

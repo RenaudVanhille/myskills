@@ -65,12 +65,15 @@ workflow, la commande les trace aussi au journal.
    erreur. Couleur de la charte du client qui échoue au contraste : garde
    la marque pour les fonds, prends la teinte proposée pour le texte, et
    dis-le.
-4. Pages (skill `mockup-to-html`) : une description par écran avec les
-   mêmes tokens, puis `page_build.py`. Avec plusieurs écrans et si ton
-   outil le permet, confie chaque écran à un sous-agent de niveau moyen
-   en parallèle, avec seulement l'image, le fichier de tokens et les
-   sections 2 et 3 du skill. Sous la similarité minimale, regarde une fois
-   `<écran>.compare.png`, corrige, deux reprises au plus.
+4. Pages (skill `mockup-to-html`) : `ui_analyze.py --draft` sur toutes
+   les maquettes avec les mêmes tokens (mesures et ébauches, sans
+   modèle), puis une description par écran corrigée depuis son ébauche,
+   puis `page_build.py`. Avec plusieurs écrans et si ton outil le permet,
+   confie chaque écran à un sous-agent en parallèle, avec seulement
+   l'image, l'ébauche, le fichier de tokens et les sections 2 et 3 du
+   skill. Sous la fidélité minimale, corrige les nœuds cités dans
+   `issues`, trois reprises au plus ; `compare.png` seulement si `issues`
+   n'explique pas l'écart.
 5. Bibliothèque ou framework demandé (Bootstrap ; React avec MUI ou Ant
    Design ; Vue avec Vuetify ; Angular avec Angular Material) : relance
    `page_build.py --target` sur les mêmes descriptions, sans les réécrire ;
@@ -93,7 +96,7 @@ workflow, la commande les trace aussi au journal.
 | Action | Niveau |
 | --- | --- |
 | Lancer les scripts (dont les cibles et le découpage), ranger les fichiers, corriger une erreur de chemin ou de token | simple |
-| Décrire une page depuis sa maquette, corriger une zone signalée par la comparaison | moyen |
+| Corriger l'ébauche d'une page depuis sa maquette, appliquer les écarts de `issues` | moyen |
 | Choisir les rôles des couleurs et les principes, arbitrer charte et accessibilité, juger un rendu douteux | complexe |
 
 Pour chaque action, commence au niveau le plus bas qui convient et monte
