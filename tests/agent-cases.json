@@ -1127,22 +1127,22 @@
           "to": "pages/offres.json"
         }
       ],
-      "output": "pages/decoupage.lots.json",
+      "output": "decoupage.lots.json",
       "checks": [
         {
-          "file": "pages/decoupage.lots.json",
+          "file": "decoupage.lots.json",
           "json": "work",
           "min": 15
         },
         {
-          "file": "pages/decoupage.lots.json",
+          "file": "decoupage.lots.json",
           "contains": [
             "\"reuse\"",
             "\"frontend\""
           ]
         },
         {
-          "file": "pages/decoupage.md",
+          "file": "decoupage.md",
           "contains": [
             "à calibrer"
           ]
