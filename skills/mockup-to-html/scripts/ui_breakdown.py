@@ -42,7 +42,8 @@ from spec_schema import check, input_schema, print_schema, validate  # noqa: E40
 LEVELS = ["faible", "moyenne", "elevee", "tres-elevee"]
 # Mise en page et typographie : un seul lot, le thème et les gabarits les portent.
 LAYOUT = {"section", "row", "stack", "grid", "spacer", "box", "divider", "heading", "text", "link"}
-INTERACTIVE = {"form", "tabs", "stepper", "search", "table", "nav", "buttons", "button", "link", "header"}
+INTERACTIVE = {"form", "tabs", "stepper", "search", "table", "nav", "buttons", "button", "link", "header", "sidebar",
+               "pagination", "modal"}
 DEFAULT_RULES = {
     "profile": "dev-front",
     "days": {"faible": [0.25, 0.5, 0.75], "moyenne": [1, 1.5, 2.5], "elevee": [2, 3, 5], "tres-elevee": [4, 6, 10]},
@@ -50,7 +51,9 @@ DEFAULT_RULES = {
     "types": {"heading": "faible", "text": "faible", "link": "faible", "button": "faible", "buttons": "faible",
               "image": "faible", "badge": "faible", "breadcrumb": "faible", "list": "faible", "alert": "faible",
               "stat": "faible", "card": "moyenne", "nav": "moyenne", "search": "moyenne", "header": "moyenne",
-              "footer": "moyenne", "tabs": "moyenne", "table": "moyenne", "form": "moyenne", "stepper": "elevee"},
+              "footer": "moyenne", "tabs": "moyenne", "table": "moyenne", "form": "moyenne", "stepper": "elevee",
+              "icon": "faible", "avatar": "faible", "pagination": "faible", "sidebar": "moyenne", "modal": "moyenne",
+              "graph": "elevee"},
     "escalate": {"form_fields": 8, "table_columns": 6, "variants": 3},
     "layout": [1, 2, 3],
     "screen": {"base": [0.5, 1, 1.5], "per_component": 0.05},
@@ -69,12 +72,15 @@ LIBRARY = {
                   "list": "List", "badge": "Chip", "alert": "Alert", "tabs": "Tabs", "stepper": "Stepper",
                   "search": "TextField", "divider": "Divider", "image": "Box img", "heading": "Typography",
                   "text": "Typography", "link": "Link", "section": "Box + Container", "row": "Grid", "grid": "Grid",
-                  "stack": "Stack"},
+                  "stack": "Stack", "sidebar": "Box + List", "avatar": "Avatar", "pagination": "Pagination",
+                  "modal": "Dialog", "graph": "SVG (bibliothèque de graphiques à choisir)"},
     "react-antd": {"header": "Menu", "nav": "Menu", "breadcrumb": "Breadcrumb", "button": "Button", "buttons": "Space",
                    "card": "Card", "form": "Form", "table": "Table", "list": "List", "badge": "Tag", "alert": "Alert",
                    "tabs": "Tabs", "stepper": "Steps", "stat": "Statistic", "search": "Input.Search",
                    "divider": "Divider", "image": "Image", "heading": "Typography.Title", "text": "Typography",
-                   "link": "Typography.Link", "row": "Row / Col", "grid": "Row / Col", "stack": "Flex"},
+                   "link": "Typography.Link", "row": "Row / Col", "grid": "Row / Col", "stack": "Flex",
+                   "sidebar": "Layout.Sider + Menu", "avatar": "Avatar", "pagination": "Pagination", "modal": "Modal",
+                   "graph": "SVG (bibliothèque de graphiques à choisir)"},
     "bootstrap": {"button": ".btn", "buttons": ".btn", "card": ".card", "table": ".table", "badge": ".badge",
                   "alert": ".alert", "form": ".form-control", "breadcrumb": "(style propre)", "list": ".list-unstyled",
                   "divider": "hr"},
@@ -82,12 +88,15 @@ LIBRARY = {
                     "buttons": "v-btn", "card": "v-card", "form": "v-form, v-text-field, v-select...",
                     "table": "v-table", "list": "v-list", "badge": "v-chip", "alert": "v-alert", "tabs": "v-tabs",
                     "stepper": "v-stepper", "search": "v-text-field", "divider": "v-divider", "image": "v-img",
-                    "row": "v-row / v-col", "grid": "v-row / v-col", "section": "v-container"},
+                    "row": "v-row / v-col", "grid": "v-row / v-col", "section": "v-container",
+                    "sidebar": "v-navigation-drawer", "avatar": "v-avatar", "pagination": "v-pagination",
+                    "modal": "v-dialog", "graph": "SVG (bibliothèque de graphiques à choisir)"},
     "angular-material": {"header": "mat-toolbar", "nav": "mat-button", "button": "mat-flat-button / mat-stroked-button",
                          "buttons": "mat-button", "card": "mat-card", "form": "mat-form-field, matInput, mat-select...",
                          "table": "table (mat-table pour les données dynamiques)", "list": "mat-list",
                          "badge": "mat-chip", "tabs": "mat-tab-group", "stepper": "mat-stepper",
-                         "search": "mat-form-field", "divider": "mat-divider"},
+                         "search": "mat-form-field", "divider": "mat-divider", "sidebar": "mat-sidenav",
+                         "pagination": "mat-paginator", "graph": "SVG (bibliothèque de graphiques à choisir)"},
 }
 
 
