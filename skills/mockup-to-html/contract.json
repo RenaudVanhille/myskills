@@ -7,28 +7,171 @@
     "Facultatif : tokens du design system (design-system, ds_build.py --schema)"
   ],
   "outputs": [
+    "<maquette>.analysis.json : mise en page mesurée (bandes, colonnes, cadres, textes, mesures) ; avec --draft, <maquette>.json : ébauche de description de page",
     "<nom>.html : page sémantique (header, nav, main, section, footer), accessible, responsive",
     "<nom>.css : variables CSS des tokens puis styles des composants",
     "assets/ : zones découpées dans la maquette (logos, photos, illustrations)",
-    "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte",
+    "<nom>.render.png : rendu de la page ; <nom>.compare.png : maquette, rendu et écarts côte à côte ; dans le rapport, fidélité bloc par bloc et écarts rattachés aux nœuds",
     "Avec --target react-mui ou react-antd : <Nom>Page.tsx, theme.ts (tokens, thème de la bibliothèque) et App.tsx ; avec --target vue-vuetify : <Nom>Page.vue, vuetify.ts, tokens.ts, App.vue, main.ts ; avec --target angular-material : <nom>-page.component.ts, .html, .css, tokens.ts, styles.scss ; avec --target bootstrap : vendor/bootstrap-<version>.min.css",
     "decoupage.json, .md, .csv : composants, motifs répétés, écrans et lots du chiffrage frontend ; decoupage.lots.json pour solution-estimate"
   ],
   "scripts": [
     {
+      "name": "ui_analyze.py",
+      "role": "Mesure la mise en page d'une maquette d'écran, en local et sans modèle téléchargé : bandes (fond, filet), colonnes, cadres (aplats, cadres à bordure, images, rayon), textes avec position, taille de police estimée et couleur par OCR local (Tesseract ; sans lui, mise en page seule, signalé), tailles, espacements et rayons récurrents ; écrit l'analyse et, avec --draft, une ébauche de description de page pour page_build.py (bandes en sections, colonnes en grille ou rangée, cartes, titres, textes exacts, boutons, tokens les plus proches, largeur du conteneur), contrôlée contre son schéma ; un espacement ou une taille sans token proche est signalé avec la valeur à ajouter au design system.",
+      "usage": "uv run scripts/ui_analyze.py MAQUETTE.png... [--tokens design-system.json] [--draft] [--out-dir DOSSIER] [--scale 2] [--lang fr] [--force]",
+      "options": {
+        "MAQUETTE.png": "maquettes à analyser (PNG, JPEG, WebP)",
+        "--tokens": "design system (ds_build.py --schema) : tokens les plus proches dans l'ébauche ; défaut : valeurs par défaut de design-system",
+        "--draft": "écrit aussi <maquette>.json, ébauche de description de page à relire",
+        "--out-dir": "dossier des fichiers produits (défaut : celui de la maquette)",
+        "--scale": "maquette exportée en 2x : 2",
+        "--lang": "langue des textes pour l'OCR (défaut fr)",
+        "--force": "remplace une description <maquette>.json existante"
+      },
+      "exit_codes": {
+        "0": "analyse (et ébauche) écrite pour chaque maquette (avertissements possibles : Tesseract absent, couleur ou mesure sans token proche)",
+        "1": "maquette illisible, tokens invalides, description existante sans --force, design-system absent ; rien d'écrit pour la maquette en échec"
+      },
+      "report": {
+        "format": "json",
+        "description": "Un résultat par maquette : fichiers, nombre de bandes, colonnes, cadres et textes, mesures récurrentes.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "results",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "input",
+                  "analysis",
+                  "draft",
+                  "size",
+                  "bands",
+                  "columns",
+                  "frames",
+                  "texts",
+                  "font_px",
+                  "spacing",
+                  "radii",
+                  "errors",
+                  "warnings"
+                ],
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "analysis": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "draft": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "size": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "bands": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "columns": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "frames": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "texts": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "font_px": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "tailles de police récurrentes, px CSS"
+                  },
+                  "spacing": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "radii": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "warnings": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "name": "page_build.py",
-      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette (similarité, zones les plus éloignées, hauteur) et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence.",
-      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--no-render] [--min-similarity 0.6] | --schema",
+      "role": "Écrit le HTML sémantique et le CSS d'une page décrite par un arbre de composants (27 : section, row, grid, header, card, form, table, tabs, stepper...), contrôle composants, propriétés, variantes, tokens, images locales et zones découpées, accessibilité (h1 unique, niveaux de titres, textes alternatifs, contraste par section) ; rend la page dans un navigateur local réseau coupé, la compare à la maquette bloc par bloc (fidélité : textes présents, position et taille des textes, bandes, cadres, image ; écarts rattachés au nœud de la description, en px CSS, avec le token proche) et en similarité d'image et contrôle le débordement sur mobile. Cibles : HTML, Bootstrap (version fixée, thème tiré des tokens, rendu et comparé de même), React avec MUI ou Ant Design (page TSX, thème et App ; JSX contrôlé), Vue 3 avec Vuetify (composant .vue, thème Vuetify) ou Angular avec Angular Material (composant autonome, styles.scss) ; gabarits contrôlés ; rendu non vérifié pour ces trois familles, la cible HTML sert de référence.",
+      "usage": "uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--no-render] [--min-similarity 0.6] [--min-fidelity 0.85] | --schema",
       "options": {
         "PAGE.json": "description de la page",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
         "--target": "html (défaut) ; bootstrap ; react-mui, react-antd (<Nom>Page.tsx, theme.ts, App.tsx) ; vue-vuetify (<Nom>Page.vue, vuetify.ts) ; angular-material (composant autonome, styles.scss)",
         "--no-render": "sans rendu ni comparaison (page non vérifiée, signalé)",
         "--min-similarity": "similarité en dessous de laquelle la page est signalée (défaut 0.6)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--min-fidelity": "fidélité en dessous de laquelle la page est signalée (défaut 0.85)"
       },
       "exit_codes": {
-        "0": "page écrite (avertissements possibles : similarité faible, accessibilité, rendu non vérifié faute de navigateur)",
+        "0": "page écrite (avertissements possibles : fidélité ou similarité faible, accessibilité, rendu non vérifié faute de navigateur, textes non comparés faute de Tesseract)",
         "1": "description ou tokens invalides, composant, propriété, variante ou token inconnu, ressource externe, zone hors maquette, design-system absent, Bootstrap absent du cache hors ligne, JSX ou gabarit mal formé ; aucun fichier produit"
       },
       "input": {
@@ -225,13 +368,13 @@
                       "maximum": 3840
                     }
                   ],
-                  "description": "section : full ou contained (défaut) ; box : px"
+                  "description": "section : full ou contained (défaut) ; box, button : px"
                 },
                 "height": {
                   "type": "integer",
                   "minimum": 1,
                   "maximum": 4000,
-                  "description": "image, box : px"
+                  "description": "image, box : px ; card : hauteur minimale en px"
                 },
                 "columns": {
                   "anyOf": [
@@ -486,7 +629,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Fichiers, composants, rendu, similarité avec la maquette et zones à reprendre.",
+        "description": "Fichiers, composants, rendu, fidélité bloc par bloc et écarts à corriger, similarité d'image et zones.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -505,7 +648,9 @@
             "mobile_overflow",
             "blocked",
             "errors",
-            "warnings"
+            "warnings",
+            "fidelity",
+            "issues"
           ],
           "properties": {
             "input": {
@@ -614,6 +759,113 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            },
+            "fidelity": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "required": [
+                "score",
+                "texts",
+                "positions",
+                "bands",
+                "frames",
+                "image",
+                "ocr"
+              ],
+              "description": "fidélité de 0 à 1 et ses parties (null : non mesurée) ; null sans maquette ou sans rendu",
+              "properties": {
+                "score": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "texts": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "positions": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "bands": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "frames": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "image": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "ocr": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "issues": {
+              "type": "array",
+              "maxItems": 12,
+              "description": "écarts les plus graves d'abord, rattachés au nœud de la description (body/1/children/0)",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "node",
+                  "kind",
+                  "message"
+                ],
+                "properties": {
+                  "node": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "kind": {
+                    "enum": [
+                      "band-missing",
+                      "text-missing",
+                      "frame-missing",
+                      "frame",
+                      "band",
+                      "text-size",
+                      "text-offset",
+                      "text-extra"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }

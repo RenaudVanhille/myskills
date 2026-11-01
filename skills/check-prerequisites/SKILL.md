@@ -11,7 +11,7 @@ Lance le script fourni avec ce skill, avec le groupe utile :
 uv run scripts/doctor.py extraction   # uv (MarkItDown et Docling sont fournis par uv) ; modèles Docling et Laya, Tesseract en option
 uv run scripts/doctor.py video        # uv ; modèle de transcription Whisper
 uv run scripts/doctor.py schemas      # uv, draw.io Desktop, navigateur ; Node.js en option
-uv run scripts/doctor.py maquettes    # uv, navigateur (pages HTML rendues et comparées aux maquettes)
+uv run scripts/doctor.py maquettes    # uv, navigateur (pages HTML rendues et comparées aux maquettes), Tesseract
 uv run scripts/doctor.py publication  # uv (Pandoc est fourni) ; LibreOffice en option
 uv run scripts/doctor.py revue        # uv ; graphify en option (revue d'architecture)
 uv run scripts/doctor.py              # tout

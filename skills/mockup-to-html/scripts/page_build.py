@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pillow>=10", "playwright>=1.48"]
+# dependencies = ["pillow>=10", "playwright>=1.48", "numpy>=1.24"]
 # ///
 """Construit une page HTML/CSS depuis une description JSON courte, la rend et la compare à sa maquette.
 
@@ -15,8 +15,12 @@ script, et non le modèle, écrit le HTML sémantique et le CSS, puis contrôle 
 - accessibilité : un seul h1, niveaux de titres sans saut, images avec
   texte alternatif, contraste du texte sur le fond de chaque section ;
 - rendu dans un navigateur local (Playwright, réseau coupé) à la largeur de
-  la maquette, capture, comparaison avec la maquette (similarité de 0 à 1,
-  zones les plus éloignées, hauteur), débordement horizontal sur mobile.
+  la maquette, capture, débordement horizontal sur mobile ;
+- comparaison bloc par bloc : maquette et rendu analysés de la même façon
+  (ui_analyze.py : bandes, cadres, textes par OCR local), positions réelles
+  de chaque nœud relevées dans le navigateur ; fidélité de 0 à 1 et écarts
+  rattachés au nœud de la description (texte manquant ou inventé, taille,
+  décalage, hauteur de bande, cadre), plus la similarité d'image.
 
 Écrit <nom>.html, <nom>.css, assets/ (zones découpées), <nom>.render.png et,
 avec une maquette, <nom>.compare.png (maquette, rendu, écarts côte à côte) :
@@ -28,7 +32,7 @@ comparé de même), react-mui et react-antd (page TSX, thème tiré des tokens e
 App ; JSX contrôlé, rendu non vérifié : la cible html sert de référence).
 
     uv run scripts/page_build.py PAGE.json [--out-dir DOSSIER] [--target html|bootstrap|react-mui|react-antd]
-        [--no-render] [--min-similarity 0.6] | --schema
+        [--no-render] [--min-similarity 0.6] [--min-fidelity 0.85] | --schema
 """
 
 import argparse
@@ -46,6 +50,7 @@ import local_tools  # noqa: E402
 import react  # noqa: E402
 import templates  # noqa: E402
 import skill_paths  # noqa: E402
+import ui_analyze  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
 
 COMMON = {"type", "id", "align", "background", "color", "padding"}
@@ -60,11 +65,11 @@ PROPS = {
     "heading": {"text", "level", "size"},
     "text": {"text", "size", "muted", "bold"},
     "link": {"text", "href"},
-    "button": {"text", "variant", "size", "href"},
+    "button": {"text", "variant", "size", "href", "width"},
     "buttons": {"items"},
     "image": {"src", "crop", "alt", "height", "radius"},
     "box": {"width", "height", "radius", "shadow"},
-    "card": {"title", "text", "src", "crop", "alt", "children", "actions", "shadow", "radius"},
+    "card": {"title", "text", "src", "crop", "alt", "children", "actions", "shadow", "radius", "height"},
     "form": {"title", "fields", "submit", "columns"},
     "table": {"headers", "rows", "variant"},
     "list": {"items", "variant"},
@@ -89,6 +94,8 @@ VARIANTS = {"button": ["primary", "secondary", "outline", "ghost", "danger"], "n
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 EXTERNAL = re.compile(r"^[a-z][a-z0-9+.-]*:", re.I)
 MOBILE = 390
+NODE_ATTR = ' data-node="{}"'  # repère de chaque nœud pour la comparaison ; retiré du HTML livré
+NODE_RE = re.compile(r' data-node="[^"]*"')
 TARGET_NAMES = ["html", "bootstrap", *react.TARGETS, *templates.TARGETS]
 SELECTED, STEP = 'aria-selected="true"', ' aria-current="step"'
 
@@ -252,7 +259,7 @@ class Page:
 
     def attrs(self, node: dict, where: str, *names: str, extra: dict | None = None) -> str:
         ident = f' id="{html.escape(node["id"])}"' if node.get("id") else ""
-        return f'{ident} class="{self.classes(node, *names)}"{self.style(node, where, extra)}'
+        return f'{ident}{NODE_ATTR.format(where)} class="{self.classes(node, *names)}"{self.style(node, where, extra)}'
 
     def item(self, value) -> dict:
         return {"text": value} if isinstance(value, str) else value
@@ -276,9 +283,9 @@ class Page:
             height = height[:-1] + f';border-radius:{value}"' if height else f' style="border-radius:{value}"'
         if source:
             self.sources[id(node)] = source
-            return f'<img class="{css}" src="{html.escape(source)}" alt="{html.escape(alt or "")}"{height}>'
+            return f'<img{NODE_ATTR.format(where)} class="{css}" src="{html.escape(source)}" alt="{html.escape(alt or "")}"{height}>'
         label = html.escape(alt or "Image")
-        return f'<div class="{css} c-image--placeholder" role="img" aria-label="{label}"{height}>{label}</div>'
+        return f'<div{NODE_ATTR.format(where)} class="{css} c-image--placeholder" role="img" aria-label="{label}"{height}>{label}</div>'
 
     def crop(self, box: list, where: str) -> str | None:
         if self.mockup is None:
@@ -409,7 +416,11 @@ class Page:
                      f"c-button--{node['size']}" if node.get("size") in ("sm", "lg") else ""]
             if node.get("size") not in (None, "sm", "md", "lg"):
                 self.errors.append(f"{where}/size : « {node['size']} » non permis pour button (sm, md, lg)")
-            return f'<a{self.attrs(node, where, *names)} href="{self.link(node)}">{e(node["text"])}</a>'
+            if isinstance(node.get("width"), str):
+                self.errors.append(f"{where}/width : largeur en pixels (entier) attendue pour button")
+            extra = {"width": f"{node['width']}px", "align-self": "flex-start"} \
+                if isinstance(node.get("width"), int) else {}
+            return f'<a{self.attrs(node, where, *names, extra=extra)} href="{self.link(node)}">{e(node["text"])}</a>'
         if kind == "buttons":
             return f'<div{self.attrs(node, where, "c-buttons")}>{self.buttons(node["items"], where + "/items")}</div>'
         if kind == "image":
@@ -429,6 +440,8 @@ class Page:
                 extra["border-radius"] = self.token(f"{where}/radius", "radius", node["radius"])
             if node.get("shadow"):
                 extra["box-shadow"] = self.token(f"{where}/shadow", "shadow", node["shadow"])
+            if node.get("height"):
+                extra["min-height"] = f"{node['height']}px"
             media = self.image(node, where) if ("crop" in node or "src" in node) else ""
             level = min(6, max(2, self.headings[-1][0] + 1 if self.headings else 2))
             title = f'<h{level} class="c-card__title">{e(node["title"])}</h{level}>' if node.get("title") else ""
@@ -668,6 +681,7 @@ def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -
             page.route("http://local.myskills/**", serve)
             page.goto(f"http://local.myskills/{page_name}", wait_until="load")
             page.screenshot(path=str(png), full_page=True)
+            dom = page.evaluate(ui_analyze.DOM_SCRIPT)
             mobile = browser.new_page(viewport={"width": MOBILE, "height": 800})
             mobile.route("**/*", block)
             mobile.route("http://local.myskills/**", serve)
@@ -675,7 +689,7 @@ def render(out_dir: Path, page_name: str, width: int, scale: float, png: Path) -
             overflow = mobile.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
         finally:
             browser.close()
-    return {"blocked": sorted(set(blocked)), "mobile_overflow": bool(overflow)}
+    return {"blocked": sorted(set(blocked)), "mobile_overflow": bool(overflow), "dom": dom}
 
 
 def compare(mockup, render_png: Path, out: Path) -> dict:
@@ -730,6 +744,7 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path)
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("--min-similarity", type=float, default=0.6)
+    parser.add_argument("--min-fidelity", type=float, default=0.85)
     parser.add_argument("--target", choices=TARGET_NAMES, default="html")
     parser.add_argument("--schema", action="store_true")
     args = parser.parse_args()
@@ -737,7 +752,7 @@ def main() -> int:
         print_schema(__file__)
         return 0
     report = {"input": str(args.spec), "target": args.target, "outputs": [], "library": [], "components": 0, "tokens": None, "rendered": False,
-              "similarity": None, "height_ratio": None, "zones": [], "mobile_overflow": None, "blocked": [],
+              "similarity": None, "height_ratio": None, "zones": [], "fidelity": None, "issues": [], "mobile_overflow": None, "blocked": [],
               "errors": [], "warnings": []}
 
     def done(code: int) -> int:
@@ -810,7 +825,7 @@ def main() -> int:
         except local_tools.PackageError as error:
             report["errors"].append(f"Bootstrap : {error}")
             return done(1)
-    (out_dir / f"{stem}.html").write_text(markup, encoding="utf-8")
+    (out_dir / f"{stem}.html").write_text(NODE_RE.sub("", markup), encoding="utf-8")
     (out_dir / f"{stem}.css").write_text(css, encoding="utf-8")
     report["outputs"] = [str(out_dir / f"{stem}.html"), str(out_dir / f"{stem}.css")] + \
         [str(a) for a in page.assets] + report["outputs"]
@@ -820,14 +835,18 @@ def main() -> int:
     scale = spec.get("scale", 1)
     width = spec.get("width") or (round(mockup.width / scale) if mockup else 1280)
     png = out_dir / f"{stem}.render.png"
+    check = out_dir / f".{stem}.check.html"  # copie repérée (data-node) pour relier le rendu aux nœuds
+    check.write_text(markup, encoding="utf-8")
     try:
-        shot = render(out_dir, f"{stem}.html", width, scale, png)
+        shot = render(out_dir, check.name, width, scale, png)
     except ImportError:
         report["warnings"].append("rendu non vérifié : Playwright manquant, lancez ce script avec `uv run`")
         return done(0)
     except local_tools.PackageError as error:
         report["warnings"].append(f"rendu non vérifié : {error}")
         return done(0)
+    finally:
+        check.unlink(missing_ok=True)
     report.update(rendered=True, mobile_overflow=shot["mobile_overflow"], blocked=shot["blocked"])
     report["outputs"].append(str(png))
     if shot["blocked"]:
@@ -844,7 +863,29 @@ def main() -> int:
                                       f"{compare_png.name} et corrigez les zones signalées")
         if not 0.85 <= result["height_ratio"] <= 1.15:
             report["warnings"].append(f"hauteur du rendu {result['height_ratio']} fois celle de la maquette")
+        fidelity(report, mockup, png, shot["dom"], scale, theme, spec.get("lang", "fr"), args.min_fidelity)
     return done(0)
+
+
+def fidelity(report: dict, mockup, png: Path, dom: dict, scale: float, theme: dict, lang: str, minimum: float) -> None:
+    """Comparaison bloc par bloc : la maquette et le rendu sont analysés de la même façon (ui_analyze.py)."""
+    from PIL import Image
+    langs = ui_analyze.tesseract_langs(lang)
+    with Image.open(png) as shot:
+        shot = shot.convert("RGB")
+        if shot.width != mockup.width:
+            shot = shot.resize((mockup.width, max(1, round(shot.height * mockup.width / shot.width))))
+        result = ui_analyze.structure(ui_analyze.analyze(mockup, langs), ui_analyze.analyze(shot, langs), dom, scale, theme)
+    parts = {**result["parts"], "image": report["similarity"]}
+    known = [v for v in parts.values() if v is not None]
+    score = round(sum(known) / len(known), 3) if known else None
+    report["fidelity"] = {"score": score, **parts, "ocr": bool(langs)}
+    report["issues"] = result["issues"][:12]
+    if not langs:
+        report["warnings"].append("textes non comparés : Tesseract absent (check-prerequisites, groupe maquettes)")
+    if score is not None and score < minimum:
+        report["warnings"].append(f"fidélité {score} sous {minimum} : corrigez la description selon issues "
+                                  f"({len(result['issues'])} écart(s))")
 
 
 if __name__ == "__main__":

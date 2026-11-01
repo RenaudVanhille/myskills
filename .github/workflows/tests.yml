@@ -43,7 +43,7 @@ jobs:
         run: |
           gh release download --repo jgraph/drawio-desktop --pattern 'drawio-amd64-*.deb' --dir "$RUNNER_TEMP"
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb "$RUNNER_TEMP"/drawio-amd64-*.deb
+          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra "$RUNNER_TEMP"/drawio-amd64-*.deb
           printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox\n' | sudo tee /usr/local/bin/drawio
           sudo chmod +x /usr/local/bin/drawio
       - uses: actions/cache@v4

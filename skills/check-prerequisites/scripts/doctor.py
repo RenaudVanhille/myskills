@@ -86,6 +86,10 @@ GROUPS = {
         UV,
         ("Navigateur pour Playwright (Edge, Chrome ou Chromium) : rendu et comparaison des pages", "obligatoire",
          local_tools.browser_available, "uvx playwright install chromium"),
+        ("Tesseract (textes des maquettes : ébauche et comparaison ; sinon mise en page seule)", "facultatif",
+         lambda: shutil.which("tesseract") is not None,
+         "winget install UB-Mannheim.TesseractOCR | brew install tesseract tesseract-lang | "
+         "apt install tesseract-ocr tesseract-ocr-fra"),
         *((f"{name} {local_tools.PACKAGES[name][0]} dans le cache (pages Bootstrap hors ligne)", "facultatif",
            lambda name=name: local_tools.cached_package(name) is not None, "uv run scripts/doctor.py maquettes --prefetch")
           for name in MOCKUP_PACKAGES),
