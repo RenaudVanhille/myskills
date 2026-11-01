@@ -1,0 +1,14 @@
+{
+  "title": "Mes devis",
+  "body": [
+    {"type": "header", "text": "Assur'Plus", "items": ["Mes contrats", "Mes devis"]},
+    {"type": "section", "children": [
+      {"type": "heading", "level": 1, "text": "Mes devis"},
+      {"type": "search", "placeholder": "Rechercher un devis"},
+      {"type": "button", "text": "Nouveau devis"},
+      {"type": "table", "headers": ["Devis", "Produit", "Montant"], "rows": [["D-7", "Auto", "310 €"]]},
+      {"type": "pagination", "pages": 1, "current": 1}
+    ]},
+    {"type": "footer", "text": "© Assur'Plus"}
+  ]
+}

@@ -25,7 +25,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
 # Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
-WORKSPACE_USERS = ["agent-handoff", "api-contract"]
+WORKSPACE_USERS = ["agent-handoff", "api-contract", "mockup-to-html"]
 # Modèles locaux : sources autorisées (shared/model-sources.json), son schéma et model_store.py.
 MODEL_USERS = ["doc-to-markdown", "check-prerequisites", "requirements-catalog", "agent-handoff"]
 # Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.

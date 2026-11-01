@@ -1,0 +1,13 @@
+{
+  "title": "Mes sinistres",
+  "body": [
+    {"type": "header", "text": "Assur'Plus", "items": ["Mes contrats", "Mes sinistres"]},
+    {"type": "section", "children": [
+      {"type": "heading", "level": 1, "text": "Mes sinistres"},
+      {"type": "search", "placeholder": "Rechercher un dossier"},
+      {"type": "table", "headers": ["Dossier", "Date", "Statut"], "rows": [["S-42", "12/10", "En cours"]]},
+      {"type": "pagination", "pages": 2, "current": 1}
+    ]},
+    {"type": "footer", "text": "© Assur'Plus"}
+  ]
+}

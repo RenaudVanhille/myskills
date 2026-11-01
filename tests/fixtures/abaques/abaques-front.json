@@ -1,0 +1,7 @@
+{
+  "basis": "Mesure de l'équipe front, trois projets 2025",
+  "frontend": {
+    "days": {"faible": [0.25, 0.5, 1], "moyenne": [0.5, 1, 2]},
+    "reuse": {"same_structure": 60}
+  }
+}

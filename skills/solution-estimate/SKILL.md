@@ -48,12 +48,11 @@ par composant à construire ou à intégrer, les lots transverses (cadrage,
 recette, tests de sécurité, mise en production, formation), pilotage,
 provision et run aux valeurs usuelles (listées dans `_draft`), budget tiré
 des exigences de coût, lignes d'infrastructure de `cost_build.py --infra`,
-et, avec `--frontend`, les lots frontend tirés des maquettes (`ui_breakdown.py`,
-skill `mockup-to-html` : un par composant, motif et écran, charges d'abaque à
-relire) à la place du lot global du composant web. `--lots` (répétable)
-reprend de même les lots de tout expert, dont ceux du backend
-(`api_breakdown.py`, skill `api-contract`), à la place du lot global de
-chaque composant qu'ils couvrent.
+et, avec `--lots` (répétable, alias `--frontend`), les lots des experts à
+la place du lot global de chaque composant qu'ils couvrent : frontend
+(`ui_breakdown.py`, skill `mockup-to-html` : composants, motifs, écrans) et
+backend (`api_breakdown.py`, skill `api-contract`), charges d'abaque et
+réemploi à relire.
 Complétez-le : `effort` de chaque lot (vide), `rates`, hypothèses et
 exclusions ; ajoutez, découpez ou retirez un lot, et revoyez les valeurs
 usuelles, seulement quand vous avez une raison. La forme complète
