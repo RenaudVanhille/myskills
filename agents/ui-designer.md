@@ -92,9 +92,14 @@ workflow, la commande les trace aussi au journal.
    visuelle.
 7. Découpage ou chiffrage frontend demandé : `ui_breakdown.py` sur toutes
    les descriptions, avec `--target` et `--component` (composant web de
-   l'option, s'il y en a une). Dis que les charges viennent d'abaques.
-   Pour un chiffrage complet, passe la main à `solution-estimator` avec
-   `decoupage.lots.json` (`estimate_build.py --draft --frontend`).
+   l'option, s'il y en a une). Relis les lots : réemploi (`reuse`) d'un
+   écran qui ne ressemble pas à sa source à retirer, réemploi manquant à
+   ajouter avec sa base, motif à garder ou non ; toute correction a sa
+   note. Si `calibrated` est faux, dis que les charges viennent d'abaques
+   par défaut et qu'on peut donner les siens avant le lancement (section
+   `frontend` de `~/.myskills/abaques.json` ou de la mission). Pour un
+   chiffrage complet, passe la main à `solution-estimator` avec
+   `decoupage.lots.json` (`estimate_build.py --draft --lots`).
 8. `ds_build.py design-system.json --pages *.json --render` : inventaire
    des composants, couleurs en dur à remplacer par un token, page de
    référence.

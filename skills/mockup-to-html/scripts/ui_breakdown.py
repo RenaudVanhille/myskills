@@ -15,14 +15,22 @@ page_build.py) et calcule :
 - les lots du chiffrage frontend, à trois points, au format des lots de
   solution-estimate : un par composant, un par motif, un par écran, et les
   lots transverses (socle, thème tiré des tokens, accessibilité,
-  responsive, bibliothèque de composants). Les jours viennent d'abaques
-  réglables (--rules) : ce sont des hypothèses à calibrer.
+  responsive, bibliothèque de composants) ;
+- le réemploi entre écrans (`reuse`, part épargnée et base) : un écran de
+  même structure qu'un précédent, ou semblable (mêmes composants), réutilise
+  son lot ; un écran fait surtout de motifs réutilise le lot du motif ; un
+  motif compte pour un seul composant dans l'écran qui l'emploie.
+
+Les jours viennent d'abaques : ceux donnés avant le lancement (section
+frontend de ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, de references.abaques
+de mission.json, puis de --abaques), puis --rules, sinon des valeurs par
+défaut à calibrer, signalées comme telles.
 
 Écrit <nom>.json (découpage), <nom>.md, <nom>.csv et <nom>.lots.json, que
-`estimate_build.py --draft --frontend` (solution-estimate) reprend.
+`estimate_build.py --draft --lots` (solution-estimate) reprend.
 
     uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material]
-        [--rules REGLES.json] [--component ID] | --schema
+        [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] | --schema
 """
 
 import argparse
@@ -37,6 +45,7 @@ sys.path.insert(0, str(HERE / "targets"))
 import react  # noqa: E402
 import templates  # noqa: E402
 import skill_paths  # noqa: E402
+import workspace  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
 LEVELS = ["faible", "moyenne", "elevee", "tres-elevee"]
@@ -57,6 +66,7 @@ DEFAULT_RULES = {
     "escalate": {"form_fields": 8, "table_columns": 6, "variants": 3},
     "layout": [1, 2, 3],
     "screen": {"base": [0.5, 1, 1.5], "per_component": 0.05},
+    "reuse": {"same_structure": 50, "similar": 25, "similarity": 0.8, "pattern": 20, "pattern_share": 0.5},
     "transverse": [
         {"name": "Socle frontend : projet, routage, intégration continue", "phase": "realisation", "effort": [2, 3, 5]},
         {"name": "Thème tiré des tokens du design system", "phase": "realisation", "effort": [0.5, 1, 1.5]},
@@ -148,6 +158,18 @@ def merge(rules: dict, override: dict) -> dict:
     return out
 
 
+def likeness(a: dict, b: dict) -> float:
+    """Ressemblance de deux écrans : part commune de leurs composants (hors mise en page), par type."""
+    keys = set(a) | set(b)
+    top = sum(max(a.get(k, 0), b.get(k, 0)) for k in keys)
+    return sum(min(a.get(k, 0), b.get(k, 0)) for k in keys) / top if top else 0
+
+
+def net(entry: dict, profile: str) -> list[float]:
+    keep = 1 - entry.get("reuse", {}).get("percent", 0) / 100
+    return [round(v * keep, 2) for v in entry["effort"][profile]]
+
+
 def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component: str | None) -> dict:
     nodes = [(p, w, n) for page, spec in pages for p, w, n in walk(spec["body"], page, "body")]
     library, names = provided(target), LIBRARY.get(target, {})
@@ -176,25 +198,40 @@ def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component
         inner = sorted({c["type"] for c in node["children"]})
         patterns.append({"name": f"{node['type']} de {', '.join(inner)}", "signature": sig, "count": len(found),
                          "screens": sorted({p for p, _, _ in found}), "places": [f"{p}:{w}" for p, w, _ in found][:5],
-                         "size": size(node)})
+                         "size": size(node), "_found": [(p, w) for p, w, _ in found]})
     screens = []
     for page, spec in pages:
-        own = [n for p, _, n in nodes if p == page]
-        fields = sum(len(n.get("fields", [])) for n in own)
-        interactive = sum(1 for n in own if n["type"] in INTERACTIVE) + fields
-        content = [n for n in own if n["type"] not in LAYOUT]
+        own = [(w, n) for p, w, n in nodes if p == page]
+        fields = sum(len(n.get("fields", [])) for _, n in own)
+        interactive = sum(1 for _, n in own if n["type"] in INTERACTIVE) + fields
+        content = [(w, n) for w, n in own if n["type"] not in LAYOUT]
         lvl = LEVELS[min(3, (len(content) > 15) + (interactive > 10) + (fields > 12))]
+        # Un motif compte pour un composant : ses nœuds de contenu ne s'ajoutent pas un à un.
+        roots = sorted({w for pat in patterns for p, w in pat["_found"] if p == page})
+        roots = [w for i, w in enumerate(roots) if not any(w.startswith(r + "/") for r in roots[:i])]
+        covered = [w for w, _ in content if any(w == r or w.startswith(r + "/") for r in roots)]
+        main_pattern = max((pat for pat in patterns if any(p == page for p, _ in pat["_found"])),
+                           key=lambda pat: pat["size"], default=None)
+        types: dict[str, int] = {}
+        for _, n in content:
+            types[n["type"]] = types.get(n["type"], 0) + 1
         screens.append({"screen": page, "title": spec["title"], "components": len(content), "interactive": interactive,
-                        "fields": fields, "complexity": lvl})
+                        "fields": fields, "complexity": lvl, "in_patterns": len(covered),
+                        "counted": len(content) - len(covered) + len(roots),
+                        "_structure": ",".join(signature(n) for n in spec["body"]), "_types": types,
+                        "_pattern": main_pattern})
     # Lots au format de solution-estimate (work).
     profile, days, work = rules["profile"], rules["days"], []
 
-    def lot(name, phase, points, complexity, note):
+    def lot(name, phase, points, complexity, note, reuse=None):
         entry = {"id": f"F{len(work) + 1}", "name": name, "phase": phase, "effort": {profile: points},
                  "complexity": complexity, "note": note}
         if component:
             entry["component"] = component
+        if reuse and reuse["percent"]:
+            entry["reuse"] = reuse
         work.append(entry)
+        return entry["id"]
     layout_types = [c["type"] for c in components if c["layout"]]
     if layout_types:
         lot("Mise en page et typographie : gabarits, grilles, sections, titres et textes", "realisation", rules["layout"], "moyenne",
@@ -208,25 +245,49 @@ def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component
         lot(f"Composant {c['type']}{variants}", "realisation", scale(days[c["complexity"]], factor), c["complexity"],
             f"{c['count']} emploi(s) sur {len(c['screens'])} écran(s) ; {source} ; abaque {c['complexity']}")
     for p in patterns:
-        lot(f"Composant composé : {p['name']}", "realisation", days["faible"], "faible",
-            f"motif répété {p['count']} fois ({', '.join(p['screens'])})")
+        p["lot"] = lot(f"Composant composé : {p['name']}", "realisation", days["faible"], "faible",
+                       f"motif répété {p['count']} fois ({', '.join(p['screens'])})")
+    reuse, seen = rules["reuse"], []
     for s in screens:
-        extra = rules["screen"]["per_component"] * s["components"]
-        lot(f"Écran {s['title']}", "realisation", [round(v + extra, 2) for v in rules["screen"]["base"]],
-            s["complexity"], f"{s['components']} composants, {s['fields']} champs ; intégration et données de l'écran")
+        extra = rules["screen"]["per_component"] * s["counted"]
+        same = next((o for o in seen if o["_structure"] == s["_structure"]), None)
+        close = max(seen, key=lambda o: likeness(o["_types"], s["_types"]), default=None)
+        share = s["in_patterns"] / s["components"] if s["components"] else 0
+        if same:
+            why = {"from": same["lot"], "percent": reuse["same_structure"],
+                   "basis": f"même structure que l'écran {same['title']} : gabarit et logique repris, textes et données propres"}
+        elif close and likeness(close["_types"], s["_types"]) >= reuse["similarity"]:
+            why = {"from": close["lot"], "percent": reuse["similar"],
+                   "basis": f"composants à {likeness(close['_types'], s['_types']):.0%} communs avec l'écran "
+                            f"{close['title']}".replace("%", " %")}
+        elif s["_pattern"] and share >= reuse["pattern_share"]:
+            why = {"from": s["_pattern"]["lot"], "percent": reuse["pattern"],
+                   "basis": f"{share:.0%} des composants dans des motifs répétés".replace("%", " %")}
+        else:
+            why = None
+        motifs = f", dont {s['in_patterns']} dans des motifs (comptés {s['counted']})" if s["in_patterns"] else ""
+        s["lot"] = lot(f"Écran {s['title']}", "realisation", [round(v + extra, 2) for v in rules["screen"]["base"]],
+                       s["complexity"], f"{s['components']} composants{motifs}, {s['fields']} champs ; intégration et "
+                       "données de l'écran", why)
+        seen.append(s)
     for t in rules["transverse"]:
         points = t.get("effort") or [round(v * len(screens), 2) for v in t["per_screen"]]
         lot(t["name"], t["phase"], points, "moyenne", "lot transverse" + (" par écran" if t.get("per_screen") else ""))
-    total = [round(sum(w["effort"][profile][i] for w in work), 2) for i in range(3)]
+    total = [round(sum(net(w, profile)[i] for w in work), 2) for i in range(3)]
+    gross = [round(sum(w["effort"][profile][i] for w in work), 2) for i in range(3)]
+    for item in patterns + screens:
+        for key in [k for k in item if k.startswith("_")]:
+            del item[key]
     return {"target": target, "screens": screens, "components": components, "patterns": patterns,
-            "lots": {"profile": profile, "component": component, "work": work}, "days": total}
+            "lots": {"domain": "frontend", "profile": profile, "component": component, "work": work},
+            "days": total, "gross_days": gross}
 
 
 def write(result: dict, base: Path) -> list[Path]:
     md = [f"# Découpage en composants ({result['target']})", "",
           f"{len(result['screens'])} écran(s), {sum(1 for c in result['components'] if not c['layout'])} composant(s), "
           f"{len(result['patterns'])} motif(s) répété(s) ; charge frontend {result['days'][0]:g} à {result['days'][2]:g} "
-          f"jours (probable {result['days'][1]:g}), abaques à calibrer.", "",
+          f"jours (probable {result['days'][1]:g}) après réemploi, {result['origin']}.", "",
           "## Composants", "", "| Composant | Emplois | Écrans | Variantes | Complexité | Bibliothèque |",
           "| --- | --- | --- | --- | --- | --- |"]
     md += [f"| `{c['type']}` | {c['count']} | {', '.join(c['screens'])} | {', '.join(c['variants'])} | "
@@ -237,15 +298,20 @@ def write(result: dict, base: Path) -> list[Path]:
                "| --- | --- | --- | --- |"]
         md += [f"| {p['name']} | {p['count']} | {', '.join(p['screens'])} | `{p['signature'][:80]}` |"
                for p in result["patterns"]]
-    md += ["", "## Écrans", "", "| Écran | Composants | Interactifs | Champs | Complexité |", "| --- | --- | --- | --- | --- |"]
-    md += [f"| {s['title']} | {s['components']} | {s['interactive']} | {s['fields']} | {s['complexity']} |"
-           for s in result["screens"]]
-    profile = result["lots"]["profile"]
-    md += ["", f"## Lots du chiffrage frontend (jours, profil `{profile}`)", "", "| Lot | Phase | Mini | Probable | Maxi | Note |",
+    md += ["", "## Écrans", "", "| Écran | Composants | Dans des motifs | Interactifs | Champs | Complexité |",
            "| --- | --- | --- | --- | --- | --- |"]
-    md += [f"| {w['name']} | {w['phase']} | {w['effort'][profile][0]:g} | {w['effort'][profile][1]:g} | "
-           f"{w['effort'][profile][2]:g} | {w['note']} |" for w in result["lots"]["work"]]
-    md += ["", "Reprise dans le chiffrage : `estimate_build.py chiffrage.json --draft --frontend "
+    md += [f"| {s['title']} | {s['components']} | {s['in_patterns']} | {s['interactive']} | {s['fields']} | "
+           f"{s['complexity']} |" for s in result["screens"]]
+    profile = result["lots"]["profile"]
+    md += ["", f"## Lots du chiffrage frontend (jours, profil `{profile}`)", "",
+           "| Lot | Phase | Mini | Probable | Maxi | Réemploi | Note |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    for w in result["lots"]["work"]:
+        low, likely, high = w["effort"][profile]
+        reuse = f"{w['reuse']['percent']:g} % de {w['reuse']['from']}" if w.get("reuse") else ""
+        md.append(f"| {w['id']} {w['name']} | {w['phase']} | {low:g} | {likely:g} | {high:g} | {reuse} | {w['note']} |")
+    md += ["", f"Charges brutes {result['gross_days'][0]:g} / {result['gross_days'][1]:g} / {result['gross_days'][2]:g} "
+           "jours avant réemploi.", "",
+           "Reprise dans le chiffrage : `estimate_build.py chiffrage.json --draft --lots "
            f"{base.name}.lots.json` (solution-estimate).", ""]
     paths = {base.with_suffix(".json"): json.dumps(result, ensure_ascii=False, indent=1) + "\n",
              base.with_suffix(".md"): "\n".join(md),
@@ -268,6 +334,7 @@ def main() -> int:
     parser.add_argument("pages", nargs="*", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--target", choices=["html", "bootstrap", *react.TARGETS, *templates.TARGETS], default="html")
+    parser.add_argument("--abaques", type=Path)
     parser.add_argument("--rules", type=Path)
     parser.add_argument("--component")
     parser.add_argument("--schema", action="store_true")
@@ -276,7 +343,8 @@ def main() -> int:
         print_schema(__file__)
         return 0
     report = {"inputs": [str(p) for p in args.pages], "target": args.target, "outputs": [], "screens": 0,
-              "components": 0, "patterns": 0, "lots": 0, "days": [], "errors": [], "warnings": []}
+              "components": 0, "patterns": 0, "lots": 0, "reused": 0, "days": [], "abaques": [], "calibrated": False,
+              "errors": [], "warnings": []}
     errors, warnings = report["errors"], report["warnings"]
 
     def done(code: int) -> int:
@@ -286,7 +354,11 @@ def main() -> int:
     if not args.pages:
         errors.append("aucune description de page (PAGE.json de page_build.py)")
         return done(1)
-    rules = DEFAULT_RULES
+    abaques, sources, invalid = workspace.abaques(args.pages, args.abaques)
+    errors += invalid
+    own = abaques.get("frontend", {})
+    errors += [f"abaques frontend : {e}" for e in check(own, input_schema(__file__))]
+    rules = merge(DEFAULT_RULES, own)
     if args.rules:
         try:
             override = json.loads(args.rules.read_text(encoding="utf-8"))
@@ -294,7 +366,8 @@ def main() -> int:
             errors.append(f"--rules : {args.rules} illisible ({error})")
             return done(1)
         errors += validate(override, __file__)
-        rules = merge(DEFAULT_RULES, override)
+        rules = merge(rules, override)
+        sources.append(str(args.rules))
     page_schema = input_schema(HERE / "page_build.py")
     pages = []
     for path in args.pages:
@@ -308,6 +381,11 @@ def main() -> int:
     if errors:
         return done(1)
     result = breakdown(pages, args.target, rules, args.component)
+    calibrated = bool(own) or bool(args.rules)
+    result["lots"]["abaques"] = sources
+    result["origin"] = ("abaques fournis (" + ", ".join(Path(s).name for s in sources) + ")") if calibrated \
+        else "abaques par défaut, à calibrer"
+    result["lots"]["source"] = [str(p) for p in args.pages]
     # Lots conformes au schéma des lots de solution-estimate, s'il est installé.
     estimate = skill_paths.schema_of("solution-estimate", "estimate_build.py")
     if estimate is None:
@@ -322,7 +400,12 @@ def main() -> int:
     base.parent.mkdir(parents=True, exist_ok=True)
     report["outputs"] = [str(p) for p in write(result, base)]
     report.update(screens=len(result["screens"]), components=sum(1 for c in result["components"] if not c["layout"]),
-                  patterns=len(result["patterns"]), lots=len(result["lots"]["work"]), days=result["days"])
+                  patterns=len(result["patterns"]), lots=len(result["lots"]["work"]),
+                  reused=sum(1 for w in result["lots"]["work"] if w.get("reuse")), days=result["days"],
+                  abaques=sources, calibrated=calibrated)
+    if not calibrated:
+        warnings.append("abaques frontend par défaut, à calibrer : donnez les vôtres avant le lancement "
+                        "(section frontend de ~/.myskills/abaques.json, references.abaques de la mission ou --abaques)")
     if args.target == "html":
         warnings.append("sans --target, chaque composant est compté sur mesure ; une bibliothèque réduit la charge des "
                         "composants qu'elle fournit")

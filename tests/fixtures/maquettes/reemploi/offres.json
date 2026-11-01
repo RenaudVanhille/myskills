@@ -1,0 +1,12 @@
+{
+  "title": "Nos offres",
+  "body": [
+    {"type": "section", "children": [
+      {"type": "grid", "columns": 3, "children": [
+        {"type": "stack", "children": [{"type": "badge", "text": "Auto"}, {"type": "stat", "label": "dès", "value": "25 €"}, {"type": "button", "text": "Souscrire"}]},
+        {"type": "stack", "children": [{"type": "badge", "text": "Habitation"}, {"type": "stat", "label": "dès", "value": "15 €"}, {"type": "button", "text": "Souscrire"}]},
+        {"type": "stack", "children": [{"type": "badge", "text": "Santé"}, {"type": "stat", "label": "dès", "value": "40 €"}, {"type": "button", "text": "Souscrire"}]}
+      ]}
+    ]}
+  ]
+}

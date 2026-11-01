@@ -1106,6 +1106,56 @@
       ]
     },
     {
+      "id": "chiffrage-frontend",
+      "agent": "ui-designer",
+      "prompt": "Pour le chiffrage du portail de sinistres (composant portail, React MUI), découpe et estime le frontend des écrans décrits dans pages/.",
+      "inputs": [
+        {
+          "from": "fixtures/maquettes/reemploi/contrats.json",
+          "to": "pages/contrats.json"
+        },
+        {
+          "from": "fixtures/maquettes/reemploi/sinistres.json",
+          "to": "pages/sinistres.json"
+        },
+        {
+          "from": "fixtures/maquettes/reemploi/devis.json",
+          "to": "pages/devis.json"
+        },
+        {
+          "from": "fixtures/maquettes/reemploi/offres.json",
+          "to": "pages/offres.json"
+        }
+      ],
+      "output": "decoupage.lots.json",
+      "checks": [
+        {
+          "file": "decoupage.lots.json",
+          "json": "work",
+          "min": 15
+        },
+        {
+          "file": "decoupage.lots.json",
+          "contains": [
+            "\"reuse\"",
+            "\"frontend\""
+          ]
+        },
+        {
+          "file": "decoupage.md",
+          "contains": [
+            "à calibrer"
+          ]
+        }
+      ],
+      "rubric": [
+        "Les lots frontend viennent du script de découpage (composants, motifs, écrans, transverses), pas d'une estimation globale.",
+        "Les écrans semblables réutilisent le lot d'un écran précédent, avec sa part et sa base.",
+        "La réponse dit que les abaques sont ceux par défaut et qu'on peut donner les siens avant le lancement.",
+        "Le rapport final passe la main à solution-estimator avec decoupage.lots.json."
+      ]
+    },
+    {
       "id": "maquettes-html",
       "agent": "ui-designer",
       "prompt": "L'appel d'offres fournit la maquette accueil.png de la page d'accueil. Propose le design system, reproduis la page en HTML dans site/ et fais sa revue UX et accessibilité.",

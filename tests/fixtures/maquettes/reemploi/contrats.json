@@ -1,0 +1,13 @@
+{
+  "title": "Mes contrats",
+  "body": [
+    {"type": "header", "text": "Assur'Plus", "items": ["Mes contrats", "Mes sinistres"]},
+    {"type": "section", "children": [
+      {"type": "heading", "level": 1, "text": "Mes contrats"},
+      {"type": "search", "placeholder": "Rechercher un contrat"},
+      {"type": "table", "headers": ["Numéro", "Produit", "Échéance"], "rows": [["C-1", "Auto", "01/2027"]]},
+      {"type": "pagination", "pages": 4, "current": 1}
+    ]},
+    {"type": "footer", "text": "© Assur'Plus"}
+  ]
+}

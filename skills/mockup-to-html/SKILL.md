@@ -22,12 +22,12 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`ux_review.py`** : Revue UX et accessibilité des pages décrites, sans modèle pour les contrôles : rendu local (Playwright, réseau coupé) de la même description que page_build.py, contraste réel de chaque texte sur son fond (WCAG 1.4.3, AAA 1.4.6), nom accessible des boutons, liens et champs (4.1.2), image sans alt (1.1.1), taille des cibles (2.5.8 avec son exception d'espacement, 44 px en AAA), texte sous 12 px, tableau sans en-tête, langue, zone principale, débordement à 390 px, plus d'un bouton primary ; chaque écart rattaché au nœud de la description. Valide les constats de jugement du modèle (heuristiques de Nielsen h1 à h10 ou a11y, gravité 1 à 4, nœud existant) et écrit <page>.ux.md trié par gravité. Rapport JSON, codes de sortie : 0 revue écrite pour chaque page (écarts et avertissements possibles) ; 1 revue invalide, page illisible ou hors schéma, nœud ou page inconnus ; rien d'écrit pour la page en échec.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
-- **`ui_breakdown.py`** : Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables. Rapport JSON, codes de sortie : 0 découpage et lots écrits ; 1 page ou règles invalides, lots hors du schéma de solution-estimate ; aucun fichier produit.
+- **`ui_breakdown.py`** : Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés. Rapport JSON, codes de sortie : 0 découpage et lots écrits ; 1 page ou règles invalides, lots hors du schéma de solution-estimate ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `design-system` (`ds_build.py`, obligatoire) : tokens : schéma, valeurs par défaut, couleurs dérivées, variables CSS et contraste.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : contrôler les lots frontend contre le schéma des lots du chiffrage.
 - **Passe la main** au skill `design-system` : les tokens (couleurs, typographie, espacements) ne sont pas encore définis : ds_extract.py --draft depuis les maquettes.
-- **Passe la main** au skill `solution-estimate` : chiffrer le frontend : estimate_build.py --draft --frontend decoupage.lots.json.
+- **Passe la main** au skill `solution-estimate` : chiffrer le frontend : estimate_build.py --draft --lots decoupage.lots.json.
 - **Passe la main** à l'agent `document-extractor` : les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images.
 - **Passe la main** à l'agent `document-publisher` : les pages doivent être livrées dans un document Word ou un site XWiki.
 - **Passe la main** à l'utilisateur : une maquette est ambiguë (état d'un écran, contenu masqué, interaction) : la question à poser.
@@ -160,15 +160,15 @@ dites l'écart.
 uv run scripts/ui_breakdown.py --target react-mui --component portail --out decoupage pages/*.json
 ```
 
-Le rapport donne écrans, composants, motifs répétés et la charge à trois
-points ; `decoupage.md` est le découpage à livrer. `--target` réduit la
-charge des composants fournis par la bibliothèque, `--component` rattache
-les lots au composant web de l'option d'architecture. Les jours viennent
-d'abaques par complexité : des hypothèses, à dire comme telles ; des
-abaques propres au client se donnent dans `--rules` (`--schema`). Pour le
-chiffrage, `estimate_build.py chiffrage.json --draft --frontend
-decoupage.lots.json` (skill `solution-estimate`) reprend ces lots à la
-place du lot global du portail.
+Le rapport donne écrans, composants, motifs, réemploi et la charge à
+trois points ; `decoupage.md` est le découpage à livrer. `--target` réduit
+les composants fournis par la bibliothèque, `--component` rattache les lots
+au composant web de l'option. Un écran de même structure qu'un autre, ou
+semblable, ou fait de motifs, réutilise son lot (`reuse`). Les jours
+viennent d'abaques donnés avant le lancement (section `frontend` des
+abaques, `--abaques`), sinon par défaut : `calibrated` faux, à dire.
+`estimate_build.py chiffrage.json --draft --lots decoupage.lots.json`
+(skill `solution-estimate`) reprend ces lots.
 
 ## 7. Livrer
 

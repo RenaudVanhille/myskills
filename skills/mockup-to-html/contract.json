@@ -1228,13 +1228,14 @@
     },
     {
       "name": "ui_breakdown.py",
-      "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; abaques réglables.",
-      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--rules REGLES.json] [--component ID] | --schema",
+      "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés.",
+      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] | --schema",
       "options": {
         "PAGE": "descriptions de pages de page_build.py",
         "--out": "chemin des fichiers produits, sans extension (défaut : decoupage à côté de la première page)",
         "--target": "bibliothèque visée : ses composants comptent pour library_factor de l'abaque",
-        "--rules": "règles et abaques propres (fusionnées avec celles par défaut)",
+        "--abaques": "abaques du chiffrage (shared/schemas/abaques.schema.json), après ceux de l'utilisateur et de la mission ; seule la section frontend sert ici",
+        "--rules": "règles propres au format de la section frontend des abaques, appliquées en dernier",
         "--component": "composant de l'option d'architecture que les lots réalisent (le front web)",
         "--schema": "affiche le schéma JSON des règles sur une ligne, puis s'arrête"
       },
@@ -1244,7 +1245,7 @@
       },
       "input": {
         "format": "json",
-        "description": "Règles et abaques du chiffrage frontend (--rules), facultatives.",
+        "description": "Règles et abaques du chiffrage frontend : section frontend des abaques ou --rules, facultatives.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -1375,6 +1376,43 @@
               },
               "description": "intégration d'un écran : base, plus des jours par composant"
             },
+            "reuse": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "réemploi entre écrans, en % de la charge de l'écran épargnée",
+              "properties": {
+                "same_structure": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 90,
+                  "description": "écran de même structure qu'un précédent (textes ignorés) : défaut 50"
+                },
+                "similar": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 90,
+                  "description": "écran semblable à un précédent (composants communs au-delà de similarity) : défaut 25"
+                },
+                "similarity": {
+                  "type": "number",
+                  "minimum": 0.5,
+                  "maximum": 1,
+                  "description": "part de composants communs qui rend deux écrans semblables : défaut 0,8"
+                },
+                "pattern": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 90,
+                  "description": "écran fait surtout de motifs répétés, réemploi du lot du motif : défaut 20"
+                },
+                "pattern_share": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "part des composants de l'écran dans des motifs à partir de laquelle pattern s'applique : défaut 0,5"
+                }
+              }
+            },
             "transverse": {
               "type": "array",
               "items": {
@@ -1444,7 +1482,10 @@
             "components",
             "patterns",
             "lots",
+            "reused",
             "days",
+            "abaques",
+            "calibrated",
             "errors",
             "warnings"
           ],
@@ -1480,12 +1521,28 @@
               "type": "integer",
               "minimum": 0
             },
+            "reused": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "lots qui réutilisent un lot précédent"
+            },
             "days": {
               "type": "array",
               "items": {
                 "type": "number"
               },
-              "description": "charge frontend totale [mini, probable, maxi], en jours"
+              "description": "charge frontend totale après réemploi [mini, probable, maxi], en jours"
+            },
+            "abaques": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "fichiers d'abaques lus, dans l'ordre"
+            },
+            "calibrated": {
+              "type": "boolean",
+              "description": "vrai si des abaques frontend ont été fournis ; faux : valeurs par défaut, à calibrer"
             },
             "errors": {
               "type": "array",
@@ -1526,7 +1583,7 @@
     {
       "to": "solution-estimate",
       "kind": "skill",
-      "when": "chiffrer le frontend : estimate_build.py --draft --frontend decoupage.lots.json"
+      "when": "chiffrer le frontend : estimate_build.py --draft --lots decoupage.lots.json"
     },
     {
       "to": "document-extractor",
