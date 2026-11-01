@@ -67,11 +67,12 @@ workflow, la commande les trace aussi au journal.
    rappelle-le à la livraison, sans poser de question.
 4. Experts, en parallèle et avec un message de passage court (dossier,
    `exigences.json`, `options.json`, option, composant) : `backend-estimator`
-   pour les composants à construire côté serveur (rend
-   `decoupage-back.lots.json`) ; `ui-designer` s'il y a des maquettes (rend
-   `decoupage.lots.json`). Sans sous-agent, lance toi-même
-   `api_breakdown.py` (sur `api.json`) et `ui_breakdown.py`. Ne réestime pas
-   un lot d'expert sans raison écrite dans `note`.
+   dès qu'un composant serveur est à construire, même sans `api.json` (il
+   l'écrit), rend `decoupage-back.lots.json` ; `ui-designer` s'il y a des
+   maquettes, rend `decoupage.lots.json`. Sans sous-agent, fais leur travail
+   toi-même (skill `api-contract` : `api.json`, `api_build.py`,
+   `api_breakdown.py` ; `ui_breakdown.py`). Ne réestime pas un lot d'expert
+   sans raison écrite dans `note`.
 5. Pour une option cloud, décris ses consommations dans `couts.json` (skill
    `cloud-cost`) et lance `cost_build.py couts.json --infra <option>`. Puis
    `estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json

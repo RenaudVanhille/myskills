@@ -292,3 +292,6 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,17,0.2717,29,40494,549820,5439,0,53,1.0
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,11,0.2277,19,38285,327449,4145,0,41,1.0
 2026-10-30T00:13:04,ui-designer-libs,098ae8b,maquettes-html,ui-designer,sonnet,True,13,0.2194,17,38141,305188,3604,0,34,1.0
+2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,True,14,0.4481,28,60093,632912,14406,0,112,
+2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,True,9,0.3283,16,49991,306069,9735,0,74,
+2026-11-01T20:00:34,apres-experts,4596b34,chiffrage,solution-estimator,sonnet,False,16,0.4972,31,63022,766863,16795,0,124,
