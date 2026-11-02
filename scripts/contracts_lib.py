@@ -233,9 +233,11 @@ def fields_line(obj: dict) -> str:
     return ", ".join(parts) + (f" ; facultatifs : {', '.join(optional)}" if optional else "")
 
 
-def render_skill(contract: dict) -> str:
+def render_skill(contract: dict, full: bool = False) -> str:
     """Section courte : les champs des rapports restent dans contract.json (le
-    modèle les lit de toute façon dans la sortie des scripts)."""
+    modèle les lit de toute façon dans la sortie des scripts). Dans SKILL.md,
+    lu à chaque appel du skill, les codes de sortie sont résumés (0 succès,
+    1 erreur, rapport à lire) ; CATALOG.md (full) les garde en entier."""
     lines = ["## Contrat", "",
              "Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).", "",
              f"- **Niveau** : {contract['level']} ({LEVEL_HINTS[contract['level']]}).",
@@ -246,11 +248,16 @@ def render_skill(contract: dict) -> str:
         tag = " (maintenance du dépôt)" if script.get("maintenance") else ""
         kind = {"json": "rapport JSON", "text": "rapport texte", "none": "pas de rapport"}[report["format"]]
         codes = " ; ".join(f"{code} {meaning}" for code, meaning in script["exit_codes"].items())
-        lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]}, "
-                     f"codes de sortie : {codes}.")
-        if script.get("input"):
-            lines.append("  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors "
-                         "liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.")
+        if full:
+            lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]}, "
+                         f"codes de sortie : {codes}.")
+            if script.get("input"):
+                lines.append("  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors "
+                             "liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.")
+            continue
+        checked = " ; description validée, `--schema` affiche son JSON Schema" if script.get("input") else ""
+        lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]} "
+                     f"(0 succès, 1 erreur{checked}).")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for need in contract.get("requires", []):
@@ -383,6 +390,6 @@ def build_catalog_md(agents_meta: dict[str, dict]) -> str:
         lines += [f"### `{name}`", "", meta["description"].strip('"'), "", f"**Skills** : {skills}", "", body, ""]
     lines += ["## Skills", ""]
     for name, contract in skill_contracts().items():
-        body = render_skill(contract).split("\n", 2)[2].replace("](contract.json)", f"](skills/{name}/contract.json)")
+        body = render_skill(contract, full=True).split("\n", 2)[2].replace("](contract.json)", f"](skills/{name}/contract.json)")
         lines += [f"### `{name}`", "", skill_description(name), "", body.strip(), ""]
     return "\n".join(lines).rstrip() + "\n"

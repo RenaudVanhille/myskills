@@ -16,8 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Contexte du schéma : description, code, ADR, Markdown ou image ; La décision courte en JSON : public, destination, type, message principal, 3 à 7 éléments.
 - **Sorties** : La décision complète (format, skill, vue cloud, livraison, raison) dans le rapport, et en JSON avec --out pour le skill de dessin ou un autre agent.
-- **`brief.py`** : Valide la décision courte et applique la grille de choix (public avant destination, format modifiable là où le schéma vivra) : format, skill, vue cloud, livraison selon la destination et raison du choix. Rapport JSON, codes de sortie : 0 décision rendue (avertissement si le nombre d'éléments sort de 3 à 7) ; 1 décision courte invalide ou illisible ; aucun fichier écrit.
-  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`brief.py`** : Valide la décision courte et applique la grille de choix (public avant destination, format modifiable là où le schéma vivra) : format, skill, vue cloud, livraison selon la destination et raison du choix. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Passe la main** au skill `mermaid-diagram` : séquence, états, classes, données, ou flux simple dans un dépôt ou Obsidian.
 - **Passe la main** au skill `drawio-diagram` : public technique, Word, PowerPoint ou Confluence, mise en page précise.
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.

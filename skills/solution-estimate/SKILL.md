@@ -16,8 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : complexe (modèle puissant).
 - **Entrées** : Catalogue d'exigences validé (exigences.json de requirements-catalog) ; Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions ; Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet ; Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script ; Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json ; Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission ; Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer.
 - **Sorties** : <nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, points à challenger et réemploi, couverture, hypothèses, exclusions) ; <nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script ; <nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script ; <nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates.
-- **`estimate_build.py`** : Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer. Rapport JSON, codes de sortie : 0 chiffrage produit et CSV vérifié (avertissements possibles) ; 1 description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas.
-  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`estimate_build.py`** : Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json contre son schéma.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Vault Obsidian** : écrit les notes de type `chiffrage`, `lot` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
@@ -79,53 +78,20 @@ usuelles, seulement quand vous avez une raison. La forme complète
 }
 ```
 
-- **Lots** : un lot par composant de l'option à construire ou à modifier,
-  plus les lots transverses (cadrage, tests, déploiement, reprise de
-  données, conduite du changement) ; `phase` parmi cadrage, conception,
-  realisation, integration, tests, deploiement, migration,
-  conduite-changement, pilotage. `component` reprend l'identifiant du
-  composant dans `options.json` ; `refs` ajoute les exigences que le lot
-  porte en plus de celles du composant.
-- **Taux** : `rates` est facultatif. Sans lui, seules les charges sont
-  produites (jours et heures, sans montant) : la valorisation reste au
-  chef de projet. `hours_per_day` (défaut 7) convertit les jours en heures.
-- **Complexité** : `complexity` par lot (faible, moyenne, elevee,
-  tres-elevee) quand elle tient à autre chose que la taille (technologie
-  nouvelle, dépendance externe, sujet réglementé) ; sans elle, le script
-  la déduit de la charge espérée et le signale.
-- **Charge** : jours par profil, un nombre si la charge est sûre, sinon
-  `[mini, probable, maxi]`. Le script calcule l'espérance (mini + 4
-  probable + maxi) / 6 et la fourchette P10-P90 : ne les écrivez pas. Un
-  lot dont l'écart mini-maxi dépasse le probable est signalé : découpez-le
-  ou levez l'hypothèse.
-- **Pilotage** : `overheads` en pourcentage de la charge des lots, au taux
-  d'un profil. **Provision** : `contingency`, en % du coût de réalisation.
-- **Infrastructure** : une ligne par poste (`kind` cloud, licence,
-  materiel, service, autre ; `period` mois, an ou unique), avec `basis`
-  obligatoire : grille tarifaire et sa date, devis, ou hypothèse de
-  dimensionnement. Aucun tarif ne se cherche en ligne : un prix inconnu est
-  une hypothèse à faire valider, notée comme telle.
-- **Hébergeur** : `hosting` (hébergeur par défaut, qualifications exigées
-  et leurs `refs`), contrôlé ligne par ligne ; détail dans
-  `references/hebergeur-et-ia.md`, à lire seulement pour un hébergeur imposé.
-- **Run** : par an, `days_per_year` avec `profile`, ou `percent_of_build`
-  (part du coût de réalisation hors provision).
-- **Budget** : plafonds `build`, `monthly` (infrastructure et run par
-  mois), `tco`, avec les exigences qui les fixent (`refs`). Un dépassement
-  est signalé.
-- **Hypothèses de production** : la charge saisie est celle d'une équipe
-  sans IA ; le script la recalcule toujours sans IA, avec IA et en dev IA
-  natif. Un lot où l'IA aide peu ou beaucoup prend son facteur
-  (`"ai": {"avec-ia": 0.95}`, raison dans `note`) ; les valeurs par défaut
-  ne changent que sur une base (`scenarios`, voir
-  `references/hebergeur-et-ia.md`).
-- **Réemploi** : un lot qui réutilise un autre lot ou un existant le déclare,
-  `"reuse": {"from": "L3", "percent": 40, "basis": "même gabarit que L3"}`
-  (`from` absent : existant du client). La charge saisie est celle sans
-  réemploi ; le script la réduit et donne le taux de réemploi.
-  Pas de marge dans un lot : pilotage et provision s'ajoutent une fois.
-- **Hypothèses et exclusions** : chacune en une phrase ; elles vont dans
-  le chiffrage et, dans un workflow, au journal.
+Règles qui valent toujours :
+
+- **Charge** : jours par profil, un nombre si elle est sûre, sinon
+  `[mini, probable, maxi]` ; le script calcule espérance et P10-P90.
+- **Pas de marge dans un lot** : pilotage (`overheads`) et provision
+  (`contingency`) s'ajoutent une fois ; le réemploi se déclare (`reuse`).
+- **Aucun tarif cherché en ligne** : chaque ligne d'infrastructure a sa
+  `basis` (grille datée, devis ou hypothèse à faire valider).
+- **Sans IA** : la charge saisie est celle d'une équipe sans IA ; le
+  script recalcule avec IA et en dev IA natif.
+
+Détail de chaque champ (phases, complexité, hébergeur, run, budget,
+facteurs IA, réemploi, hypothèses) : `references/champs.md`, à lire
+seulement si un champ pose question.
 
 ## 3. Construire
 

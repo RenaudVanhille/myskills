@@ -1,5 +1,12 @@
 # Cas rapides de tests/run.py (contrats, règles d'AGENTS.md, scripts des skills)
 # sous Linux, macOS et Windows, à chaque PR et sur main. Aucun modèle, aucun secret.
+#
+# Runners : variables du dépôt (Settings > Secrets and variables > Actions >
+# Variables), en JSON, pour des runners auto-hébergés ; sans elles, runners
+# GitHub. Aucune étape n'utilise la CLI gh (absente des runners privés).
+#   RUNNERS_SCRIPTS : liste des runners de la matrice,
+#     ex. [["self-hosted","linux"],["self-hosted","windows"]]
+#   RUNNER_LINUX : runner Linux des rendus (sudo et apt), ex. ["self-hosted","linux"]
 name: tests
 
 on:
@@ -15,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(vars.RUNNERS_SCRIPTS || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +38,7 @@ jobs:
   # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
   # pas télécharger.
   rendus:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(vars.RUNNER_LINUX || '"ubuntu-latest"') }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -39,11 +46,15 @@ jobs:
           python-version: "3.13"
       - name: draw.io Desktop
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        # Dernière release par l'API REST (curl et python3), sans la CLI gh.
         run: |
-          gh release download --repo jgraph/drawio-desktop --pattern 'drawio-amd64-*.deb' --dir "$RUNNER_TEMP"
+          url=$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" \
+            https://api.github.com/repos/jgraph/drawio-desktop/releases/latest \
+            | python3 -c 'import json, re, sys; print(next(a["browser_download_url"] for a in json.load(sys.stdin)["assets"] if re.fullmatch(r"drawio-amd64-.*\.deb", a["name"])))')
+          curl -fsSL -o "$RUNNER_TEMP/$(basename "$url")" "$url"
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb "$RUNNER_TEMP"/drawio-amd64-*.deb
+          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra "$RUNNER_TEMP"/drawio-amd64-*.deb
           printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox\n' | sudo tee /usr/local/bin/drawio
           sudo chmod +x /usr/local/bin/drawio
       - uses: actions/cache@v4
