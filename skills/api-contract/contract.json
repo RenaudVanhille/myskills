@@ -15,16 +15,20 @@
   "scripts": [
     {
       "name": "api_build.py",
-      "role": "Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref.",
-      "usage": "uv run scripts/api_build.py API.json [--out-dir DOSSIER] | --schema",
+      "role": "Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref ; avec --draft, ébauche de la description tirée du glossaire et des exigences fonctionnelles (ressources, opérations, refs, composant porteur), à relire.",
+      "usage": "uv run scripts/api_build.py API.json [--out-dir DOSSIER] [--draft --requirements exigences.json [--options options.json --option ID]] | --schema",
       "options": {
         "API.json": "description des interfaces",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--draft": "écrit seulement une ébauche de API.json (jamais par-dessus un fichier existant) : ressources du glossaire, une opération par exigence fonctionnelle à verbe reconnu",
+        "--requirements": "exigences.json (requirements-catalog), pour --draft",
+        "--options": "options.json, pour --draft : composant porteur de chaque opération",
+        "--option": "option retenue, avec --options"
       },
       "exit_codes": {
-        "0": "contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée)",
-        "1": "description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture"
+        "0": "contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée) ; avec --draft, ébauche écrite",
+        "1": "description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture ; avec --draft, description existante, exigences illisibles ou aucune opération tirée"
       },
       "input": {
         "format": "json",
@@ -331,6 +335,10 @@
               "items": {
                 "type": "string"
               }
+            },
+            "draft": {
+              "type": "boolean",
+              "description": "ébauche écrite (--draft)"
             }
           }
         }

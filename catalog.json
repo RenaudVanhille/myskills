@@ -172,7 +172,9 @@
         "data-protection",
         "migration-assessment",
         "transition-roadmap",
-        "api-contract"
+        "api-contract",
+        "mockup-to-html",
+        "design-system"
       ]
     },
     {
@@ -965,16 +967,20 @@
       "scripts": [
         {
           "name": "api_build.py",
-          "role": "Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref.",
-          "usage": "uv run scripts/api_build.py API.json [--out-dir DOSSIER] | --schema",
+          "role": "Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref ; avec --draft, ébauche de la description tirée du glossaire et des exigences fonctionnelles (ressources, opérations, refs, composant porteur), à relire.",
+          "usage": "uv run scripts/api_build.py API.json [--out-dir DOSSIER] [--draft --requirements exigences.json [--options options.json --option ID]] | --schema",
           "options": {
             "API.json": "description des interfaces",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--draft": "écrit seulement une ébauche de API.json (jamais par-dessus un fichier existant) : ressources du glossaire, une opération par exigence fonctionnelle à verbe reconnu",
+            "--requirements": "exigences.json (requirements-catalog), pour --draft",
+            "--options": "options.json, pour --draft : composant porteur de chaque opération",
+            "--option": "option retenue, avec --options"
           },
           "exit_codes": {
-            "0": "contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée)",
-            "1": "description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture"
+            "0": "contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée) ; avec --draft, ébauche écrite",
+            "1": "description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture ; avec --draft, description existante, exigences illisibles ou aucune opération tirée"
           },
           "input": {
             "format": "json",
@@ -1281,6 +1287,10 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "ébauche écrite (--draft)"
                 }
               }
             }
@@ -5781,7 +5791,7 @@
         "Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json)"
       ],
       "outputs": [
-        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+        "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json, avant-vente.json, maquettes.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
         "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
         "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)",
         "lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur"
@@ -5800,7 +5810,7 @@
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
-            "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec ; n'écrit rien dans workflow.json"
+            "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json"
           },
           "report": {
             "format": "json",
@@ -6349,7 +6359,7 @@
                                   "items": {
                                     "type": "string"
                                   },
-                                  "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions"
+                                  "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions ; un argument à motif (pages/*.json) devient la liste triée de ses fichiers"
                                 },
                                 "foreach": {
                                   "type": "string",
@@ -12881,8 +12891,8 @@
         },
         {
           "name": "ui_breakdown.py",
-          "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés.",
-          "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] | --schema",
+          "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; avec --ux, un lot par constat UX retenu (gravité au moins ux.min_severity, jours par gravité) ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés.",
+          "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] [--ux REVUE.json ...] | --schema",
           "options": {
             "PAGE": "descriptions de pages de page_build.py",
             "--out": "chemin des fichiers produits, sans extension (défaut : decoupage à côté de la première page)",
@@ -12890,6 +12900,7 @@
             "--abaques": "abaques du chiffrage (shared/schemas/abaques.schema.json), après ceux de l'utilisateur et de la mission ; seule la section frontend sert ici",
             "--rules": "règles propres au format de la section frontend des abaques, appliquées en dernier",
             "--component": "composant de l'option d'architecture que les lots réalisent (le front web)",
+            "--ux": "revues de ux_review.py (même schéma) : un lot par constat retenu de gravité au moins ux.min_severity",
             "--schema": "affiche le schéma JSON des règles sur une ligne, puis s'arrête"
           },
           "exit_codes": {
@@ -13116,6 +13127,66 @@
                     }
                   },
                   "description": "lots transverses : charge fixe (effort) ou par écran (per_screen)"
+                },
+                "ux": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "constats UX retenus (--ux) : seuil de gravité et jours de correction par gravité",
+                  "properties": {
+                    "min_severity": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4,
+                      "description": "gravité minimale d'un constat chiffré (défaut 2)"
+                    },
+                    "days": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "1": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "2": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "3": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "4": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        }
+                      },
+                      "description": "jours par gravité, 1 mineur à 4 bloquant"
+                    }
+                  }
                 }
               }
             }
@@ -13136,6 +13207,7 @@
                 "patterns",
                 "lots",
                 "reused",
+                "ux_lots",
                 "days",
                 "abaques",
                 "calibrated",
@@ -13208,6 +13280,11 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "ux_lots": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "lots tirés des constats UX retenus"
                 }
               }
             }

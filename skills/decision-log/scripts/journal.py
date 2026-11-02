@@ -333,6 +333,9 @@ def run_checks(folder: Path, state: dict, stage: dict, errors: list[str]) -> lis
         for rel in files:
             name = Path(rel).name.split(".")[0] if rel else ""
             args = [a.replace("{file}", rel or "").replace("{name}", name) for a in entry.get("args", [])]
+            # Un argument à motif (pages/*.json) devient la liste triée de ses fichiers.
+            args = [x for a in args for x in (sorted(q.relative_to(folder).as_posix() for q in folder.glob(a))
+                                              or [a] if any(c in a for c in "*?[") else [a])]
             if entry.get("vault") and memory:
                 args += ["--vault", memory["vault"], "--folder", memory["folder"]]
             command = f"{entry['script']} {' '.join(args)}".strip()
@@ -340,8 +343,16 @@ def run_checks(folder: Path, state: dict, stage: dict, errors: list[str]) -> lis
                 errors.append(f"{command} : {absent(entry['skill'], entry['script'])}")
                 results.append({"command": command, "status": "echec", "errors": 1, "warnings": 0})
                 continue
+            before = {s["id"]: set(changed_files(folder, s)) for s in state["stages"]
+                      if s["status"] == "validee" and s is not stage}
             done = subprocess.run(runner + [str(script)] + args, cwd=folder, capture_output=True, text=True,
                                   encoding="utf-8", errors="replace")
+            # Un contrôle ne réécrit jamais le livrable d'une étape validée : il bloquerait les suivantes.
+            for other in state["stages"]:
+                if other["id"] in before:
+                    for rel in sorted(set(changed_files(folder, other)) - before[other["id"]]):
+                        errors.append(f"{command} : a modifié {rel}, livrable validé de l'étape {other['id']} ; "
+                                      "écrire dans un autre fichier (--out), ou revenir sur l'étape (review --decision retour)")
             try:
                 report = json.loads(done.stdout)
                 found, warned = list(report.get("errors", [])), len(report.get("warnings", []))

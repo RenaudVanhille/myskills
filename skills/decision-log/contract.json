@@ -8,7 +8,7 @@
     "Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json)"
   ],
   "outputs": [
-    "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
+    "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json, avant-vente.json, maquettes.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
     "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md..., Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)",
     "lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur"
@@ -27,7 +27,7 @@
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
         "--schema": "affiche le schéma de workflow.json sur une ligne",
         "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
-        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec ; n'écrit rien dans workflow.json"
+        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json"
       },
       "report": {
         "format": "json",
@@ -576,7 +576,7 @@
                               "items": {
                                 "type": "string"
                               },
-                              "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions"
+                              "description": "arguments, chemins relatifs au dossier du workflow ; {file} : le fichier de foreach, {name} : son nom sans extensions ; un argument à motif (pages/*.json) devient la liste triée de ses fichiers"
                             },
                             "foreach": {
                               "type": "string",

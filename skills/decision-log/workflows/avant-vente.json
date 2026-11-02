@@ -203,14 +203,14 @@
       ],
       "optional": [
         "tracabilite.csv",
-        "schemas/option-*.drawio",
+        "schemas/option-*.drawio", "schemas/option-*.conventions.md",
         "schemas/pos-option-*.drawio",
         "api/*"
       ],
       "checks": [
         "architecture-options : options_build.py options.json --decision decision.json",
         "drawio-diagram : drawio_build.py schemas/architectures.json --export png",
-        "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json --export png (option cloud retenue), puis well-architected-review : wa_check.py --scope conventions sur ce fichier",
+        "cloud-architecture : cloud_build.py schemas/option-<id>.cloud.json --export png (option cloud retenue), puis well-architected-review : wa_check.py --scope conventions --out schemas/option-<id>.conventions.md sur ce fichier (option-<id>.wa.md, validé à l'étape architectures, ne change pas)",
         "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
         "diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois",
         "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../exigences.json, source ../options.json et l'option)"
@@ -250,7 +250,7 @@
           "args": [
             "{file}",
             "--scope",
-            "conventions"
+            "conventions", "--out", "schemas/{name}.conventions.md"
           ],
           "foreach": "schemas/option-*.cloud.json"
         },
@@ -322,11 +322,86 @@
       "instructions": "Étape facultative : à faire quand l'acheteur demande une matrice de conformité ou un cadre de réponse. Le brouillon tire chaque réponse des écarts de l'option retenue ; n'écrire que la justification des réponses partielles et non conformes, pour l'acheteur. Une réponse qui contredit l'option se tranche avec l'utilisateur et se note au journal."
     },
     {
+      "id": "maquettes",
+      "label": "Maquettes d'écrans, revue UX et lots frontend",
+      "level": "moyen",
+      "after": [
+        "documents"
+      ],
+      "facultative": true,
+      "skills": [
+        "mockup-to-html",
+        "design-system"
+      ],
+      "agent": "ui-designer",
+      "inputs": [
+        "maquettes/*",
+        "sources/attachments/*"
+      ],
+      "deliverables": [
+        "design-system.json",
+        "pages/*.json",
+        "revue-ux.json",
+        "decoupage.md",
+        "decoupage.lots.json"
+      ],
+      "optional": [
+        "analyses/*.analysis.json",
+        "pages/*.html",
+        "pages/*.ux.md",
+        "decoupage.json",
+        "decoupage.csv"
+      ],
+      "checks": [
+        "design-system : ds_extract.py <maquettes> --draft design-system.json (ou ds_import.py des tokens du client), puis ds_build.py design-system.json",
+        "mockup-to-html : ui_analyze.py <maquettes> --tokens design-system.json --draft --out-dir analyses, page_build.py pages/<écran>.json pour chaque écran, ux_review.py revue-ux.json, puis ui_breakdown.py pages/*.json --out decoupage --ux revue-ux.json"
+      ],
+      "run": [
+        {
+          "skill": "design-system",
+          "script": "ds_build.py",
+          "args": [
+            "design-system.json"
+          ]
+        },
+        {
+          "skill": "mockup-to-html",
+          "script": "page_build.py",
+          "args": [
+            "{file}",
+            "--min-fidelity",
+            "0.85"
+          ],
+          "foreach": "pages/*.json"
+        },
+        {
+          "skill": "mockup-to-html",
+          "script": "ux_review.py",
+          "args": [
+            "revue-ux.json"
+          ]
+        },
+        {
+          "skill": "mockup-to-html",
+          "script": "ui_breakdown.py",
+          "args": [
+            "pages/*.json",
+            "--out",
+            "decoupage",
+            "--ux",
+            "revue-ux.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée quand le dossier de consultation contient des maquettes d'écrans (images de documents/ ou extraites dans sources/attachments/) : l'utilisateur dit s'il la veut. Mêmes règles que le workflow maquettes : descriptions dans pages/, jamais de HTML à la main ; constats UX retenus avec l'utilisateur ; decoupage.lots.json repris par le chiffrage (--lots)."
+    },
+    {
       "id": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
       "after": [
-        "schemas"
+        "schemas",
+        "maquettes"
       ],
       "facultative": true,
       "skills": [
@@ -371,7 +446,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Si l'étape maquettes est faite, le brouillon reprend ses lots : estimate_build.py chiffrage.json --draft --lots decoupage.lots.json."
     },
     {
       "id": "revue",

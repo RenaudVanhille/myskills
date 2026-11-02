@@ -999,6 +999,36 @@
       ]
     },
     {
+      "id": "bout-en-bout-avant-vente",
+      "agent": "architecture-workflow",
+      "prompt": "Nouvelle avant-vente « Portail sinistres » pour la Mutuelle exemple : ouvre la mission dans ce dossier (le dossier de consultation est dans documents/), puis lance le workflow avant-vente, sans POS.",
+      "rounds": {
+        "next": "Je valide, sans autre retour. On répond (go). Pour le choix d'option, je retiens celle que tu recommandes. J'accepte les constats et écarts restants comme risques connus, raison : avant-vente, corrections suivies au plan d'actions ; ne modifie pas les étapes déjà validées. Je veux toutes les étapes facultatives, sauf les maquettes : il n'y en a pas ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
+        "max": 14
+      },
+      "inputs": [
+        {
+          "from": "fixtures/references/ao/sources/RC.md",
+          "to": "documents/RC.md"
+        },
+        {
+          "from": "fixtures/references/ao/sources/CCTP.md",
+          "to": "documents/CCTP.md"
+        },
+        {
+          "from": "fixtures/references/ao/sources/BPU.md",
+          "to": "documents/BPU.md"
+        }
+      ],
+      "output": "memoire-technique.md",
+      "max_cost_usd": 20.0,
+      "rubric": [
+        "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur, l'étape maquettes sautée faute de maquettes.",
+        "Dépouillement et exigences ont été menés ensemble après les documents ; chiffrage et revue ensemble après les schémas.",
+        "Le mémoire technique reprend exigences, options, schémas, chiffrage et matrice de conformité."
+      ]
+    },
+    {
       "id": "reference-ao-chiffrage",
       "agent": "solution-estimator",
       "_reference": "Mission de référence : appel d'offres public (RC, CCTP, BPU fictifs de la Métropole d'Aubrelac), chiffrage en charges sans taux.",
