@@ -1,0 +1,9 @@
+{
+  "name": "ecrase",
+  "title": "Contrôle qui réécrit le livrable d'une étape validée",
+  "stages": [
+    {"id": "revue", "level": "moyen", "deliverables": ["schemas/architecture.json", "schemas/architecture.wa.md"]},
+    {"id": "conventions", "level": "simple", "skills": ["well-architected-review"], "deliverables": ["schemas/architecture.json"],
+     "run": [{"skill": "well-architected-review", "script": "wa_check.py", "args": ["schemas/architecture.json", "--scope", "conventions"]}]}
+  ]
+}
