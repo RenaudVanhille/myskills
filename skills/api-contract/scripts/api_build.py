@@ -24,7 +24,16 @@ réception). Le script, et non le modèle, écrit le YAML et contrôle :
 exigences), puis relit chaque YAML écrit : toutes les références $ref
 doivent se résoudre.
 
+Avec --draft, écrit d'abord une ébauche de API.json (jamais par-dessus un
+fichier existant) tirée d'exigences.json : une ressource par terme du
+glossaire qui n'est pas un acteur, une opération par exigence fonctionnelle
+qui cite une ressource et commence par un verbe reconnu (déclarer : POST,
+consulter : GET, modifier : PATCH, supprimer : DELETE...), avec ses refs et,
+avec --options, le composant de l'option qui porte l'exigence. Champs,
+erreurs et sécurité restent à relire ; rien d'autre n'est écrit.
+
     uv run scripts/api_build.py API.json [--out-dir DOSSIER] | --schema
+    uv run scripts/api_build.py API.json --draft --requirements exigences.json [--options options.json --option ID]
 """
 
 import argparse
@@ -32,6 +41,7 @@ import difflib
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
@@ -341,6 +351,124 @@ def markdown(spec: dict, covered: dict, uncovered: list[str], outputs: list[Path
     return "\n".join(lines) + "\n"
 
 
+# Premier mot du titre d'une exigence -> méthode HTTP (ébauche).
+VERBS = {"POST": ("declarer", "creer", "saisir", "deposer", "ajouter", "envoyer", "soumettre", "enregistrer",
+                  "transmettre", "joindre", "inscrire", "commander", "demander", "importer"),
+         "GET": ("consulter", "suivre", "voir", "lister", "rechercher", "afficher", "telecharger", "exporter",
+                 "visualiser", "retrouver", "obtenir"),
+         "PATCH": ("modifier", "mettre", "completer", "corriger", "valider", "instruire", "affecter", "traiter",
+                   "attribuer", "changer", "clore", "cloturer"),
+         "DELETE": ("supprimer", "annuler", "retirer", "resilier", "effacer")}
+STOP = {"un", "une", "le", "la", "les", "des", "du", "de", "d", "l", "en", "au", "aux", "a", "son", "sa", "ses",
+        "leur", "leurs", "et", "ou", "par", "pour", "sur", "dans", "avec"}
+ACTOR = re.compile(r"^(titulaire|collaborateur|personne|utilisateur|agent|client|gestionnaire|employe)", re.I)
+
+
+def ascii_words(text: str) -> list[str]:
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.findall(r"[A-Za-z0-9]+", plain)
+
+
+def mentions(text: str, terms: list[str]) -> bool:
+    words = {w.lower().rstrip("sx") for w in ascii_words(text)}
+    return any(all(w.lower().rstrip("sx") in words for w in ascii_words(t)) for t in terms if ascii_words(t))
+
+
+def draft(req_path: Path, spec_path: Path, options_path: Path | None, option: str | None,
+          errors: list[str], warnings: list[str]) -> dict | None:
+    """Ébauche de description depuis le glossaire et les exigences fonctionnelles."""
+    try:
+        catalog = json.loads(req_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"--requirements : {req_path} illisible ({error})")
+        return None
+    comps, persons = [], set()
+    if options_path:
+        try:
+            chosen = next((o for o in json.loads(options_path.read_text(encoding="utf-8"))["options"]
+                           if o["id"] == option), None)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            errors.append(f"--options : {options_path} illisible ({error})")
+            return None
+        if chosen is None:
+            errors.append(f"--option : « {option} » absente de {options_path.name}")
+            return None
+        comps = [c for c in chosen.get("components", []) if c.get("role") != "person"]
+        persons = {" ".join(ascii_words(c.get("label", ""))).lower() for c in chosen.get("components", [])
+                   if c.get("role") == "person"}
+    glossary = catalog.get("glossary", [])
+    if not glossary:
+        warnings.append("exigences.json sans glossaire : ressources à écrire à la main")
+    resources = []
+    for term in glossary:
+        name = "".join(w[:1].upper() + w[1:].lower() for w in ascii_words(term["term"]))
+        actor = " ".join(ascii_words(term["term"])).lower() in persons or ACTOR.match(term.get("definition", ""))
+        if name and not actor and name[0].isalpha():
+            resources.append({"name": name, "description": term.get("definition", term["term"])[:200],
+                              "fields": {"id": "uuid", "statut": "string", "creeLe": "date-time"},
+                              "required": ["id"], "_terms": [term["term"], *term.get("aliases", [])]})
+    operations, skipped, ids, routes = [], [], set(), set()
+    for req in catalog.get("requirements", []):
+        if not req.get("id", "").startswith("EF") or req.get("status") == "retiree":
+            continue
+        text = f"{req.get('title', '')} {req.get('text', '')}"
+        res = next((r for r in resources if mentions(req.get("title", ""), r["_terms"])), None) \
+            or next((r for r in resources if mentions(text, r["_terms"])), None)
+        first = (ascii_words(req.get("title", "")) or [""])[0].lower()
+        method = next((m for m, verbs in VERBS.items() if first in verbs), None)
+        if res is None or method is None:
+            skipped.append(req["id"])
+            continue
+        plural = "/" + res["name"][0].lower() + res["name"][1:] + "s"
+        path = plural if method == "POST" or (method == "GET" and "list" in first) else plural + "/{id}"
+        if (method, path) in routes:
+            # Même méthode et chemin déjà pris : action sur la ressource (POST /sinistres/{id}/transmettre).
+            path = f"{plural}/{{id}}/{first}"
+        routes.add((method, path))
+        kept = [w.lower() for w in ascii_words(req["title"]) if w.lower() not in STOP][:3]
+        base = "".join(w if i == 0 else w[:1].upper() + w[1:] for i, w in enumerate(kept)) or "operation"
+        op_id, n = base, 2
+        while op_id in ids:
+            op_id, n = f"{base}{n}", n + 1
+        ids.add(op_id)
+        op = {"id": op_id, "method": method, "path": path, "summary": req["title"][:200], "refs": [req["id"]],
+              "response": res["name"], "errors": [400, 404] if "{id}" in path else [400]}
+        if method in ("POST", "PATCH"):
+            op["request"] = res["name"]
+        carrier = [c for c in comps if req["id"] in c.get("refs", [])]
+        carrier = next((c for c in carrier if "api" in f"{c['id']} {c.get('label', '')}".lower()), None) \
+            or (carrier[-1] if carrier else None)
+        if carrier:
+            op["component"] = carrier["id"]
+        operations.append(op)
+    used = {o["response"] for o in operations}
+    for r in resources:
+        del r["_terms"]
+    spec = {"title": f"API : {catalog.get('title', spec_path.stem)}"[:200], "version": "0.1.0",
+            "description": "Ébauche tirée du glossaire et des exigences fonctionnelles : champs, erreurs et "
+                           "sécurité à relire.",
+            "security": "oidc" if any(r.get("id", "").startswith("SEC") for r in catalog.get("requirements", []))
+            else "none",
+            "requirements": Path(_rel(req_path, spec_path.parent)).as_posix(),
+            "resources": [r for r in resources if r["name"] in used] or resources[:1],
+            "operations": operations}
+    if options_path:
+        spec["source"] = {"options": Path(_rel(options_path, spec_path.parent)).as_posix(), "option": option}
+    if skipped:
+        warnings.append(f"exigence(s) fonctionnelle(s) sans ressource du glossaire ou sans verbe reconnu, à "
+                        f"décrire à la main : {', '.join(skipped)}")
+    warnings.append("ébauche : champs des ressources (id, statut, creeLe), erreurs et sécurité à compléter")
+    if not operations:
+        errors.append("aucune opération tirée des exigences : glossaire ou titres des exigences à revoir")
+        return None
+    return spec
+
+
+def _rel(target: Path, base: Path) -> str:
+    import os
+    return os.path.relpath(target.resolve(), base.resolve())
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -349,6 +477,10 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
     parser.add_argument("--schema", action="store_true",
                         help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    parser.add_argument("--draft", action="store_true", help="écrit une ébauche de API.json tirée des exigences")
+    parser.add_argument("--requirements", type=Path, help="exigences.json, pour --draft")
+    parser.add_argument("--options", type=Path, help="options.json, pour --draft (composant porteur)")
+    parser.add_argument("--option", help="option retenue dans options.json")
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -359,6 +491,26 @@ def main() -> int:
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "operations": 0, "events": 0, "resources": 0,
               "covered": [], "uncovered": [], "errors": errors, "warnings": warnings}
+    if args.draft:
+        report["draft"] = True
+        if args.spec.exists():
+            errors.append(f"{args.spec} existe déjà : l'ébauche n'écrit jamais par-dessus une description")
+        elif not args.requirements:
+            errors.append("--draft demande --requirements exigences.json")
+        elif bool(args.options) != bool(args.option):
+            errors.append("--options et --option vont ensemble")
+        else:
+            spec = draft(args.requirements, args.spec, args.options, args.option, errors, warnings)
+            if spec is not None:
+                errors += validate(spec, __file__)
+            if not errors:
+                args.spec.parent.mkdir(parents=True, exist_ok=True)
+                args.spec.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+                report.update(outputs=[str(args.spec)], operations=len(spec["operations"]),
+                              resources=len(spec["resources"]), covered=sorted({r for o in spec["operations"]
+                                                                               for r in o["refs"]}))
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if errors else 0
     try:
         spec = json.loads(args.spec.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:

@@ -16,7 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements ; Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options) ; Pour le chiffrage backend : abaques donnés avant le lancement (shared/schemas/abaques.schema.json, section backend) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; sans eux, valeurs par défaut à calibrer.
 - **Sorties** : <nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST ; <nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements ; <nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences ; <base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue.
-- **`api_build.py`** : Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`api_build.py`** : Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref ; avec --draft, ébauche de la description tirée du glossaire et des exigences fonctionnelles (ressources, opérations, refs, composant porteur), à relire. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`api_breakdown.py`** : Découpe le backend décrit par les interfaces en lots de chiffrage à trois points : un lot par ressource (modèle, persistance, migrations ; complexité selon le nombre de champs), par opération (selon la méthode, montée d'un cran pour une grosse ressource reçue ou beaucoup d'erreurs métier), par événement et par système externe relié dans l'option (intégration), plus les lots transverses du backend (socle, authentification si l'API est sécurisée, messagerie s'il y a des événements, observabilité, tests d'intégration par opération) ; déclare le réemploi entre fonctionnalités (opération de même forme qu'une précédente, ou sur une ressource déjà exposée : reuse avec sa part et sa base) ; contrôle les lots contre le schéma de solution-estimate et écrit les lots et leur découpage. Jours tirés des abaques donnés avant le lancement (utilisateur, mission, --abaques), sinon de valeurs par défaut à calibrer, signalées. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et reprendre les composants de l'option.
@@ -30,6 +30,13 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 Fichier `api.json` (`uv run scripts/api_build.py --schema` donne sa forme
 sur une ligne) :
+
+Partez de l'ébauche quand il y a un catalogue d'exigences avec glossaire :
+`uv run scripts/api_build.py api.json --draft --requirements exigences.json
+[--options options.json --option ID]` (une ressource par terme qui n'est pas
+un acteur, une opération par exigence fonctionnelle à verbe reconnu, ses
+`refs` et son composant porteur ; jamais par-dessus un fichier). Complétez
+les champs, les erreurs et ce que le rapport liste comme non repris.
 
 - `resources` : les objets échangés, chacun avec ses champs et leur type
   simple (`string`, `integer`, `number`, `boolean`, `date`, `date-time`,

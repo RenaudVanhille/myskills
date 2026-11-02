@@ -49,7 +49,9 @@ workflow, la commande les trace aussi au journal.
 1. Si une commande est introuvable ou qu'un script signale un outil
    manquant, applique `check-prerequisites`. Ne le lance pas par
    précaution.
-2. Interfaces : prends `api.json` s'il existe. Sinon écris-le depuis les
+2. Interfaces : prends `api.json` s'il existe. Sinon pars de l'ébauche,
+   `api_build.py api.json --draft --requirements exigences.json --options
+   options.json --option ID`, et complète-la depuis les
    exigences fonctionnelles et les composants de l'option (skill
    `api-contract`, section 1 : ressources, une opération par action, un
    événement par échange asynchrone, `component` et `refs`, `source` vers
