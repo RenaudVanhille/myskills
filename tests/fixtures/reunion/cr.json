@@ -1,0 +1,26 @@
+{
+  "title": "Atelier exigences du portail sinistres",
+  "date": "2026-11-02",
+  "kind": "atelier",
+  "source": "atelier.md",
+  "participants": [
+    {"name": "Claire Martin", "role": "MOA", "org": "Mutuelle"},
+    {"name": "Paul Durand", "role": "Responsable gestion sinistres"},
+    {"name": "Inès Roy", "role": "Architecte", "present": false}
+  ],
+  "agenda": ["Parcours de déclaration", "Volumes"],
+  "summary": "Le parcours de déclaration doit être utilisable sur mobile ; la première version est responsive.",
+  "decisions": [
+    {"id": "D-1", "text": "Portail responsive, sans application native en première version", "quote": "on part sur du responsive, pas d'application native", "refs": ["EF-001"]}
+  ],
+  "actions": [
+    {"id": "A-1", "text": "Envoyer les volumes de déclarations 2025", "owner": "Paul Durand", "due": "2026-11-09", "quote": "Je vous envoie les volumes de 2025"},
+    {"id": "A-2", "text": "Demander au juridique s'il faut gérer les mandataires", "owner": "Claire Martin"}
+  ],
+  "questions": [
+    {"id": "Q-1", "text": "Faut-il gérer les mandataires ?", "to": "Juridique"}
+  ],
+  "requirements": [
+    {"id": "X-1", "text": "Déclaration possible depuis un téléphone", "quote": "Les assurés doivent pouvoir déclarer depuis leur téléphone"}
+  ]
+}

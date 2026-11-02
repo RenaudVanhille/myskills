@@ -1,0 +1,2 @@
+{"title": "Plan", "requirements": "../workflow/exigences.json",
+ "cases": [{"id": "T-1", "title": "Déclarer", "refs": ["EF-001"], "kind": "fonctionel", "priority": "haute", "steps": ["ouvrir"], "expected": "ok ok"}]}

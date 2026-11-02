@@ -1,0 +1,17 @@
+{
+  "title": "Dimensionnement du portail sinistres",
+  "refs": ["ENF-001"],
+  "horizon_years": 3,
+  "users": {"total": 200000, "active_share": 0.02},
+  "load": {"requests_per_user_hour": 30, "peak_factor": 10, "response_kb": 30},
+  "data": [{"name": "déclarations", "records": 500000, "record_kb": 4, "growth_per_year": 15}],
+  "files": [{"name": "photos", "count_per_month": 40000, "size_mb": 2, "retention_years": 5}],
+  "availability": {"target": 99.9, "zones": 2},
+  "components": [
+    {"id": "portail", "kind": "web", "rps_per_vcpu": 200, "load_share": 0.5},
+    {"id": "api", "kind": "api", "rps_per_vcpu": 80},
+    {"id": "base", "kind": "db"},
+    {"id": "photos", "kind": "storage"}
+  ],
+  "assumptions": ["2 % des assurés connectés en heure ouvrée", "pic x10 après une tempête (ENF-001)"]
+}

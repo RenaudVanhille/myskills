@@ -10,7 +10,8 @@
     "<nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST",
     "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
     "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences",
-    "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue"
+    "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue",
+    "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)"
   ],
   "scripts": [
     {
@@ -687,6 +688,312 @@
         "0": "lots et découpage écrits (avertissements possibles : abaques par défaut, option non citée)",
         "1": "description ou abaques invalides, ressource inconnue, option introuvable, lots hors du schéma de solution-estimate ; aucun fichier produit"
       }
+    },
+    {
+      "name": "api_sequences.py",
+      "role": "Écrit un diagramme de séquence Mermaid par exigence citée par les interfaces : client, composants porteurs (libellés de l'option), appel et réponse par opération, message asynchrone par événement ; chaque description passe par mermaid_build.py (mermaid-diagram), qui contrôle références et identifiants ; écrit aussi l'index Markdown des séquences.",
+      "usage": "uv run scripts/api_sequences.py api.json [--out-dir DOSSIER] [--only EF-001,EF-002] | --schema",
+      "options": {
+        "api.json": "description des interfaces d'api_build.py (validée contre son schéma)",
+        "--out-dir": "dossier des fichiers produits (défaut : celui d'api.json)",
+        "--only": "exigences à dessiner, séparées par des virgules",
+        "--schema": "affiche le schéma de la description des interfaces sur une ligne"
+      },
+      "input": {
+        "format": "json",
+        "description": "Description des interfaces d'api_build.py, validée avant tout travail.",
+        "same_as": "api-contract/api_build.py",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "resources"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "servers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "security": {
+              "enum": [
+                "oauth2",
+                "oidc",
+                "bearer",
+                "apikey",
+                "none"
+              ],
+              "description": "schéma de sécurité de toute l'API (défaut : none)"
+            },
+            "requirements": {
+              "type": "string",
+              "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "options",
+                "option"
+              ],
+              "description": "option d'architecture dont les composants portent les interfaces",
+              "properties": {
+                "options": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "option": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "fields"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Za-z0-9]*$"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "fields": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                  },
+                  "required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "enums": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "operations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "method",
+                  "path",
+                  "summary"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][A-Za-z0-9]*$"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE"
+                    ]
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "request": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "response": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    }
+                  },
+                  "query": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "component": {
+                    "type": "string",
+                    "description": "composant de l'option qui porte l'opération"
+                  },
+                  "public": {
+                    "type": "boolean",
+                    "description": "sans authentification, par choix"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences portées (identifiants d'exigences.json)"
+                  }
+                }
+              }
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "channel",
+                  "payload"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Za-z0-9]*$"
+                  },
+                  "channel": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "payload": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "enum": [
+                      "send",
+                      "receive"
+                    ]
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "component": {
+                    "type": "string"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences portées (identifiants d'exigences.json)"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Au moins une opération (operations) ou un événement (events)."
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Diagrammes écrits et exigences dessinées.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "diagrams",
+            "requirements",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "diagrams": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "séquences écrites (rendu à vérifier avec diagram-export --check)",
+        "1": "description invalide, mermaid-diagram absent, exigence de --only portée par aucune interface, aucune exigence citée, diagramme refusé par mermaid_build.py ; aucun fichier produit"
+      }
     }
   ],
   "requires": [
@@ -707,6 +1014,12 @@
       "script": "estimate_build.py",
       "why": "contrôler les lots backend contre le schéma des lots du chiffrage",
       "optional": true
+    },
+    {
+      "skill": "mermaid-diagram",
+      "script": "mermaid_build.py",
+      "why": "écrire et contrôler chaque diagramme de séquence",
+      "optional": false
     }
   ],
   "handoffs": [

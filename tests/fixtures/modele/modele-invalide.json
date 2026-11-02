@@ -1,0 +1,4 @@
+{"title": "Modèle cassé", "entities": [
+  {"name": "Assure", "fields": [{"name": "nom", "type": "string"}]},
+  {"name": "Sinistre", "fields": [{"name": "id", "type": "uuid", "key": true}, {"name": "x", "type": "uuid", "ref": "Contrat"}]}],
+ "relations": [{"from": "Assure", "to": "Dossier", "kind": "1-n", "label": "a"}]}

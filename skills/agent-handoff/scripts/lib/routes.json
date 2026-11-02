@@ -308,6 +308,16 @@
    "match": "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue. À utiliser pour les schémas d'architecture."
   },
   {
+   "name": "capacity-sizing",
+   "level": "moyen",
+   "description": "Dimensionnement d'une solution à partir des volumes et des exigences non fonctionnelles : débit moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et des fichiers à l'horizon avec croissance et rétention, sauvegardes, trafic sortant, journaux, chaque calcul avec sa formule.",
+   "inputs": [
+    "Les exigences de volumétrie, de performance et de disponibilité (exigences.json) et l'option d'architecture retenue (options.json)",
+    "Description JSON des hypothèses (size_build.py --schema) : utilisateurs, requêtes, pic, données, fichiers, croissance, disponibilité, composants"
+   ],
+   "match": "Dimensionnement d'une solution à partir des volumes et des exigences non fonctionnelles : débit moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et des fichiers à l'horizon avec croissance et rétention, sauvegardes, trafic sortant, journaux, chaque calcul avec sa formule. Écrit aussi les consommations au format de cloud-cost pour chiffrer le run. À utiliser pour une volumétrie, un capacity planning, un dimensionnement d'infrastructure ou avant un coût de fonctionnement."
+  },
+  {
    "name": "check-prerequisites",
    "level": "simple",
    "description": "Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (uv, draw.io Desktop, navigateur, LibreOffice en option) et indique comment installer ceux qui manquent.",
@@ -338,6 +348,16 @@
     "Facultatif : une grille de prix propre (devis, grille vérifiée), de même forme que references/prix.json"
    ],
    "match": "Estime et compare le coût de fonctionnement mensuel d'options d'architecture cloud (AWS, Azure, Google Cloud, OVHcloud, Scaleway, ou prix propres) : consommations par option (calcul, conteneurs, base de données, stockage, réseau, journaux), plages horaires, remise d'engagement, production et hors production, calculées par script sur une grille de prix locale. Signale les prix à vérifier, le hors production allumé en continu et les postes oubliés. À utiliser pour un coût de run, une estimation FinOps, comparer des options sur leur coût d'hébergement ou préparer les lignes d'infrastructure d'un chiffrage."
+  },
+  {
+   "name": "data-model",
+   "level": "moyen",
+   "description": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées.",
+   "inputs": [
+    "Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources)",
+    "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
+   ],
+   "match": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées. Le script contrôle le modèle et écrit le diagramme entité-relation Mermaid, le dictionnaire de données et le schéma PostgreSQL (clés étrangères, tables d'association). À utiliser pour un modèle de données, un MCD ou MLD, un diagramme entité-relation, un dictionnaire de données ou un DDL de départ."
   },
   {
    "name": "data-protection",
@@ -447,6 +467,16 @@
    "match": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian."
   },
   {
+   "name": "meeting-notes",
+   "level": "moyen",
+   "description": "Compte rendu d'une réunion (atelier, kick-off, comité, entretien, soutenance) tiré de sa transcription ou de ses notes : participants, décisions, actions avec porteur et échéance, questions ouvertes et exigences entendues, chacune avec sa citation exacte vérifiée par script dans la transcription.",
+   "inputs": [
+    "La transcription ou les notes d'une réunion en Markdown (doc-to-markdown : vidéo transcrite en local, document, notes)",
+    "Description JSON du compte rendu (notes_build.py --schema) : participants, décisions, actions, questions ouvertes, exigences entendues, avec leurs citations exactes"
+   ],
+   "match": "Compte rendu d'une réunion (atelier, kick-off, comité, entretien, soutenance) tiré de sa transcription ou de ses notes : participants, décisions, actions avec porteur et échéance, questions ouvertes et exigences entendues, chacune avec sa citation exacte vérifiée par script dans la transcription. Écrit le compte rendu Markdown, source directe du catalogue d'exigences et du vault, et le CSV des actions importable dans Jira ou Azure DevOps. À utiliser pour un compte rendu, un relevé de décisions, la synthèse d'un atelier ou d'une vidéo de réunion."
+  },
+  {
    "name": "mermaid-diagram",
    "level": "moyen",
    "description": "Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent.",
@@ -526,6 +556,17 @@
     "Pour la qualification : qualification.json (note et raison par critère de la grille, décision de l'utilisateur) ; facultatif, une grille propre à l'organisation"
    ],
    "match": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite. Les scripts écrivent les brouillons, le modèle relit et juge. À utiliser en avant-vente, avant le chiffrage et le mémoire technique."
+  },
+  {
+   "name": "test-plan",
+   "level": "moyen",
+   "description": "Plan de recette tiré du catalogue d'exigences : un cas de test par exigence (ébauche par script), types fonctionnel, intégration, bout en bout, performance, sécurité, accessibilité, reprise, exploitation, résultats attendus qui reprennent les mesures des exigences non fonctionnelles, matrice de couverture contrôlée par script, CSV importable dans Xray, TestRail ou Azure Test Plans, et lots de recette chiffrés sur abaques pour solution-estimate.",
+   "inputs": [
+    "Le catalogue d'exigences (exigences.json de requirements-catalog), avec mesures des exigences non fonctionnelles",
+    "Description JSON du plan de recette (test_build.py --schema) : cas de test, exigences couvertes, type, priorité, étapes, résultat attendu ; ou son ébauche (--draft)",
+    "Facultatif : abaques de recette propres (rules du plan)"
+   ],
+   "match": "Plan de recette tiré du catalogue d'exigences : un cas de test par exigence (ébauche par script), types fonctionnel, intégration, bout en bout, performance, sécurité, accessibilité, reprise, exploitation, résultats attendus qui reprennent les mesures des exigences non fonctionnelles, matrice de couverture contrôlée par script, CSV importable dans Xray, TestRail ou Azure Test Plans, et lots de recette chiffrés sur abaques pour solution-estimate. À utiliser pour une stratégie ou un plan de recette, une matrice de couverture des exigences ou le chiffrage de la recette."
   },
   {
    "name": "threat-model",

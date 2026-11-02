@@ -1,0 +1,26 @@
+{
+  "title": "Modèle de données du portail sinistres",
+  "requirements": "../workflow/exigences.json",
+  "entities": [
+    {"name": "Assure", "label": "Assuré", "fields": [
+      {"name": "id", "type": "uuid", "key": true},
+      {"name": "nom", "type": "string", "required": true, "personal": "identite"},
+      {"name": "email", "type": "string", "required": true, "unique": true, "personal": "contact"}]},
+    {"name": "Sinistre", "refs": ["EF-001"], "fields": [
+      {"name": "id", "type": "uuid", "key": true},
+      {"name": "survenu_le", "type": "date", "required": true},
+      {"name": "blessures", "type": "text", "personal": "sante", "description": "description des blessures éventuelles"}]},
+    {"name": "Piece", "label": "Pièce justificative", "fields": [
+      {"name": "id", "type": "uuid", "key": true},
+      {"name": "sinistre_id", "type": "uuid", "ref": "Sinistre", "required": true},
+      {"name": "fichier", "type": "string", "required": true}]},
+    {"name": "Garantie", "fields": [
+      {"name": "code", "type": "string", "key": true},
+      {"name": "libelle", "type": "string"}]}
+  ],
+  "relations": [
+    {"from": "Assure", "to": "Sinistre", "kind": "1-n", "label": "déclare", "required": true},
+    {"from": "Sinistre", "to": "Piece", "kind": "1-n", "label": "justifié par"},
+    {"from": "Sinistre", "to": "Garantie", "kind": "n-n", "label": "mobilise"}
+  ]
+}
