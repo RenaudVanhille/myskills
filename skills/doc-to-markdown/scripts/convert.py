@@ -278,13 +278,36 @@ def tesseract_langs() -> list[str]:
     return [lang for lang in OCR_LANGS if lang in listed]
 
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def failure_line(text: str) -> str:
+    """Message utile d'une erreur : sans couleurs ; dans un cadre (Typer, Rich),
+    le contenu du dernier cadre, sinon la dernière ligne."""
+    lines = [ANSI.sub("", line).rstrip() for line in text.splitlines()]
+    tops = [i for i, line in enumerate(lines) if line.lstrip().startswith("╭")]
+    if tops:
+        inner = []
+        for line in lines[tops[-1] + 1:]:
+            if line.lstrip().startswith("╰"):
+                break
+            inner.append(line.strip(" │"))
+        message = " ".join(" ".join(inner).split())
+        if message:
+            return message
+    lines = [line.strip() for line in lines if line.strip()]
+    return lines[-1] if lines else "erreur inconnue"
+
+
 def docling_ocr_args() -> list[str]:
     """OCR de Docling : Tesseract local, sinon aucun. Jamais le choix
     automatique, qui prend RapidOCR et télécharge ses modèles sur ModelScope."""
     langs = tesseract_langs()
     if not langs:
         return ["--no-ocr"]
-    return ["--ocr-engine", "tesseract_cli", "--ocr-lang", ",".join(langs)]
+    # « tesseract » est le moteur Tesseract en ligne de commande de Docling
+    # (« tesserocr » serait la liaison Python, non installée).
+    return ["--ocr-engine", "tesseract", "--ocr-lang", ",".join(langs)]
 
 
 # Docling prend déjà tous les cœurs et beaucoup de mémoire : un document à la fois.
@@ -449,8 +472,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
                 with DOCLING_SLOT:
                     markdown, report["images"] = run_docling(path, attachments, stem, report["warnings"])
             except (RuntimeError, subprocess.CalledProcessError) as error:
-                detail = (getattr(error, "stderr", "") or str(error)).strip().splitlines()
-                last = detail[-1] if detail else "erreur inconnue"
+                last = failure_line(getattr(error, "stderr", "") or str(error))
                 report["warnings"].append(f"Docling a échoué, repli sur MarkItDown : {last[:300]}")
                 engine = "markitdown"
         if engine == "markitdown":
