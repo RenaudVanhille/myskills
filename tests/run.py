@@ -35,6 +35,9 @@ TESTS = Path(__file__).resolve().parent
 ROOT = TESTS.parent
 # Budget de taille d'un SKILL.md et d'un agent source (environ 4 000 tokens) : le coût suit ce que le modèle relit.
 MAX_CHARS = 16000
+# Au-delà de cette part du budget, regles avertit sans échouer : la prochaine
+# évolution du fichier le ferait dépasser.
+NEAR_BUDGET = 0.9
 TOKENS = {"{skills}": str(ROOT / "skills"), "{samples}": str(TESTS / "fixtures" / "samples"),
           "{fixtures}": str(TESTS / "fixtures"), "{root}": str(ROOT)}
 # Ressemblance minimale (0 à 1) entre un fichier produit et son attendu.
@@ -178,6 +181,8 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
             continue
         if got != wanted:
             failures.append(f"{name} : {key} = {got!r}, attendu {wanted!r}")
+            # Les avertissements du rapport disent souvent pourquoi (repli, outil absent).
+            failures += [f"{name} : avertissement : {w}"[:400] for w in report_warnings(report)[:3]]
     for key, text in step.get("report_contains", {}).items():
         try:
             got = lookup(report, key)
@@ -406,7 +411,7 @@ def check_rules() -> dict:
     """Règles mécaniques d'AGENTS.md, celles marquées « vérifiée »."""
     from agents_lib import parse_agent, render_agent, source_agents, split_list
 
-    failures = []
+    failures, notices = [], []
     for folder in sorted((ROOT / "skills").glob("*/")):
         name, skill_md = folder.name, folder / "SKILL.md"
         if not NAME.match(name):
@@ -426,6 +431,9 @@ def check_rules() -> dict:
         if len(text) > MAX_CHARS:
             failures.append(f"{name}/SKILL.md : {len(text)} caractères, plus que le budget de {MAX_CHARS} (lu à chaque "
                             "appel du skill) : déplacez le détail dans references/")
+        elif len(text) > NEAR_BUDGET * MAX_CHARS:
+            notices.append(f"{name}/SKILL.md : {len(text)} caractères sur {MAX_CHARS}, "
+                           "préparez le déplacement du détail dans references/")
         for script in sorted((folder / "scripts").glob("*.py")):
             if not script.read_text(encoding="utf-8").startswith("# /// script"):
                 failures.append(f"{name}/scripts/{script.name} : en-tête PEP 723 (# /// script) manquant")
@@ -511,6 +519,9 @@ def check_rules() -> dict:
         if size > MAX_CHARS:
             failures.append(f"agent {name} : {size} caractères, plus que le budget de {MAX_CHARS} (lu à chaque tour) : "
                             "la logique métier va dans les skills")
+        elif size > NEAR_BUDGET * MAX_CHARS:
+            notices.append(f"agent {name} : {size} caractères sur {MAX_CHARS}, "
+                           "préparez le déplacement de la logique dans les skills")
         if "{{niveaux}}" not in src.read_text(encoding="utf-8"):
             failures.append(f"agent {name} : marqueur {{{{niveaux}}}} absent (niveaux et modèles de shared/models.json)")
         commands = meta.get("commands", "").lower()
@@ -563,7 +574,8 @@ def check_rules() -> dict:
                            env={**os.environ, "HTTPS_PROXY": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9"})
     if probe.stdout.strip() != "ok":
         failures.append(f"model_store.guard_network() ne filtre pas les flux : {(probe.stdout + probe.stderr).strip()[-300:]}")
-    return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
+    return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None,
+            "notices": notices}
 
 
 def run_case(case: dict, keep: bool) -> dict:
@@ -578,6 +590,15 @@ def run_case(case: dict, keep: bool) -> dict:
             shutil.rmtree(out, ignore_errors=True)
     return {"id": case["id"], "skill": case["skill"], "ok": not failures,
             "failures": failures, "out": str(out) if keep else None}
+
+
+def report_warnings(report) -> list[str]:
+    """Avertissements d'un rapport, ceux de chaque résultat compris."""
+    found = list(report.get("warnings", [])) if isinstance(report, dict) else []
+    for result in (report.get("results", []) if isinstance(report, dict) else []):
+        if isinstance(result, dict):
+            found += [str(w) for w in result.get("warnings", [])]
+    return found
 
 
 def main() -> int:
@@ -606,6 +627,8 @@ def main() -> int:
             print(f"{'OK  ' if results[-1]['ok'] else 'ÉCHEC'} {case_id} (tous)", flush=True)
             for failure in results[-1]["failures"]:
                 print(f"      - {failure}")
+            for notice in results[-1].get("notices", []):
+                print(f"      ! {notice}")
     selected = []
     for case in cases:
         if only and case["id"] not in only:

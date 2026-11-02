@@ -12,8 +12,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Décision de diagram-brief ; Contenu à représenter ; Description JSON d'un flowchart ou d'une séquence (mermaid_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Bloc ```mermaid dans un Markdown, ou fichier .mmd.
-- **`mermaid_build.py`** : Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds. Rapport JSON, codes de sortie : 0 diagramme écrit (rendu à vérifier avec diagram-export --check) ; 1 description invalide ou référence inconnue ; aucun fichier produit.
-  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`mermaid_build.py`** : Écrit un diagramme Mermaid (flowchart ou séquence) à partir d'une description JSON courte ou d'une option d'architecture-options : identifiants sûrs, libellés protégés, formes et classDef de la charte, sous-graphes, flèches synchrones ou asynchrones, blocs alt/opt/loop ; vérifie les références (avec la valeur proche) et le nombre de nœuds. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Passe la main** au skill `diagram-export` : vérifier le rendu (--check) ou exporter en PNG ou SVG.
 

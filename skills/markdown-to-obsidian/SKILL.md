@@ -15,9 +15,9 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Notes Markdown (sortie de doc-to-markdown ou existantes) ; Dossier du vault Obsidian (facultatif).
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail ; Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX).
-- **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON, codes de sortie : 0 toutes les notes sont traitées ; 1 une note est introuvable ou une image manque (missing).
-- **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON, codes de sortie : 0 profil produit ; 1 vault introuvable.
-- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule). Rapport JSON, codes de sortie : 0 notes conformes (ou ontologie affichée) ; 1 vault introuvable, type inconnu, ou note hors ontologie (avec --strict : aussi un avertissement).
+- **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON (0 succès, 1 erreur).
+- **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
+- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
 - **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).

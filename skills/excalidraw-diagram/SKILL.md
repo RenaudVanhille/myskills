@@ -16,8 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Décision de diagram-brief ; Description JSON du schéma : title, audience, elements.
 - **Sorties** : <sujet>.excalidraw, à côté de sa description <sujet>.json ; Après export : <sujet>.excalidraw.png ou .svg.
-- **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON. Rapport JSON, codes de sortie : 0 scène produite sans erreur ; 1 description illisible ou erreur.
-  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`excalidraw_build.py`** : Construit la scène Excalidraw à partir de la description JSON. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : rendre et relire l'image.
 
