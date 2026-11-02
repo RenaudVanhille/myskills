@@ -1,0 +1,300 @@
+{
+  "name": "cadrage",
+  "title": "Cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette",
+  "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, options d'architecture, puis en parallèle modèle de données, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)"
+  ],
+  "memory": {
+    "requirements": "exigences.json",
+    "options": "options.json"
+  },
+  "stages": [
+    {
+      "id": "documents",
+      "label": "Documents en Markdown",
+      "level": "simple",
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "agent": "document-extractor",
+      "inputs": [
+        "documents/*"
+      ],
+      "deliverables": [
+        "sources/*.md"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources"
+      ],
+      "instructions": "Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Les pages de vision_pages sont transcrites par la vision ; à partir de 5 documents à transcrire, passer la main à document-extractor. Un document écarté se note au journal avec sa raison."
+    },
+    {
+      "id": "comptes-rendus",
+      "label": "Comptes rendus des ateliers",
+      "level": "moyen",
+      "facultative": true,
+      "after": [],
+      "skills": [
+        "meeting-notes"
+      ],
+      "inputs": [
+        "reunions/*"
+      ],
+      "deliverables": [
+        "comptes-rendus/*.json",
+        "comptes-rendus/*.md"
+      ],
+      "optional": [
+        "comptes-rendus/*.actions.csv"
+      ],
+      "checks": [
+        "meeting-notes : notes_build.py comptes-rendus/<réunion>.json pour chaque atelier (citations retrouvées dans la transcription, actions en CSV relu)"
+      ],
+      "run": [
+        {
+          "skill": "meeting-notes",
+          "script": "notes_build.py",
+          "args": [
+            "{file}"
+          ],
+          "foreach": "comptes-rendus/*.json"
+        }
+      ],
+      "instructions": "Étape facultative, à faire dès qu'il y a des notes ou transcriptions d'ateliers dans reunions/ (sinon skip, avec les mots de l'utilisateur) ; elle ne dépend pas des documents et se mène en parallèle. Un compte rendu par réunion : décisions, actions avec porteur et échéance, questions ouvertes, exigences exprimées citées mot pour mot. Une action sans porteur ou une décision déduite se note au journal."
+    },
+    {
+      "id": "exigences",
+      "label": "Catalogue des exigences",
+      "level": "moyen",
+      "skills": [
+        "requirements-catalog"
+      ],
+      "inputs": [
+        "sources/*.md",
+        "comptes-rendus/*.md"
+      ],
+      "deliverables": [
+        "exigences.json",
+        "exigences.md",
+        "exigences.csv"
+      ],
+      "checks": [
+        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
+      ],
+      "run": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "args": [
+            "exigences.json"
+          ]
+        }
+      ],
+      "instructions": "req_build.py exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source.",
+      "optional": [
+        "exigences.candidats.json",
+        "exigences.tri.json"
+      ],
+      "after": [
+        "documents",
+        "comptes-rendus"
+      ]
+    },
+    {
+      "id": "modele-donnees",
+      "label": "Modèle de données",
+      "level": "moyen",
+      "after": [
+        "exigences"
+      ],
+      "skills": [
+        "data-model"
+      ],
+      "inputs": [
+        "exigences.json"
+      ],
+      "deliverables": [
+        "modele.json",
+        "modele.mmd",
+        "modele.md",
+        "modele.sql"
+      ],
+      "checks": [
+        "data-model : model_build.py modele.json (clés, relations, données personnelles et de santé signalées, diagramme relu)"
+      ],
+      "run": [
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "args": [
+            "modele.json"
+          ]
+        }
+      ],
+      "instructions": "Entités tirées du glossaire et des exigences fonctionnelles, refs vers les exigences ; champs personnels marqués. Une donnée de santé ou une entité sans exigence se note au journal. Ne dépend que du catalogue : se mène en parallèle des options."
+    },
+    {
+      "id": "architectures",
+      "label": "Options d'architecture",
+      "level": "complexe",
+      "after": [
+        "exigences"
+      ],
+      "skills": [
+        "architecture-options",
+        "urbanization-map",
+        "well-architected-review"
+      ],
+      "inputs": [
+        "exigences.json",
+        "documents/pos*"
+      ],
+      "deliverables": [
+        "options.json",
+        "options.md"
+      ],
+      "optional": [
+        "tracabilite.md",
+        "tracabilite.csv",
+        "schemas/option-*.cloud.json",
+        "schemas/option-*.wa.md",
+        "schemas/pos-option-*.json"
+      ],
+      "checks": [
+        "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+      ],
+      "run": [
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "args": [
+            "options.json"
+          ]
+        }
+      ],
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
+    },
+    {
+      "id": "dimensionnement",
+      "label": "Dimensionnement",
+      "level": "moyen",
+      "after": [
+        "architectures"
+      ],
+      "skills": [
+        "capacity-sizing",
+        "cloud-cost"
+      ],
+      "inputs": [
+        "exigences.json",
+        "options.json"
+      ],
+      "deliverables": [
+        "dimensionnement.json",
+        "dimensionnement.md",
+        "dimensionnement.result.json"
+      ],
+      "optional": [
+        "dimensionnement.couts.json",
+        "dimensionnement.couts.md"
+      ],
+      "checks": [
+        "capacity-sizing : size_build.py dimensionnement.json, avec --provider et --option pour une option cloud (couts.json contrôlé contre le schéma de cloud-cost)"
+      ],
+      "run": [
+        {
+          "skill": "capacity-sizing",
+          "script": "size_build.py",
+          "args": [
+            "dimensionnement.json"
+          ]
+        }
+      ],
+      "instructions": "Volumes, pointe et disponibilité repris des exigences non fonctionnelles (mesures citées) ; composants de l'option retenue. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat."
+    },
+    {
+      "id": "interfaces",
+      "label": "Interfaces et séquences",
+      "level": "moyen",
+      "after": [
+        "architectures",
+        "modele-donnees"
+      ],
+      "skills": [
+        "api-contract",
+        "mermaid-diagram"
+      ],
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "modele.json"
+      ],
+      "deliverables": [
+        "api.json",
+        "api.openapi.yaml",
+        "api.api.md",
+        "api.sequences.md"
+      ],
+      "optional": [
+        "api.asyncapi.yaml",
+        "api.seq-*.mmd"
+      ],
+      "checks": [
+        "api-contract : api_build.py api.json --draft --requirements exigences.json --options options.json --option <retenue>, puis api_build.py api.json et api_sequences.py api.json"
+      ],
+      "run": [
+        {
+          "skill": "api-contract",
+          "script": "api_build.py",
+          "args": [
+            "api.json"
+          ]
+        },
+        {
+          "skill": "api-contract",
+          "script": "api_sequences.py",
+          "args": [
+            "api.json"
+          ]
+        }
+      ],
+      "instructions": "Ébauche tirée du glossaire et des exigences, ressources alignées sur les entités du modèle de données, puis relue : opérations fusionnées ou ajoutées, événements, sécurité. Une exigence fonctionnelle indispensable sans interface se justifie au journal. À la revue, montrer les séquences des exigences indispensables."
+    },
+    {
+      "id": "recette",
+      "label": "Plan de recette",
+      "level": "moyen",
+      "after": [
+        "exigences"
+      ],
+      "skills": [
+        "test-plan"
+      ],
+      "inputs": [
+        "exigences.json"
+      ],
+      "deliverables": [
+        "recette.json",
+        "recette.md",
+        "recette.csv"
+      ],
+      "optional": [
+        "recette.lots.json"
+      ],
+      "checks": [
+        "test-plan : test_build.py recette.json --draft --requirements exigences.json, puis test_build.py recette.json (toute exigence indispensable couverte, lots de recette au format de solution-estimate)"
+      ],
+      "run": [
+        {
+          "skill": "test-plan",
+          "script": "test_build.py",
+          "args": [
+            "recette.json"
+          ]
+        }
+      ],
+      "instructions": "Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. recette.lots.json passe au chiffrage (estimate_build.py --draft --lots recette.lots.json)."
+    }
+  ]
+}

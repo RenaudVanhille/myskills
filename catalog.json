@@ -174,7 +174,12 @@
         "transition-roadmap",
         "api-contract",
         "mockup-to-html",
-        "design-system"
+        "design-system",
+        "meeting-notes",
+        "data-model",
+        "capacity-sizing",
+        "test-plan",
+        "mermaid-diagram"
       ]
     },
     {

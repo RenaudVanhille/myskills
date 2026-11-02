@@ -140,6 +140,26 @@
    "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
+   "name": "cadrage",
+   "agent": "architecture-workflow",
+   "title": "Cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette",
+   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, options d'architecture, puis en parallèle modèle de données, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+   "stages": [
+    "documents",
+    "comptes-rendus (facultative)",
+    "exigences",
+    "modele-donnees",
+    "architectures",
+    "dimensionnement",
+    "interfaces",
+    "recette"
+   ],
+   "inputs": [
+    "documents/*"
+   ],
+   "match": "Documents en Markdown doc-to-markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
+  },
+  {
    "name": "cloud-existant",
    "agent": "architecture-workflow",
    "title": "Schémas et menaces d'une infrastructure existante",
