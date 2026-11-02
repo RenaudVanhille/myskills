@@ -174,7 +174,12 @@
         "transition-roadmap",
         "api-contract",
         "mockup-to-html",
-        "design-system"
+        "design-system",
+        "meeting-notes",
+        "data-model",
+        "capacity-sizing",
+        "test-plan",
+        "mermaid-diagram"
       ]
     },
     {
@@ -962,7 +967,8 @@
         "<nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST",
         "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
         "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences",
-        "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue"
+        "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue",
+        "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)"
       ],
       "scripts": [
         {
@@ -1639,6 +1645,312 @@
             "0": "lots et découpage écrits (avertissements possibles : abaques par défaut, option non citée)",
             "1": "description ou abaques invalides, ressource inconnue, option introuvable, lots hors du schéma de solution-estimate ; aucun fichier produit"
           }
+        },
+        {
+          "name": "api_sequences.py",
+          "role": "Écrit un diagramme de séquence Mermaid par exigence citée par les interfaces : client, composants porteurs (libellés de l'option), appel et réponse par opération, message asynchrone par événement ; chaque description passe par mermaid_build.py (mermaid-diagram), qui contrôle références et identifiants ; écrit aussi l'index Markdown des séquences.",
+          "usage": "uv run scripts/api_sequences.py api.json [--out-dir DOSSIER] [--only EF-001,EF-002] | --schema",
+          "options": {
+            "api.json": "description des interfaces d'api_build.py (validée contre son schéma)",
+            "--out-dir": "dossier des fichiers produits (défaut : celui d'api.json)",
+            "--only": "exigences à dessiner, séparées par des virgules",
+            "--schema": "affiche le schéma de la description des interfaces sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Description des interfaces d'api_build.py, validée avant tout travail.",
+            "same_as": "api-contract/api_build.py",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "resources"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "security": {
+                  "enum": [
+                    "oauth2",
+                    "oidc",
+                    "bearer",
+                    "apikey",
+                    "none"
+                  ],
+                  "description": "schéma de sécurité de toute l'API (défaut : none)"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+                },
+                "source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "options",
+                    "option"
+                  ],
+                  "description": "option d'architecture dont les composants portent les interfaces",
+                  "properties": {
+                    "options": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "option": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "resources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "fields"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                      },
+                      "required": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "enums": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "method",
+                      "path",
+                      "summary"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][A-Za-z0-9]*$"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "request": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "response": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 400,
+                          "maximum": 599
+                        }
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "component": {
+                        "type": "string",
+                        "description": "composant de l'option qui porte l'opération"
+                      },
+                      "public": {
+                        "type": "boolean",
+                        "description": "sans authentification, par choix"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "channel",
+                      "payload"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "channel": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "payload": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "action": {
+                        "enum": [
+                          "send",
+                          "receive"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Au moins une opération (operations) ou un événement (events)."
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Diagrammes écrits et exigences dessinées.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "diagrams",
+                "requirements",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "diagrams": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "requirements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "séquences écrites (rendu à vérifier avec diagram-export --check)",
+            "1": "description invalide, mermaid-diagram absent, exigence de --only portée par aucune interface, aucune exigence citée, diagramme refusé par mermaid_build.py ; aucun fichier produit"
+          }
         }
       ],
       "requires": [
@@ -1659,6 +1971,12 @@
           "script": "estimate_build.py",
           "why": "contrôler les lots backend contre le schéma des lots du chiffrage",
           "optional": true
+        },
+        {
+          "skill": "mermaid-diagram",
+          "script": "mermaid_build.py",
+          "why": "écrire et contrôler chaque diagramme de séquence",
+          "optional": false
         }
       ],
       "handoffs": [
@@ -4211,6 +4529,369 @@
       "path": "skills/c4-architecture"
     },
     {
+      "skill": "capacity-sizing",
+      "level": "moyen",
+      "inputs": [
+        "Les exigences de volumétrie, de performance et de disponibilité (exigences.json) et l'option d'architecture retenue (options.json)",
+        "Description JSON des hypothèses (size_build.py --schema) : utilisateurs, requêtes, pic, données, fichiers, croissance, disponibilité, composants"
+      ],
+      "outputs": [
+        "<nom>.md : hypothèses et chaque calcul avec sa formule (débits, instances, vCPU, mémoire, stockage, réseau, sauvegardes)",
+        "<nom>.result.json : résultats chiffrés par composant",
+        "Avec --provider et --option : <nom>.couts.json, consommations au format de cloud-cost (cost_build.py)"
+      ],
+      "scripts": [
+        {
+          "name": "size_build.py",
+          "role": "Calcule débits moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et fichiers à l'horizon, sauvegardes, trafic sortant et journaux ; signale capacités par défaut, pic faible, zone unique pour une haute disponibilité ; écrit les calculs et, avec --provider, la description cloud-cost contrôlée contre son schéma.",
+          "usage": "uv run scripts/size_build.py DIMENSIONNEMENT.json [--out-dir DOSSIER] [--provider ID --option ID [--costs couts.json]] | --schema",
+          "options": {
+            "DIMENSIONNEMENT.json": "hypothèses de dimensionnement",
+            "--out-dir": "dossier des fichiers produits (défaut : celui de la description)",
+            "--provider": "hébergeur de cloud-cost, pour écrire couts.json",
+            "--option": "option d'architecture, avec --provider",
+            "--costs": "chemin de couts.json (défaut : <nom>.couts.json)",
+            "--schema": "affiche le schéma de la description sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Hypothèses de dimensionnement décrites par le modèle.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "users",
+                "load"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "exigences de volumétrie et de disponibilité (ENF-...)"
+                },
+                "horizon_years": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "défaut 3"
+                },
+                "users": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "total"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "active_share": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "maximum": 1,
+                      "description": "part active pendant les heures ouvrées (défaut 1)"
+                    }
+                  }
+                },
+                "load": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "requests_per_user_hour"
+                  ],
+                  "properties": {
+                    "requests_per_user_hour": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "peak_factor": {
+                      "type": "number",
+                      "minimum": 1,
+                      "description": "pointe / moyenne (défaut 3)"
+                    },
+                    "business_hours": {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 24,
+                      "description": "heures d'activité par jour (défaut 10)"
+                    },
+                    "days_per_month": {
+                      "type": "number",
+                      "minimum": 1,
+                      "maximum": 31,
+                      "description": "défaut 22"
+                    },
+                    "response_kb": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "taille moyenne d'une réponse (défaut 20 Ko)"
+                    },
+                    "log_kb": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "journaux par requête (défaut 1 Ko)"
+                    }
+                  }
+                },
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "records",
+                      "record_kb"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "records": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "record_kb": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "growth_per_year": {
+                        "type": "number",
+                        "minimum": -50,
+                        "maximum": 500,
+                        "description": "% par an"
+                      },
+                      "retention_years": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  }
+                },
+                "files": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "count_per_month",
+                      "size_mb"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "count_per_month": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "size_mb": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "retention_years": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  }
+                },
+                "availability": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "target": {
+                      "type": "number",
+                      "minimum": 90,
+                      "maximum": 99.999,
+                      "description": "% (défaut 99,5)"
+                    },
+                    "zones": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 3
+                    }
+                  }
+                },
+                "backup_copies": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 365,
+                  "description": "copies incrémentales gardées (défaut 7)"
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "kind"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*$",
+                        "description": "identifiant du composant de l'option"
+                      },
+                      "kind": {
+                        "enum": [
+                          "web",
+                          "api",
+                          "worker",
+                          "db",
+                          "cache",
+                          "queue",
+                          "storage"
+                        ]
+                      },
+                      "rps_per_vcpu": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "description": "requêtes par seconde qu'un vCPU tient (mesure ou référence), sinon valeur par défaut signalée"
+                      },
+                      "load_share": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1,
+                        "description": "part du trafic qui atteint ce composant (défaut 1)"
+                      },
+                      "vcpu_per_instance": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "ram_gb_per_instance": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "min_instances": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  }
+                },
+                "assumptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, pointe, instances, vCPU, stockage.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "rps_peak",
+                "instances",
+                "vcpu",
+                "storage_gb",
+                "costs",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rps_peak": {
+                  "type": "number"
+                },
+                "instances": {
+                  "type": "integer"
+                },
+                "vcpu": {
+                  "type": "integer"
+                },
+                "storage_gb": {
+                  "type": "number"
+                },
+                "costs": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "description cloud-cost écrite (--provider)"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "calculs écrits (avertissements possibles : capacité par défaut, pic faible, zone unique, sans volume de données)",
+            "1": "description invalide, composant en double, --provider sans --option, couts.json hors du schéma de cloud-cost ; aucun fichier produit"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "why": "contrôler la description des consommations écrite pour cloud-cost",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "cloud-cost",
+          "kind": "skill",
+          "when": "chiffrer le coût de fonctionnement : cost_build.py <nom>.couts.json"
+        },
+        {
+          "to": "well-architected-review",
+          "kind": "skill",
+          "when": "vérifier la fiabilité et la performance de l'option au regard du dimensionnement"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "les volumes ou le facteur de pic ne sont pas connus : la question à poser, ou l'hypothèse à faire valider"
+        }
+      ],
+      "description": "Dimensionnement d'une solution à partir des volumes et des exigences non fonctionnelles : débit moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et des fichiers à l'horizon avec croissance et rétention, sauvegardes, trafic sortant, journaux, chaque calcul avec sa formule. Écrit aussi les consommations au format de cloud-cost pour chiffrer le run. À utiliser pour une volumétrie, un capacity planning, un dimensionnement d'infrastructure ou avant un coût de fonctionnement.",
+      "path": "skills/capacity-sizing"
+    },
+    {
       "skill": "check-prerequisites",
       "level": "simple",
       "inputs": [
@@ -5299,6 +5980,286 @@
       ],
       "description": "Estime et compare le coût de fonctionnement mensuel d'options d'architecture cloud (AWS, Azure, Google Cloud, OVHcloud, Scaleway, ou prix propres) : consommations par option (calcul, conteneurs, base de données, stockage, réseau, journaux), plages horaires, remise d'engagement, production et hors production, calculées par script sur une grille de prix locale. Signale les prix à vérifier, le hors production allumé en continu et les postes oubliés. À utiliser pour un coût de run, une estimation FinOps, comparer des options sur leur coût d'hébergement ou préparer les lignes d'infrastructure d'un chiffrage.",
       "path": "skills/cloud-cost"
+    },
+    {
+      "skill": "data-model",
+      "level": "moyen",
+      "inputs": [
+        "Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources)",
+        "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
+      ],
+      "outputs": [
+        "<nom>.mmd : diagramme entité-relation Mermaid (erDiagram)",
+        "<nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations)",
+        "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n)"
+      ],
+      "scripts": [
+        {
+          "name": "model_build.py",
+          "role": "Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL, puis relit le diagramme.",
+          "usage": "uv run scripts/model_build.py MODELE.json [--out-dir DOSSIER] | --schema",
+          "options": {
+            "MODELE.json": "description du modèle de données",
+            "--out-dir": "dossier des fichiers produits (défaut : celui de la description)",
+            "--schema": "affiche le schéma de la description sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Modèle de données décrit par le modèle.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "entities"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "requirements": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "exigences.json (requirements-catalog), relatif à la description"
+                },
+                "entities": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "fields"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$",
+                        "description": "nom en PascalCase (table en snake_case)"
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 400
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences qui portent l'entité"
+                      },
+                      "fields": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "name",
+                            "type"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_]*$"
+                            },
+                            "type": {
+                              "enum": [
+                                "uuid",
+                                "string",
+                                "text",
+                                "integer",
+                                "number",
+                                "decimal",
+                                "boolean",
+                                "date",
+                                "datetime",
+                                "json",
+                                "binary"
+                              ]
+                            },
+                            "key": {
+                              "type": "boolean",
+                              "description": "clé primaire (une par entité)"
+                            },
+                            "required": {
+                              "type": "boolean"
+                            },
+                            "unique": {
+                              "type": "boolean"
+                            },
+                            "ref": {
+                              "type": "string",
+                              "pattern": "^[A-Z][A-Za-z0-9]*$",
+                              "description": "clé étrangère vers cette entité"
+                            },
+                            "personal": {
+                              "enum": [
+                                "identite",
+                                "contact",
+                                "sante",
+                                "financier",
+                                "localisation",
+                                "autre"
+                              ],
+                              "description": "donnée personnelle et sa nature"
+                            },
+                            "description": {
+                              "type": "string",
+                              "maxLength": 300
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "relations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "from",
+                      "to",
+                      "kind",
+                      "label"
+                    ],
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "to": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "enum": [
+                          "1-1",
+                          "1-n",
+                          "n-n"
+                        ],
+                        "description": "1-n : un from pour plusieurs to"
+                      },
+                      "label": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "description": "to toujours rattaché à un from"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, compteurs, données personnelles et sensibles.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "entities",
+                "relations",
+                "personal_fields",
+                "sensitive_fields",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "entities": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "relations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "personal_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Entité.champ des données personnelles"
+                },
+                "sensitive_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "données de santé"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "diagramme, dictionnaire et DDL écrits, diagramme relu (avertissements possibles : entité isolée, n-n, données personnelles ou de santé, rendu non vérifié)",
+            "1": "description invalide, nom ou champ en double, clé absente ou multiple, entité ou exigence citée absente ; aucun fichier produit"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "data-protection",
+          "kind": "skill",
+          "when": "le modèle contient des données personnelles : registre des traitements et AIPD"
+        },
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "une image du diagramme est demandée (PNG, SVG) : export du .mmd"
+        },
+        {
+          "to": "api-contract",
+          "kind": "skill",
+          "when": "les ressources des interfaces doivent suivre le modèle (champs et types)"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une cardinalité ou la nature d'une donnée n'est pas tranchée par les exigences : la question à poser"
+        }
+      ],
+      "description": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées. Le script contrôle le modèle et écrit le diagramme entité-relation Mermaid, le dictionnaire de données et le schéma PostgreSQL (clés étrangères, tables d'association). À utiliser pour un modèle de données, un MCD ou MLD, un diagramme entité-relation, un dictionnaire de données ou un DDL de départ.",
+      "path": "skills/data-model"
     },
     {
       "skill": "data-protection",
@@ -10465,6 +11426,350 @@
       ],
       "description": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian.",
       "path": "skills/markdown-to-obsidian"
+    },
+    {
+      "skill": "meeting-notes",
+      "level": "moyen",
+      "inputs": [
+        "La transcription ou les notes d'une réunion en Markdown (doc-to-markdown : vidéo transcrite en local, document, notes)",
+        "Description JSON du compte rendu (notes_build.py --schema) : participants, décisions, actions, questions ouvertes, exigences entendues, avec leurs citations exactes"
+      ],
+      "outputs": [
+        "<nom>.md : compte rendu daté (participants, ordre du jour, synthèse, décisions, actions, questions, exigences entendues, citations), utilisable comme source de requirements-catalog",
+        "<nom>.actions.csv : une ligne par action (séparateur ;), importable dans Jira ou Azure DevOps"
+      ],
+      "scripts": [
+        {
+          "name": "notes_build.py",
+          "role": "Contrôle la description du compte rendu (identifiants uniques D-, A-, Q-, X-, échéance pas avant la réunion, porteur parmi les participants), retrouve chaque citation dans la transcription (casse, accents et espaces ignorés), écrit le compte rendu Markdown et le CSV des actions, puis relit le CSV.",
+          "usage": "uv run scripts/notes_build.py CR.json [--out CHEMIN.md] | --schema",
+          "options": {
+            "CR.json": "description du compte rendu",
+            "--out": "compte rendu Markdown (défaut : <description>.md ; dans un workflow, sources/<nom>.md)",
+            "--schema": "affiche le schéma de la description sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Compte rendu décrit par le modèle depuis la transcription.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "date",
+                "kind",
+                "participants"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "date": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                  "description": "AAAA-MM-JJ"
+                },
+                "kind": {
+                  "enum": [
+                    "atelier",
+                    "kick-off",
+                    "comite",
+                    "point",
+                    "entretien",
+                    "soutenance"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "transcription ou notes (Markdown de doc-to-markdown), relative à la description : chaque citation y est cherchée"
+                },
+                "participants": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "role": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "org": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "present": {
+                        "type": "boolean",
+                        "description": "défaut : true"
+                      }
+                    }
+                  }
+                },
+                "agenda": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "summary": {
+                  "type": "string",
+                  "maxLength": 800,
+                  "description": "synthèse en quelques phrases"
+                },
+                "decisions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "text"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Z]-\\d+$"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 300
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 400,
+                        "description": "citation exacte de la transcription"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences, options ou documents liés (identifiants)"
+                      }
+                    }
+                  }
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "text",
+                      "owner"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Z]-\\d+$"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 300
+                      },
+                      "owner": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "due": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "description": "AAAA-MM-JJ"
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 400,
+                        "description": "citation exacte de la transcription"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences, options ou documents liés (identifiants)"
+                      }
+                    }
+                  }
+                },
+                "questions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "text"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Z]-\\d+$"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 300
+                      },
+                      "to": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "requirements": {
+                  "type": "array",
+                  "description": "exigences entendues, pour requirements-catalog",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "text",
+                      "quote"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Z]-\\d+$"
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 300
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 8,
+                        "maxLength": 400,
+                        "description": "citation exacte de la transcription"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, compteurs, citations vérifiées.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "decisions",
+                "actions",
+                "questions",
+                "requirements",
+                "quotes_checked",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": [
+                    "string"
+                  ]
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "decisions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "actions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "questions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "requirements": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "quotes_checked": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "citations retrouvées dans la transcription"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "compte rendu et CSV écrits et relus (avertissements possibles : porteur hors participants, action sans échéance, décision sans citation)",
+            "1": "description invalide, identifiant en double ou mal formé, échéance avant la réunion, citation introuvable, source illisible ; aucun fichier produit"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "requirements-catalog",
+          "kind": "skill",
+          "when": "le compte rendu porte des exigences : il rejoint sources/ et req_build.py le reprend"
+        },
+        {
+          "to": "decision-log",
+          "kind": "skill",
+          "when": "dans un workflow, chaque décision du compte rendu se trace au journal (journal.py log --kind decision)"
+        },
+        {
+          "to": "markdown-to-obsidian",
+          "kind": "skill",
+          "when": "le compte rendu va dans le vault Obsidian"
+        },
+        {
+          "to": "doc-to-markdown",
+          "kind": "skill",
+          "when": "la réunion n'est encore qu'une vidéo, un enregistrement ou un document : la transcrire d'abord, en local"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "une décision ou un porteur n'est pas clair dans la transcription : la question à poser"
+        }
+      ],
+      "description": "Compte rendu d'une réunion (atelier, kick-off, comité, entretien, soutenance) tiré de sa transcription ou de ses notes : participants, décisions, actions avec porteur et échéance, questions ouvertes et exigences entendues, chacune avec sa citation exacte vérifiée par script dans la transcription. Écrit le compte rendu Markdown, source directe du catalogue d'exigences et du vault, et le CSV des actions importable dans Jira ou Azure DevOps. À utiliser pour un compte rendu, un relevé de décisions, la synthèse d'un atelier ou d'une vidéo de réunion.",
+      "path": "skills/meeting-notes"
     },
     {
       "skill": "mermaid-diagram",
@@ -17265,6 +18570,442 @@
       ],
       "description": "Prépare la réponse à un appel d'offres à partir du dossier de consultation en Markdown : dépouillement (dates limites, critères de notation et poids, pièces à fournir, format de réponse, clauses à risque, citations vérifiées), matrice de conformité exigence par exigence (Markdown, CSV, Excel), registre des hypothèses, exclusions, prérequis et questions au client avant la date limite. Les scripts écrivent les brouillons, le modèle relit et juge. À utiliser en avant-vente, avant le chiffrage et le mémoire technique.",
       "path": "skills/tender-response"
+    },
+    {
+      "skill": "test-plan",
+      "level": "moyen",
+      "inputs": [
+        "Le catalogue d'exigences (exigences.json de requirements-catalog), avec mesures des exigences non fonctionnelles",
+        "Description JSON du plan de recette (test_build.py --schema) : cas de test, exigences couvertes, type, priorité, étapes, résultat attendu ; ou son ébauche (--draft)",
+        "Facultatif : abaques de recette propres (rules du plan)"
+      ],
+      "outputs": [
+        "<plan>.md : cas de test, matrice de couverture exigences × cas, exigences non couvertes, charge de recette",
+        "<plan>.csv : un cas par ligne (séparateur ;), importable dans Xray, TestRail ou Azure Test Plans",
+        "<plan>.lots.json : lots de recette à trois points (conception, exécution par campagne, automatisation) au format de solution-estimate"
+      ],
+      "scripts": [
+        {
+          "name": "test_build.py",
+          "role": "Écrit l'ébauche du plan depuis les exigences (--draft : un cas par exigence retenue, type tiré de la catégorie, résultat attendu tiré du texte et de la mesure) ; contrôle identifiants, exigences citées, couverture (exigence indispensable sans cas : erreur), mesure reprise dans le résultat attendu des exigences mesurées ; calcule la charge de recette sur abaques ; écrit le plan, le CSV relu et les lots contrôlés contre le schéma du chiffrage.",
+          "usage": "uv run scripts/test_build.py PLAN.json [--out-dir DOSSIER] [--draft --requirements exigences.json] | --schema",
+          "options": {
+            "PLAN.json": "description du plan de recette",
+            "--out-dir": "dossier des fichiers produits (défaut : celui du plan)",
+            "--draft": "écrit seulement l'ébauche du plan (jamais par-dessus un fichier existant)",
+            "--requirements": "exigences.json, pour --draft",
+            "--schema": "affiche le schéma du plan sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Plan de recette : cas et abaques facultatifs.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "requirements",
+                "cases"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "requirements": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "exigences.json (requirements-catalog), relatif au plan"
+                },
+                "cases": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title",
+                      "refs",
+                      "kind",
+                      "priority",
+                      "steps",
+                      "expected"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^T-\\d+$"
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 200
+                      },
+                      "refs": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences couvertes"
+                      },
+                      "kind": {
+                        "enum": [
+                          "fonctionnel",
+                          "integration",
+                          "bout-en-bout",
+                          "performance",
+                          "securite",
+                          "accessibilite",
+                          "reprise",
+                          "exploitation"
+                        ]
+                      },
+                      "priority": {
+                        "enum": [
+                          "haute",
+                          "moyenne",
+                          "basse"
+                        ]
+                      },
+                      "preconditions": {
+                        "type": "string",
+                        "maxLength": 400
+                      },
+                      "steps": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "expected": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 600,
+                        "description": "résultat attendu ; reprend la mesure d'une exigence mesurée"
+                      },
+                      "data": {
+                        "type": "string",
+                        "maxLength": 400,
+                        "description": "jeu de données"
+                      },
+                      "automated": {
+                        "type": "boolean",
+                        "description": "cas à automatiser"
+                      }
+                    }
+                  }
+                },
+                "rules": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "abaques de recette, fusionnés avec ceux par défaut",
+                  "properties": {
+                    "profile": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "campaigns": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "campagnes d'exécution (défaut 2)"
+                    },
+                    "design": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "fonctionnel": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "integration": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "bout-en-bout": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "performance": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "securite": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "accessibilite": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "reprise": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "exploitation": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        }
+                      },
+                      "description": "conception, jours par cas et par type"
+                    },
+                    "run": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "fonctionnel": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "integration": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "bout-en-bout": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "performance": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "securite": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "accessibilite": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "reprise": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        },
+                        "exploitation": {
+                          "type": "array",
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "description": "[mini, probable, maxi] en jours"
+                        }
+                      },
+                      "description": "exécution d'une campagne, jours par cas et par type"
+                    },
+                    "automation": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "automatisation, jours par cas automatisé"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, compteurs, couverture, charge.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "cases",
+                "covered",
+                "uncovered",
+                "days",
+                "draft",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "cases": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "covered": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "exigences couvertes par au moins un cas"
+                },
+                "uncovered": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "charge de recette [mini, probable, maxi]"
+                },
+                "draft": {
+                  "type": "boolean"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "plan, CSV et lots écrits (avertissements possibles : exigence importante non couverte, mesure non reprise, étapes à décrire, abaques par défaut) ; avec --draft, ébauche écrite",
+            "1": "description invalide, identifiant en double, exigence absente, exigence indispensable non couverte, lots hors du schéma du chiffrage ; aucun fichier produit"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "solution-estimate",
+          "script": "estimate_build.py",
+          "why": "contrôler les lots de recette contre le schéma des lots du chiffrage",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "solution-estimate",
+          "kind": "skill",
+          "when": "chiffrer la recette : estimate_build.py --draft --lots <plan>.lots.json"
+        },
+        {
+          "to": "requirements-catalog",
+          "kind": "skill",
+          "when": "une exigence n'est pas testable telle qu'écrite (pas de mesure, ambiguë) : la reformuler dans le catalogue"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "le nombre de campagnes, les données de test ou l'outil de recette ne sont pas connus : la question à poser"
+        }
+      ],
+      "description": "Plan de recette tiré du catalogue d'exigences : un cas de test par exigence (ébauche par script), types fonctionnel, intégration, bout en bout, performance, sécurité, accessibilité, reprise, exploitation, résultats attendus qui reprennent les mesures des exigences non fonctionnelles, matrice de couverture contrôlée par script, CSV importable dans Xray, TestRail ou Azure Test Plans, et lots de recette chiffrés sur abaques pour solution-estimate. À utiliser pour une stratégie ou un plan de recette, une matrice de couverture des exigences ou le chiffrage de la recette.",
+      "path": "skills/test-plan"
     },
     {
       "skill": "threat-model",

@@ -1,0 +1,278 @@
+{
+  "skill": "data-model",
+  "level": "moyen",
+  "inputs": [
+    "Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources)",
+    "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
+  ],
+  "outputs": [
+    "<nom>.mmd : diagramme entité-relation Mermaid (erDiagram)",
+    "<nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations)",
+    "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n)"
+  ],
+  "scripts": [
+    {
+      "name": "model_build.py",
+      "role": "Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL, puis relit le diagramme.",
+      "usage": "uv run scripts/model_build.py MODELE.json [--out-dir DOSSIER] | --schema",
+      "options": {
+        "MODELE.json": "description du modèle de données",
+        "--out-dir": "dossier des fichiers produits (défaut : celui de la description)",
+        "--schema": "affiche le schéma de la description sur une ligne"
+      },
+      "input": {
+        "format": "json",
+        "description": "Modèle de données décrit par le modèle.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "entities"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "requirements": {
+              "type": "string",
+              "minLength": 1,
+              "description": "exigences.json (requirements-catalog), relatif à la description"
+            },
+            "entities": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "fields"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Za-z0-9]*$",
+                    "description": "nom en PascalCase (table en snake_case)"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 400
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences qui portent l'entité"
+                  },
+                  "fields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "name",
+                        "type"
+                      ],
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]*$"
+                        },
+                        "type": {
+                          "enum": [
+                            "uuid",
+                            "string",
+                            "text",
+                            "integer",
+                            "number",
+                            "decimal",
+                            "boolean",
+                            "date",
+                            "datetime",
+                            "json",
+                            "binary"
+                          ]
+                        },
+                        "key": {
+                          "type": "boolean",
+                          "description": "clé primaire (une par entité)"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "unique": {
+                          "type": "boolean"
+                        },
+                        "ref": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Za-z0-9]*$",
+                          "description": "clé étrangère vers cette entité"
+                        },
+                        "personal": {
+                          "enum": [
+                            "identite",
+                            "contact",
+                            "sante",
+                            "financier",
+                            "localisation",
+                            "autre"
+                          ],
+                          "description": "donnée personnelle et sa nature"
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "relations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "from",
+                  "to",
+                  "kind",
+                  "label"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "enum": [
+                      "1-1",
+                      "1-n",
+                      "n-n"
+                    ],
+                    "description": "1-n : un from pour plusieurs to"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "required": {
+                    "type": "boolean",
+                    "description": "to toujours rattaché à un from"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers écrits, compteurs, données personnelles et sensibles.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "entities",
+            "relations",
+            "personal_fields",
+            "sensitive_fields",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "entities": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "relations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "personal_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Entité.champ des données personnelles"
+            },
+            "sensitive_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "données de santé"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "diagramme, dictionnaire et DDL écrits, diagramme relu (avertissements possibles : entité isolée, n-n, données personnelles ou de santé, rendu non vérifié)",
+        "1": "description invalide, nom ou champ en double, clé absente ou multiple, entité ou exigence citée absente ; aucun fichier produit"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "data-protection",
+      "kind": "skill",
+      "when": "le modèle contient des données personnelles : registre des traitements et AIPD"
+    },
+    {
+      "to": "diagram-export",
+      "kind": "skill",
+      "when": "une image du diagramme est demandée (PNG, SVG) : export du .mmd"
+    },
+    {
+      "to": "api-contract",
+      "kind": "skill",
+      "when": "les ressources des interfaces doivent suivre le modèle (champs et types)"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "une cardinalité ou la nature d'une donnée n'est pas tranchée par les exigences : la question à poser"
+    }
+  ]
+}

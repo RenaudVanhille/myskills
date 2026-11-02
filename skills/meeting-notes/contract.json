@@ -1,0 +1,342 @@
+{
+  "skill": "meeting-notes",
+  "level": "moyen",
+  "inputs": [
+    "La transcription ou les notes d'une réunion en Markdown (doc-to-markdown : vidéo transcrite en local, document, notes)",
+    "Description JSON du compte rendu (notes_build.py --schema) : participants, décisions, actions, questions ouvertes, exigences entendues, avec leurs citations exactes"
+  ],
+  "outputs": [
+    "<nom>.md : compte rendu daté (participants, ordre du jour, synthèse, décisions, actions, questions, exigences entendues, citations), utilisable comme source de requirements-catalog",
+    "<nom>.actions.csv : une ligne par action (séparateur ;), importable dans Jira ou Azure DevOps"
+  ],
+  "scripts": [
+    {
+      "name": "notes_build.py",
+      "role": "Contrôle la description du compte rendu (identifiants uniques D-, A-, Q-, X-, échéance pas avant la réunion, porteur parmi les participants), retrouve chaque citation dans la transcription (casse, accents et espaces ignorés), écrit le compte rendu Markdown et le CSV des actions, puis relit le CSV.",
+      "usage": "uv run scripts/notes_build.py CR.json [--out CHEMIN.md] | --schema",
+      "options": {
+        "CR.json": "description du compte rendu",
+        "--out": "compte rendu Markdown (défaut : <description>.md ; dans un workflow, sources/<nom>.md)",
+        "--schema": "affiche le schéma de la description sur une ligne"
+      },
+      "input": {
+        "format": "json",
+        "description": "Compte rendu décrit par le modèle depuis la transcription.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "date",
+            "kind",
+            "participants"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "date": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "description": "AAAA-MM-JJ"
+            },
+            "kind": {
+              "enum": [
+                "atelier",
+                "kick-off",
+                "comite",
+                "point",
+                "entretien",
+                "soutenance"
+              ]
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1,
+              "description": "transcription ou notes (Markdown de doc-to-markdown), relative à la description : chaque citation y est cherchée"
+            },
+            "participants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "role": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "org": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "present": {
+                    "type": "boolean",
+                    "description": "défaut : true"
+                  }
+                }
+              }
+            },
+            "agenda": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "summary": {
+              "type": "string",
+              "maxLength": 800,
+              "description": "synthèse en quelques phrases"
+            },
+            "decisions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]-\\d+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "quote": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 400,
+                    "description": "citation exacte de la transcription"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences, options ou documents liés (identifiants)"
+                  }
+                }
+              }
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text",
+                  "owner"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]-\\d+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "due": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "description": "AAAA-MM-JJ"
+                  },
+                  "quote": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 400,
+                    "description": "citation exacte de la transcription"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences, options ou documents liés (identifiants)"
+                  }
+                }
+              }
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]-\\d+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "requirements": {
+              "type": "array",
+              "description": "exigences entendues, pour requirements-catalog",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text",
+                  "quote"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]-\\d+$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "quote": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 400,
+                    "description": "citation exacte de la transcription"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers écrits, compteurs, citations vérifiées.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "decisions",
+            "actions",
+            "questions",
+            "requirements",
+            "quotes_checked",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": [
+                "string"
+              ]
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "decisions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "actions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "questions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requirements": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "quotes_checked": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "citations retrouvées dans la transcription"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "compte rendu et CSV écrits et relus (avertissements possibles : porteur hors participants, action sans échéance, décision sans citation)",
+        "1": "description invalide, identifiant en double ou mal formé, échéance avant la réunion, citation introuvable, source illisible ; aucun fichier produit"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "requirements-catalog",
+      "kind": "skill",
+      "when": "le compte rendu porte des exigences : il rejoint sources/ et req_build.py le reprend"
+    },
+    {
+      "to": "decision-log",
+      "kind": "skill",
+      "when": "dans un workflow, chaque décision du compte rendu se trace au journal (journal.py log --kind decision)"
+    },
+    {
+      "to": "markdown-to-obsidian",
+      "kind": "skill",
+      "when": "le compte rendu va dans le vault Obsidian"
+    },
+    {
+      "to": "doc-to-markdown",
+      "kind": "skill",
+      "when": "la réunion n'est encore qu'une vidéo, un enregistrement ou un document : la transcrire d'abord, en local"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "une décision ou un porteur n'est pas clair dans la transcription : la question à poser"
+    }
+  ]
+}

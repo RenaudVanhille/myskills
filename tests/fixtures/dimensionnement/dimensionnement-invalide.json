@@ -1,0 +1,2 @@
+{"title": "Cassé", "users": {"total": 0}, "load": {"requests_per_user_hour": 10, "peak": 3},
+ "availability": {"target": 101}, "components": [{"id": "api", "kind": "lambda"}]}

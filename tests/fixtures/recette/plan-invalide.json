@@ -1,0 +1,4 @@
+{"title": "Plan incomplet", "requirements": "../workflow/exigences.json",
+ "cases": [
+  {"id": "T-1", "title": "Déclarer", "refs": ["EF-001"], "kind": "fonctionnel", "priority": "haute", "steps": ["ouvrir"], "expected": "déclaration enregistrée"},
+  {"id": "T-1", "title": "Inconnue", "refs": ["EF-099"], "kind": "fonctionnel", "priority": "basse", "steps": ["x"], "expected": "rien"}]}

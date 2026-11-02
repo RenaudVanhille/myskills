@@ -1,0 +1,361 @@
+{
+  "skill": "capacity-sizing",
+  "level": "moyen",
+  "inputs": [
+    "Les exigences de volumétrie, de performance et de disponibilité (exigences.json) et l'option d'architecture retenue (options.json)",
+    "Description JSON des hypothèses (size_build.py --schema) : utilisateurs, requêtes, pic, données, fichiers, croissance, disponibilité, composants"
+  ],
+  "outputs": [
+    "<nom>.md : hypothèses et chaque calcul avec sa formule (débits, instances, vCPU, mémoire, stockage, réseau, sauvegardes)",
+    "<nom>.result.json : résultats chiffrés par composant",
+    "Avec --provider et --option : <nom>.couts.json, consommations au format de cloud-cost (cost_build.py)"
+  ],
+  "scripts": [
+    {
+      "name": "size_build.py",
+      "role": "Calcule débits moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et fichiers à l'horizon, sauvegardes, trafic sortant et journaux ; signale capacités par défaut, pic faible, zone unique pour une haute disponibilité ; écrit les calculs et, avec --provider, la description cloud-cost contrôlée contre son schéma.",
+      "usage": "uv run scripts/size_build.py DIMENSIONNEMENT.json [--out-dir DOSSIER] [--provider ID --option ID [--costs couts.json]] | --schema",
+      "options": {
+        "DIMENSIONNEMENT.json": "hypothèses de dimensionnement",
+        "--out-dir": "dossier des fichiers produits (défaut : celui de la description)",
+        "--provider": "hébergeur de cloud-cost, pour écrire couts.json",
+        "--option": "option d'architecture, avec --provider",
+        "--costs": "chemin de couts.json (défaut : <nom>.couts.json)",
+        "--schema": "affiche le schéma de la description sur une ligne"
+      },
+      "input": {
+        "format": "json",
+        "description": "Hypothèses de dimensionnement décrites par le modèle.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "users",
+            "load"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "exigences de volumétrie et de disponibilité (ENF-...)"
+            },
+            "horizon_years": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "défaut 3"
+            },
+            "users": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "total"
+              ],
+              "properties": {
+                "total": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "active_share": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "description": "part active pendant les heures ouvrées (défaut 1)"
+                }
+              }
+            },
+            "load": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requests_per_user_hour"
+              ],
+              "properties": {
+                "requests_per_user_hour": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "peak_factor": {
+                  "type": "number",
+                  "minimum": 1,
+                  "description": "pointe / moyenne (défaut 3)"
+                },
+                "business_hours": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 24,
+                  "description": "heures d'activité par jour (défaut 10)"
+                },
+                "days_per_month": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 31,
+                  "description": "défaut 22"
+                },
+                "response_kb": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "taille moyenne d'une réponse (défaut 20 Ko)"
+                },
+                "log_kb": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "journaux par requête (défaut 1 Ko)"
+                }
+              }
+            },
+            "data": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "records",
+                  "record_kb"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "records": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "record_kb": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "growth_per_year": {
+                    "type": "number",
+                    "minimum": -50,
+                    "maximum": 500,
+                    "description": "% par an"
+                  },
+                  "retention_years": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "count_per_month",
+                  "size_mb"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "count_per_month": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "size_mb": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "retention_years": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
+              }
+            },
+            "availability": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "target": {
+                  "type": "number",
+                  "minimum": 90,
+                  "maximum": 99.999,
+                  "description": "% (défaut 99,5)"
+                },
+                "zones": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                }
+              }
+            },
+            "backup_copies": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 365,
+              "description": "copies incrémentales gardées (défaut 7)"
+            },
+            "components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "kind"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]*$",
+                    "description": "identifiant du composant de l'option"
+                  },
+                  "kind": {
+                    "enum": [
+                      "web",
+                      "api",
+                      "worker",
+                      "db",
+                      "cache",
+                      "queue",
+                      "storage"
+                    ]
+                  },
+                  "rps_per_vcpu": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "requêtes par seconde qu'un vCPU tient (mesure ou référence), sinon valeur par défaut signalée"
+                  },
+                  "load_share": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "description": "part du trafic qui atteint ce composant (défaut 1)"
+                  },
+                  "vcpu_per_instance": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "ram_gb_per_instance": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  "min_instances": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers écrits, pointe, instances, vCPU, stockage.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "rps_peak",
+            "instances",
+            "vcpu",
+            "storage_gb",
+            "costs",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rps_peak": {
+              "type": "number"
+            },
+            "instances": {
+              "type": "integer"
+            },
+            "vcpu": {
+              "type": "integer"
+            },
+            "storage_gb": {
+              "type": "number"
+            },
+            "costs": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "description cloud-cost écrite (--provider)"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "calculs écrits (avertissements possibles : capacité par défaut, pic faible, zone unique, sans volume de données)",
+        "1": "description invalide, composant en double, --provider sans --option, couts.json hors du schéma de cloud-cost ; aucun fichier produit"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "cloud-cost",
+      "script": "cost_build.py",
+      "why": "contrôler la description des consommations écrite pour cloud-cost",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "cloud-cost",
+      "kind": "skill",
+      "when": "chiffrer le coût de fonctionnement : cost_build.py <nom>.couts.json"
+    },
+    {
+      "to": "well-architected-review",
+      "kind": "skill",
+      "when": "vérifier la fiabilité et la performance de l'option au regard du dimensionnement"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "les volumes ou le facteur de pic ne sont pas connus : la question à poser, ou l'hypothèse à faire valider"
+    }
+  ]
+}

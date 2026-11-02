@@ -38,7 +38,7 @@ Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.
 
-**Skills** : `check-prerequisites`, `mission-workspace`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `cloud-cost`, `architecture-dossier`, `tender-response`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`, `mockup-to-html`, `design-system`
+**Skills** : `check-prerequisites`, `mission-workspace`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `cloud-cost`, `architecture-dossier`, `tender-response`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`, `mockup-to-html`, `design-system`, `meeting-notes`, `data-model`, `capacity-sizing`, `test-plan`, `mermaid-diagram`
 
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
@@ -223,14 +223,17 @@ Résumé de [`contract.json`](skills/api-contract/contract.json), qui fait foi (
 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Description JSON courte des interfaces (api_build.py --schema) : ressources, opérations REST, événements ; Facultatif : exigences.json (requirements-catalog) et options.json avec l'option retenue (architecture-options) ; Pour le chiffrage backend : abaques donnés avant le lancement (shared/schemas/abaques.schema.json, section backend) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; sans eux, valeurs par défaut à calibrer.
-- **Sorties** : <nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST ; <nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements ; <nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences ; <base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue.
+- **Sorties** : <nom>.openapi.yaml : contrat OpenAPI 3.1 des opérations REST ; <nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements ; <nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences ; <base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue ; <nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py).
 - **`api_build.py`** : Écrit les contrats OpenAPI 3.1 et AsyncAPI 3.0 d'une description courte et les contrôle : noms uniques, une opération par méthode et chemin, types et ressources connus, champs obligatoires déclarés, pas de corps pour GET et DELETE, exigences citées présentes, composant porteur présent dans l'option, exigence fonctionnelle indispensable sans interface et écriture sans sécurité signalées ; relit chaque YAML écrit et résout chaque $ref ; avec --draft, ébauche de la description tirée du glossaire et des exigences fonctionnelles (ressources, opérations, refs, composant porteur), à relire. Rapport JSON, codes de sortie : 0 contrats écrits et relus (avertissements possibles : exigence sans interface, écriture sans sécurité, ressource inutilisée) ; avec --draft, ébauche écrite ; 1 description invalide, type ou ressource inconnus, doublon, exigence ou composant absents, relecture en échec ; aucun fichier produit sauf en cas d'échec de relecture ; avec --draft, description existante, exigences illisibles ou aucune opération tirée.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`api_breakdown.py`** : Découpe le backend décrit par les interfaces en lots de chiffrage à trois points : un lot par ressource (modèle, persistance, migrations ; complexité selon le nombre de champs), par opération (selon la méthode, montée d'un cran pour une grosse ressource reçue ou beaucoup d'erreurs métier), par événement et par système externe relié dans l'option (intégration), plus les lots transverses du backend (socle, authentification si l'API est sécurisée, messagerie s'il y a des événements, observabilité, tests d'intégration par opération) ; déclare le réemploi entre fonctionnalités (opération de même forme qu'une précédente, ou sur une ressource déjà exposée : reuse avec sa part et sa base) ; contrôle les lots contre le schéma de solution-estimate et écrit les lots et leur découpage. Jours tirés des abaques donnés avant le lancement (utilisateur, mission, --abaques), sinon de valeurs par défaut à calibrer, signalées. Rapport JSON, codes de sortie : 0 lots et découpage écrits (avertissements possibles : abaques par défaut, option non citée) ; 1 description ou abaques invalides, ressource inconnue, option introuvable, lots hors du schéma de solution-estimate ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **`api_sequences.py`** : Écrit un diagramme de séquence Mermaid par exigence citée par les interfaces : client, composants porteurs (libellés de l'option), appel et réponse par opération, message asynchrone par événement ; chaque description passe par mermaid_build.py (mermaid-diagram), qui contrôle références et identifiants ; écrit aussi l'index Markdown des séquences. Rapport JSON, codes de sortie : 0 séquences écrites (rendu à vérifier avec diagram-export --check) ; 1 description invalide, mermaid-diagram absent, exigence de --only portée par aucune interface, aucune exigence citée, diagramme refusé par mermaid_build.py ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et reprendre les composants de l'option.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : contrôler les lots backend contre le schéma des lots du chiffrage.
+- **Dépend de** `mermaid-diagram` (`mermaid_build.py`, obligatoire) : écrire et contrôler chaque diagramme de séquence.
 - **Passe la main** au skill `architecture-review` : les interfaces doivent être revues avec l'architecture (traçabilité, dépendances synchrones).
 - **Passe la main** à l'agent `document-publisher` : les contrats doivent être livrés dans un dossier Word, HTML ou XWiki.
 - **Passe la main** à l'utilisateur : une exigence fonctionnelle indispensable n'a pas d'interface : l'ajouter ou dire qu'elle est hors API.
@@ -328,6 +331,22 @@ Résumé de [`contract.json`](skills/c4-architecture/contract.json), qui fait fo
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
 
+### `capacity-sizing`
+
+Dimensionnement d'une solution à partir des volumes et des exigences non fonctionnelles : débit moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et des fichiers à l'horizon avec croissance et rétention, sauvegardes, trafic sortant, journaux, chaque calcul avec sa formule. Écrit aussi les consommations au format de cloud-cost pour chiffrer le run. À utiliser pour une volumétrie, un capacity planning, un dimensionnement d'infrastructure ou avant un coût de fonctionnement.
+
+Résumé de [`contract.json`](skills/capacity-sizing/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Les exigences de volumétrie, de performance et de disponibilité (exigences.json) et l'option d'architecture retenue (options.json) ; Description JSON des hypothèses (size_build.py --schema) : utilisateurs, requêtes, pic, données, fichiers, croissance, disponibilité, composants.
+- **Sorties** : <nom>.md : hypothèses et chaque calcul avec sa formule (débits, instances, vCPU, mémoire, stockage, réseau, sauvegardes) ; <nom>.result.json : résultats chiffrés par composant ; Avec --provider et --option : <nom>.couts.json, consommations au format de cloud-cost (cost_build.py).
+- **`size_build.py`** : Calcule débits moyen et de pointe, vCPU, mémoire et instances par composant avec la redondance qu'impose la disponibilité, stockage des données et fichiers à l'horizon, sauvegardes, trafic sortant et journaux ; signale capacités par défaut, pic faible, zone unique pour une haute disponibilité ; écrit les calculs et, avec --provider, la description cloud-cost contrôlée contre son schéma. Rapport JSON, codes de sortie : 0 calculs écrits (avertissements possibles : capacité par défaut, pic faible, zone unique, sans volume de données) ; 1 description invalide, composant en double, --provider sans --option, couts.json hors du schéma de cloud-cost ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `cloud-cost` (`cost_build.py`, facultatif : sans lui, avertissement) : contrôler la description des consommations écrite pour cloud-cost.
+- **Passe la main** au skill `cloud-cost` : chiffrer le coût de fonctionnement : cost_build.py <nom>.couts.json.
+- **Passe la main** au skill `well-architected-review` : vérifier la fiabilité et la performance de l'option au regard du dimensionnement.
+- **Passe la main** à l'utilisateur : les volumes ou le facteur de pic ne sont pas connus : la question à poser, ou l'hypothèse à faire valider.
+
 ### `check-prerequisites`
 
 Vérifie que les outils locaux nécessaires aux skills de myskills sont installés (uv, draw.io Desktop, navigateur, LibreOffice en option) et indique comment installer ceux qui manquent. À utiliser avant une première conversion ou un premier schéma, ou quand une commande est introuvable.
@@ -375,6 +394,22 @@ Résumé de [`contract.json`](skills/cloud-cost/contract.json), qui fait foi (ch
 - **Passe la main** au skill `architecture-options` : le coût de fonctionnement change la note du critère cout d'une option.
 - **Passe la main** au skill `solution-estimate` : chiffrer l'option retenue : ses lignes d'infrastructure viennent de --infra.
 - **Passe la main** à l'utilisateur : valider le dimensionnement et faire vérifier les prix indicatifs avant tout engagement.
+
+### `data-model`
+
+Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées. Le script contrôle le modèle et écrit le diagramme entité-relation Mermaid, le dictionnaire de données et le schéma PostgreSQL (clés étrangères, tables d'association). À utiliser pour un modèle de données, un MCD ou MLD, un diagramme entité-relation, un dictionnaire de données ou un DDL de départ.
+
+Résumé de [`contract.json`](skills/data-model/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources) ; Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n.
+- **Sorties** : <nom>.mmd : diagramme entité-relation Mermaid (erDiagram) ; <nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations) ; <nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n).
+- **`model_build.py`** : Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL, puis relit le diagramme. Rapport JSON, codes de sortie : 0 diagramme, dictionnaire et DDL écrits, diagramme relu (avertissements possibles : entité isolée, n-n, données personnelles ou de santé, rendu non vérifié) ; 1 description invalide, nom ou champ en double, clé absente ou multiple, entité ou exigence citée absente ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Passe la main** au skill `data-protection` : le modèle contient des données personnelles : registre des traitements et AIPD.
+- **Passe la main** au skill `diagram-export` : une image du diagramme est demandée (PNG, SVG) : export du .mmd.
+- **Passe la main** au skill `api-contract` : les ressources des interfaces doivent suivre le modèle (champs et types).
+- **Passe la main** à l'utilisateur : une cardinalité ou la nature d'une donnée n'est pas tranchée par les exigences : la question à poser.
 
 ### `data-protection`
 
@@ -547,6 +582,23 @@ Résumé de [`contract.json`](skills/markdown-to-obsidian/contract.json), qui fa
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
 
+### `meeting-notes`
+
+Compte rendu d'une réunion (atelier, kick-off, comité, entretien, soutenance) tiré de sa transcription ou de ses notes : participants, décisions, actions avec porteur et échéance, questions ouvertes et exigences entendues, chacune avec sa citation exacte vérifiée par script dans la transcription. Écrit le compte rendu Markdown, source directe du catalogue d'exigences et du vault, et le CSV des actions importable dans Jira ou Azure DevOps. À utiliser pour un compte rendu, un relevé de décisions, la synthèse d'un atelier ou d'une vidéo de réunion.
+
+Résumé de [`contract.json`](skills/meeting-notes/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : La transcription ou les notes d'une réunion en Markdown (doc-to-markdown : vidéo transcrite en local, document, notes) ; Description JSON du compte rendu (notes_build.py --schema) : participants, décisions, actions, questions ouvertes, exigences entendues, avec leurs citations exactes.
+- **Sorties** : <nom>.md : compte rendu daté (participants, ordre du jour, synthèse, décisions, actions, questions, exigences entendues, citations), utilisable comme source de requirements-catalog ; <nom>.actions.csv : une ligne par action (séparateur ;), importable dans Jira ou Azure DevOps.
+- **`notes_build.py`** : Contrôle la description du compte rendu (identifiants uniques D-, A-, Q-, X-, échéance pas avant la réunion, porteur parmi les participants), retrouve chaque citation dans la transcription (casse, accents et espaces ignorés), écrit le compte rendu Markdown et le CSV des actions, puis relit le CSV. Rapport JSON, codes de sortie : 0 compte rendu et CSV écrits et relus (avertissements possibles : porteur hors participants, action sans échéance, décision sans citation) ; 1 description invalide, identifiant en double ou mal formé, échéance avant la réunion, citation introuvable, source illisible ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Passe la main** au skill `requirements-catalog` : le compte rendu porte des exigences : il rejoint sources/ et req_build.py le reprend.
+- **Passe la main** au skill `decision-log` : dans un workflow, chaque décision du compte rendu se trace au journal (journal.py log --kind decision).
+- **Passe la main** au skill `markdown-to-obsidian` : le compte rendu va dans le vault Obsidian.
+- **Passe la main** au skill `doc-to-markdown` : la réunion n'est encore qu'une vidéo, un enregistrement ou un document : la transcrire d'abord, en local.
+- **Passe la main** à l'utilisateur : une décision ou un porteur n'est pas clair dans la transcription : la question à poser.
+
 ### `mermaid-diagram`
 
 Écrit des schémas Mermaid (flux, séquence, états, classes, modèle de données) dans un Markdown ou un fichier .mmd et vérifie qu'ils se rendent. À utiliser pour la documentation dans un dépôt (README, docs/) ou Obsidian.
@@ -679,6 +731,22 @@ Résumé de [`contract.json`](skills/tender-response/contract.json), qui fait fo
 - **Passe la main** au skill `architecture-dossier` : assembler le mémoire technique selon les critères (dossier_build.py --template memoire --tender ao.json).
 - **Passe la main** au skill `decision-log` : noter les choix (clause acceptée, hypothèse posée, question retirée) et soumettre le livrable à la revue.
 - **Passe la main** à l'agent `ui-designer` : le dossier de consultation contient des maquettes d'écrans à reproduire en HTML ou un design system à proposer.
+
+### `test-plan`
+
+Plan de recette tiré du catalogue d'exigences : un cas de test par exigence (ébauche par script), types fonctionnel, intégration, bout en bout, performance, sécurité, accessibilité, reprise, exploitation, résultats attendus qui reprennent les mesures des exigences non fonctionnelles, matrice de couverture contrôlée par script, CSV importable dans Xray, TestRail ou Azure Test Plans, et lots de recette chiffrés sur abaques pour solution-estimate. À utiliser pour une stratégie ou un plan de recette, une matrice de couverture des exigences ou le chiffrage de la recette.
+
+Résumé de [`contract.json`](skills/test-plan/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Le catalogue d'exigences (exigences.json de requirements-catalog), avec mesures des exigences non fonctionnelles ; Description JSON du plan de recette (test_build.py --schema) : cas de test, exigences couvertes, type, priorité, étapes, résultat attendu ; ou son ébauche (--draft) ; Facultatif : abaques de recette propres (rules du plan).
+- **Sorties** : <plan>.md : cas de test, matrice de couverture exigences × cas, exigences non couvertes, charge de recette ; <plan>.csv : un cas par ligne (séparateur ;), importable dans Xray, TestRail ou Azure Test Plans ; <plan>.lots.json : lots de recette à trois points (conception, exécution par campagne, automatisation) au format de solution-estimate.
+- **`test_build.py`** : Écrit l'ébauche du plan depuis les exigences (--draft : un cas par exigence retenue, type tiré de la catégorie, résultat attendu tiré du texte et de la mesure) ; contrôle identifiants, exigences citées, couverture (exigence indispensable sans cas : erreur), mesure reprise dans le résultat attendu des exigences mesurées ; calcule la charge de recette sur abaques ; écrit le plan, le CSV relu et les lots contrôlés contre le schéma du chiffrage. Rapport JSON, codes de sortie : 0 plan, CSV et lots écrits (avertissements possibles : exigence importante non couverte, mesure non reprise, étapes à décrire, abaques par défaut) ; avec --draft, ébauche écrite ; 1 description invalide, identifiant en double, exigence absente, exigence indispensable non couverte, lots hors du schéma du chiffrage ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : contrôler les lots de recette contre le schéma des lots du chiffrage.
+- **Passe la main** au skill `solution-estimate` : chiffrer la recette : estimate_build.py --draft --lots <plan>.lots.json.
+- **Passe la main** au skill `requirements-catalog` : une exigence n'est pas testable telle qu'écrite (pas de mesure, ambiguë) : la reformuler dans le catalogue.
+- **Passe la main** à l'utilisateur : le nombre de campagnes, les données de test ou l'outil de recette ne sont pas connus : la question à poser.
 
 ### `threat-model`
 

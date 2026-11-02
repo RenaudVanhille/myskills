@@ -1,0 +1,434 @@
+{
+  "skill": "test-plan",
+  "level": "moyen",
+  "inputs": [
+    "Le catalogue d'exigences (exigences.json de requirements-catalog), avec mesures des exigences non fonctionnelles",
+    "Description JSON du plan de recette (test_build.py --schema) : cas de test, exigences couvertes, type, priorité, étapes, résultat attendu ; ou son ébauche (--draft)",
+    "Facultatif : abaques de recette propres (rules du plan)"
+  ],
+  "outputs": [
+    "<plan>.md : cas de test, matrice de couverture exigences × cas, exigences non couvertes, charge de recette",
+    "<plan>.csv : un cas par ligne (séparateur ;), importable dans Xray, TestRail ou Azure Test Plans",
+    "<plan>.lots.json : lots de recette à trois points (conception, exécution par campagne, automatisation) au format de solution-estimate"
+  ],
+  "scripts": [
+    {
+      "name": "test_build.py",
+      "role": "Écrit l'ébauche du plan depuis les exigences (--draft : un cas par exigence retenue, type tiré de la catégorie, résultat attendu tiré du texte et de la mesure) ; contrôle identifiants, exigences citées, couverture (exigence indispensable sans cas : erreur), mesure reprise dans le résultat attendu des exigences mesurées ; calcule la charge de recette sur abaques ; écrit le plan, le CSV relu et les lots contrôlés contre le schéma du chiffrage.",
+      "usage": "uv run scripts/test_build.py PLAN.json [--out-dir DOSSIER] [--draft --requirements exigences.json] | --schema",
+      "options": {
+        "PLAN.json": "description du plan de recette",
+        "--out-dir": "dossier des fichiers produits (défaut : celui du plan)",
+        "--draft": "écrit seulement l'ébauche du plan (jamais par-dessus un fichier existant)",
+        "--requirements": "exigences.json, pour --draft",
+        "--schema": "affiche le schéma du plan sur une ligne"
+      },
+      "input": {
+        "format": "json",
+        "description": "Plan de recette : cas et abaques facultatifs.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "requirements",
+            "cases"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 200
+            },
+            "requirements": {
+              "type": "string",
+              "minLength": 1,
+              "description": "exigences.json (requirements-catalog), relatif au plan"
+            },
+            "cases": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "title",
+                  "refs",
+                  "kind",
+                  "priority",
+                  "steps",
+                  "expected"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^T-\\d+$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 200
+                  },
+                  "refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences couvertes"
+                  },
+                  "kind": {
+                    "enum": [
+                      "fonctionnel",
+                      "integration",
+                      "bout-en-bout",
+                      "performance",
+                      "securite",
+                      "accessibilite",
+                      "reprise",
+                      "exploitation"
+                    ]
+                  },
+                  "priority": {
+                    "enum": [
+                      "haute",
+                      "moyenne",
+                      "basse"
+                    ]
+                  },
+                  "preconditions": {
+                    "type": "string",
+                    "maxLength": 400
+                  },
+                  "steps": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "expected": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 600,
+                    "description": "résultat attendu ; reprend la mesure d'une exigence mesurée"
+                  },
+                  "data": {
+                    "type": "string",
+                    "maxLength": 400,
+                    "description": "jeu de données"
+                  },
+                  "automated": {
+                    "type": "boolean",
+                    "description": "cas à automatiser"
+                  }
+                }
+              }
+            },
+            "rules": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "abaques de recette, fusionnés avec ceux par défaut",
+              "properties": {
+                "profile": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "campaigns": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "campagnes d'exécution (défaut 2)"
+                },
+                "design": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "fonctionnel": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "integration": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "bout-en-bout": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "performance": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "securite": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "accessibilite": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "reprise": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "exploitation": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    }
+                  },
+                  "description": "conception, jours par cas et par type"
+                },
+                "run": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "fonctionnel": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "integration": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "bout-en-bout": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "performance": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "securite": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "accessibilite": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "reprise": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "exploitation": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    }
+                  },
+                  "description": "exécution d'une campagne, jours par cas et par type"
+                },
+                "automation": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "automatisation, jours par cas automatisé"
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Fichiers écrits, compteurs, couverture, charge.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "outputs",
+            "cases",
+            "covered",
+            "uncovered",
+            "days",
+            "draft",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "covered": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "exigences couvertes par au moins un cas"
+            },
+            "uncovered": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "days": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "description": "charge de recette [mini, probable, maxi]"
+            },
+            "draft": {
+              "type": "boolean"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "plan, CSV et lots écrits (avertissements possibles : exigence importante non couverte, mesure non reprise, étapes à décrire, abaques par défaut) ; avec --draft, ébauche écrite",
+        "1": "description invalide, identifiant en double, exigence absente, exigence indispensable non couverte, lots hors du schéma du chiffrage ; aucun fichier produit"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "solution-estimate",
+      "script": "estimate_build.py",
+      "why": "contrôler les lots de recette contre le schéma des lots du chiffrage",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "solution-estimate",
+      "kind": "skill",
+      "when": "chiffrer la recette : estimate_build.py --draft --lots <plan>.lots.json"
+    },
+    {
+      "to": "requirements-catalog",
+      "kind": "skill",
+      "when": "une exigence n'est pas testable telle qu'écrite (pas de mesure, ambiguë) : la reformuler dans le catalogue"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "le nombre de campagnes, les données de test ou l'outil de recette ne sont pas connus : la question à poser"
+    }
+  ]
+}

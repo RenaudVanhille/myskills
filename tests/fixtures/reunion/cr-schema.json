@@ -1,0 +1,7 @@
+{
+  "title": "Atelier", "date": "2026-11-02", "kind": "atelier", "source": "atelier.md",
+  "participants": [{"name": "Claire Martin"}],
+  "decisions": [{"id": "D-1", "text": "Application native", "quote": "on part sur une application native"}],
+  "actions": [{"id": "D-1", "text": "Relancer", "owner": "Claire Martin", "due": "2026-10-01"}],
+  "questions": [{"id": "Q-1", "text": "Mandataires ?", "too": "Juridique"}]
+}
