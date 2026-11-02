@@ -1,0 +1,80 @@
+{
+  "name": "maquettes",
+  "title": "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend",
+  "description": "Workflow des maquettes de l'agent architecture-workflow : design system tiré des maquettes ou repris du client, une page HTML mesurée et comparée bloc par bloc par écran, revue UX et accessibilité, puis découpage en composants et lots du chiffrage frontend, constats UX retenus compris ; une porte de revue par étape.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "la bibliothèque visée (html, bootstrap, react-mui, react-antd, vue-vuetify, angular-material) et les tokens du client s'il en a (sans réponse : html et design system tiré des maquettes, hypothèse notée au journal)"
+  ],
+  "stages": [
+    {
+      "id": "design-system",
+      "label": "Design system",
+      "level": "moyen",
+      "skills": ["design-system"],
+      "agent": "ui-designer",
+      "inputs": ["maquettes/*"],
+      "deliverables": ["design-system.json"],
+      "optional": ["design-system.css", "design-system.md"],
+      "checks": [
+        "design-system : ds_import.py <tokens du client> --out design-system.json s'il en fournit, sinon ds_extract.py maquettes/*.png --draft design-system.json, puis ds_build.py design-system.json"
+      ],
+      "run": [
+        {"skill": "design-system", "script": "ds_build.py", "args": ["design-system.json"]}
+      ],
+      "instructions": "Tokens du client repris tels quels (source verrouillée) ; sinon ébauche tirée des maquettes, rôles des couleurs relus (primaire, texte, surface, danger). Une couleur ou un espacement sans source se note au journal comme hypothèse."
+    },
+    {
+      "id": "pages",
+      "label": "Pages HTML comparées aux maquettes",
+      "level": "moyen",
+      "skills": ["mockup-to-html", "design-system"],
+      "agent": "ui-designer",
+      "inputs": ["maquettes/*", "design-system.json"],
+      "deliverables": ["pages/*.json", "pages/*.html", "pages/*.css"],
+      "optional": ["analyses/*.analysis.json", "pages/*.compare.png", "pages/*.render.png", "pages/assets/*"],
+      "checks": [
+        "mockup-to-html : ui_analyze.py maquettes/*.png --tokens design-system.json --draft --out-dir analyses, ébauches relues et rangées dans pages/",
+        "mockup-to-html : page_build.py pages/<écran>.json --min-fidelity 0.85 pour chaque écran (écarts rattachés aux nœuds, à corriger dans la description)"
+      ],
+      "run": [
+        {"skill": "mockup-to-html", "script": "page_build.py", "args": ["{file}", "--min-fidelity", "0.85"],
+         "foreach": "pages/*.json"}
+      ],
+      "instructions": "Une description par écran dans pages/ (les analyses restent dans analyses/), partie de l'ébauche mesurée, jamais du HTML écrit à la main. Corriger les écarts signalés nœud par nœud ; une fidélité sous le seuil acceptée se note au journal avec sa raison. Un état d'écran ou un contenu masqué que la maquette ne montre pas est une question pour l'utilisateur."
+    },
+    {
+      "id": "ux",
+      "label": "Revue UX et accessibilité",
+      "level": "moyen",
+      "skills": ["mockup-to-html"],
+      "agent": "ui-designer",
+      "inputs": ["pages/*.json"],
+      "deliverables": ["revue-ux.json", "pages/*.ux.md"],
+      "checks": [
+        "mockup-to-html : ux_review.py revue-ux.json (contrôles WCAG sur le rendu, puis constats de jugement validés : heuristique, gravité, nœud)"
+      ],
+      "run": [
+        {"skill": "mockup-to-html", "script": "ux_review.py", "args": ["revue-ux.json"]}
+      ],
+      "instructions": "Premier passage avec findings vide pour les contrôles mécaniques, puis constats de jugement (heuristiques de Nielsen h1 à h10, a11y), un par problème, gravité 1 à 4, rattachés au nœud. L'utilisateur retient ou écarte les constats à la revue : ceux qui restent dans revue-ux.json sont chiffrés à l'étape suivante."
+    },
+    {
+      "id": "decoupage",
+      "label": "Découpage et lots du chiffrage frontend",
+      "level": "moyen",
+      "skills": ["mockup-to-html"],
+      "agent": "ui-designer",
+      "inputs": ["pages/*.json", "revue-ux.json"],
+      "deliverables": ["decoupage.md", "decoupage.lots.json"],
+      "optional": ["decoupage.json", "decoupage.csv"],
+      "checks": [
+        "mockup-to-html : ui_breakdown.py pages/*.json --out decoupage --ux revue-ux.json, avec --target et --component si connus (lots contrôlés contre le schéma de solution-estimate)"
+      ],
+      "run": [
+        {"skill": "mockup-to-html", "script": "ui_breakdown.py", "args": ["pages/*.json", "--out", "decoupage", "--ux", "revue-ux.json"]}
+      ],
+      "instructions": "Relire les lots : réemploi d'un écran qui ne ressemble pas à sa source à retirer, réemploi manquant à ajouter avec sa base ; toute correction a sa note au journal. Si calibrated est faux, dire que les charges viennent d'abaques par défaut. Pour un chiffrage complet, decoupage.lots.json passe à solution-estimate (estimate_build.py --draft --lots decoupage.lots.json)."
+    }
+  ]
+}

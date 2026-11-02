@@ -333,6 +333,9 @@ def run_checks(folder: Path, state: dict, stage: dict, errors: list[str]) -> lis
         for rel in files:
             name = Path(rel).name.split(".")[0] if rel else ""
             args = [a.replace("{file}", rel or "").replace("{name}", name) for a in entry.get("args", [])]
+            # Un argument à motif (pages/*.json) devient la liste triée de ses fichiers.
+            args = [x for a in args for x in (sorted(q.relative_to(folder).as_posix() for q in folder.glob(a))
+                                              or [a] if any(c in a for c in "*?[") else [a])]
             if entry.get("vault") and memory:
                 args += ["--vault", memory["vault"], "--folder", memory["folder"]]
             command = f"{entry['script']} {' '.join(args)}".strip()

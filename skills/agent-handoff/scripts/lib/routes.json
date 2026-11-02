@@ -127,6 +127,7 @@
     "architectures",
     "schemas",
     "conformite (facultative)",
+    "maquettes (facultative)",
     "chiffrage (facultative)",
     "revue (facultative)",
     "registre",
@@ -136,7 +137,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cloud-existant",
@@ -170,6 +171,22 @@
     "sources/*.md"
    ],
    "match": "Catalogue des exigences doc-to-markdown requirements-catalog Description cloud cloud-architecture diagram-export Menaces STRIDE et qualification de l'hébergement threat-model well-architected-review Registre des traitements et AIPD data-protection Plan d'actions et dossier de conformité architecture-dossier"
+  },
+  {
+   "name": "maquettes",
+   "agent": "architecture-workflow",
+   "title": "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend",
+   "description": "Workflow des maquettes de l'agent architecture-workflow : design system tiré des maquettes ou repris du client, une page HTML mesurée et comparée bloc par bloc par écran, revue UX et accessibilité, puis découpage en composants et lots du chiffrage frontend, constats UX retenus compris ; une porte de revue par étape.",
+   "stages": [
+    "design-system",
+    "pages",
+    "ux",
+    "decoupage"
+   ],
+   "inputs": [
+    "maquettes/*"
+   ],
+   "match": "Design system design-system Pages HTML comparées aux maquettes mockup-to-html design-system Revue UX et accessibilité mockup-to-html Découpage et lots du chiffrage frontend mockup-to-html"
   },
   {
    "name": "migration-cloud",
