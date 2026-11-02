@@ -19,7 +19,10 @@ page_build.py) et calcule :
 - le réemploi entre écrans (`reuse`, part épargnée et base) : un écran de
   même structure qu'un précédent, ou semblable (mêmes composants), réutilise
   son lot ; un écran fait surtout de motifs réutilise le lot du motif ; un
-  motif compte pour un seul composant dans l'écran qui l'emploie.
+  motif compte pour un seul composant dans l'écran qui l'emploie ;
+- avec --ux, un lot par constat UX retenu (revue de ux_review.py) d'une
+  gravité au moins égale à ux.min_severity : ce que la maquette ne montre
+  pas (état d'erreur, aide, confirmation) et qu'il faudra construire.
 
 Les jours viennent d'abaques : ceux donnés avant le lancement (section
 frontend de ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, de references.abaques
@@ -30,7 +33,7 @@ défaut à calibrer, signalées comme telles.
 `estimate_build.py --draft --lots` (solution-estimate) reprend.
 
     uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material]
-        [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] | --schema
+        [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] [--ux REVUE.json ...] | --schema
 """
 
 import argparse
@@ -67,6 +70,9 @@ DEFAULT_RULES = {
     "layout": [1, 2, 3],
     "screen": {"base": [0.5, 1, 1.5], "per_component": 0.05},
     "reuse": {"same_structure": 50, "similar": 25, "similarity": 0.8, "pattern": 20, "pattern_share": 0.5},
+    # Constats UX retenus : jours de correction par gravité (1 mineur à 4 bloquant).
+    "ux": {"min_severity": 2, "days": {"1": [0.1, 0.25, 0.5], "2": [0.25, 0.5, 1], "3": [0.5, 1, 2],
+                                       "4": [1, 2, 4]}},
     "transverse": [
         {"name": "Socle frontend : projet, routage, intégration continue", "phase": "realisation", "effort": [2, 3, 5]},
         {"name": "Thème tiré des tokens du design system", "phase": "realisation", "effort": [0.5, 1, 1.5]},
@@ -154,7 +160,12 @@ def scale(points, factor: float) -> list[float]:
 def merge(rules: dict, override: dict) -> dict:
     out = {k: (dict(v) if isinstance(v, dict) else v) for k, v in rules.items()}
     for key, value in override.items():
-        out[key] = {**out[key], **value} if isinstance(out.get(key), dict) and isinstance(value, dict) else value
+        if isinstance(out.get(key), dict) and isinstance(value, dict):
+            # Un niveau de plus (ux.days) : seules les clés données changent.
+            out[key] = {**out[key], **{k: ({**out[key][k], **v} if isinstance(out[key].get(k), dict)
+                                           and isinstance(v, dict) else v) for k, v in value.items()}}
+        else:
+            out[key] = value
     return out
 
 
@@ -170,7 +181,12 @@ def net(entry: dict, profile: str) -> list[float]:
     return [round(v * keep, 2) for v in entry["effort"][profile]]
 
 
-def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component: str | None) -> dict:
+UX_SEVERITY = {1: "mineur", 2: "gênant", 3: "majeur", 4: "bloquant"}
+UX_COMPLEXITY = {1: "faible", 2: "faible", 3: "moyenne", 4: "elevee"}
+
+
+def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component: str | None,
+              findings: list[dict] | None = None) -> dict:
     nodes = [(p, w, n) for page, spec in pages for p, w, n in walk(spec["body"], page, "body")]
     library, names = provided(target), LIBRARY.get(target, {})
     by_type: dict[str, list] = {}
@@ -270,6 +286,17 @@ def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component
                        s["complexity"], f"{s['components']} composants{motifs}, {s['fields']} champs ; intégration et "
                        "données de l'écran", why)
         seen.append(s)
+    ux_lots = 0
+    titles = {s["screen"]: s["title"] for s in screens}
+    for f in sorted(findings or [], key=lambda f: -f["severity"]):
+        if f["severity"] < rules["ux"]["min_severity"]:
+            continue
+        page = Path(f["page"]).stem if f.get("page") else None
+        where = f" ; écran {titles.get(page, page)}" if page else ""
+        lot(f"Correction UX ({f['heuristic']}, {UX_SEVERITY[f['severity']]}) : {f['problem']}"[:200], "realisation",
+            rules["ux"]["days"][str(f["severity"])], UX_COMPLEXITY[f["severity"]],
+            f"constat UX retenu : {f['fix']}{where} ; abaque ux gravité {f['severity']}")
+        ux_lots += 1
     for t in rules["transverse"]:
         points = t.get("effort") or [round(v * len(screens), 2) for v in t["per_screen"]]
         lot(t["name"], t["phase"], points, "moyenne", "lot transverse" + (" par écran" if t.get("per_screen") else ""))
@@ -280,7 +307,7 @@ def breakdown(pages: list[tuple[str, dict]], target: str, rules: dict, component
             del item[key]
     return {"target": target, "screens": screens, "components": components, "patterns": patterns,
             "lots": {"domain": "frontend", "profile": profile, "component": component, "work": work},
-            "days": total, "gross_days": gross}
+            "days": total, "gross_days": gross, "ux_lots": ux_lots}
 
 
 def write(result: dict, base: Path) -> list[Path]:
@@ -337,13 +364,15 @@ def main() -> int:
     parser.add_argument("--abaques", type=Path)
     parser.add_argument("--rules", type=Path)
     parser.add_argument("--component")
+    parser.add_argument("--ux", nargs="+", type=Path, default=[])
     parser.add_argument("--schema", action="store_true")
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
     report = {"inputs": [str(p) for p in args.pages], "target": args.target, "outputs": [], "screens": 0,
-              "components": 0, "patterns": 0, "lots": 0, "reused": 0, "days": [], "abaques": [], "calibrated": False,
+              "components": 0, "patterns": 0, "lots": 0, "reused": 0, "ux_lots": 0, "days": [], "abaques": [],
+              "calibrated": False,
               "errors": [], "warnings": []}
     errors, warnings = report["errors"], report["warnings"]
 
@@ -378,9 +407,23 @@ def main() -> int:
             continue
         errors += [f"{path.name} : {e}" for e in check(spec, page_schema)][:10]
         pages.append((path.stem, spec))
+    # Constats UX retenus par le modèle dans la revue de ux_review.py (même schéma).
+    review_schema, findings = input_schema(HERE / "ux_review.py"), []
+    for path in args.ux:
+        try:
+            review = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            errors.append(f"--ux : {path.name} illisible ({error})")
+            continue
+        found = [f"--ux {path.name} : {e}" for e in check(review, review_schema)]
+        errors += found[:10]
+        if not found:
+            findings += review["findings"]
+    if args.ux and not errors and not findings:
+        warnings.append("--ux : aucun constat dans la revue ; seuls les contrôles mécaniques ont été faits ?")
     if errors:
         return done(1)
-    result = breakdown(pages, args.target, rules, args.component)
+    result = breakdown(pages, args.target, rules, args.component, findings)
     calibrated = bool(own) or bool(args.rules)
     result["lots"]["abaques"] = sources
     result["origin"] = ("abaques fournis (" + ", ".join(Path(s).name for s in sources) + ")") if calibrated \
@@ -401,7 +444,8 @@ def main() -> int:
     report["outputs"] = [str(p) for p in write(result, base)]
     report.update(screens=len(result["screens"]), components=sum(1 for c in result["components"] if not c["layout"]),
                   patterns=len(result["patterns"]), lots=len(result["lots"]["work"]),
-                  reused=sum(1 for w in result["lots"]["work"] if w.get("reuse")), days=result["days"],
+                  reused=sum(1 for w in result["lots"]["work"] if w.get("reuse")), ux_lots=result["ux_lots"],
+                  days=result["days"],
                   abaques=sources, calibrated=calibrated)
     if not calibrated:
         warnings.append("abaques frontend par défaut, à calibrer : donnez les vôtres avant le lancement "

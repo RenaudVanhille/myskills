@@ -1228,8 +1228,8 @@
     },
     {
       "name": "ui_breakdown.py",
-      "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés.",
-      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] | --schema",
+      "role": "Découpe les écrans décrits en composants (emplois, écrans, variantes, composant de la bibliothèque visée, complexité par règles), repère les motifs répétés (composants composés candidats), classe les écrans, et écrit les lots du chiffrage frontend à trois points au format de solution-estimate (composants, motifs, écrans, lots transverses), contrôlés contre son schéma ; réemploi entre écrans (même structure, écrans semblables, écrans faits de motifs) et motif compté pour un composant ; avec --ux, un lot par constat UX retenu (gravité au moins ux.min_severity, jours par gravité) ; abaques donnés avant le lancement (section frontend de ~/.myskills/abaques.json, de la mission ou de --abaques), sinon par défaut et signalés.",
+      "usage": "uv run scripts/ui_breakdown.py PAGE [...] [--out decoupage] [--target html|bootstrap|react-mui|react-antd|vue-vuetify|angular-material] [--abaques ABAQUES.json] [--rules REGLES.json] [--component ID] [--ux REVUE.json ...] | --schema",
       "options": {
         "PAGE": "descriptions de pages de page_build.py",
         "--out": "chemin des fichiers produits, sans extension (défaut : decoupage à côté de la première page)",
@@ -1237,6 +1237,7 @@
         "--abaques": "abaques du chiffrage (shared/schemas/abaques.schema.json), après ceux de l'utilisateur et de la mission ; seule la section frontend sert ici",
         "--rules": "règles propres au format de la section frontend des abaques, appliquées en dernier",
         "--component": "composant de l'option d'architecture que les lots réalisent (le front web)",
+        "--ux": "revues de ux_review.py (même schéma) : un lot par constat retenu de gravité au moins ux.min_severity",
         "--schema": "affiche le schéma JSON des règles sur une ligne, puis s'arrête"
       },
       "exit_codes": {
@@ -1463,6 +1464,66 @@
                 }
               },
               "description": "lots transverses : charge fixe (effort) ou par écran (per_screen)"
+            },
+            "ux": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "constats UX retenus (--ux) : seuil de gravité et jours de correction par gravité",
+              "properties": {
+                "min_severity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4,
+                  "description": "gravité minimale d'un constat chiffré (défaut 2)"
+                },
+                "days": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "1": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "2": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "3": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    },
+                    "4": {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "description": "[mini, probable, maxi] en jours"
+                    }
+                  },
+                  "description": "jours par gravité, 1 mineur à 4 bloquant"
+                }
+              }
             }
           }
         }
@@ -1483,6 +1544,7 @@
             "patterns",
             "lots",
             "reused",
+            "ux_lots",
             "days",
             "abaques",
             "calibrated",
@@ -1555,6 +1617,11 @@
               "items": {
                 "type": "string"
               }
+            },
+            "ux_lots": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "lots tirés des constats UX retenus"
             }
           }
         }

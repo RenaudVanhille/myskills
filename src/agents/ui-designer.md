@@ -91,8 +91,8 @@ workflow, la commande les trace aussi au journal.
    pour React, Vue et Angular, garde la cible html comme référence
    visuelle.
 7. Découpage ou chiffrage frontend demandé : `ui_breakdown.py` sur toutes
-   les descriptions, avec `--target` et `--component` (composant web de
-   l'option, s'il y en a une). Relis les lots : réemploi (`reuse`) d'un
+   les descriptions, avec `--target`, `--component` (composant web de
+   l'option, s'il y en a une) et `--ux` sur la revue UX faite. Relis les lots : réemploi (`reuse`) d'un
    écran qui ne ressemble pas à sa source à retirer, réemploi manquant à
    ajouter avec sa base, motif à garder ou non ; toute correction a sa
    note. Si `calibrated` est faux, dis que les charges viennent d'abaques

@@ -1,0 +1,10 @@
+{
+  "pages": ["contrats.json", "sinistres.json"],
+  "level": "AA",
+  "summary": "Parcours clair ; erreurs de saisie et confirmation d'envoi absentes des maquettes.",
+  "findings": [
+    {"page": "sinistres", "heuristic": "h9", "severity": 3, "problem": "Aucun message d'erreur prévu sur la déclaration", "fix": "Messages d'erreur par champ et récapitulatif en tête de formulaire"},
+    {"page": "contrats", "heuristic": "h1", "severity": 4, "problem": "Pas de confirmation après la résiliation", "fix": "Écran de confirmation avec numéro de demande"},
+    {"heuristic": "h8", "severity": 1, "problem": "Libellés un peu longs dans les cartes", "fix": "Raccourcir les libellés"}
+  ]
+}
