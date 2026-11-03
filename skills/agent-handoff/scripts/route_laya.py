@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 from skill_paths import require_module  # noqa: E402
 
 model_store = require_module("check-prerequisites", "lib/model_store.py")
@@ -43,8 +43,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description question.json")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -54,13 +53,7 @@ def main() -> int:
     report = {"input": str(args.spec), "method": None, "choice": None, "confidence": None, "errors": [],
               "warnings": []}
     model_store.guard_network(report["warnings"])
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        report["errors"].append(str(error))
-        print(json.dumps(report, ensure_ascii=False))
-        return 1
-    report["errors"] = validate(spec, __file__)
+    spec, report["errors"] = read_spec(args.spec, __file__)
     if report["errors"]:
         print(json.dumps(report, ensure_ascii=False))
         return 1

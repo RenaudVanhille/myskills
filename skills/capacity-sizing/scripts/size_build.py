@@ -31,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, read_spec  # noqa: E402
 
 DEFAULT_RPS = {"web": 150, "api": 100, "worker": 20, "db": 300, "cache": 2000, "queue": 1000}
 COMPUTE = {"web", "api", "worker"}
@@ -173,12 +173,10 @@ def main() -> int:
     if bool(args.provider) != bool(args.option):
         errors.append("--provider et --option vont ensemble")
         return done(1)
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(f"{args.spec} illisible ({error})")
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
+    if spec is None:
         return done(1)
-    errors += validate(spec, __file__)
     ids = [c["id"] for c in spec.get("components", [])] if not errors else []
     errors += [f"components : « {i} » en double" for i in sorted({i for i in ids if ids.count(i) > 1})]
     if errors:

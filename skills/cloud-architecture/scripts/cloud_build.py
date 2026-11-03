@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import (edge as new_edge, html, new_file, new_page, text_lines, text_width, vertex,  # noqa: E402
                         waypoints, write)
 from skill_paths import absent, export_image, load_module  # noqa: E402
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 ICONS = {k: v for k, v in json.loads((HERE / "icons.json").read_text(encoding="utf-8")).items()
@@ -601,8 +601,7 @@ def main() -> int:
     parser.add_argument("--matrix", action="store_true", help="écrit aussi <sujet>.flows.md, la matrice des flux (toujours en vue network)")
     parser.add_argument("--types", nargs="?", const="", metavar="FOURNISSEUR",
                         help="liste les types connus (aws, azure, gcp, k8s, hébergeurs souverains, generic) et s'arrête")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -612,13 +611,8 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-        return 1
     # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
-    invalid = validate(spec, __file__)
+    spec, invalid = read_spec(args.spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1

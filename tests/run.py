@@ -482,7 +482,8 @@ def check_rules() -> dict:
         if contract.get("vault", {}).get("writes"):
             for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):
                 code = path.read_text(encoding="utf-8")
-                if re.search(r'add_argument\("--vault"', code) and "vault_target(" not in code and "def sync(" not in code:
+                if re.search(r'add_argument\("--vault"', code) and "vault_target(" not in code and "vault_args(" not in code \
+                        and "def sync(" not in code:
                     failures.append(f"{name}/scripts/{path.name} : option --vault sans workspace.vault_target "
                                     "(vault de la mission par défaut)")
     for name, contract in contracts.items():

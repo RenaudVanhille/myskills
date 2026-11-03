@@ -49,7 +49,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 from skill_paths import require_file, require_module  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
@@ -439,8 +439,7 @@ def main() -> int:
                         help="écrire seulement <nom>.draft.json : risques à coter avec leurs propositions")
     parser.add_argument("--vault", type=Path, help="vault Obsidian où écrire les notes traitement et risque")
     parser.add_argument("--folder", help="dossier des notes dans le vault, celui du workflow (Workflows/<titre>)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -448,24 +447,14 @@ def main() -> int:
     if not args.spec:
         parser.error("description JSON attendue")
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
-    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
-    if bool(args.vault) != bool(args.folder):
-        parser.error("--vault et --folder vont ensemble")
-    errors: list[str] = scoped
+    errors: list[str] = workspace.vault_args(parser, args, [args.spec])
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "treatments": 0, "risks": 0, "aipd": None,
               "residual_high": 0, "transfers_out": 0, "proposed": 0, "criteria_added": [], "draft": None,
               "to_rate": 0, "vault": None, "errors": errors, "warnings": warnings}
-    if args.vault and not args.vault.is_dir():
-        errors.append(f"--vault : dossier introuvable {args.vault}")
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(str(error))
-        spec = None
-    if spec is not None:
-        # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
-        errors += validate(spec, __file__)
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1

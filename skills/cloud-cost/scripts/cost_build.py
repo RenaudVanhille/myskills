@@ -37,7 +37,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, require_file, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 GRID = HERE.parent / "references" / "prix.json"
@@ -233,8 +233,7 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
     parser.add_argument("--infra", metavar="OPTION",
                         help="écrire aussi <nom>.infra.json : lignes infra du chiffrage de cette option")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -247,12 +246,7 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1
 
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        report["errors"].append(f"{args.spec} illisible : {error}")
-        return stop()
-    report["errors"] = validate(spec, __file__)
+    spec, report["errors"] = read_spec(args.spec, __file__)
     if report["errors"]:
         return stop()
     grid = load_grid(spec, args.spec.parent, report["errors"])

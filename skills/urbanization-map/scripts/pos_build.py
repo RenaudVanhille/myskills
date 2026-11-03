@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import br, new_file, new_page, vertex, write  # noqa: E402
 from inventory import read_inventory  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, schema_option, validate  # noqa: E402
 
 LEVELS = ["zone", "quartier", "ilot", "application"]
 KINDS = ["pilotage", "operations", "support", "referentiel", "echanges"]
@@ -439,8 +439,7 @@ def main() -> int:
     parser.add_argument("--zoom", action="store_true", help="ajoute une page détaillée par zone")
     parser.add_argument("--vocabulary", choices=list(VOCABULARIES),
                         help="pos (défaut) ou togaf : capacités de niveau 1 à 3, zones empilées sans disposition imposée")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

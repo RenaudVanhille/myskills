@@ -78,7 +78,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, require_file, require_module, schema_of  # noqa: E402
-from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from spec_schema import check, input_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -1331,8 +1331,7 @@ def main() -> int:
     parser.add_argument("--frontend", type=Path, help="avec --draft : comme --lots, lots de ui_breakdown.py")
     parser.add_argument("--abaques", type=Path, help="abaques propres (seuils des points à challenger), après ceux "
                                                      "de l'utilisateur et de la mission")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -1349,18 +1348,11 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
     # Dans une mission (mission.json au-dessus de la description) : son vault et le dossier du workflow par défaut.
-    args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, [args.spec])
+    scoped = workspace.vault_args(parser, args, [args.spec])
     if scoped:
         print(json.dumps({"input": str(args.spec), "errors": scoped, "warnings": []}, ensure_ascii=False))
         return 1
-    if bool(args.vault) != bool(args.folder):
-        parser.error("--vault et --folder vont ensemble")
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-        return 1
-    invalid = validate(spec, __file__)
+    spec, invalid = read_spec(args.spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1
@@ -1385,8 +1377,6 @@ def main() -> int:
     if found and not errors:
         found["reuse"] = reuse
         found["challenge"] = challenge(spec, found, catalog, abaques.get("challenge", {}), reuse, sources, warnings)
-    if args.vault and not args.vault.is_dir():
-        errors.append(f"--vault : dossier introuvable {args.vault}")
     report = {"input": str(args.spec), "outputs": [], "option": option["id"] if option else None,
               "currency": spec.get("currency", "€"), "vault": None, "errors": errors, "warnings": warnings}
     if errors or not found:

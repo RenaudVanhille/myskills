@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
 
 # Formes et classes de la charte (shared/references/style.md, section Mermaid).
 SHAPES = {"person": ("([", "])"), "system": ("[", "]"), "external": ("[", "]"), "db": ("[(", ")]"),
@@ -180,8 +180,7 @@ def main() -> int:
     parser.add_argument("--option", help="identifiant de l'option, avec --from-options")
     parser.add_argument("--out", type=Path, help="fichier .md (bloc ```mermaid avec titre) ou .mmd "
                                                  "(défaut : <nom>.md à côté de l'entrée)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

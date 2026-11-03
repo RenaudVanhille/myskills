@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from inventory import plain, read_inventory  # noqa: E402
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, schema_option, validate  # noqa: E402
 
 CHANGES = {"nouvelle": "à créer", "a-faire-evoluer": "à faire évoluer", "a-remplacer": "à remplacer ou retirer",
            "en-place": "réutilisée telle quelle", "externe": "externe, SaaS"}
@@ -210,8 +210,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description avec pos et options (options.json)")
     parser.add_argument("--out-dir", type=Path, help="dossier des POS cibles (défaut : schemas/ à côté du .json)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

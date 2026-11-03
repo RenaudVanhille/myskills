@@ -46,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
 
 TYPES = {"string": {"type": "string"}, "integer": {"type": "integer"}, "number": {"type": "number"},
          "boolean": {"type": "boolean"}, "date": {"type": "string", "format": "date"},
@@ -475,8 +475,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description API.json")
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     parser.add_argument("--draft", action="store_true", help="écrit une ébauche de API.json tirée des exigences")
     parser.add_argument("--requirements", type=Path, help="exigences.json, pour --draft")
     parser.add_argument("--options", type=Path, help="options.json, pour --draft (composant porteur)")

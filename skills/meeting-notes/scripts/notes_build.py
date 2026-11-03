@@ -30,7 +30,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec  # noqa: E402
 
 KINDS = {"atelier": "Atelier", "kick-off": "Réunion de lancement", "comite": "Comité", "point": "Point d'avancement",
          "entretien": "Entretien", "soutenance": "Soutenance"}
@@ -106,12 +106,10 @@ def main() -> int:
     if not args.spec:
         errors.append("description CR.json attendue")
         return done(1)
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(f"{args.spec} illisible ({error})")
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
+    if spec is None:
         return done(1)
-    errors += validate(spec, __file__)
     if errors:
         return done(1)
     day = datetime.date.fromisoformat(spec["date"])

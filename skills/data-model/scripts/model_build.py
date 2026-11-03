@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec  # noqa: E402
 
 SQL = {"uuid": "uuid", "string": "varchar(255)", "text": "text", "integer": "integer", "number": "double precision",
        "decimal": "numeric(14,2)", "boolean": "boolean", "date": "date", "datetime": "timestamptz", "json": "jsonb",
@@ -144,12 +144,10 @@ def main() -> int:
     if not args.spec:
         errors.append("description MODELE.json attendue")
         return done(1)
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(f"{args.spec} illisible ({error})")
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
+    if spec is None:
         return done(1)
-    errors += validate(spec, __file__)
     if errors:
         return done(1)
     names = [e["name"] for e in spec["entities"]]
