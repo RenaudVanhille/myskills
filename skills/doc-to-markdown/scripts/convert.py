@@ -76,8 +76,10 @@ from validate import check
 
 LIB = Path(__file__).resolve().parent / "lib"
 sys.path.insert(0, str(LIB))
-import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
+from skill_paths import require_module  # noqa: E402
+
+model_store = require_module("check-prerequisites", "lib/model_store.py")
 
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 IMAGES = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp"}
@@ -260,7 +262,8 @@ def docling_artifacts() -> Path:
 def docling_command() -> tuple[list[str] | None, bool]:
     """Commande Docling, et si ses flux réseau sont filtrés (uvx) ou non (docling installé seul)."""
     if shutil.which("uvx"):
-        return ["uvx", "--from", f"docling=={DOCLING_VERSION}", "python", "-c", DOCLING_GUARDED, str(LIB)], True
+        guard = str(Path(model_store.__file__).parent)  # lib/ de check-prerequisites, où vit model_store
+        return ["uvx", "--from", f"docling=={DOCLING_VERSION}", "python", "-c", DOCLING_GUARDED, guard], True
     if shutil.which("docling"):
         return ["docling"], False
     return None, False

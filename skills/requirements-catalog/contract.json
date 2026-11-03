@@ -575,6 +575,13 @@
       }
     }
   ],
+  "requires": [
+    {
+      "skill": "check-prerequisites",
+      "script": "lib/model_store.py",
+      "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
+    }
+  ],
   "handoffs": [
     {
       "to": "doc-to-markdown",

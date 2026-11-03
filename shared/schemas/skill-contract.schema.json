@@ -55,14 +55,14 @@
     },
     "requires": {
       "type": "array",
-      "description": "Scripts d'autres skills que les scripts de ce skill appellent, ou modules de leur scripts/lib/ qu'ils chargent (scripts/lib/skill_paths.py).",
+      "description": "Scripts d'autres skills que les scripts de ce skill appellent, ou modules et données de leur scripts/lib/ qu'ils chargent (scripts/lib/skill_paths.py : require_module, require_file).",
       "items": {
         "type": "object",
         "required": ["skill", "script", "why"],
         "additionalProperties": false,
         "properties": {
           "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
-          "script": {"type": "string", "pattern": "^(lib/)?[\\w-]+\\.py$"},
+          "script": {"type": "string", "pattern": "^([\\w-]+\\.py|lib/[\\w.-]+\\.(py|json))$"},
           "why": {"type": "string"},
           "optional": {"type": "boolean",
                        "description": "Sans ce skill, le script continue et le dit dans les avertissements de son rapport ; sinon, il s'arrête en erreur."}

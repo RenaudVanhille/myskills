@@ -58,5 +58,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`route.py`** : Donne la liste compacte des agents et workflows (et, sur demande, des skills) depuis le catalogue de routage généré par build.py, classée par les mots partagés avec la demande et les extensions des fichiers fournis ; le score est un indice, le choix revient à l'agent orientation ; dans une mission (mission.json), donne sa nature, ses workflows et son vault, et met ses workflows devant. Rapport JSON (0 succès, 1 erreur).
 - **`route_laya.py`** : Pose au modèle local Laya (CPU, sans service en ligne) la question fermée de route.py --laya : quel candidat traite la demande, d'après les descriptions ; lancé par route.py dans son propre environnement. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `decision-log` (`journal.py`, facultatif : sans lui, avertissement) : noter le message au journal d'un workflow.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
+- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** à l'utilisateur : l'outil ne permet pas d'appeler l'agent visé : lui donner le message et l'agent à lancer.
 

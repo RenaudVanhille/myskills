@@ -24,19 +24,27 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                   "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
-# Ontologie du vault Obsidian et son module : source unique, dans ce skill, sans copie.
-VAULT_SKILL = "markdown-to-obsidian"
+# Modules et données partagés à source unique : une seule copie, dans le skill porteur ; les autres skills
+# les chargent par skill_paths (require_module, require_file) et les déclarent dans requires.
+# Fichier de scripts/lib/ -> (skill porteur, source dans shared/ ou None si elle vit dans le skill).
+SINGLE_SOURCES = {
+    "vault_ontology.py": ("markdown-to-obsidian", None),
+    "vault-ontology.json": ("markdown-to-obsidian", None),
+    "workspace.py": ("mission-workspace", REPO / "shared" / "scripts" / "workspace.py"),
+    "mission.schema.json": ("mission-workspace", SCHEMAS / "mission.schema.json"),
+    "rules.schema.json": ("mission-workspace", SCHEMAS / "rules.schema.json"),
+    "abaques.schema.json": ("mission-workspace", SCHEMAS / "abaques.schema.json"),
+    "model_store.py": ("check-prerequisites", REPO / "shared" / "scripts" / "model_store.py"),
+    "model-sources.json": ("check-prerequisites", REPO / "shared" / "model-sources.json"),
+    "model-sources.schema.json": ("check-prerequisites", SCHEMAS / "model-sources.schema.json"),
+    "providers.json": ("cloud-architecture", REPO / "shared" / "providers.json"),
+}
+VAULT_SKILL = SINGLE_SOURCES["vault_ontology.py"][0]
 VAULT_ONTOLOGY = REPO / "skills" / VAULT_SKILL / "scripts" / "lib" / "vault-ontology.json"
 VAULT_MODULE = "lib/vault_ontology.py"
-# Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
+# Skills qui chargent l'espace de travail (workspace.py) en plus de ceux à champ vault : ils gardent leur
+# copie de spec_schema.py, que workspace.py importe.
 WORKSPACE_USERS = ["agent-handoff", "api-contract", "mockup-to-html"]
-# Modèles locaux : sources autorisées (shared/model-sources.json), son schéma et model_store.py.
-MODEL_USERS = ["doc-to-markdown", "check-prerequisites", "requirements-catalog", "agent-handoff"]
-# Données partagées (shared/), copiées dans scripts/lib/ des skills qui les lisent.
-DATA_USERS = {"providers.json": ["cloud-architecture", "well-architected-review", "architecture-options", "data-protection",
-                                 "migration-assessment",
-                                 "solution-estimate", "cloud-cost"]}
-
 
 def generated_libs() -> dict[Path, str]:
     """Copie attendue de chaque module partagé et de la charte des couleurs, par chemin."""
@@ -53,31 +61,14 @@ def generated_libs() -> dict[Path, str]:
         text = (shared / module).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / module] = text
-    for data, skills in DATA_USERS.items():
-        text = (REPO / "shared" / data).read_text(encoding="utf-8")
-        for name in skills:
-            files[REPO / "skills" / name / "scripts" / "lib" / data] = text
-    # L'ontologie du vault et son module ne se copient pas : source unique dans markdown-to-obsidian
-    # (VAULT_ONTOLOGY), chargée par skill_paths.require_module et déclarée dans requires.
-    # Espace de travail (mission.json et son schéma), pour les skills du vault et le routage.
-    workspace = (shared / "workspace.py").read_text(encoding="utf-8")
-    mission = (SCHEMAS / "mission.schema.json").read_text(encoding="utf-8")
-    completeness = (SCHEMAS / "rules.schema.json").read_text(encoding="utf-8")
-    abaques = (SCHEMAS / "abaques.schema.json").read_text(encoding="utf-8")
+    # Sources uniques : la seule copie, dans le skill porteur.
+    for module, (owner, source) in SINGLE_SOURCES.items():
+        if source is not None:
+            files[REPO / "skills" / owner / "scripts" / "lib" / module] = source.read_text(encoding="utf-8")
+    # spec_schema.py, importé par workspace.py et model_store.py, pour leurs porteurs et les skills qui les chargent.
     for name, contract in skill_contracts().items():
-        if contract.get("vault") or name in WORKSPACE_USERS:
-            files[REPO / "skills" / name / "scripts" / "lib" / "workspace.py"] = workspace
-            files[REPO / "skills" / name / "scripts" / "lib" / "mission.schema.json"] = mission
-            files[REPO / "skills" / name / "scripts" / "lib" / "rules.schema.json"] = completeness
-            files[REPO / "skills" / name / "scripts" / "lib" / "abaques.schema.json"] = abaques
+        if contract.get("vault") or name in WORKSPACE_USERS + ["mission-workspace", "check-prerequisites"]:
             files[REPO / "skills" / name / "scripts" / "lib" / "spec_schema.py"] = validator
-    # Modèles locaux : sources épinglées, cache vérifié, flux réseau filtrés à l'exécution.
-    for name in MODEL_USERS:
-        lib = REPO / "skills" / name / "scripts" / "lib"
-        files[lib / "model_store.py"] = (shared / "model_store.py").read_text(encoding="utf-8")
-        files[lib / "model-sources.json"] = (REPO / "shared" / "model-sources.json").read_text(encoding="utf-8")
-        files[lib / "model-sources.schema.json"] = (SCHEMAS / "model-sources.schema.json").read_text(encoding="utf-8")
-        files[lib / "spec_schema.py"] = validator
     # Accès déclaré aux scripts des autres skills (champ requires du contrat).
     paths = (shared / "skill_paths.py").read_text(encoding="utf-8")
     for name, contract in skill_contracts().items():

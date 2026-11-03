@@ -38,9 +38,10 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, load_module  # noqa: E402
+from skill_paths import absent, load_module, require_module  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
-import workspace  # noqa: E402
+
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 STATE = "workflow.json"
 # Mots sans portée pour rapprocher deux retours (après suppression des accents).

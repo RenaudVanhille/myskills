@@ -296,6 +296,11 @@
       "script": "estimate_build.py",
       "why": "vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage",
       "optional": true
+    },
+    {
+      "skill": "cloud-architecture",
+      "script": "lib/providers.json",
+      "why": "catalogue commun des hébergeurs"
     }
   ],
   "handoffs": [

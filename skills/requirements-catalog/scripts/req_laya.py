@@ -32,8 +32,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-import model_store  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+from skill_paths import require_module  # noqa: E402
+
+model_store = require_module("check-prerequisites", "lib/model_store.py")
 
 # Le modèle lit environ 1 000 tokens : une exigence tient largement.
 MAX_CHARS = 2000

@@ -713,6 +713,11 @@
       "script": "wa_check.py",
       "why": "revue Well-Architected des piliers de chaque option cloud",
       "optional": true
+    },
+    {
+      "skill": "cloud-architecture",
+      "script": "lib/providers.json",
+      "why": "catalogue commun des hébergeurs"
     }
   ],
   "handoffs": [

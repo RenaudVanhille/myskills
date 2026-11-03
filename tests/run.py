@@ -456,15 +456,18 @@ def check_rules() -> dict:
                          if other in contracts and other != name]
             failures += [f"{where} : {call}(\"{skill}\", \"{script}\") absent de requires dans contract.json"
                          for call, skill, script in re.findall(
-                             r'(find_script|load_module|require_module|schema_of|run_script)\("([a-z0-9-]+)",\s*"([^"]+)"[,)]', code)
+                             r'(find_script|load_module|require_module|require_file|schema_of|run_script)\("([a-z0-9-]+)",\s*"([^"]+)"[,)]', code)
                          if (skill, script) not in declared]
             if re.search(r"\bexport_image\(", code) and ("diagram-export", "export.py") not in declared:
                 failures.append(f"{where} : export_image (diagram-export/export.py) absent de requires dans contract.json")
-    # Ontologie du vault : source unique dans markdown-to-obsidian, jamais copiée ailleurs.
-    for copy in sorted((ROOT / "skills").glob("*/scripts/lib/vault[-_]ontology.*")):
-        if copy.parents[2].name != contracts_lib.VAULT_SKILL:
-            failures.append(f"{copy.relative_to(ROOT).as_posix()} : copie de l'ontologie du vault, chargez-la par "
-                            f"require_module(\"{contracts_lib.VAULT_SKILL}\", \"{contracts_lib.VAULT_MODULE}\") et requires")
+    # Modules et données à source unique (ontologie du vault, espace de travail, modèles locaux, hébergeurs) :
+    # une seule copie, dans le skill porteur ; les autres skills la chargent par skill_paths et requires.
+    for file, (owner, _) in contracts_lib.SINGLE_SOURCES.items():
+        for copy in sorted((ROOT / "skills").glob(f"*/scripts/lib/{file}")):
+            if copy.parents[2].name != owner:
+                call = "require_module" if file.endswith(".py") else "require_file"
+                failures.append(f"{copy.relative_to(ROOT).as_posix()} : copie d'une source unique, chargez-la par "
+                                f"{call}(\"{owner}\", \"lib/{file}\") et requires")
     # Un script qui touche au vault passe par l'ontologie : import de vault_ontology et champ vault du contrat.
     for name, contract in contracts.items():
         for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):
@@ -578,7 +581,8 @@ def check_rules() -> dict:
             failures.append(f"{where} : Docling sans version épinglée ni --artifacts-path "
                             "(modèles téléchargés pendant le run)")
     # Et guard_network() tient.
-    probe = subprocess.run([sys.executable, "-I", "-c", NETWORK_PROBE, str(ROOT / "shared" / "scripts")],
+    guard = ROOT / "skills" / "check-prerequisites" / "scripts" / "lib"  # copie unique de model_store.py
+    probe = subprocess.run([sys.executable, "-I", "-c", NETWORK_PROBE, str(guard)],
                            capture_output=True, text=True, encoding="utf-8", timeout=60,
                            env={**os.environ, "HTTPS_PROXY": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9"})
     if probe.stdout.strip() != "ok":

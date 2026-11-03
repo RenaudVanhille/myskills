@@ -39,7 +39,9 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-import workspace  # noqa: E402
+from skill_paths import require_module  # noqa: E402
+
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 ROUTES = Path(__file__).resolve().parent / "lib" / "routes.json"
 # Bonus d'un workflow de la mission (mission.json au-dessus des fichiers ou du dossier courant).

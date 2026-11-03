@@ -37,8 +37,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, validate  # noqa: E402
+from skill_paths import require_file  # noqa: E402
 
-PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
+PROVIDERS = require_file("cloud-architecture", "lib/providers.json")
 STRATEGIES = {"rehost": "Réhéberger (lift and shift)", "replatform": "Replateformer (lift, tinker and shift)",
               "refactor": "Refondre (cloud natif)", "repurchase": "Racheter (SaaS ou progiciel)",
               "retire": "Retirer", "retain": "Conserver en l'état"}

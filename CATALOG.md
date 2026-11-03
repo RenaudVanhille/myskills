@@ -213,6 +213,8 @@ Résumé de [`contract.json`](skills/agent-handoff/contract.json), qui fait foi 
 - **`route_laya.py`** : Pose au modèle local Laya (CPU, sans service en ligne) la question fermée de route.py --laya : quel candidat traite la demande, d'après les descriptions ; lancé par route.py dans son propre environnement. Rapport JSON, codes de sortie : 0 choix rendu ; 1 description invalide ou Laya indisponible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `decision-log` (`journal.py`, facultatif : sans lui, avertissement) : noter le message au journal d'un workflow.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
+- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** à l'utilisateur : l'outil ne permet pas d'appeler l'agent visé : lui donner le message et l'agent à lancer.
 
 ### `api-contract`
@@ -234,6 +236,7 @@ Résumé de [`contract.json`](skills/api-contract/contract.json), qui fait foi (
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et reprendre les composants de l'option.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : contrôler les lots backend contre le schéma des lots du chiffrage.
 - **Dépend de** `mermaid-diagram` (`mermaid_build.py`, obligatoire) : écrire et contrôler chaque diagramme de séquence.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Passe la main** au skill `architecture-review` : les interfaces doivent être revues avec l'architecture (traçabilité, dépendances synchrones).
 - **Passe la main** à l'agent `document-publisher` : les contrats doivent être livrés dans un dossier Word, HTML ou XWiki.
 - **Passe la main** à l'utilisateur : une exigence fonctionnelle indispensable n'a pas d'interface : l'ajouter ou dire qu'elle est hors API.
@@ -284,6 +287,7 @@ Résumé de [`contract.json`](skills/architecture-options/contract.json), qui fa
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `urbanization-map` (`pos_impact.py`, facultatif : sans lui, avertissement) : placement de chaque option dans le POS du SI, impacts et POS cibles ; erreur si la description a un pos.
 - **Dépend de** `well-architected-review` (`wa_check.py`, facultatif : sans lui, avertissement) : revue Well-Architected des piliers de chaque option cloud.
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
 - **Passe la main** à l'agent `schema-designer` : un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue.
@@ -308,6 +312,7 @@ Résumé de [`contract.json`](skills/architecture-review/contract.json), qui fai
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et en reprendre les composants et les flux de l'option revue.
 - **Dépend de** `well-architected-review` (`wa_check.py`, facultatif : sans lui, avertissement) : piliers Well-Architected de la description cloud (cloud).
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `revue-architecture`, `constat`, `risque` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill externe `graphify` (installé à part, contrat `shared/external/graphify.contract.json`) : comparer le code à l'architecture : le script lance graphify extract sur code.root, ou sur chaque dépôt de code.repos ou de la mission, en parallèle (--code-only par défaut, ou documents lus par le modèle du harness ou Ollama avec semantic) et lit les graphes.
 - **Passe la main** au skill `architecture-options` : un constat demande de changer l'option (composant, flux, écart) : corriger options.json puis relancer.
@@ -392,6 +397,7 @@ Résumé de [`contract.json`](skills/cloud-cost/contract.json), qui fait foi (ch
 - **`cost_build.py`** : Vérifie hébergeurs et services de la grille, calcule chaque consommation (prix horaire et plage, ou prix mensuel), la remise d'engagement, le coût mensuel par catégorie et par environnement, annuel et sur l'horizon, classe les options ; signale les prix indicatifs à vérifier, le hors production allumé en continu avec l'économie d'un arrêt, les postes souvent oubliés (trafic sortant, sauvegardes, journaux) et le budget dépassé ; écrit la comparaison et le CSV, relit le CSV pour vérifier les totaux ; avec --infra, écrit les lignes d'infrastructure du chiffrage. Rapport JSON, codes de sortie : 0 comparaison écrite et CSV vérifié (avertissements possibles : prix indicatifs, postes oubliés, budget) ; 1 description invalide, hébergeur ou service inconnu, prix absent sans unit_cost, base manquante, grille illisible ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage.
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Passe la main** au skill `architecture-options` : le coût de fonctionnement change la note du critère cout d'une option.
 - **Passe la main** au skill `solution-estimate` : chiffrer l'option retenue : ses lignes d'infrastructure viennent de --infra.
 - **Passe la main** à l'utilisateur : valider le dimensionnement et faire vérifier les prix indicatifs avant tout engagement.
@@ -424,6 +430,8 @@ Résumé de [`contract.json`](skills/data-protection/contract.json), qui fait fo
 - **`dpia_build.py`** : Contrôle la description des traitements et des risques (nécessité de l'AIPD selon les critères du CEPD, base légale, données sensibles, durée de conservation, transferts hors EEE sans garantie, hébergeur extraterritorial, événements redoutés couverts, résiduel jamais supérieur à l'initial, résiduel élevé qui appelle la consultation de la CNIL, références vers les exigences et les menaces), calcule les niveaux et la carte des risques, écrit le registre et l'AIPD ; propose ce qui se déduit sans jugement : critères du CEPD tirés des données, et pour chaque risque sources, impacts et mesures (exigences de sécurité, conformité, disponibilité ; menaces STRIDE des flux du traitement et des stockages) quand la description ne les donne pas. Rapport JSON, codes de sortie : 0 registre et AIPD écrits (avertissements possibles : critères, résiduels élevés, événements non couverts) ; avec --draft, propositions écrites ; 1 description invalide, traitement ou référence inconnus, transfert hors EEE sans garantie, conservation manquante, résiduel supérieur à l'initial ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Vault Obsidian** : écrit les notes de type `traitement`, `risque` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `threat-model` : les menaces STRIDE de l'architecture ne sont pas encore analysées : elles nourrissent les risques et les mesures.
 - **Passe la main** au skill `decision-log` : noter au journal un risque accepté et sa raison, soumettre l'AIPD à la revue.
@@ -449,6 +457,7 @@ Résumé de [`contract.json`](skills/decision-log/contract.json), qui fait foi (
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : lire les postes attendus en place pour ne pas reproposer une règle qui couvre déjà un retour.
 - **Dépend de** `architecture-review` (`arch_review.py`, facultatif : sans lui, avertissement) : lire les scénarios attendus en place pour ne pas reproposer une règle qui couvre déjà un retour.
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `workflow`, `etape`, `revue`, `exigence`, `terme`, `option-architecture`, `decision`, `adr`, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
 - **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
@@ -517,6 +526,7 @@ Résumé de [`contract.json`](skills/doc-to-markdown/contract.json), qui fait fo
 - **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON, codes de sortie : 0 tous les fichiers sont convertis (sans modèle : images clés seules, avec avertissement) ; 1 fichier introuvable ou illisible, audio sans modèle, modèle inconnu.
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON, codes de sortie : 0 aucune erreur ; 1 au moins un fichier a une erreur.
 - **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles. Rapport JSON, codes de sortie : 0 tous les fichiers sont classés ; 1 au moins un fichier a échoué.
+- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 
@@ -581,6 +591,7 @@ Résumé de [`contract.json`](skills/markdown-to-obsidian/contract.json), qui fa
 - **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule). Rapport JSON, codes de sortie : 0 notes conformes (ou ontologie affichée) ; 1 vault introuvable, type inconnu, ou note hors ontologie (avec --strict : aussi un avertissement).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
@@ -627,6 +638,7 @@ Résumé de [`contract.json`](skills/migration-assessment/contract.json), qui fa
 - **Sorties** : <nom>.md : synthèse par stratégie, tableau des applications, vagues de migration, points d'attention ; <nom>.csv : une ligne par application (stratégie, effort, risque, vague) ; <nom>.waves.json : vagues de migration, reprises par transition-roadmap.
 - **`assess_build.py`** : Contrôle l'évaluation 6R (dépendances connues et sans cycle, application retirée encore utilisée, refactor d'effort S, rehost d'une technologie hors support, repurchase sans cible, application critique à risque élevé sans parade, données sensibles chez un hébergeur extraterritorial, références vers les exigences) et calcule les vagues de migration selon les dépendances. Rapport JSON, codes de sortie : 0 évaluation et vagues écrites (avertissements possibles : cohérences à vérifier) ; 1 description invalide, dépendance inconnue ou en cycle, application retirée encore utilisée, hébergeur ou exigence inconnus ; aucun fichier produit.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Passe la main** au skill `transition-roadmap` : planifier les vagues dans la feuille de route de transition (waves dans sa description).
 - **Passe la main** au skill `cloud-architecture` : décrire et dessiner l'architecture cible des applications migrées.
 - **Passe la main** au skill `data-protection` : des données sensibles partent chez un hébergeur soumis à des lois extraterritoriales.
@@ -669,6 +681,7 @@ Résumé de [`contract.json`](skills/mockup-to-html/contract.json), qui fait foi
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `design-system` (`ds_build.py`, obligatoire) : tokens : schéma, valeurs par défaut, couleurs dérivées, variables CSS et contraste.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : contrôler les lots frontend contre le schéma des lots du chiffrage.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Passe la main** au skill `design-system` : les tokens (couleurs, typographie, espacements) ne sont pas encore définis : ds_extract.py --draft depuis les maquettes.
 - **Passe la main** au skill `solution-estimate` : chiffrer le frontend : estimate_build.py --draft --lots decoupage.lots.json.
 - **Passe la main** à l'agent `document-extractor` : les maquettes sont dans un PDF, un PowerPoint ou un Word : en extraire les images.
@@ -688,6 +701,7 @@ Résumé de [`contract.json`](skills/requirements-catalog/contract.json), qui fa
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **`req_laya.py`** : Pose au modèle local Laya les questions fermées de req_build.py --laya (la phrase est-elle une exigence, quelle catégorie) ; lancé par req_build.py dans son propre environnement. Rapport JSON, codes de sortie : 0 toutes les questions posées (une phrase sans réponse est un avertissement) ; 1 description invalide ou Laya indisponible.
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** au skill `doc-to-markdown` : les documents ne sont pas encore en Markdown.
 - **Passe la main** au skill `architecture-options` : le catalogue est validé : proposer des architectures.
 - **Passe la main** au skill `decision-log` : noter les choix (exigence déduite, phrase écartée, priorité) et soumettre le catalogue à la revue.
@@ -706,6 +720,8 @@ Résumé de [`contract.json`](skills/solution-estimate/contract.json), qui fait 
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json contre son schéma.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Vault Obsidian** : écrit les notes de type `chiffrage`, `lot` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `decision-log` : noter les hypothèses de chiffrage, soumettre le chiffrage à la revue.
 - **Passe la main** à l'agent `document-publisher` : le chiffrage doit être livré en Word, HTML ou XWiki.
@@ -768,6 +784,7 @@ Résumé de [`contract.json`](skills/threat-model/contract.json), qui fait foi (
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `cloud-architecture` (`cloud_build.py`, obligatoire) : lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2....
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `modele-menaces` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `cloud-architecture` : schéma des menaces (cloud_build.py --view threats), mêmes numéros de flux.
 - **Passe la main** au skill `well-architected-review` : contrôler aussi les piliers Well-Architected du fournisseur.
@@ -819,6 +836,8 @@ Résumé de [`contract.json`](skills/well-architected-review/contract.json), qui
   Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
 - **Dépend de** `cloud-architecture` (`cloud_build.py`, obligatoire) : lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2....
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Vault Obsidian** : écrit les notes de type `revue-well-architected`, `constat` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `cloud-architecture` : corriger la description puis reconstruire le schéma.
 - **Passe la main** au skill `threat-model` : préparer aussi le modèle de menaces STRIDE.

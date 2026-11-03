@@ -361,6 +361,16 @@
       "script": "journal.py",
       "why": "noter le message au journal d'un workflow",
       "optional": true
+    },
+    {
+      "skill": "mission-workspace",
+      "script": "lib/workspace.py",
+      "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+    },
+    {
+      "skill": "check-prerequisites",
+      "script": "lib/model_store.py",
+      "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
     }
   ],
   "handoffs": [

@@ -20,6 +20,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
 - **Dépend de** `urbanization-map` (`pos_impact.py`, facultatif : sans lui, avertissement) : placement de chaque option dans le POS du SI, impacts et POS cibles ; erreur si la description a un pos.
 - **Dépend de** `well-architected-review` (`wa_check.py`, facultatif : sans lui, avertissement) : revue Well-Architected des piliers de chaque option cloud.
+- **Dépend de** `cloud-architecture` (`lib/providers.json`, obligatoire) : catalogue commun des hébergeurs.
 - **Passe la main** au skill `drawio-diagram` : construire schemas/architectures.drawio avec drawio_build.py.
 - **Passe la main** au skill `diagram-export` : exporter les pages en PNG et les relire.
 - **Passe la main** à l'agent `schema-designer` : un schéma C4, cloud aux icônes officielles ou un modèle de menaces est demandé pour l'option retenue.

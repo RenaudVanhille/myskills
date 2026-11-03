@@ -943,6 +943,16 @@
           "script": "journal.py",
           "why": "noter le message au journal d'un workflow",
           "optional": true
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        },
+        {
+          "skill": "check-prerequisites",
+          "script": "lib/model_store.py",
+          "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
         }
       ],
       "handoffs": [
@@ -1977,6 +1987,11 @@
           "script": "mermaid_build.py",
           "why": "écrire et contrôler chaque diagramme de séquence",
           "optional": false
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "handoffs": [
@@ -3205,6 +3220,11 @@
           "script": "wa_check.py",
           "why": "revue Well-Architected des piliers de chaque option cloud",
           "optional": true
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [
@@ -4234,6 +4254,11 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "handoffs": [
@@ -5964,6 +5989,11 @@
           "script": "estimate_build.py",
           "why": "vérifier les lignes d'infrastructure de --infra contre le schéma du chiffrage",
           "optional": true
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [
@@ -6727,6 +6757,16 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [
@@ -8026,6 +8066,11 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "vault": {
@@ -9839,6 +9884,13 @@
           }
         }
       ],
+      "requires": [
+        {
+          "skill": "check-prerequisites",
+          "script": "lib/model_store.py",
+          "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
+        }
+      ],
       "handoffs": [
         {
           "to": "markdown-to-obsidian",
@@ -11439,6 +11491,11 @@
           "script": "validate.py",
           "why": "valider les notes produites",
           "optional": true
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "description": "Met un fichier Markdown au format Obsidian : frontmatter, embeds d'images, wikilinks, callouts, pièces jointes copiées dans le vault. À utiliser quand la cible est un vault Obsidian.",
@@ -12374,6 +12431,13 @@
               }
             }
           }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [
@@ -14629,6 +14693,11 @@
           "script": "estimate_build.py",
           "why": "contrôler les lots frontend contre le schéma des lots du chiffrage",
           "optional": true
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "handoffs": [
@@ -15236,6 +15305,13 @@
             "0": "toutes les questions posées (une phrase sans réponse est un avertissement)",
             "1": "description invalide ou Laya indisponible"
           }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "check-prerequisites",
+          "script": "lib/model_store.py",
+          "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
         }
       ],
       "handoffs": [
@@ -17228,6 +17304,16 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [
@@ -19819,6 +19905,11 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
         }
       ],
       "handoffs": [
@@ -21224,6 +21315,16 @@
           "skill": "markdown-to-obsidian",
           "script": "lib/vault_ontology.py",
           "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        },
+        {
+          "skill": "cloud-architecture",
+          "script": "lib/providers.json",
+          "why": "catalogue commun des hébergeurs"
         }
       ],
       "handoffs": [

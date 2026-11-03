@@ -23,7 +23,8 @@ stride.py, en rouge quand ils traversent une frontière).
 Les hébergeurs sans jeu d'icônes dans draw.io (OVHcloud, Scaleway, Outscale,
 Cloud Temple, S3NS, Bleu, NumSpot, hébergement interne) ont un vocabulaire
 commun (`ovh:kubernetes`, `outscale:network`...), dessiné avec les formes de
-la charte : catalogue commun shared/providers.json, copié dans lib/.
+la charte : catalogue commun shared/providers.json, copié dans lib/
+(copie unique, que les autres skills lisent par skill_paths).
 """
 
 import argparse

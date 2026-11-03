@@ -32,8 +32,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-import model_store  # noqa: E402
 from script_report import print_report  # noqa: E402
+from skill_paths import require_module  # noqa: E402
+
+model_store = require_module("check-prerequisites", "lib/model_store.py")
 
 PDF = {".pdf"}
 TEXT = {".md", ".markdown", ".txt"}

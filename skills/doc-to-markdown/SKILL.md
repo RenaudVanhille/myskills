@@ -21,6 +21,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON (0 succès, 1 erreur).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON (0 succès, 1 erreur).
 - **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles. Rapport JSON (0 succès, 1 erreur).
+- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
 
