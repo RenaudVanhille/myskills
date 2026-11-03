@@ -547,6 +547,11 @@
       "skill": "decision-log",
       "script": "journal.py",
       "why": "démarrer le workflow de la mission (init) et lire son état (status)"
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
     }
   ],
   "vault": {

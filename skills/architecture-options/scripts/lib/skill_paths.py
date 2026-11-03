@@ -7,6 +7,8 @@ dans les contrats, CATALOG.md et catalog.json, jamais cachées dans un chemin.
 
     find_script("drawio-diagram", "check_drawio.py")   -> Path ou None
     load_module("drawio-diagram", "check_drawio.py")   -> module ou None
+    require_module("markdown-to-obsidian", "lib/vault_ontology.py")
+                                                       -> module, ou rapport d'erreur et sortie 1
     schema_of("requirements-catalog", "req_build.py")  -> schéma d'entrée ou None
     run_script("diagram-export", "export.py", [args])  -> rapport JSON du script
     export_image(Path("x.drawio"), "png")              -> résumé de l'export (diagram-export)
@@ -41,13 +43,27 @@ def load_module(skill: str, script: str):
     name = path.stem
     if name in sys.modules and getattr(sys.modules[name], "__file__", None) == str(path):
         return sys.modules[name]
-    # Le script importe ses voisins (lib/, autres scripts du skill) par son propre dossier.
+    # Le script importe ses voisins (lib/, autres scripts du skill) par son propre dossier. Un module de
+    # bibliothèque (lib/) passe après celles de l'appelant : il ne masque pas ses modules du même nom.
     if str(path.parent) not in sys.path:
-        sys.path.insert(0, str(path.parent))
+        if path.parent.name == "lib":
+            sys.path.append(str(path.parent))
+        else:
+            sys.path.insert(0, str(path.parent))
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
+    return module
+
+
+def require_module(skill: str, script: str):
+    """Module d'un skill requis (requires, non facultatif) ; s'il manque, écrit le rapport d'erreur
+    {errors, warnings} sur la sortie standard et arrête le script (code 1)."""
+    module = load_module(skill, script)
+    if module is None:
+        print(json.dumps({"errors": [absent(skill, script)], "warnings": []}, ensure_ascii=False))
+        sys.exit(1)
     return module
 
 

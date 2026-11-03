@@ -23,7 +23,8 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et decision.json avant d'en écrire les notes.
 - **Dépend de** `solution-estimate` (`estimate_build.py`, facultatif : sans lui, avertissement) : lire les postes attendus en place pour ne pas reproposer une règle qui couvre déjà un retour.
 - **Dépend de** `architecture-review` (`arch_review.py`, facultatif : sans lui, avertissement) : lire les scénarios attendus en place pour ne pas reproposer une règle qui couvre déjà un retour.
-- **Vault Obsidian** : écrit les notes de type `workflow`, `etape`, `revue`, `exigence`, `terme`, `option-architecture`, `decision`, `adr`, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
+- **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Vault Obsidian** : écrit les notes de type `workflow`, `etape`, `revue`, `exigence`, `terme`, `option-architecture`, `decision`, `adr`, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** à l'utilisateur : une étape est soumise : l'utilisateur la valide ou fait un retour.
 - **Passe la main** au skill `markdown-to-obsidian` : choisir le dossier et les tags du vault (vault_profile.py) avant journal.py init --vault.
 
@@ -142,7 +143,7 @@ chaque commande réécrit dans le vault une note par exigence
 (`Exigences/EF-001`), par terme du glossaire (`Glossaire/Sinistre`), par option (`Options/Option A`), par entrée du
 journal (`Décisions/D-001`), l'ADR et une note d'index, reliées par des
 wikilinks. Le frontmatter suit l'ontologie du vault
-(`scripts/lib/vault-ontology.json`) : `type`, propriétés (`priorite`,
+(skill markdown-to-obsidian) : `type`, propriétés (`priorite`,
 `etape`, `par`...), relations typées en wikilinks (`workflow`, `concerne`,
 `termes`, `ecarts`, `option`...) et tags normalisés (`type/exigence`,
 `priorite/indispensable`) ; une note hors ontologie bloque l'écriture.

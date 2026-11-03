@@ -268,6 +268,9 @@ def check_contracts() -> dict:
             required.add((need["skill"], need["script"]))
             if need["skill"] == name or target is None:
                 failures.append(f"{name} : requires vise un skill inconnu ou lui-même « {need['skill']} »")
+            elif need["script"].startswith("lib/"):
+                if not (ROOT / "skills" / need["skill"] / "scripts" / need["script"]).is_file():
+                    failures.append(f"{name} : requires vise le module {need['skill']}/scripts/{need['script']}, introuvable")
             elif need["script"] not in {s["name"] for s in target.get("scripts", [])}:
                 failures.append(f"{name} : requires vise {need['skill']}/{need['script']}, absent de son contrat")
         for script in contract.get("scripts", []):
@@ -292,7 +295,7 @@ def check_contracts() -> dict:
                              for d in externals[handoff["to"]].get("dependencies", []) if f'"{d}"' not in headers]
 
     # Ontologie du vault : conforme à son schéma et cohérente ; types écrits déclarés (vault.writes) existants.
-    ontology = json.loads((ROOT / "shared" / "vault-ontology.json").read_text(encoding="utf-8"))
+    ontology = json.loads(contracts_lib.VAULT_ONTOLOGY.read_text(encoding="utf-8"))
     failures += [f"vault-ontology.json : {e}" for e in schema_errors(ontology, contracts_lib.schema("vault-ontology"))]
     kinds = set(ontology.get("types", {}))
     for kind, spec in ontology.get("types", {}).items():
@@ -305,7 +308,7 @@ def check_contracts() -> dict:
         failures += [f"vault-ontology.json : relation {rel}, type « {k} » inconnu"
                      for k in spec["from"] + spec["to"] if k != "*" and k not in kinds]
     for name, contract in skills.items():
-        failures += [f"{name} : vault.writes vise le type « {k} », absent de shared/vault-ontology.json"
+        failures += [f"{name} : vault.writes vise le type « {k} », absent de l'ontologie du vault"
                      for k in contract.get("vault", {}).get("writes", []) if k not in kinds]
 
     # Workflows livrés : conformes au schéma de définition, skills et agents existants.
@@ -364,7 +367,7 @@ def check_contracts() -> dict:
         if contracts_lib.render_agent(contract) not in (ROOT / "src" / "agents" / f"{name}.md").read_text(encoding="utf-8"):
             stale.append(f"src/agents/{name}.md")
     for copy, text in {**contracts_lib.agent_enums(), **contracts_lib.shared_inputs(), **contracts_lib.generated_libs(),
-                       **contracts_lib.plugin_manifests()}.items():
+                       **contracts_lib.plugin_manifests(), **contracts_lib.gitattributes()}.items():
         if not copy.exists() or copy.read_text(encoding="utf-8") != text:
             stale.append(copy.relative_to(ROOT).as_posix())
     from agents_lib import parse_agent, source_agents
@@ -404,7 +407,8 @@ EXPORT_SKILLS = {"markdown-publish"}
 NAME = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 
-VAULT_IMPORT = r"^\s*(import\s+(lib\.)?vault_ontology\b|from\s+(lib\.)?vault_ontology\s+import|from\s+lib\s+import\s+.*\bvault_ontology\b)"
+VAULT_IMPORT = (r"^\s*(import\s+(lib\.)?vault_ontology\b|from\s+(lib\.)?vault_ontology\s+import|from\s+lib\s+import\s+.*\bvault_ontology\b"
+                r'|vault_ontology\s*=\s*require_module\("markdown-to-obsidian",\s*"lib/vault_ontology\.py"\))')
 
 
 def check_rules() -> dict:
@@ -452,10 +456,15 @@ def check_rules() -> dict:
                          if other in contracts and other != name]
             failures += [f"{where} : {call}(\"{skill}\", \"{script}\") absent de requires dans contract.json"
                          for call, skill, script in re.findall(
-                             r'(find_script|load_module|schema_of|run_script)\("([a-z0-9-]+)",\s*"([^"]+)"[,)]', code)
+                             r'(find_script|load_module|require_module|schema_of|run_script)\("([a-z0-9-]+)",\s*"([^"]+)"[,)]', code)
                          if (skill, script) not in declared]
             if re.search(r"\bexport_image\(", code) and ("diagram-export", "export.py") not in declared:
                 failures.append(f"{where} : export_image (diagram-export/export.py) absent de requires dans contract.json")
+    # Ontologie du vault : source unique dans markdown-to-obsidian, jamais copiée ailleurs.
+    for copy in sorted((ROOT / "skills").glob("*/scripts/lib/vault[-_]ontology.*")):
+        if copy.parents[2].name != contracts_lib.VAULT_SKILL:
+            failures.append(f"{copy.relative_to(ROOT).as_posix()} : copie de l'ontologie du vault, chargez-la par "
+                            f"require_module(\"{contracts_lib.VAULT_SKILL}\", \"{contracts_lib.VAULT_MODULE}\") et requires")
     # Un script qui touche au vault passe par l'ontologie : import de vault_ontology et champ vault du contrat.
     for name, contract in contracts.items():
         for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):

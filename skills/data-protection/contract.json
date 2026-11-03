@@ -454,6 +454,13 @@
     ],
     "reads": true
   },
+  "requires": [
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+    }
+  ],
   "handoffs": [
     {
       "to": "threat-model",

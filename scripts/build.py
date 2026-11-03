@@ -30,7 +30,7 @@ import shutil
 
 from agents_lib import REPO, parse_agent, render_agent, source_agents, write_text
 from contracts_lib import (agent_contracts, agent_enums, build_catalog_json, build_catalog_md, build_routes,
-                           generated_libs,
+                           generated_libs, gitattributes,
                            plugin_manifests, render_agent as render_agent_contract, render_skill, replace_section,
                            shared_inputs, skill_contracts)
 
@@ -80,7 +80,7 @@ def main() -> None:
             skill, _, section = line.strip().partition(" ")
             write_text(REPO / "skills" / skill / "references" / "style.md", style_for(style, section))
 
-    for path, text in {**generated_libs(), **plugin_manifests()}.items():
+    for path, text in {**generated_libs(), **plugin_manifests(), **gitattributes()}.items():
         write_text(path, text)
 
     agents_meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}

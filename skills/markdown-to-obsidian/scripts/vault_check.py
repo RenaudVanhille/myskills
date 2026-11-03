@@ -5,7 +5,7 @@
 
 Lit le vault (sans le modifier). Chaque note dont le frontmatter a une
 propriété `type` est vérifiée contre l'ontologie (`scripts/lib/vault-ontology.json`,
-copie de `shared/vault-ontology.json`) : type connu, propriétés obligatoires,
+source unique de l'ontologie) : type connu, propriétés obligatoires,
 valeurs permises, relations (wikilinks) permises depuis ce type et visant une
 note du bon type, tags normalisés. Les notes sans `type` sont comptées, pas
 vérifiées. Une note générée (propriété `genere`) est aussi relue pour sa lisibilité

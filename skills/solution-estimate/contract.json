@@ -1963,6 +1963,11 @@
       "script": "req_build.py",
       "why": "valider exigences.json contre son schéma",
       "optional": true
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
     }
   ],
   "handoffs": [

@@ -77,10 +77,11 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, schema_of  # noqa: E402
+from skill_paths import absent, require_module, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
-import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 Z90 = 1.2816  # quantile 90 % de la loi normale : fourchette P10-P90
 PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réalisation",

@@ -1265,6 +1265,11 @@
       "script": "arch_review.py",
       "why": "lire les scénarios attendus en place pour ne pas reproposer une règle qui couvre déjà un retour",
       "optional": true
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
     }
   ],
   "vault": {

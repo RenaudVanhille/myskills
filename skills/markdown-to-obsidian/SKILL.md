@@ -17,10 +17,10 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail ; Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX).
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON (0 succès, 1 erreur).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
-- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
+- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
-- **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
+- **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.
 
@@ -98,7 +98,7 @@ uv run ../doc-to-markdown/scripts/validate.py VAULT/SOUS-DOSSIER/NOTE.md --obsid
 ## 4. Ontologie du vault
 
 Les notes écrites par les skills suivent une ontologie commune
-(`scripts/lib/vault-ontology.json`, copie de `shared/vault-ontology.json`) :
+(`scripts/lib/vault-ontology.json`, source unique que les autres skills chargent) :
 `type` de note (exigence, option-architecture, decision, adr, document,
 constat, risque...), propriétés et valeurs permises, relations typées
 écrites en wikilinks entre guillemets (`concerne: ["[[...]]"]`) et tags

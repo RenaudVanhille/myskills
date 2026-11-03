@@ -55,14 +55,14 @@
     },
     "requires": {
       "type": "array",
-      "description": "Scripts d'autres skills que les scripts de ce skill appellent (scripts/lib/skill_paths.py).",
+      "description": "Scripts d'autres skills que les scripts de ce skill appellent, ou modules de leur scripts/lib/ qu'ils chargent (scripts/lib/skill_paths.py).",
       "items": {
         "type": "object",
         "required": ["skill", "script", "why"],
         "additionalProperties": false,
         "properties": {
           "skill": {"type": "string", "pattern": "^[a-z0-9-]+$"},
-          "script": {"type": "string", "pattern": "^[\\w-]+\\.py$"},
+          "script": {"type": "string", "pattern": "^(lib/)?[\\w-]+\\.py$"},
           "why": {"type": "string"},
           "optional": {"type": "boolean",
                        "description": "Sans ce skill, le script continue et le dit dans les avertissements de son rapport ; sinon, il s'arrête en erreur."}
@@ -73,7 +73,7 @@
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,
-      "description": "Notes du vault Obsidian que les scripts du skill écrivent ou lisent, selon shared/vault-ontology.json (scripts/lib/vault_ontology.py, copié par scripts/build.py).",
+      "description": "Notes du vault Obsidian que les scripts du skill écrivent ou lisent, selon l'ontologie du skill markdown-to-obsidian (scripts/lib/vault-ontology.json et vault_ontology.py, chargés par skill_paths, déclarés dans requires).",
       "properties": {
         "writes": {"type": "array", "items": {"type": "string"}, "description": "Types de notes écrits : clés de types de l'ontologie."},
         "reads": {"type": "boolean", "description": "Les scripts lisent les notes typées du vault."}

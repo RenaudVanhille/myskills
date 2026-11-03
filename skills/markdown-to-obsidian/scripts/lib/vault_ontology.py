@@ -10,9 +10,10 @@ notes visées par les relations. `parse()` lit le frontmatter d'une note
 les notes d'un skill, les vérifie toutes, puis les écrit (rien si une seule
 sort de l'ontologie) et retire ses notes devenues sans objet.
 
-Source : shared/scripts/vault_ontology.py et shared/vault-ontology.json,
-copiés dans scripts/lib/ des skills dont le contrat déclare `vault` par
-scripts/build.py. Ne modifiez pas les copies.
+Source unique : ce module et `vault-ontology.json` vivent dans le skill
+markdown-to-obsidian. Les autres skills les chargent par
+`skill_paths.require_module`, avec le module `lib/vault_ontology.py` déclaré
+dans le `requires` de leur contrat, sans copie.
 """
 
 import json

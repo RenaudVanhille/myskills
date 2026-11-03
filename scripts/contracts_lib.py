@@ -24,6 +24,10 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                   "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
+# Ontologie du vault Obsidian et son module : source unique, dans ce skill, sans copie.
+VAULT_SKILL = "markdown-to-obsidian"
+VAULT_ONTOLOGY = REPO / "skills" / VAULT_SKILL / "scripts" / "lib" / "vault-ontology.json"
+VAULT_MODULE = "lib/vault_ontology.py"
 # Espace de travail (shared/scripts/workspace.py) : skills à champ vault, plus ceux-ci.
 WORKSPACE_USERS = ["agent-handoff", "api-contract", "mockup-to-html"]
 # Modèles locaux : sources autorisées (shared/model-sources.json), son schéma et model_store.py.
@@ -53,13 +57,8 @@ def generated_libs() -> dict[Path, str]:
         text = (REPO / "shared" / data).read_text(encoding="utf-8")
         for name in skills:
             files[REPO / "skills" / name / "scripts" / "lib" / data] = text
-    # Ontologie du vault Obsidian et son module, pour les skills qui lisent ou écrivent le vault (champ vault).
-    ontology = (REPO / "shared" / "vault-ontology.json").read_text(encoding="utf-8")
-    module = (shared / "vault_ontology.py").read_text(encoding="utf-8")
-    for name, contract in skill_contracts().items():
-        if contract.get("vault"):
-            files[REPO / "skills" / name / "scripts" / "lib" / "vault-ontology.json"] = ontology
-            files[REPO / "skills" / name / "scripts" / "lib" / "vault_ontology.py"] = module
+    # L'ontologie du vault et son module ne se copient pas : source unique dans markdown-to-obsidian
+    # (VAULT_ONTOLOGY), chargée par skill_paths.require_module et déclarée dans requires.
     # Espace de travail (mission.json et son schéma), pour les skills du vault et le routage.
     workspace = (shared / "workspace.py").read_text(encoding="utf-8")
     mission = (SCHEMAS / "mission.schema.json").read_text(encoding="utf-8")
@@ -147,6 +146,26 @@ def agent_enums() -> dict[Path, str]:
 
         files[path] = AGENT_ENUM.sub(fix, text)
     return files
+
+
+GENERATED_MARK = "# Copies générées par scripts/build.py (ne pas modifier) : repliées dans les diffs de PR."
+
+
+def gitattributes() -> dict[Path, str]:
+    """.gitattributes : les copies de generated_libs() marquées linguist-generated, pour que GitHub replie
+    leurs diffs ; un motif par nom de fichier quand toutes ses occurrences sont des copies."""
+    path = REPO / ".gitattributes"
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    head = text.split(GENERATED_MARK)[0].rstrip("\n")
+    generated = {p.relative_to(REPO).as_posix() for p in generated_libs()}
+    names = sorted({p.rsplit("/", 1)[1] for p in generated if p.startswith("skills/")})
+    lines = []
+    for name in names:
+        every = {p.relative_to(REPO).as_posix() for p in REPO.glob(f"skills/*/scripts/lib/{name}")}
+        mine = {p for p in generated if p.endswith("/" + name)}
+        lines += [f"skills/*/scripts/lib/{name} linguist-generated=true"] if every <= mine \
+            else [f"{p} linguist-generated=true" for p in sorted(mine)]
+    return {path: "\n".join(([head, ""] if head else []) + [GENERATED_MARK] + lines) + "\n"}
 
 
 def plugin_manifests() -> dict[Path, str]:
@@ -267,8 +286,8 @@ def render_skill(contract: dict, full: bool = False) -> str:
     if vault:
         parts = [f"écrit les notes de type {', '.join(f'`{k}`' for k in vault['writes'])}"] if vault.get("writes") else []
         parts += ["lit les notes typées"] if vault.get("reads") else []
-        lines.append(f"- **Vault Obsidian** : {' ; '.join(parts)}, selon l'ontologie `shared/vault-ontology.json` "
-                     "(frontmatter vérifié par `scripts/lib/vault_ontology.py`).")
+        lines.append(f"- **Vault Obsidian** : {' ; '.join(parts)}, selon l'ontologie du vault "
+                     "(`vault_ontology.py` du skill markdown-to-obsidian).")
     for handoff in contract["handoffs"]:
         target = {"skill": f"au skill `{handoff['to']}`", "agent": f"à l'agent `{handoff['to']}`",
                   "utilisateur": "à l'utilisateur",
