@@ -50,7 +50,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import check as check_schema, print_schema, validate  # noqa: E402
+from spec_schema import check as check_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -523,8 +523,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description exigences.json")
     parser.add_argument("--out-dir", type=Path, help="dossier de exigences.md et .csv (défaut : celui du .json)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     parser.add_argument("--candidates", type=Path, nargs="?", const=True,
                         help="écrit les phrases non reprises à trier (défaut : <nom>.candidats.json à côté du .json)")
     parser.add_argument("--triage", type=Path,
@@ -546,12 +545,7 @@ def main() -> int:
         report = draft(args.spec, args.sources)
         print(json.dumps(report, ensure_ascii=False))
         return 1 if report["errors"] else 0
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-        return 1
-    invalid = validate(spec, __file__)
+    spec, invalid = read_spec(args.spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1

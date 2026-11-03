@@ -31,7 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec  # noqa: E402
 
 STATUS = {"a-traiter": "à traiter", "traitee": "traitée", "acceptee": "acceptée", "ecartee": "écartée"}
 CATEGORIES = {"S": "Usurpation d'identité", "T": "Altération", "R": "Répudiation",
@@ -92,12 +92,7 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1
 
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        report["errors"].append(f"{args.spec} illisible : {error}")
-        return stop()
-    report["errors"] = validate(spec, __file__)
+    spec, report["errors"] = read_spec(args.spec, __file__)
     if report["errors"]:
         return stop()
     model_path = (args.spec.parent / spec["model"]).resolve()

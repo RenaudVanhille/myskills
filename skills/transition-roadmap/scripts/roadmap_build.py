@@ -31,7 +31,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 
 LONG = 26
 
@@ -180,8 +180,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("spec", type=Path, nargs="?", help="description FEUILLE.json")
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -192,14 +191,9 @@ def main() -> int:
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "items": 0, "start": None, "end": None, "weeks": 0,
               "critical_path": [], "late_weeks": 0, "errors": errors, "warnings": warnings}
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(str(error))
-        spec = None
-    if spec is not None:
-        # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
-        errors += validate(spec, __file__)
+    # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1

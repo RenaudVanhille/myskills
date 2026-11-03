@@ -40,7 +40,7 @@ from xml.sax.saxutils import escape
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
 
 STATUSES = ["conforme", "partiel", "non-conforme", "sans-objet"]
 FROM_GAP = {"partiel": "partiel", "non": "non-conforme"}
@@ -230,8 +230,7 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
     parser.add_argument("--draft", action="store_true", help="écrire le brouillon : une réponse par exigence retenue")
     parser.add_argument("--option", help="avec --draft : option de la réponse (défaut : décision, sinon recommandation)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
@@ -246,13 +245,11 @@ def main() -> int:
     warnings: list[str] = []
     report = {"input": str(args.spec), "outputs": [], "option": None, "requirements": 0,
               "counts": {s: 0 for s in STATUSES}, "rate": None, "errors": errors, "warnings": warnings}
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        errors.append(str(error))
+    spec, invalid = read_spec(args.spec, __file__)
+    errors += invalid
+    if spec is None:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    errors += validate(spec, __file__)
     base = args.spec.resolve().parent
     catalog = arch = option = None
     if not errors:

@@ -38,7 +38,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, schema_option, validate  # noqa: E402
 
 MONTHS = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
           "septembre": 9, "octobre": 10, "novembre": 11, "decembre": 12}
@@ -448,8 +448,7 @@ def main() -> int:
     parser.add_argument("--today", help="date du jour pour le temps restant (AAAA-MM-JJ, défaut : aujourd'hui)")
     parser.add_argument("--draft", action="store_true", help="écrire le brouillon de la description depuis les sources")
     parser.add_argument("--sources", default="sources", help="avec --draft : dossier des sources (défaut : sources)")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

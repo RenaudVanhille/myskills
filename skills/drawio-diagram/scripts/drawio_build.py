@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import br, edge, new_file, new_page, text_size, vertex, write  # noqa: E402
-from spec_schema import print_schema, validate  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 from check_drawio import check  # noqa: E402
 from skill_paths import export_image  # noqa: E402
 
@@ -146,21 +146,15 @@ def main() -> int:
     parser.add_argument("--out", type=Path, help="fichier .drawio (défaut : même nom)")
     parser.add_argument("--export", choices=["png", "svg"],
                         help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
-    try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        print(json.dumps({"input": str(args.spec), "errors": [str(error)], "warnings": []}, ensure_ascii=False))
-        return 1
     # Description validée contre le schéma d'entrée du contract.json avant tout traitement.
-    invalid = validate(spec, __file__)
+    spec, invalid = read_spec(args.spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))
         return 1

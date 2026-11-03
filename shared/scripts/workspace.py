@@ -152,6 +152,19 @@ def vault_target(vault, folder, starts, default_folder: str | None = "Mission") 
     return Path(vault), folder, []
 
 
+def vault_args(parser, args, starts) -> list[str]:
+    """--vault et --folder d'un script qui écrit dans le vault : ceux de la mission par défaut (vault_target),
+    donnés ensemble (sinon parser.error), vault existant. Rend les erreurs à mettre dans le rapport."""
+    args.vault, args.folder, errors = vault_target(args.vault, args.folder, starts)
+    if errors:
+        return errors
+    if bool(args.vault) != bool(args.folder):
+        parser.error("--vault et --folder vont ensemble")
+    if args.vault and not Path(args.vault).is_dir():
+        return [f"--vault : dossier introuvable {args.vault}"]
+    return []
+
+
 def user_rules() -> Path | None:
     """Fichier des règles de complétude de l'utilisateur, s'il existe."""
     value = os.environ.get(RULES_ENV)

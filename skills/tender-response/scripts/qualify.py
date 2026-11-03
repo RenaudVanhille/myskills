@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, run_script  # noqa: E402
-from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from spec_schema import check, input_schema, print_schema, schema_option, validate  # noqa: E402
 
 GRID = Path(__file__).resolve().parent.parent / "references" / "grille-qualification.json"
 CHOICES = {"go": "Go", "go-conditions": "Go sous conditions", "no-go": "No-go"}
@@ -135,8 +135,7 @@ def main() -> int:
                         help="trace la décision au journal du workflow du dossier, à cette étape (decision-log)")
     parser.add_argument("--today", help="date du jour pour les indices (AAAA-MM-JJ, défaut : aujourd'hui)")
     parser.add_argument("--draft", action="store_true", help="écrire le brouillon : un critère par ligne de la grille")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

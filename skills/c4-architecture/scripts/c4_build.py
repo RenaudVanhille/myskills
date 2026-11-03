@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, export_image, schema_of  # noqa: E402
-from spec_schema import check, print_schema, validate  # noqa: E402
+from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 SPECIFICATION = HERE.parent / "references" / "specification.c4"
@@ -206,8 +206,7 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier LikeC4 (défaut : <nom>-c4 à côté de l'entrée)")
     parser.add_argument("--export", choices=["png", "svg"],
                         help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
-    parser.add_argument("--schema", action="store_true",
-                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+    schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)

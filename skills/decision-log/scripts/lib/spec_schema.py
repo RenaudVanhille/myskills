@@ -124,3 +124,19 @@ def validate(spec, script: str | Path) -> list[str]:
 def print_schema(script: str | Path) -> None:
     """Affiche le schéma d'entrée sur une ligne (option --schema des scripts)."""
     print(json.dumps(input_schema(script), ensure_ascii=False, separators=(",", ":")))
+
+
+def schema_option(parser) -> None:
+    """Option --schema d'un script qui lit une description JSON (argparse)."""
+    parser.add_argument("--schema", action="store_true",
+                        help="affiche le schéma JSON de la description sur une ligne, puis s'arrête")
+
+
+def read_spec(path: Path, script: str | Path) -> tuple:
+    """Description lue et validée contre le schéma d'entrée du script : (description, erreurs) ;
+    description à None si le fichier est illisible."""
+    try:
+        spec = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        return None, [f"{path} illisible : {error}"]
+    return spec, validate(spec, script)
