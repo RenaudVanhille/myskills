@@ -16,8 +16,9 @@ vault, le dossier des notes ni les dépôts de code à chaque appel.
 Cloisonnement : dans une mission, un script n'écrit que dans le vault de la
 mission ; un --vault qui en désigne un autre est refusé.
 
-Source : shared/scripts/workspace.py, copiée dans scripts/lib/ des skills qui
-lisent ou écrivent le vault par scripts/build.py. Ne modifiez pas les copies.
+Source : shared/scripts/workspace.py, copiée par scripts/build.py dans le seul
+skill mission-workspace (scripts/lib/) ; les autres skills le chargent par
+skill_paths.require_module, déclaré dans requires. Ne modifiez pas la copie.
 """
 
 import json

@@ -50,7 +50,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, load_module, schema_of  # noqa: E402
+from skill_paths import absent, load_module, require_file, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 
 # Position des options dans le POS du SI (skill urbanization-map), déclaré dans requires.
@@ -165,8 +165,8 @@ def cloud_spec(option: dict, qualifications: list[str] | None = None) -> dict:
     return spec
 
 
-# Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
-PROVIDERS = json.loads((Path(__file__).resolve().parent / "lib" / "providers.json").read_text(encoding="utf-8"))
+# Catalogue commun des hébergeurs (shared/providers.json), copie unique dans cloud-architecture.
+PROVIDERS = json.loads(require_file("cloud-architecture", "lib/providers.json").read_text(encoding="utf-8"))
 
 
 def check_hosting(spec: dict, option: dict, where: str, catalog: dict, warnings: list[str]) -> None:

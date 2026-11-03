@@ -80,7 +80,11 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   `vault_ontology.py` n'existent qu'une fois, dans
   `skills/markdown-to-obsidian/scripts/lib/` : un autre skill les charge par
   `require_module("markdown-to-obsidian", "lib/vault_ontology.py")` déclaré
-  dans `requires`, jamais par une copie **(vérifiée)**. Le skill déclare
+  dans `requires`, jamais par une copie **(vérifiée)**. De même pour les
+  autres sources uniques de `SINGLE_SOURCES` (`scripts/contracts_lib.py`) :
+  `workspace.py` et ses schémas (`mission-workspace`), `model_store.py` et
+  `model-sources.json` (`check-prerequisites`), `providers.json`
+  (`cloud-architecture`, par `require_file`). Le skill déclare
   `vault` dans son contrat (`writes` : types écrits, `reads`) ; les types
   existent et le script vérifie ses notes avec `vault_ontology` avant
   d'écrire **(vérifiée)**. Dans une mission (un répertoire,
@@ -165,7 +169,7 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   télécharge que depuis une source de `shared/model-sources.json` (hôte
   autorisé, révision épinglée, empreintes SHA-256 vérifiées, entrée ajoutée
   par `scripts/pin_model.py` et relue en PR), par
-  `scripts/lib/model_store.py`. Un script qui lit un document avec une
+  `model_store.py` (skill `check-prerequisites`). Un script qui lit un document avec une
   bibliothèque de modèle ou de conversion (faster-whisper, Laya, MarkItDown,
   Docling) appelle d'abord `model_store.guard_network()` : seuls les hôtes
   identifiés (`model-sources.json`, `MYSKILLS_ALLOWED_HOSTS`), le proxy et

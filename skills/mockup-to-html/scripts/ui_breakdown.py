@@ -48,8 +48,9 @@ sys.path.insert(0, str(HERE / "targets"))
 import react  # noqa: E402
 import templates  # noqa: E402
 import skill_paths  # noqa: E402
-import workspace  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+
+workspace = skill_paths.require_module("mission-workspace", "lib/workspace.py")
 
 LEVELS = ["faible", "moyenne", "elevee", "tres-elevee"]
 # Mise en page et typographie : un seul lot, le thème et les gabarits les portent.

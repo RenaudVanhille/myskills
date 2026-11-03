@@ -76,10 +76,11 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from lib.skill_paths import SKILLS, absent, find_script  # noqa: E402
+from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
-from lib import workspace  # noqa: E402  (après vault_sync, qui met lib/ dans le chemin)
+
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 WORKFLOWS = Path(__file__).resolve().parent.parent / "workflows"
 

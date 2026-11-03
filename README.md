@@ -452,6 +452,7 @@ sur `main` ; on ne les modifie jamais à la main (AGENTS.md, section 9).
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
 | `skills/markdown-to-obsidian/scripts/lib/vault-ontology.json` | Ontologie du vault Obsidian (types de notes, propriétés, relations typées, tags), source unique : les autres skills la chargent avec `vault_ontology.py` par `skill_paths` (`requires`), sans copie |
+| `shared/scripts/workspace.py`, `model_store.py`, `shared/providers.json` | Sources uniques copiées par `build.py` dans un seul skill porteur (`mission-workspace`, `check-prerequisites`, `cloud-architecture`) ; les autres skills les chargent par `skill_paths` (`requires`) |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` (règles communes et section du format) |
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |

@@ -1639,6 +1639,11 @@
       "script": "estimate_build.py",
       "why": "contrôler les lots frontend contre le schéma des lots du chiffrage",
       "optional": true
+    },
+    {
+      "skill": "mission-workspace",
+      "script": "lib/workspace.py",
+      "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
     }
   ],
   "handoffs": [

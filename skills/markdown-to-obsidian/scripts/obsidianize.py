@@ -35,9 +35,10 @@ from urllib.parse import unquote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import vault_ontology  # noqa: E402
-import workspace  # noqa: E402
 from script_report import print_report  # noqa: E402
-from skill_paths import absent, find_script, load_module  # noqa: E402
+from skill_paths import absent, find_script, load_module, require_module  # noqa: E402
+
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 CLASSIFY = find_script("doc-to-markdown", "classify.py")
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")

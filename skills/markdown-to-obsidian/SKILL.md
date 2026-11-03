@@ -20,6 +20,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `doc-to-markdown` : valider la note avec validate.py --obsidian.
 - **Passe la main** au skill `markdown-publish` : exporter la note en Word, HTML ou XWiki.

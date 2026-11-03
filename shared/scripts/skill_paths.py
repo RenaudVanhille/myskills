@@ -9,6 +9,7 @@ dans les contrats, CATALOG.md et catalog.json, jamais cachées dans un chemin.
     load_module("drawio-diagram", "check_drawio.py")   -> module ou None
     require_module("markdown-to-obsidian", "lib/vault_ontology.py")
                                                        -> module, ou rapport d'erreur et sortie 1
+    require_file("cloud-architecture", "lib/providers.json")  -> Path, ou rapport d'erreur et sortie 1
     schema_of("requirements-catalog", "req_build.py")  -> schéma d'entrée ou None
     run_script("diagram-export", "export.py", [args])  -> rapport JSON du script
     export_image(Path("x.drawio"), "png")              -> résumé de l'export (diagram-export)
@@ -65,6 +66,16 @@ def require_module(skill: str, script: str):
         print(json.dumps({"errors": [absent(skill, script)], "warnings": []}, ensure_ascii=False))
         sys.exit(1)
     return module
+
+
+def require_file(skill: str, path: str) -> Path:
+    """Fichier de données d'un skill requis (requires, non facultatif) ; s'il manque, écrit le rapport
+    d'erreur {errors, warnings} sur la sortie standard et arrête le script (code 1)."""
+    found = find_script(skill, path)
+    if found is None:
+        print(json.dumps({"errors": [absent(skill, path)], "warnings": []}, ensure_ascii=False))
+        sys.exit(1)
+    return found
 
 
 def schema_of(skill: str, script: str) -> dict | None:

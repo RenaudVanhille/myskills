@@ -37,8 +37,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 import skill_paths  # noqa: E402
-import workspace  # noqa: E402
 from spec_schema import check, input_schema, print_schema  # noqa: E402
+
+workspace = skill_paths.require_module("mission-workspace", "lib/workspace.py")
 
 LEVELS = ["faible", "moyenne", "elevee", "tres-elevee"]
 # Abaques par défaut, à calibrer : remplacés clé à clé par la section backend des abaques fournis.

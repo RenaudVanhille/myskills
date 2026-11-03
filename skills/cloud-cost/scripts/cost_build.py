@@ -36,12 +36,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, schema_of  # noqa: E402
+from skill_paths import absent, require_file, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 GRID = HERE.parent / "references" / "prix.json"
-PROVIDERS = HERE / "lib" / "providers.json"
+PROVIDERS = require_file("cloud-architecture", "lib/providers.json")
 # Heures par mois de chaque plage horaire : en continu, ou 12 h par jour ouvré (22 jours).
 SCHEDULES = {"continu": 730, "ouvre": 264}
 CATEGORIES = ["calcul", "base de données", "stockage", "réseau", "exploitation"]

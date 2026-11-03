@@ -77,11 +77,11 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, require_module, schema_of  # noqa: E402
+from skill_paths import absent, require_file, require_module, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
-import workspace  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 Z90 = 1.2816  # quantile 90 % de la loi normale : fourchette P10-P90
 PHASES = {"cadrage": "Cadrage", "conception": "Conception", "realisation": "Réalisation",
@@ -92,8 +92,8 @@ PERIODS = {"mois": 12, "an": 1, "unique": 0}
 COMPLEXITY = {"faible": "Faible", "moyenne": "Moyenne", "elevee": "Élevée", "tres-elevee": "Très élevée"}
 SIZES = ((5, "faible"), (15, "moyenne"), (40, "elevee"))  # jours espérés d'une tâche : complexité déduite
 UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper ou hypothèse à lever
-# Catalogue commun des hébergeurs (shared/providers.json, copié par scripts/build.py).
-PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
+# Catalogue commun des hébergeurs (shared/providers.json), copie unique dans cloud-architecture.
+PROVIDERS = require_file("cloud-architecture", "lib/providers.json")
 # Hypothèses de production par défaut : sans IA (charges saisies), avec IA, dev IA natif.
 SCENARIOS = Path(__file__).resolve().parent.parent / "references" / "hypotheses-ia.json"
 STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier

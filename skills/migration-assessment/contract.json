@@ -253,6 +253,13 @@
       }
     }
   ],
+  "requires": [
+    {
+      "skill": "cloud-architecture",
+      "script": "lib/providers.json",
+      "why": "catalogue commun des hébergeurs"
+    }
+  ],
   "handoffs": [
     {
       "to": "transition-roadmap",

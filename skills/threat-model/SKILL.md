@@ -21,6 +21,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`threat_review.py`** : Reporte dans le modèle STRIDE les décisions du modèle sur les menaces, données dans un court fichier JSON : règles groupées (catégorie, nature, type, élément, flux traversant ou chiffré) et décisions par menace (statut, mesure retenue, menace précisée, raison), plus les propositions de stride.py ; vérifie chaque décision et règle, réécrit <sujet>.threats.md depuis <sujet>.threats.json, compte les menaces par statut, par règle et celles encore à analyser. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `cloud-architecture` (`cloud_build.py`, obligatoire) : lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2....
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `modele-menaces` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** au skill `cloud-architecture` : schéma des menaces (cloud_build.py --view threats), mêmes numéros de flux.
 - **Passe la main** au skill `well-architected-review` : contrôler aussi les piliers Well-Architected du fournisseur.

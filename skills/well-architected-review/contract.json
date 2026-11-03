@@ -598,6 +598,16 @@
       "skill": "markdown-to-obsidian",
       "script": "lib/vault_ontology.py",
       "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+    },
+    {
+      "skill": "mission-workspace",
+      "script": "lib/workspace.py",
+      "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+    },
+    {
+      "skill": "cloud-architecture",
+      "script": "lib/providers.json",
+      "why": "catalogue commun des hébergeurs"
     }
   ],
   "handoffs": [

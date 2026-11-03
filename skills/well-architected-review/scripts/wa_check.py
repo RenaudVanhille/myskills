@@ -40,11 +40,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, load_module, require_module  # noqa: E402
+from skill_paths import absent, load_module, require_file, require_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
-import workspace  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
+workspace = require_module("mission-workspace", "lib/workspace.py")
 
 HERE = Path(__file__).resolve().parent
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
@@ -193,9 +193,9 @@ RULES = {
                {}),
 }
 
-# Hébergeurs souverains (catalogue commun shared/providers.json, copié dans lib/) : rôles de leurs services et
+# Hébergeurs souverains (catalogue commun shared/providers.json, lu dans cloud-architecture) : rôles de leurs services et
 # de leurs groupes, pour appliquer les mêmes règles ; repères AWS faute de cadre Well-Architected propre.
-CATALOG = json.loads((HERE / "lib" / "providers.json").read_text(encoding="utf-8"))
+CATALOG = json.loads(require_file("cloud-architecture", "lib/providers.json").read_text(encoding="utf-8"))
 HOSTS = {k: v for k, v in CATALOG["providers"].items() if "diagram" in v}
 _SERVICES = {k: v for k, v in CATALOG["diagram"]["services"].items() if not k.startswith("_")}
 _GROUPS = {k: v for k, v in CATALOG["diagram"]["groups"].items() if not k.startswith("_")}

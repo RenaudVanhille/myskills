@@ -14,8 +14,9 @@ huggingface_hub et transformers.
 
 Cache : <cache de myskills>/models/<id>/<révision>/, ou MYSKILLS_MODELS.
 
-Source : shared/scripts/model_store.py, copiée dans scripts/lib/ des skills
-qui s'en servent par scripts/build.py. Ne modifiez pas les copies.
+Source : shared/scripts/model_store.py, copiée par scripts/build.py dans le
+seul skill check-prerequisites (scripts/lib/) ; les autres skills le chargent
+par skill_paths.require_module, déclaré dans requires. Ne modifiez pas la copie.
 """
 
 import fnmatch
