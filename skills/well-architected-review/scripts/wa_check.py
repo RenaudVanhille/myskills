@@ -502,25 +502,37 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
     rel = f"{base}/Revues Well-Architected/{title}"
     option_rel = f"{base}/Options/Option {option}" if option else None
     up = f"Revue : [[{rel}|{title}]]"
+    v = vault_ontology
     lines = []
-    for f in findings:
-        name = vault_ontology.safe_name(f"{f['rule']} {f['element']}")
+    order = sorted(findings, key=lambda f: (bool(f["accepted"]), SEVERITIES.index(f["severity"]), f["rule"]))
+    for f in order:
+        name = v.safe_name(f"{f['rule']} {f['element']}")
         note = f"{base}/Constats/{title}/{name}"
-        lines.append(f"- [[{note}|{f['rule']} {f['element']}]] ({f['severity']}"
-                     + (", accepté)" if f["accepted"] else ")"))
-        body = [f"# {f['rule']} {f['element']}", "", f["message"], "", up, "", f"**Correction** : {f['fix']}", "",
-                f"**Référence** : {f['ref']}"] + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
+        heading = f"{f['rule']} {v.short(f['message'])}"
+        lines.append(f"- {v.link(note, heading)} ({f['severity']}" + (", accepté)" if f["accepted"] else ")"))
+        body = [f"# {heading}", ""]
+        if f["severity"] == "haute" and not f["accepted"]:
+            body += v.callout("warning", "Gravité haute", [f["message"]])
+        else:
+            body += [f["message"], ""]
+        body += [up, "", f"**Correction** : {f['fix']}", "", f"**Référence** : {f['ref']}"] \
+            + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
         notes.add(note, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"],
                                     "regle": f["rule"], "statut": "accepte" if f["accepted"] else "ouvert"},
                   {"porte-sur": [(option_rel, f"Option {option}")] if option_rel else [], "issu-de": (rel, title)},
                   body, ["well-architected"])
     open_ = [f for f in findings if not f["accepted"]]
-    body = [f"# Revue Well-Architected : {spec.get('title', 'architecture')}", "",
-            f"{len(open_)} constat(s) ouvert(s), dont {sum(f['severity'] == 'haute' for f in open_)} de gravité "
-            f"haute ; {len(findings) - len(open_)} accepté(s).", "", f"Revue complète : `{out.name}`.", ""]
+    high = sum(f["severity"] == "haute" for f in open_)
+    accepted = len(findings) - len(open_)
+    text = (f"{v.count(len(open_), 'constat ouvert')}" + (f", dont {v.number(high)} de gravité haute" if high else "")
+            + (f" ; {v.count(accepted, 'accepté')}" if accepted else ""))
+    report = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    body = [f"# Revue Well-Architected : {spec.get('title', 'architecture')}", ""]
+    body += v.callout("warning" if high else "success" if not open_ else "note", text) + \
+        [f"Revue complète : {report}.", ""]
     body += ["## Constats", ""] + (lines or ["Aucun constat."])
     notes.add(rel, "revue-well-architected",
-              {"ouverts": len(open_), "hauts": sum(f["severity"] == "haute" for f in open_),
+              {"ouverts": len(open_), "hauts": high,
                "fournisseur": ", ".join(sorted(clouds)) or None},
               {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["well-architected"])
     result = notes.write(errors, cleanup=(f"{base}/Constats/{title}",))

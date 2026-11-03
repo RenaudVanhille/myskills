@@ -945,16 +945,18 @@
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--folder", "Projets/Sinistres", "--graph", "{out}/graphe.json", "--strict"], "exit": 0, "report": {"errors": [], "untyped": 0, "types.decision": 1, "types.exigence": 10}}
       ],
       "files": ["vault/exigences.md", "vault/Projets/Sinistres/Portail sinistres.md", "vault/Projets/Sinistres/Décisions/D-001.md", "vault/Projets/Sinistres/Options/Option A.md", "vault/Projets/Sinistres/Exigences/ENF-004.md"],
-      "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|A]]"],
-                   "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001]]"],
-                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "Option [[Projets/Sinistres/Options/Option B|B]] : non couverte",
+      "contains": {"vault/Projets/Sinistres/Décisions/D-001.md": ["genere: decision-log", "[[Projets/Sinistres/Options/Option A|Option A : Application web dans le cloud européen]]"],
+                   "vault/Projets/Sinistres/Options/Option A.md": ["retenue: true", "[[Projets/Sinistres/Décisions/D-001|D-001 Choix]]"],
+                   "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "[[Projets/Sinistres/Options/Option B|Option B : Extension du progiciel de gestion]] : non couverte",
+                                                                      "aliases:\n  - \"ENF-004 Authentification forte\"",
                                                                       "**Termes** : [[Projets/Sinistres/Glossaire/Assuré|Assuré]]",
                                                                       "  - type/exigence", "  - priorite/indispensable",
                                                                       "termes:\n  - \"[[Projets/Sinistres/Glossaire/Assuré]]\""],
                    "graphe.json": ["\"relation\": \"concerne\"", "\"relation\": \"ecarts\"", "\"type\": \"option-architecture\""],
                    "vault/Projets/Sinistres/Glossaire/Déclaration.md": ["type: \"terme\"", "aliases:\n  - \"déclaration de sinistre\"",
-                                                                         "- [[Projets/Sinistres/Exigences/EF-003|EF-003]]"],
-                   "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]"]}
+                                                                         "- [[Projets/Sinistres/Exigences/EF-003|EF-003 Transmettre au gestionnaire]]"],
+                   "vault/Projets/Sinistres/Portail sinistres.md": ["## Glossaire", "[[Projets/Sinistres/Glossaire/Sinistre|Sinistre]]", "> [!info]- Note générée",
+                                                                    "| [[Projets/Sinistres/Exigences/ENF-004\\|ENF-004 Authentification forte]] | indispensable | retenue |"]}
     },
     {
       "id": "vault-ontologie",
@@ -976,6 +978,18 @@
       ],
       "files": ["graphe.json"],
       "contains": {"graphe.json": ["\"relation\": \"porte-sur\"", "\"relation\": \"lien\"", "\"multigraph\": true"]}
+    },
+    {
+      "id": "vault-lisibilite",
+      "skill": "markdown-to-obsidian",
+      "_note": "Lisibilité des notes générées : lien libellé par un simple identifiant, accord « (s) », montant sans séparateur des milliers ; simples avertissements, bloquants avec --strict ; lien libellé par le titre et montant formaté acceptés.",
+      "steps": [
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{fixtures}/vault-lisibilite"], "exit": 0,
+         "report": {"typed": 2, "errors": []},
+         "report_contains": {"results.0.note": "P/Index", "results.0.warnings.0": "lien « EF-001 » vers « EF-001 Déclarer un sinistre en ligne »",
+                             "results.0.warnings.1": "accord « t(s) »", "results.0.warnings.2": "montant « 264857 € »"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{fixtures}/vault-lisibilite", "--strict"], "exit": 1}
+      ]
     },
     {
       "id": "options-pos",
@@ -1166,8 +1180,8 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["submit", "{out}/w", "description", "--files", "schemas/architecture.json", "schemas/architecture.drawio.png"], "exit": 0, "report": {"memory.notes": 4, "errors": [], "warnings": []}}
       ],
       "files": ["vault/Workflows/Boutique/Étapes/Description tirée du code.md", "vault/Workflows/Boutique/Fichiers/schemas/architecture.drawio.png", "vault/Notes/autre.md"],
-      "contains": {"vault/Workflows/Boutique/Étapes/Description tirée du code.md": ["type: \"etape\"", "![[Workflows/Boutique/Fichiers/schemas/architecture.drawio.png]]", "`schemas/architecture.json`"],
-                   "vault/Workflows/Boutique/Boutique.md": ["## Livrables par étape", "[[Workflows/Boutique/Étapes/Description tirée du code|Description tirée du code]]"]}
+      "contains": {"vault/Workflows/Boutique/Étapes/Description tirée du code.md": ["type: \"etape\"", "![[Workflows/Boutique/Fichiers/schemas/architecture.drawio.png|900]]", "`schemas/architecture.json`"],
+                   "vault/Workflows/Boutique/Boutique.md": ["| [[Workflows/Boutique/Étapes/Description tirée du code\\|Description tirée du code]] | en revue |", "> [!todo] Revues en attente"]}
     },
     {
       "id": "workflow-parallele",

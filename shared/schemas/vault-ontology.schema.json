@@ -9,6 +9,8 @@
   "properties": {
     "_doc": {"type": "string"},
     "version": {"type": "integer", "minimum": 1},
+    "labels": {"type": "object", "description": "Libellé affiché d'une valeur de propriété (a-faire : à faire).", "additionalProperties": {"type": "string", "minLength": 1}},
+    "_labels": {"type": "string"},
     "tags": {
       "type": "object",
       "required": ["pattern", "type_prefix"],
@@ -51,7 +53,7 @@
             "from": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Types qui portent la relation ; * : tous."},
             "to": {"type": "array", "items": {"type": "string"}, "minItems": 1, "description": "Types visés ; * : tous."},
             "many": {"type": "boolean", "description": "Liste de wikilinks (true) ou un seul (false)."},
-            "same_type": {"type": "boolean", "description": "La note visée est du même type que la note qui porte la relation."}
+            "same_type": {"type": "boolean", "description": "La note visée est du même type que la note qui porte la relation."}, "hub": {"type": "boolean", "description": "Relation d'évaluation : la note visée liste, dans sa section Revues et analyses, les notes qui la portent."}
           }
         }
       },

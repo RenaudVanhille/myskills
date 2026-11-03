@@ -17,7 +17,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail ; Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX).
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON (0 succès, 1 erreur).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
-- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
+- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule). Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
 - **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie `shared/vault-ontology.json` (frontmatter vérifié par `scripts/lib/vault_ontology.py`).
@@ -119,7 +119,10 @@ uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--
 Le rapport compte les notes par type et ne détaille (`results`) que les
 notes en erreur : type inconnu (avec le type proche), valeur hors liste,
 relation non permise ou vers une note du mauvais type, tag non normalisé
-(avec la forme proposée). `--graph` écrit le graphe au format node-link de
+(avec la forme proposée). Une note générée (`genere`) est aussi relue pour
+sa lisibilité : avertissements `lisibilité :` (lien libellé par un simple
+identifiant, accord « (s) », montant sans séparateur des milliers), bloquants
+avec `--strict`. `--graph` écrit le graphe au format node-link de
 NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
 pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
 à networkx : ne relisez pas le vault note à note.

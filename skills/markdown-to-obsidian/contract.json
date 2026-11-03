@@ -310,7 +310,7 @@
     },
     {
       "name": "vault_check.py",
-      "role": "Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json) et exporte leur graphe typé (lecture seule).",
+      "role": "Vérifie les notes typées du vault contre l'ontologie (shared/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule).",
       "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] | --ontology [TYPE]",
       "options": {
         "VAULT": "racine du vault",

@@ -85,6 +85,15 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   `scripts/lib/workspace.py` (`vault_target`) **(vérifiée)**. Un nouveau
   type ou une nouvelle relation s'ajoute dans l'ontologie, sans code. `vault_check.py`
   (`markdown-to-obsidian`) vérifie un vault et exporte son graphe typé.
+- **Lisibilité dans Obsidian** : une note générée se lit sans ouvrir ses
+  liens. Titre `#` parlant (repris en alias par `vault_ontology`), liens
+  libellés par le titre de la note visée et non par un identifiant, callout
+  pour ce qui demande une action ou une attention (`callout`), nombres et
+  accords en français (`number`, `count`, `label` et les libellés de
+  l'ontologie), livrable complet copié dans le vault et lié (`Notes.attach`),
+  pas cité en code. La section « Revues et analyses » des notes visées par
+  une relation `hub` est tenue par `vault_ontology`. `vault_check.py`
+  signale les écarts (`lisibilité :`).
 - **Workflows** : un workflow est une définition JSON
   (`skills/decision-log/workflows/`), seule source des étapes, des skills,
   des livrables, des contrôles, des consignes et de la mémoire du vault.

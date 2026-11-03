@@ -280,6 +280,275 @@ def safe_folder(folder: str) -> str:
     return "/".join(safe_name(p) for p in re.split(r"[\\/]+", str(folder)) if p.strip())
 
 
+# --- Lisibilité dans Obsidian : nombres, libellés, callouts, titres et section des liens générés ---
+
+THIN = " "  # espace fine insécable : séparateur des milliers en français
+
+
+def number(value, decimals: int | None = None) -> str:
+    """Nombre à la française : 264 857, 169,1 (décimales inutiles retirées si decimals est None)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return str(value)
+    if decimals is None:
+        text = f"{value:,.2f}".rstrip("0").rstrip(".") if isinstance(value, float) else f"{value:,}"
+    else:
+        text = f"{value:,.{decimals}f}"
+    return text.replace(",", "\x00").replace(".", ",").replace("\x00", THIN)
+
+
+def plural(words: str) -> str:
+    """Pluriel simple, mot à mot (constat ouvert : constats ouverts)."""
+    return " ".join(w if w[-1:] in "sxz" or not w[-1:].isalpha() else w + "s" for w in words.split(" "))
+
+
+def count(n, singular: str, many: str | None = None) -> str:
+    """Nombre et nom accordés : 0 constat, 1 constat, 5 constats (pluriel donné ou mot à mot)."""
+    return f"{number(n)} {singular if abs(n) < 2 else many or plural(singular)}"
+
+
+def label(onto: dict, value) -> str:
+    """Libellé affiché d'une valeur ou d'un nom de propriété : a-faire : à faire, true : oui."""
+    if isinstance(value, bool):
+        return "oui" if value else "non"
+    if isinstance(value, (int, float)):
+        return number(value)
+    text = str(value)
+    return onto.get("labels", {}).get(text) or text.replace("-", " ")
+
+
+def callout(kind: str, title: str = "", lines=(), folded: bool = False) -> list[str]:
+    """Callout Obsidian (> [!kind] titre), replié si folded, suivi d'une ligne vide."""
+    head = f"> [!{kind}]{'-' if folded else ''} {title}".rstrip()
+    return [head] + [f"> {line}".rstrip() for line in lines] + [""]
+
+
+def short(text: str, limit: int = 80) -> str:
+    """Libellé court : la première partie d'au moins trois mots avant un « : » (« Sécurité : Point d'entrée
+    public sans WAF : F1 » donne « Point d'entrée public sans WAF »), coupée au mot sous limit caractères."""
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    parts = text.split(" : ")
+    text = next((p for p in parts if len(p.split()) >= 3), text).rstrip(" .")
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;") + "…"
+
+
+def heading(body: str) -> str | None:
+    """Titre de la note : sa première ligne « # »."""
+    return next((line[2:].strip() for line in body.splitlines() if line.startswith("# ")), None)
+
+
+def with_alias(data: dict, title: str | None, rel: str) -> dict:
+    """Frontmatter avec le titre de la note en alias s'il diffère du nom du fichier : le sélecteur rapide
+    et la vue graphe trouvent la note par son titre."""
+    name = rel.rsplit("/", 1)[-1]
+    if not title or title == name:
+        return data
+    aliases = [a for a in (data.get("aliases") or []) if a != title]
+    out = {}
+    for key, value in data.items():
+        if key == "ontologie":
+            out["aliases"] = [title] + aliases
+        if key != "aliases":
+            out[key] = value
+    out.setdefault("aliases", [title] + aliases)
+    return out
+
+
+LABELED_LINK = re.compile(r"(?<!!)\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\\?\|([^\[\]]*))?\]\]")
+RAW_PLURAL = re.compile(r"\w\((?:s|e|es)\)")
+RAW_AMOUNT = re.compile(r"(?<![\d.,  ])\d{4,}(?:[.,]\d+)?\s?(?:€|\$|£|euros?\b)")
+
+
+def readability(body: str, title_of) -> list[str]:
+    """Avertissements de lisibilité d'une note générée : lien libellé par un simple identifiant alors que la
+    note visée a un titre (EF-001 au lieu de « EF-001 Déclarer un sinistre »), accord écrit « (s) », montant
+    sans séparateur des milliers. title_of(cible) -> titre de la note visée ou None."""
+    text = re.sub(r"```.*?```|`[^`\n]*`|%%.*?%%", "", body, flags=re.S)
+    warnings = []
+    for target, alias in LABELED_LINK.findall(text):
+        shown = (alias or target.rsplit("/", 1)[-1]).strip()
+        title = title_of(target.strip())
+        if title and shown != title and shown not in title.split(" : ") and len(shown) * 2 < len(title) \
+                and len(shown.split()) < 2:
+            warnings.append(f"lisibilité : lien « {shown} » vers « {title} » : libellez-le avec le titre")
+    warnings += [f"lisibilité : accord « {m} » : accordez selon le nombre (count)"
+                 for m in dict.fromkeys(RAW_PLURAL.findall(text))]
+    warnings += [f"lisibilité : montant « {m.strip()} » sans séparateur des milliers (number)"
+                 for m in dict.fromkeys(RAW_AMOUNT.findall(text))]
+    return warnings[:10]
+
+
+HUB = "%% myskills : section générée, réécrite à chaque passage %%"
+HUB_TITLE = "## Revues et analyses"
+
+
+def hub_relations(onto: dict) -> list[str]:
+    return [name for name, spec in onto["relations"].items() if spec.get("hub")]
+
+
+def scan(vault: Path, folder: str) -> dict[str, tuple[dict, str]]:
+    """Notes typées d'un dossier du vault : chemin -> (frontmatter, titre)."""
+    root = Path(vault) / folder if folder else Path(vault)
+    found = {}
+    for path in sorted(root.rglob("*.md")) if root.is_dir() else []:
+        rel = path.relative_to(vault).with_suffix("").as_posix()
+        if rel.split("/", 1)[0].startswith("."):
+            continue
+        data, body, _ = parse(path.read_text(encoding="utf-8", errors="replace"))
+        if data and data.get("type"):
+            found[rel] = (data, heading(body) or path.stem)
+    return found
+
+
+def hub_lines(onto: dict, rel: str, kind: str, notes: dict[str, tuple[dict, str]]) -> list[str]:
+    """Section « Revues et analyses » d'une note : pour une note workflow, les revues et analyses de son
+    dossier ; sinon les notes qui l'évaluent ou portent sur elle (relations hub de l'ontologie). Les notes
+    issues d'une note listée (constats d'une revue, lots d'un chiffrage) y sont comptées, pas listées."""
+    hubs = hub_relations(onto)
+    sources = {t for name in hubs for t in onto["relations"][name]["from"]}
+    types = onto["types"]
+
+    def parent(meta):
+        found = targets(meta.get("issu-de"))
+        return found[0] if found else None
+    if kind == "workflow":
+        incoming = [r for r, (m, _) in notes.items() if m.get("type") in sources and not parent(m)]
+    else:
+        incoming = [r for r, (m, _) in notes.items() if r != rel and any(rel in targets(m.get(n)) for n in hubs)]
+    if not incoming:
+        return []
+    listed = set(incoming)
+    incoming = [r for r in incoming if parent(notes[r][0]) not in listed]
+    listed = set(incoming)
+    children: dict[str, list[dict]] = {}
+    for r, (m, _) in notes.items():
+        if parent(m) in listed:
+            children.setdefault(parent(m), []).append(m)
+
+    def severity(meta):
+        enum = types.get(meta.get("type"), {}).get("properties", {}).get("gravite", {}).get("enum", [])
+        value = meta.get("gravite")
+        return enum.index(value) if value in enum else len(enum)
+
+    def is_open(meta):
+        enum = types.get(meta.get("type"), {}).get("properties", {}).get("statut", {}).get("enum", [])
+        return "ouvert" not in enum or meta.get("statut") in (None, "ouvert")
+
+    def facets(meta):
+        spec = types.get(meta.get("type"), {})
+        values = [f"{label(onto, f)} {label(onto, meta[f])}" for f in spec.get("facets", [])
+                  if meta.get(f) not in (None, "", []) and not isinstance(meta[f], (list, dict))]
+        return f" ({', '.join(values)})" if values else ""
+
+    def summary(items):
+        parts = []
+        for kind_ in dict.fromkeys(m.get("type") for m in items):
+            group = [m for m in items if m.get("type") == kind_]
+            spec = types.get(kind_, {})
+            name = spec.get("label", kind_).lower()
+            opened = [m for m in group if is_open(m)]
+            ouvert = "ouvert" in spec.get("properties", {}).get("statut", {}).get("enum", [])
+            text = count(len(opened), name + (" ouvert" if ouvert else ""),
+                         (spec.get("folder") or plural(name)).lower() + (" ouverts" if ouvert else ""))
+            high = sum(m.get("gravite") == "haute" for m in opened)
+            parts.append(text + (f", dont {number(high)} de gravité haute" if high else ""))
+        return " : " + " ; ".join(parts) if parts else ""
+
+    def title(r):
+        meta, text = notes[r]
+        prefix = types.get(meta.get("type"), {}).get("label", "") + " : "
+        return text.removeprefix(prefix) or r.rsplit("/", 1)[-1]
+
+    order = sorted(incoming, key=lambda r: (types.get(notes[r][0].get("type"), {}).get("label", ""),
+                                            severity(notes[r][0]), title(r)))
+    lines, shown = [], {}
+    for r in order:
+        meta = notes[r][0]
+        kind_ = meta.get("type")
+        shown[kind_] = shown.get(kind_, 0) + 1
+        if shown[kind_] > 10:
+            continue
+        lines.append(f"- {types.get(kind_, {}).get('label', kind_)} : {link(r, title(r))}{facets(meta)}"
+                     f"{summary(children.get(r, []))}")
+    for kind_, n in shown.items():
+        if n > 10:
+            lines.append(f"- et {count(n - 10, 'autre note', 'autres notes')} de type "
+                         f"{types.get(kind_, {}).get('label', kind_).lower()}")
+    return [HUB, "", HUB_TITLE, ""] + lines
+
+
+def with_hub(text: str, lines: list[str]) -> str:
+    """Texte d'une note avec sa section générée remplacée (retirée si lines est vide)."""
+    base = text.split(HUB, 1)[0].rstrip()
+    return base + ("\n\n" + "\n".join(lines) if lines else "") + "\n"
+
+
+def workflow_of(vault: Path, rel: str) -> str | None:
+    """Note workflow la plus proche au-dessus de rel (même dossier ou dossiers parents)."""
+    parts = rel.split("/")[:-1]
+    while parts:
+        folder = Path(vault, *parts)
+        for path in sorted(folder.glob("*.md")):
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                head = handle.read(400)
+            if re.search(r'^type: "?workflow"?$', head, re.M):
+                return "/".join(parts + [path.stem])
+        parts.pop()
+    return None
+
+
+def hub_scope(vault: Path, rel: str, kind: str | None) -> str:
+    """Dossier dont les notes alimentent la section générée de rel : celui de sa note workflow, sinon le
+    dossier au-dessus du sien (Exigences/EF-001 : le dossier du workflow)."""
+    flow = rel if kind == "workflow" else workflow_of(vault, rel)
+    parts = (flow or rel).split("/")
+    return "/".join(parts[:-1] if flow else parts[:-2])
+
+
+class Hubs:
+    """Sections générées « Revues et analyses » : notes du dossier lues une fois, notes en attente
+    d'écriture (pending : chemin -> (frontmatter, titre)) prises à la place de leur version sur disque."""
+
+    def __init__(self, onto: dict, vault: Path, pending: dict[str, tuple[dict, str]] | None = None):
+        self.onto, self.vault, self.pending, self.cache = onto, Path(vault), pending or {}, {}
+
+    def lines(self, rel: str, kind: str | None) -> list[str]:
+        folder = hub_scope(self.vault, rel, kind)
+        if folder not in self.cache:
+            notes = scan(self.vault, folder)
+            notes.update({r: v for r, v in self.pending.items() if not folder or r.startswith(folder + "/")})
+            self.cache[folder] = notes
+        return hub_lines(self.onto, rel, kind or "", self.cache[folder])
+
+    def text(self, rel: str, kind: str | None, text: str) -> str:
+        return with_hub(text, self.lines(rel, kind))
+
+
+def refresh_hubs(onto: dict, vault: Path, written: dict[str, dict], hubs: "Hubs | None" = None) -> int:
+    """Réécrit la section générée des notes visées par les notes écrites (relations hub) et de la note
+    workflow de leur dossier, hors notes écrites. Seules les notes générées (propriété genere) sont touchées."""
+    vault = Path(vault)
+    wanted = {t for meta in written.values() for name in hub_relations(onto) for t in targets(meta.get(name))}
+    wanted |= {w for w in (workflow_of(vault, r) for r in [*written, *wanted]) if w}
+    hubs = hubs or Hubs(onto, vault)
+    changed = 0
+    for rel in sorted(wanted - set(written)):
+        path = vault / f"{rel}.md"
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        data = parse(text)[0] or {}
+        if not data.get("genere"):
+            continue
+        new = hubs.text(rel, data.get("type"), text)
+        if new != text:
+            with open(path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(new)
+            changed += 1
+    return changed
+
+
 class Notes:
     """Notes typées écrites par un skill dans un vault : toutes vérifiées contre l'ontologie avant l'écriture."""
 
@@ -288,6 +557,7 @@ class Notes:
         self.pending: dict[str, tuple] = {}
         self.metas: dict[str, dict] = {}
         self.texts: dict[str, str] = {}
+        self.files: dict[str, Path] = {}  # copie dans le vault (chemin avec extension) -> fichier source
 
     def exists(self, rel: str) -> bool:
         return rel in self.pending or (self.vault / f"{rel}.md").is_file()
@@ -297,6 +567,25 @@ class Notes:
         (ni dans le vault, ni ajoutée) sont omises."""
         self.pending[rel] = (kind, props, relations or {}, body, tags)
 
+    def title(self, rel: str, default: str) -> str:
+        """Titre d'une note ajoutée ou déjà dans le vault (sa ligne « # »), pour libeller un lien vers elle."""
+        if rel in self.pending:
+            return heading("\n".join(self.pending[rel][3])) or default
+        path = self.vault / f"{rel}.md"
+        if path.is_file():
+            return heading(parse(path.read_text(encoding="utf-8", errors="replace"))[1]) or default
+        return default
+
+    def attach(self, rel: str, source: Path) -> str:
+        """Copie un livrable dans le vault (rel : chemin avec extension) pour le lier depuis une note ;
+        un Markdown copié porte la marque genere et sa source. Rend le wikilink vers la copie, libellé par le
+        titre du livrable."""
+        source = Path(source)
+        self.files[rel] = source
+        title = heading(source.read_text(encoding="utf-8", errors="replace")) if source.suffix.lower() == ".md" \
+            else None
+        return link(rel.removesuffix(".md"), title or source.name)
+
     def build(self) -> None:
         for rel, (kind, props, relations, body, tags) in self.pending.items():
             kept = {}
@@ -305,7 +594,8 @@ class Notes:
                 items = [v for v in items if self.exists(v[0] if isinstance(v, tuple) else v)]
                 if items:
                     kept[name] = items if isinstance(value, list) else items[0]
-            self.metas[rel] = meta(self.onto, kind, props, kept, tags, genere=self.genere)
+            self.metas[rel] = with_alias(meta(self.onto, kind, props, kept, tags, genere=self.genere),
+                                         heading("\n".join(body)), rel)
             self.texts[rel] = render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
 
     def resolve(self, path: str):
@@ -316,20 +606,14 @@ class Notes:
         return (parse((self.vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0] or {}).get("type")
 
     def write(self, errors: list[str], cleanup=()) -> dict | None:
-        """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites."""
+        """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites ;
+        met à jour la section « Revues et analyses » des notes écrites et des notes qu'elles visent."""
         self.build()
         invalid = [f"{rel} : {e}" for rel, m in self.metas.items()
                    for e in check_meta(self.onto, m, generated=True)[0] + check_targets(self.onto, m, self.resolve)[0]]
         if invalid:
             errors += ["vault : note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]]
             return None
-        for rel, text in self.texts.items():
-            path = self.vault / f"{rel}.md"
-            if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
-                continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(text)
         removed = 0
         mark = f"---\ngenere: {self.genere}\n"
         for sub in cleanup:
@@ -339,4 +623,24 @@ class Notes:
                 if rel not in self.texts and path.read_text(encoding="utf-8", errors="replace").startswith(mark):
                     path.unlink()
                     removed += 1
+        # Section générée : chaque note visée (option, exigence, workflow) liste ce qui l'évalue.
+        hubs = Hubs(self.onto, self.vault, {r: (m, heading(self.texts[r]) or r.rsplit("/", 1)[-1])
+                                            for r, m in self.metas.items()})
+        self.texts = {rel: hubs.text(rel, self.metas[rel]["type"], text) for rel, text in self.texts.items()}
+        for rel, text in self.texts.items():
+            path = self.vault / f"{rel}.md"
+            if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(text)
+        for rel, source in self.files.items():
+            path = self.vault / rel
+            data = f"---\ngenere: {self.genere}\nsource: {json.dumps(source.name, ensure_ascii=False)}\n---\n\n" \
+                .encode("utf-8") + source.read_bytes() if source.suffix.lower() == ".md" else source.read_bytes()
+            if path.is_file() and path.read_bytes() == data:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        refresh_hubs(self.onto, self.vault, self.metas)
         return {"vault": str(self.vault), "notes": len(self.texts), "removed": removed}

@@ -414,9 +414,11 @@ def write_vault(vault: Path, folder: str, spec: dict, result: dict, errors: list
         exigences = [ref for m in r.get("measures", []) for ref in m.get("refs", []) if not re.match(r"^M\d{3}$", ref)]
         relations = {"porte-sur": [(f"{base}/Traitements/{vault_ontology.safe_name(r['treatment'])}", r["treatment"])]
                      + [(f"{base}/Exigences/{ref}", ref) for ref in dict.fromkeys(exigences)]}
-        body = [f"# {r['id']} : {EVENTS[r['event']]} ({r['treatment']})", "", r.get("impacts", ""), "",
-                f"Initial {r['gravity']} × {r['likelihood']}, résiduel {residual['gravity']} × "
-                f"{residual['likelihood']} : {zone}."]
+        level_text = (f"Initial {r['gravity']} × {r['likelihood']}, résiduel {residual['gravity']} × "
+                      f"{residual['likelihood']} : {zone}.")
+        body = [f"# {r['id']} : {EVENTS[r['event']]} ({r['treatment']})", "", r.get("impacts", ""), ""]
+        body += vault_ontology.callout("danger", "Risque résiduel élevé", [level_text]) if zone == "élevé" \
+            else [level_text]
         notes.add(f"{base}/Risques/{vault_ontology.safe_name(spec['title'])}/{vault_ontology.safe_name(r['id'])}",
                   "risque", {"id": r["id"], "statut": status,
                              "gravite": {"élevé": "haute", "significatif": "moyenne", "limité": "basse"}[zone]},

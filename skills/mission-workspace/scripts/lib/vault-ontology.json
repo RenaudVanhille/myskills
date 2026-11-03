@@ -6,6 +6,8 @@
     "type_prefix": "type",
     "_doc": "Tags en minuscules, sans accents, à tirets, hiérarchiques (/). Chaque note typée porte type/<type> ; chaque facette d'un type donne <propriété>/<valeur> (statut/retenue, priorite/indispensable). Les autres tags sont libres mais suivent le motif."
   },
+  "labels": {"base-legale": "base légale", "gravite": "gravité", "priorite": "priorité", "categorie": "catégorie", "flux-a-risque": "flux à risque", "hebergeur": "hébergeur", "complexite": "complexité", "a-faire": "à faire", "a-faire-evoluer": "à faire évoluer", "a-remplacer": "à remplacer", "a-reprendre": "à reprendre", "abandonnee": "abandonnée", "accepte": "accepté", "acceptee": "acceptée", "attenue": "atténué", "avant-vente": "avant-vente", "compte-rendu": "compte rendu", "conformite": "conformité", "corrige": "corrigé", "cout": "coût", "defavorable": "défavorable", "depasse": "dépassé", "disponibilite": "disponibilité", "elevee": "élevée", "en-cours": "en cours", "en-place": "en place", "en-revue": "en revue", "encadres": "encadrés", "evolutivite": "évolutivité", "exploitabilite": "exploitabilité", "gagnee": "gagnée", "hors-perimetre": "hors périmètre", "hypothese": "hypothèse", "interet-legitime": "intérêt légitime", "interet-vital": "intérêt vital", "interoperabilite": "interopérabilité", "livree": "livrée", "maintenabilite": "maintenabilité", "mission-publique": "mission publique", "non-encadres": "non encadrés", "non-fixe": "non fixé", "non-fonctionnelle": "non fonctionnelle", "non-requise": "non requise", "obligation-legale": "obligation légale", "portabilite": "portabilité", "presentation": "présentation", "procedure": "procédure", "proposee": "proposée", "rejetee": "rejetée", "remplacee": "remplacée", "reserves": "réserves", "respecte": "respecté", "retiree": "retirée", "sautee": "sautée", "securite": "sécurité", "specification": "spécification", "tres-elevee": "très élevée", "utilisabilite": "utilisabilité", "validee": "validée"},
+  "_labels": "Libellé affiché dans le corps des notes pour une valeur de propriété sans accents ni espaces (a-faire : à faire). Une valeur absente s'affiche telle quelle, tirets remplacés par des espaces.",
   "common": {
     "type": {"type": "string", "description": "Type de la note, une clé de types."},
     "id": {"type": "string", "minLength": 1, "description": "Identifiant stable dans son workflow ou son référentiel (EF-001, D-003, option-A)."},
@@ -253,8 +255,8 @@
     "option": {"label": "retient l'option", "from": ["adr"], "to": ["option-architecture"], "many": false},
     "exigences": {"label": "répond aux exigences", "from": ["adr"], "to": ["exigence"], "many": true},
     "extrait-de": {"label": "extrait du document", "from": ["exigence", "terme"], "to": ["document"], "many": true},
-    "evalue": {"label": "évalue", "from": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "to": ["option-architecture", "adr"], "many": true},
-    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot", "traitement"], "to": ["exigence", "option-architecture", "application", "adr", "traitement"], "many": true},
+    "evalue": {"label": "évalue", "from": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "to": ["option-architecture", "adr"], "many": true, "hub": true},
+    "porte-sur": {"label": "porte sur", "from": ["constat", "risque", "menace", "lot", "traitement"], "to": ["exigence", "option-architecture", "application", "adr", "traitement"], "many": true, "hub": true},
     "issu-de": {"label": "issu de", "from": ["constat", "risque", "menace", "lot"], "to": ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage"], "many": false},
     "attenue-par": {"label": "atténué par", "from": ["risque", "menace"], "to": ["decision", "adr"], "many": true},
     "workflows": {"label": "mène le workflow", "from": ["mission"], "to": ["workflow"], "many": true},

@@ -584,7 +584,7 @@ def code_review(graph: dict, comps: list[dict], flows: list[dict], repos: list[d
 
     undeclared = [(a, b) for (a, b) in deps if not covered(a, b)]
     for a, b in undeclared:
-        add("CODE-01", f"{a}>{b}", f"{deps[(a, b)]} dépendance(s) de {a} vers {b} dans le code, aucun flux déclaré")
+        add("CODE-01", f"{a}>{b}", f"{vault_ontology.count(deps[(a, b)], 'dépendance')} de {a} vers {b} dans le code, aucun flux déclaré")
     for call in calls:
         a, b = call["from"], call["to"]
         if not covered(a, b) and (a, b) not in deps:
@@ -597,7 +597,7 @@ def code_review(graph: dict, comps: list[dict], flows: list[dict], repos: list[d
     unmapped = sorted(f for f, cid in files.items() if cid is None)
     if unmapped:
         shown = ", ".join(unmapped[:5]) + (" ..." if len(unmapped) > 5 else "")
-        add("CODE-03", "code", f"{len(unmapped)} fichier(s) sur {len(files)} : {shown}")
+        add("CODE-03", "code", f"{vault_ontology.count(len(unmapped), 'fichier')} sur {vault_ontology.number(len(files))} : {shown}")
     result = {"files": len(files), "unmapped": len(unmapped), "dependencies": len(deps),
               "undeclared": [f"{a}>{b}" for a, b in undeclared]}
     if not multi:
@@ -1010,37 +1010,59 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
         return rels or ([(option_rel, f"Option {option}")] if option_rel else [])
 
     up = f"Revue : [[{review_rel}|{title}]]"
+    v = vault_ontology
+    severities = ("haute", "moyenne", "basse")
+    rank = lambda s: severities.index(s) if s in severities else len(severities)  # noqa: E731
     constats = []
-    for f in found["findings"]:
-        rel = f"{base}/Constats/{title}/{vault_ontology.safe_name(f['rule'] + ' ' + f['element'])}"
-        constats.append((rel, f))
-        body = [f"# {f['rule']} {f['element']}", "", f["message"], "", up, "", f"**Correction** : {f['fix']}", "",
-                f"**Référence** : {f['ref']}"] + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
+    for f in sorted(found["findings"], key=lambda f: (rank(f["severity"]), f["rule"], f["element"])):
+        rel = f"{base}/Constats/{title}/{v.safe_name(f['rule'] + ' ' + f['element'])}"
+        heading = f"{f['rule']} {v.short(f['message'])}"
+        constats.append((rel, f, heading))
+        body = [f"# {heading}", ""]
+        body += v.callout("warning", "Gravité haute", [f["message"]]) if f["severity"] == "haute" and not f["accepted"] \
+            else [f["message"], ""]
+        body += [up, "", f"**Correction** : {f['fix']}", "", f"**Référence** : {f['ref']}"] \
+            + (["", f"**Accepté** : {f['accepted']}"] if f["accepted"] else [])
         notes.add(rel, "constat", {"id": f"{f['rule']}@{f['element']}", "gravite": f["severity"], "regle": f["rule"],
                                    "statut": "accepte" if f["accepted"] else "ouvert"},
                   {"porte-sur": about([f["element"]]), "issu-de": (review_rel, title)}, body, ["architecture"])
     risques = []
     accepted = {f["element"] for f in found["findings"] if f["rule"] in ("RSK-01", "RSK-03") and f["accepted"]}
-    for r in spec.get("risks", []):
-        rel = f"{base}/Risques/{title}/{vault_ontology.safe_name(r['id'])}"
+    for r in sorted(spec.get("risks", []), key=lambda r: (rank(r["severity"]), r["id"])):
+        rel = f"{base}/Risques/{title}/{v.safe_name(r['id'])}"
         risques.append((rel, r))
-        body = [f"# {r['id']} {r['text']}", "", up, "", f"**Atténuation** : {r.get('mitigation', 'à définir')}",
-                "", f"**Responsable** : {r.get('owner', 'à désigner')}"]
+        body = [f"# {r['id']} {r['text']}", ""]
+        if r["severity"] == "haute":
+            body += v.callout("warning", "Gravité haute", [r["text"]])
+        body += [up, ""]
+        missing = [label for key, label in (("mitigation", "Atténuation"), ("owner", "Responsable")) if not r.get(key)]
+        if missing:
+            body += v.callout("question", "À compléter", [f"{', '.join(missing)} : à définir dans la revue."])
+        body += [f"**Atténuation** : {r.get('mitigation', 'à définir')}", "",
+                 f"**Responsable** : {r.get('owner', 'à désigner')}"]
         if r.get("scenarios"):
             body += ["", "**Scénarios** : " + ", ".join(r["scenarios"])]
         notes.add(rel, "risque", {"id": r["id"], "gravite": r["severity"],
                                   "statut": "accepte" if r["id"] in accepted
                                   else "attenue" if r.get("mitigation") else "ouvert"},
                   {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body, ["architecture"])
-    body = [f"# Revue d'architecture : {spec['title']}", "", f"**Avis : {verdict}**", "",
-            f"Revue complète : `{out.name}`."]
-    for label, items in (("Constats ouverts", [(r, f) for r, f in constats if not f["accepted"]]),
-                         ("Constats acceptés", [(r, f) for r, f in constats if f["accepted"]])):
+    open_ = [f for _, f, _ in constats if not f["accepted"]]
+    high = sum(f["severity"] == "haute" for f in open_)
+    report = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    kind = {"favorable": "success", "favorable avec réserves": "note"}.get(verdict, "danger")
+    body = [f"# Revue d'architecture : {spec['title']}", ""]
+    body += v.callout(kind, f"Avis : {verdict}", [
+        v.count(len(open_), "constat ouvert") + (f", dont {v.number(high)} de gravité haute" if high else "")
+        + f" ; {v.count(len(risques), 'risque')}."])
+    body += [f"Revue complète : {report}."]
+    for label, items in (("Constats ouverts", [c for c in constats if not c[1]["accepted"]]),
+                         ("Constats acceptés", [c for c in constats if c[1]["accepted"]])):
         if items:
-            body += ["", f"## {label}", ""] + [f"- [[{rel}|{f['rule']} {f['element']}]] ({f['severity']})"
-                                              for rel, f in items]
+            body += ["", f"## {label}", ""] + [f"- {v.link(rel, heading)} ({f['severity']}) : {f['element']}"
+                                              for rel, f, heading in items]
     if risques:
-        body += ["", "## Risques", ""] + [f"- [[{rel}|{r['id']}]] ({r['severity']}) : {r['text']}" for rel, r in risques]
+        body += ["", "## Risques", ""] + [f"- {v.link(rel, r['id'] + ' ' + v.short(r['text']))} ({r['severity']})"
+                                         for rel, r in risques]
     evalue = [(p, a) for p, a in ((option_rel, f"Option {option}"), (f"{base}/ADR architecture", "ADR")) if p]
     notes.add(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body,
               ["architecture"])

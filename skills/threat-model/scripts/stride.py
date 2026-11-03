@@ -177,12 +177,17 @@ def write_vault(vault: Path, folder: str, spec: dict, report: dict, out: Path, o
     base = vault_ontology.safe_folder(folder)
     title = vault_ontology.safe_name(spec.get("title", "architecture"), "menaces")
     option_rel = f"{base}/Options/Option {option}" if option else None
-    body = [f"# Modèle de menaces : {spec.get('title', 'architecture')}", "",
-            f"{report['threats']} menaces à analyser sur {report['elements']} éléments, "
-            f"{report['crossing']} flux traversant une frontière de confiance ({report['boundaries']} frontières).",
-            "", "| STRIDE | Menaces |", "| --- | --- |"]
-    body += [f"| {c} : {CATEGORIES[c]} | {n} |" for c, n in report["by_stride"].items() if n]
-    body += ["", f"Détail, mesures retenues et statuts : `{out.name}`."]
+    v = vault_ontology
+    detail = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    crossing = (f"{v.count(report['crossing'], 'flux traversant', 'flux traversant')} une frontière de confiance "
+                f"({v.count(report['boundaries'], 'frontière')})")
+    body = [f"# Modèle de menaces : {spec.get('title', 'architecture')}", ""]
+    body += v.callout("warning" if report["threats"] else "success",
+                      f"{v.count(report['threats'], 'menace')} à analyser sur {v.count(report['elements'], 'élément')}",
+                      [crossing + "."])
+    body += ["| STRIDE | Menaces |", "| --- | --- |"]
+    body += [f"| {c} : {CATEGORIES[c]} | {v.number(n)} |" for c, n in report["by_stride"].items() if n]
+    body += ["", f"Détail, mesures retenues et statuts : {detail}."]
     notes.add(f"{base}/Modèles de menaces/{title}", "modele-menaces",
               {"menaces": report["threats"], "flux-a-risque": report["crossing"]},
               {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["securite"])
