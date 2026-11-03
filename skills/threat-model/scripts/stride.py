@@ -34,10 +34,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import absent, load_module  # noqa: E402
+from skill_paths import absent, load_module, require_module  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
-import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 # Types de services, groupes et numéros de flux : ceux du schéma (skill cloud-architecture).
 CLOUD = load_module("cloud-architecture", "cloud_build.py")

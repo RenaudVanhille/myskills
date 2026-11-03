@@ -33,8 +33,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
-from lib import vault_ontology  # noqa: E402
-from skill_paths import schema_of  # noqa: E402
+from skill_paths import require_module, schema_of  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 # Livrables lus pour les notes métier, par rôle, quand la définition du workflow ne dit rien.
 DEFAULT_MEMORY = {"requirements": "exigences.json", "options": "options.json", "decision": "decision.json",

@@ -75,11 +75,15 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   agents de ces schémas est tenue par `build.py` : un nouvel agent n'y
   touche pas.
 - **Vault Obsidian** : toute note écrite dans le vault suit l'ontologie
-  `shared/vault-ontology.json` (types, propriétés, relations typées en
-  wikilinks, tags normalisés `type/<type>` et facettes). Le skill déclare
+  `vault-ontology.json` (types, propriétés, relations typées en wikilinks,
+  tags normalisés `type/<type>` et facettes). Elle et son module
+  `vault_ontology.py` n'existent qu'une fois, dans
+  `skills/markdown-to-obsidian/scripts/lib/` : un autre skill les charge par
+  `require_module("markdown-to-obsidian", "lib/vault_ontology.py")` déclaré
+  dans `requires`, jamais par une copie **(vérifiée)**. Le skill déclare
   `vault` dans son contrat (`writes` : types écrits, `reads`) ; les types
-  existent et le script vérifie ses notes avec `scripts/lib/vault_ontology.py`
-  avant d'écrire **(vérifiée)**. Dans une mission (un répertoire,
+  existent et le script vérifie ses notes avec `vault_ontology` avant
+  d'écrire **(vérifiée)**. Dans une mission (un répertoire,
   `mission.json`, skill `mission-workspace`), un script qui écrit dans le
   vault prend celui de la mission par défaut et refuse tout autre, par
   `scripts/lib/workspace.py` (`vault_target`) **(vérifiée)**. Un nouveau

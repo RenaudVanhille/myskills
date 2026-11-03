@@ -38,10 +38,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
-from skill_paths import run_script  # noqa: E402
+from skill_paths import require_module, run_script  # noqa: E402
 from spec_schema import check as check_schema, print_schema  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 SEVERITIES = ("haute", "moyenne", "basse")
 RULES = {

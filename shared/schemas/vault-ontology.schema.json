@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/RenaudVanhille/myskills/shared/schemas/vault-ontology.schema.json",
   "title": "Ontologie du vault Obsidian",
-  "description": "Fichier shared/vault-ontology.json : types de notes, propriétés, relations typées et tags. Vérifié par le cas contrats de tests/run.py.",
+  "description": "Fichier skills/markdown-to-obsidian/scripts/lib/vault-ontology.json (source unique) : types de notes, propriétés, relations typées et tags. Vérifié par le cas contrats de tests/run.py.",
   "type": "object",
   "required": ["version", "tags", "common", "types", "relations"],
   "additionalProperties": false,

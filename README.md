@@ -421,8 +421,9 @@ dans un sous-agent du niveau de son travail, avec un contexte court.
 - **Agent** : `src/agents/<nom>.md` (avec le marqueur `{{niveaux}}`) et
   `<nom>.contract.json` ; les schémas des messages entre agents se mettent
   à jour seuls.
-- **Type de note du vault** : une entrée dans `shared/vault-ontology.json`
-  (propriétés, facettes, relations), puis `uv run scripts/build.py` ; le
+- **Type de note du vault** : une entrée dans
+  `skills/markdown-to-obsidian/scripts/lib/vault-ontology.json` (propriétés,
+  facettes, relations), puis `uv run scripts/build.py` ; le
   skill qui l'écrit le déclare dans `vault.writes` de son contrat.
 - **Workflow** : une définition JSON dans `skills/decision-log/workflows/`
   (étapes avec niveau, skills, livrables, contrôles, consignes, mémoire du
@@ -450,7 +451,7 @@ sur `main` ; on ne les modifie jamais à la main (AGENTS.md, section 9).
 | `src/agents/` | **Source** des agents, en format neutre (à modifier ici) |
 | `agents/` | Agents Claude Code, générés |
 | `com.github.copilot/agents/` | Agents Copilot, générés |
-| `shared/vault-ontology.json` | Ontologie du vault Obsidian (types de notes, propriétés, relations typées, tags), copiée avec `vault_ontology.py` dans les skills qui déclarent `vault` |
+| `skills/markdown-to-obsidian/scripts/lib/vault-ontology.json` | Ontologie du vault Obsidian (types de notes, propriétés, relations typées, tags), source unique : les autres skills la chargent avec `vault_ontology.py` par `skill_paths` (`requires`), sans copie |
 | `shared/references/style.md` | Charte graphique, copiée dans les skills listés dans `shared/targets.txt` (règles communes et section du format) |
 | `shared/schemas/` | JSON Schema des contrats, du message de passage et du rapport final des agents |
 | `CATALOG.md`, `catalog.json` | Contrats de tous les agents et skills, générés |

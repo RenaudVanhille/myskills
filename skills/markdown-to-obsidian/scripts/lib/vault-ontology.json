@@ -1,5 +1,5 @@
 {
-  "_doc": "Ontologie du vault Obsidian, mémoire partagée des agents : types de notes, propriétés du frontmatter, relations typées (propriétés à wikilinks) et tags normalisés. Seule source ; schéma : shared/schemas/vault-ontology.schema.json. scripts/build.py la copie, avec shared/scripts/vault_ontology.py, dans scripts/lib/ des skills dont le contrat déclare `vault`. Ajouter un type ou une relation ici suffit : aucun code à changer. Changer le sens d'une propriété existante demande d'augmenter version.",
+  "_doc": "Ontologie du vault Obsidian, mémoire partagée des agents : types de notes, propriétés du frontmatter, relations typées (propriétés à wikilinks) et tags normalisés. Seule source ; schéma : shared/schemas/vault-ontology.schema.json. Lue par vault_ontology.py, à côté ; les autres skills chargent ce module par skill_paths (requires), sans copie. Ajouter un type ou une relation ici suffit : aucun code à changer. Changer le sens d'une propriété existante demande d'augmenter version.",
   "version": 1,
   "tags": {
     "pattern": "^[a-z0-9][a-z0-9-]*(/[a-z0-9][a-z0-9-]*)*$",

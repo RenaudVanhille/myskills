@@ -55,10 +55,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
-import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
-from skill_paths import absent, load_module, schema_of  # noqa: E402
+from skill_paths import absent, load_module, require_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 SEVERITIES = ("haute", "moyenne", "basse")
 AXES = {"structure": "Structure", "code": "Code et architecture", "tracabilite": "Traçabilité des exigences",

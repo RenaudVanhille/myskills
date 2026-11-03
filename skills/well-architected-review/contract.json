@@ -593,6 +593,11 @@
       "skill": "cloud-architecture",
       "script": "cloud_build.py",
       "why": "lire la description comme le schéma : types de services, groupes, frontières et numéros de flux F1, F2..."
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
     }
   ],
   "handoffs": [

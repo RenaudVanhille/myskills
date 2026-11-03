@@ -49,9 +49,11 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-import vault_ontology  # noqa: E402
 import workspace  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+from skill_paths import require_module  # noqa: E402
+
+vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 
 PROVIDERS = Path(__file__).resolve().parent / "lib" / "providers.json"
 CRITERIA = {

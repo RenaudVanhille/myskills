@@ -975,6 +975,11 @@
       "script": "wa_check.py",
       "why": "piliers Well-Architected de la description cloud (cloud)",
       "optional": true
+    },
+    {
+      "skill": "markdown-to-obsidian",
+      "script": "lib/vault_ontology.py",
+      "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
     }
   ],
   "handoffs": [
