@@ -8,7 +8,9 @@ propriété `type` est vérifiée contre l'ontologie (`scripts/lib/vault-ontolog
 copie de `shared/vault-ontology.json`) : type connu, propriétés obligatoires,
 valeurs permises, relations (wikilinks) permises depuis ce type et visant une
 note du bon type, tags normalisés. Les notes sans `type` sont comptées, pas
-vérifiées. Avec `--graph`, écrit le graphe des notes au format node-link de
+vérifiées. Une note générée (propriété `genere`) est aussi relue pour sa lisibilité
+(avertissements « lisibilité : » : lien libellé par un simple identifiant, accord
+« (s) », montant sans séparateur des milliers). Avec `--graph`, écrit le graphe des notes au format node-link de
 NetworkX (`nodes`, `links` avec `relation` ; `lien` pour un wikilink du corps),
 lisible par networkx, graphify ou un autre agent sans relire le vault.
 `--ontology` affiche l'ontologie résumée sur une ligne, pour écrire une note
@@ -92,6 +94,10 @@ def main() -> int:
             raise KeyError(target)
         return (parsed[rel][0] or {}).get("type")
 
+    def title_of(target: str):
+        rel = resolve(target)
+        return vault_ontology.heading(parsed[rel][1]) if rel else None
+
     prefix = (args.folder or "").strip("/\\").replace("\\", "/")
     scope = [rel for rel in paths if not prefix or rel == prefix or rel.startswith(prefix + "/")]
     results, kinds, untyped, relations = [], Counter(), 0, 0
@@ -106,6 +112,8 @@ def main() -> int:
         errors, warnings = errors + found, warnings + missing
         relations += sum(len(vault_ontology.targets(v)) for k, v in data.items() if k in onto["relations"])
         warnings = read_warnings + warnings
+        if data.get("genere"):
+            warnings += vault_ontology.readability(parsed[rel][1], title_of)
         if errors or warnings:
             results.append({"note": rel, "type": str(data["type"]), "errors": errors, "warnings": warnings})
 

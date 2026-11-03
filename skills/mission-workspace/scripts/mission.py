@@ -304,14 +304,22 @@ def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], 
     props = {k: mission[k] for k in ("nature", "client", "statut", "echeance") if mission.get(k)}
     props["constats"] = sum(1 for f in findings if not f["accepted"])
     body = [f"# Mission {mission['name']}", ""]
-    body += [f"- {label} : {mission[key]}" for key, label in (("nature", "Nature"), ("client", "Client"),
-                                                              ("statut", "Statut"), ("echeance", "Échéance"))
-             if mission.get(key)]
+    v = vault_ontology
+    body += [f"- {label} : {v.label(notes.onto, mission[key]) if key in ('nature', 'statut') else mission[key]}"
+             for key, label in (("nature", "Nature"), ("client", "Client"), ("statut", "Statut"),
+                                ("echeance", "Échéance")) if mission.get(key)]
+    opened = [f for f in findings if not f["accepted"]]
+    high = sum(f["severity"] == "haute" for f in opened)
+    if opened:
+        body += [""] + v.callout("warning" if high else "note",
+                                 v.count(len(opened), "contrôle de cohérence ouvert", "contrôles de cohérence ouverts")
+                                 + (f", dont {v.number(high)} de gravité haute" if high else ""),
+                                 ["Détail dans la section « Contrôles de cohérence »."])[:-1]
     body += ["", "## Workflows", "", "| Workflow | Dossier | Étape courante | Étapes | Questions |",
              "| --- | --- | --- | --- | --- |"]
     for flow in flows:
         name = f"[[{flow['index']}\\|{flow.get('title') or flow['definition']}]]" if flow["index"] else flow["definition"]
-        stages = ", ".join(f"{n} {s}" for s, n in sorted(flow["stages"].items())) or "non démarré"
+        stages = ", ".join(f"{n} {v.label(notes.onto, s)}" for s, n in sorted(flow["stages"].items())) or "non démarré"
         body.append(f"| {name} | {flow['folder']} | {flow['current'] or '-'} | {stages} | {flow['questions']} |")
     if repos:
         body += ["", "## Dépôts", "", "| Dépôt | Composant | Commit figé | Commit actuel |", "| --- | --- | --- | --- |"]

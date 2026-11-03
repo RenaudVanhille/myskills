@@ -1255,30 +1255,52 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
             lot = lots.setdefault(line["id"], {**line, "days": 0.0})
             lot["days"] += line["days"]
     up = f"Chiffrage : [[{rel}|{title}]]"
+    v = vault_ontology
+    onto = notes.onto
+
+    def days(value) -> str:
+        return v.count(round(value, 1), "jour")
+
+    def cost(value) -> str:
+        return f"{v.number(round(value))} {currency}"
     for lot in lots.values():
         exigences = [(f"{base}/Exigences/{r}", r) for r in lot["refs"]]
-        notes.add(f"{base}/Lots/{title}/{vault_ontology.safe_name(lot['id'])}", "lot",
+        body = [f"# {lot['id']} {lot['name']}", "", up, "",
+                f"Charge : **{days(lot['days'])}** (espérance), phase {v.label(onto, lot['phase'])}, "
+                f"complexité {v.label(onto, lot['complexity'])}."]
+        if lot["refs"]:
+            body += ["", "## Exigences", ""] + [
+                f"- {v.link(f'{base}/Exigences/{r}', notes.title(f'{base}/Exigences/{r}', r))}"
+                if notes.exists(f"{base}/Exigences/{r}") else f"- {r}" for r in lot["refs"]]
+        notes.add(f"{base}/Lots/{title}/{v.safe_name(lot['id'])}", "lot",
                   {"id": lot["id"], "charge": round(lot["days"], 1), "phase": lot["phase"],
                    "composant": lot["component"] or None, "complexite": lot["complexity"]},
-                  {"porte-sur": exigences or [(option_rel, f"Option {option['id']}")], "issu-de": (rel, title)},
-                  [f"# {lot['id']} {lot['name']}", "", up, "", f"Charge : {round(lot['days'], 1)} jours (espérance)."])
+                  {"porte-sur": exigences or [(option_rel, f"Option {option['id']}")], "issu-de": (rel, title)}, body)
     priced = spec.get("rates") is not None
     budget = "non-fixe" if not totals["budget"] else ("depasse" if totals["budget"]["over"] else "respecte")
     host = (totals["hosting"] or {}).get("provider")
+    years = v.count(totals["tco"]["years"], "an")
     body = [f"# Chiffrage : {spec['title']}", ""]
     if priced:
-        body.append(f"Coût total sur {totals['tco']['years']} an(s) : **{totals['tco']['total']} {currency}** ; "
-                    f"réalisation {totals['build']['cost']} {currency} ({totals['build']['cost_low']} à "
-                    f"{totals['build']['cost_high']}), {totals['build']['days']} jours.")
+        head = f"Coût total sur {years} : {cost(totals['tco']['total'])}"
+        lines = [f"Réalisation {cost(totals['build']['cost'])} ({cost(totals['build']['cost_low'])} à "
+                 f"{cost(totals['build']['cost_high'])}), {days(totals['build']['days'])}."]
+        if budget != "non-fixe":
+            lines.append(f"Budget {v.label(onto, budget)}.")
+        body += v.callout("warning" if budget == "depasse" else "abstract", head, lines)
     else:
-        body.append(f"Charge de réalisation : **{totals['build']['days']} jours** ({totals['build']['days_low']} à "
-                    f"{totals['build']['days_high']}), sans taux journalier.")
-    body += ["", f"Chiffrage complet : `{md.name}`.", "", "## Lots", ""]
-    body += [f"- [[{base}/Lots/{title}/{vault_ontology.safe_name(i)}|{i}]] {lots[i]['name']}" for i in lots]
+        body += v.callout("abstract", f"Charge de réalisation : {days(totals['build']['days'])}", [
+            f"De {v.number(totals['build']['days_low'])} à {days(totals['build']['days_high'])}, "
+            "sans taux journalier."])
+    detail = notes.attach(f"{base}/Rapports/{title}/{md.name}", md) if md.is_file() else f"`{md.name}`"
+    body += [f"Chiffrage complet : {detail}.", "", "## Lots", ""]
+    body += [f"- {v.link(f'{base}/Lots/{title}/{v.safe_name(i)}', i + ' ' + lots[i]['name'])} : "
+             f"{days(lots[i]['days'])}" for i in lots]
     body += ["", "## Hypothèses de production", ""] + [
-        f"- {s['name']} : {s['tco']['total']} {currency} sur {totals['tco']['years']} an(s), réalisation "
-        f"{s['build']['cost']} {currency}, {s['build']['days']} jours" if priced
-        else f"- {s['name']} : {s['build']['days']} jours ({s['build']['days_low']} à {s['build']['days_high']})"
+        f"- {s['name']} : {cost(s['tco']['total'])} sur {years}, réalisation {cost(s['build']['cost'])}, "
+        f"{days(s['build']['days'])}" if priced
+        else f"- {s['name']} : {days(s['build']['days'])} ({v.number(s['build']['days_low'])} à "
+             f"{v.number(s['build']['days_high'])})"
         for s in found["scenarios"]]
     if spec.get("assumptions"):
         body += ["", "## Hypothèses", ""] + [f"- {a}" for a in spec["assumptions"]]

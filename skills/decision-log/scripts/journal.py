@@ -475,7 +475,7 @@ def _trace(folder: Path, kind: str, message: dict, errors: list[str], warnings: 
     if kind == "handoff":
         text = f"vers {message['agent']} : {message['objective']}"
     else:
-        text = f"{message['agent']} : {message['status']}, {len(message['files'])} fichier(s)" + (
+        text = f"{message['agent']} : {message['status']}, {len(message['files'])} fichier{'s' if len(message['files']) > 1 else ''}" + (
             f", à faire : {'; '.join(message['todo'])}" if message["todo"] else "")
     entry = add_entry(state, current, "passage" if kind == "handoff" else "rapport", "agent", text,
                       files=message["files"])
@@ -591,7 +591,7 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
                 stage["items"] = items
             else:
                 stage.pop("items", None)
-            text = f"{len(files)} fichier(s) soumis à la revue"
+            text = f"{len(files)} fichier{'s soumis' if len(files) > 1 else ' soumis'} à la revue"
             if changes is not None:
                 text += f" ; depuis la version relue : {describe(changes)}"
                 args.changes = changes

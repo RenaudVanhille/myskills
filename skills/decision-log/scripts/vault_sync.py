@@ -44,15 +44,20 @@ WRITERS = {"requirements": ("requirements-catalog", "req_build.py"),
            "options": ("architecture-options", "options_build.py")}
 # Livrables d'étape copiés dans le vault et intégrés à la note de l'étape.
 EMBEDDED = {".png", ".svg", ".jpg", ".jpeg", ".md"}
+IMAGE_WIDTH = 900  # largeur d'affichage des schémas intégrés, en pixels
 
 MARK = "genere: decision-log"
 ONTOLOGY = vault_ontology.load()
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
                "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée"}
-REVIEW_HELP = ("Pour valider, mettez la propriété **revue** à `validée` ; pour demander une reprise, mettez "
-               "`retour` et écrivez votre retour sous « Votre retour ». L'agent lit cette note "
-               "(`journal.py review --from-vault`) : seules la propriété revue et cette section sont gardées.")
+REVIEW_HELP = ["Pour valider, mettez la propriété **revue** à `validée`.",
+               "Pour demander une reprise, mettez `retour` et écrivez votre retour sous « Votre retour ».",
+               "L'agent lit cette note (`journal.py review --from-vault`) : seules la propriété revue et cette "
+               "section sont gardées."]
+GENERATED = vault_ontology.callout("info", "Note générée", [
+    "Mémoire partagée du workflow, générée depuis `workflow.json` : ne modifiez pas ces notes, elles sont "
+    "réécrites à chaque étape."], folded=True)
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
                  "validee": "validée", "a-reprendre": "à reprendre", "sautee": "sautée"}
 
@@ -162,16 +167,20 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     base = safe_folder(target)
     names: dict[str, str] = {}  # identifiant -> chemin de la note (sans .md), pour les wikilinks
 
+    titles: dict[str, str] = {}  # identifiant -> libellé lisible des liens (EF-001 Déclarer un sinistre)
+
     def link(ref: str) -> str:
-        return f"[[{names[ref]}|{ref}]]" if ref in names else ref
+        return f"[[{names[ref]}|{alias(titles.get(ref, ref))}]]" if ref in names else ref
 
     def alias(text: str) -> str:
         return text.replace("|", "-").replace("]", ")").replace("[", "(")
 
     for req in catalog.get("requirements", []):
         names[req["id"]] = f"{base}/Exigences/{req['id']}"
+        titles[req["id"]] = f"{req['id']} {req['title']}"
     for opt in options.get("options", []):
         names[opt["id"]] = f"{base}/Options/Option {opt['id']}"
+        titles[opt["id"]] = f"Option {opt['id']} : {opt['name']}"
     glossary = catalog.get("glossary", [])
     for entry in glossary:
         names["terme:" + entry["term"]] = f"{base}/Glossaire/{safe_name(entry['term'])}"
@@ -180,7 +189,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             for g in glossary}
     for entry in state["entries"]:
         names[entry["id"]] = f"{base}/Décisions/{entry['id']}"
+        titles[entry["id"]] = f"{entry['id']} {KIND_LABELS[entry['kind']]}"
     index = f"{base}/{safe_name(state['title'])}"
+    labels = {s["id"]: s.get("label") or s["id"] for s in (definition or {}).get("stages", [])}
     adr = data / memory["adr"] if memory.get("adr") else None
     if adr and adr.exists():
         names["ADR"] = f"{base}/ADR architecture"
@@ -198,8 +209,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
               tags=()) -> None:
         """Note typée selon l'ontologie du vault : frontmatter, relations (wikilinks) et tags normalisés."""
         rels = {} if kind == "workflow" else {"workflow": (index, state["title"])}
-        metas[rel] = vault_ontology.meta(ONTOLOGY, kind, props, {**rels, **(relations or {})}, tags,
-                                         genere="decision-log")
+        metas[rel] = vault_ontology.with_alias(
+            vault_ontology.meta(ONTOLOGY, kind, props, {**rels, **(relations or {})}, tags, genere="decision-log"),
+            vault_ontology.heading("\n".join(body)), rel)
         notes[rel] = note(metas[rel], body)
 
     def linked(ids) -> list[tuple[str, str]]:
@@ -218,12 +230,12 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                                                                    if req.get("derived") else [])
         if req.get("questions"):
             body += ["", "## Questions", ""] + [f"- {q}" for q in req["questions"]]
-        covered = [f"- Option {link(o['id'])} : {'partielle' if gaps[(rid, o['id'])]['level'] == 'partiel' else 'non couverte'}"
+        covered = [f"- {link(o['id'])} : {'partielle' if gaps[(rid, o['id'])]['level'] == 'partiel' else 'non couverte'}"
                    f", {gaps[(rid, o['id'])]['note']}" for o in options.get("options", []) if (rid, o["id"]) in gaps]
         if covered:
             body += ["", "## Écarts des options", ""] + covered
         if by_ref.get(rid):
-            body += ["", "## Décisions", ""] + [f"- {link(e['id'])} {KIND_LABELS[e['kind']]} : {e['text']}"
+            body += ["", "## Décisions", ""] + [f"- {link(e['id'])} : {e['text']}"
                                                for e in by_ref[rid]]
         typed(names[rid], "exigence",
               {"id": rid, "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
@@ -238,7 +250,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                 "## Composants", ""] + [f"- {c['label']}" + (f" ({c['tech']})" if c.get("tech") else "")
                                         for c in opt["components"]]
         if opt.get("gaps"):
-            body += ["", "## Écarts", ""] + [f"- {link(g)} {v['level']} : {v['note']}" for g, v in opt["gaps"].items()]
+            body += ["", "## Écarts", ""] + [f"- {link(g)} : couverture {v['level']}e, {v['note']}"
+                                             for g, v in opt["gaps"].items()]
         if opt.get("placement"):
             changes = {"nouvelle": "à créer", "a-faire-evoluer": "à faire évoluer", "a-remplacer": "à remplacer",
                        "en-place": "réutilisée", "externe": "externe"}
@@ -251,7 +264,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             if opt.get(key):
                 body += ["", f"## {label}", ""] + [f"- {item}" for item in opt[key]]
         if by_ref.get(opt["id"]):
-            body += ["", "## Décisions", ""] + [f"- {link(e['id'])} {KIND_LABELS[e['kind']]} : {e['text']}"
+            body += ["", "## Décisions", ""] + [f"- {link(e['id'])} : {e['text']}"
                                                for e in by_ref[opt["id"]]]
         if chosen and "ADR" in names:
             body += ["", f"Retenue : [[{names['ADR']}|ADR]]"]
@@ -296,20 +309,20 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     # Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés.
     files_dir = f"{base}/Fichiers"
     copies: dict[str, Path] = {}  # chemin dans le vault -> fichier du workflow
-    labels = {s["id"]: s.get("label") or s["id"] for s in (definition or {}).get("stages", [])}
     stage_notes = []
     for stage in state["stages"]:
         if not stage.get("files"):
             continue
         rel = f"{base}/Étapes/{safe_name(labels.get(stage['id'], stage['id']))}"
         body = [f"# {labels.get(stage['id'], stage['id'])}", "", up, "",
-                f"Statut : {STATUS_LABELS[stage['status']]}.", "", "## Livrables", ""]
+                f"Statut : **{STATUS_LABELS[stage['status']]}**.", "", "## Livrables", ""]
         for file in stage["files"]:
             source = folder / file
             if source.suffix.lower() in EMBEDDED and source.is_file():
                 copy = f"{files_dir}/{file}"
                 copies[copy] = source
-                body += [f"### {file}", "", f"![[{copy}]]", ""]
+                body += [f"### {file}", "", f"![[{copy}]]" if source.suffix.lower() == ".md"
+                         else f"![[{copy}|{IMAGE_WIDTH}]]", ""]
             else:
                 body.append(f"- `{file}`")
         typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
@@ -322,7 +335,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         found = next((p for p in pictures if (folder / p).is_file()), None)
         if found and names.get(opt["id"]) in notes:
             copies[f"{files_dir}/{found}"] = folder / found
-            notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + f"\n\n## Schéma\n\n![[{files_dir}/{found}]]\n"
+            notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + f"\n\n## Schéma\n\n![[{files_dir}/{found}|{IMAGE_WIDTH}]]\n"
 
     reviews = []
     for stage in state["stages"]:
@@ -334,36 +347,48 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             continue
         rel = review_note(target, stage["id"])
         value, feedback = user_part(vault / f"{rel}.md", submission["id"])
-        body = [f"# Revue de l'étape {stage['id']}", "", up, "", f"Soumission {link(submission['id'])} : "
-                f"{submission['text']}.", "", "**Fichiers** : " + ", ".join(f"`{f}`" for f in stage.get("files", {})),
-                "", REVIEW_HELP, "", "## Votre retour", "", feedback]
+        shown = [f"[[{files_dir}/{f}|{f}]]" if f"{files_dir}/{f}" in copies else f"`{f}`"
+                 for f in stage.get("files", {})]
+        body = [f"# Revue de l'étape {labels.get(stage['id'], stage['id'])}", "", up, ""]
+        body += vault_ontology.callout("todo", "À vous de relire", REVIEW_HELP)
+        body += [f"Soumission {link(submission['id'])} : {submission['text']}.", "", "**Fichiers** : "
+                 + ", ".join(shown), "", "## Votre retour", "", feedback]
         typed(rel, "revue", {"etape": stage["id"], "soumission": submission["id"]}, body)
         metas[rel]["revue"] = value  # toujours présente, même vide : l'utilisateur la remplit dans Obsidian
         notes[rel] = note(metas[rel], body)
         reviews.append(rel)
 
-    body = [f"# {state['title']}", "", "Mémoire partagée du workflow, générée depuis `workflow.json` : "
-            "ne modifiez pas ces notes, elles sont réécrites à chaque étape.", "",
-            "## Étapes", "", "| Étape | Statut |", "| --- | --- |"]
-    body += [f"| {s['id']} | {STATUS_LABELS[s['status']]} |" for s in state["stages"]]
-    groups = (("Exigences", [r["id"] for r in catalog.get("requirements", [])]),
-              ("Options", [o["id"] for o in options.get("options", [])]))
-    for title, refs in groups:
-        if refs:
-            body += ["", f"## {title}", ""] + [f"- {link(r)}" for r in refs]
+    body = [f"# {state['title']}", ""] + GENERATED + ["## Étapes", "", "| Étape | Statut |", "| --- | --- |"]
+    stage_rel = {rel.rsplit("/", 1)[-1]: rel for rel in stage_notes}
+    for s in state["stages"]:
+        name = labels.get(s["id"], s["id"])
+        shown = f"[[{stage_rel[safe_name(name)]}\\|{alias(name)}]]" if safe_name(name) in stage_rel else name
+        body.append(f"| {shown} | {STATUS_LABELS[s['status']]} |")
+    if reviews:
+        body += [""] + vault_ontology.callout("todo", "Revues en attente", [
+            f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in reviews])[:-1]
+    requirements = catalog.get("requirements", [])
+    if requirements:
+        body += ["", "## Exigences", "", "| Exigence | Priorité | Statut |", "| --- | --- | --- |"]
+        body += [f"| [[{names[r['id']]}\\|{alias(titles[r['id']])}]] | {vault_ontology.label(ONTOLOGY, r['priority'])} | "
+                 f"{vault_ontology.label(ONTOLOGY, r.get('status', 'retenue'))} |" for r in requirements]
+    if options.get("options"):
+        body += ["", "## Options", ""] + [f"- {link(o['id'])}" + (" (retenue)" if decision and
+                                                                 decision.get("option") == o["id"] else "")
+                                         for o in options["options"]]
     if glossary:
         body += ["", "## Glossaire", ""] + [f"- [[{names['terme:' + g['term']]}|{alias(g['term'])}]]"
                                            for g in sorted(glossary, key=lambda g: normalize(g["term"]))]
-    if stage_notes:
-        body += ["", "## Livrables par étape", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in stage_notes]
-    if reviews:
-        body += ["", "## Revues en attente", ""] + [f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in reviews]
     if "ADR" in names:
         body += ["", "## Décision d'architecture", "", f"- [[{names['ADR']}|ADR]]"]
     if state["entries"]:
-        body += ["", "## Journal", ""] + [f"- {link(e['id'])} {e['stage']}, {KIND_LABELS[e['kind']].lower()} "
-                                         f"({e['by']}) : {e['text']}" for e in state["entries"]]
+        body += ["", "## Journal", ""] + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
+                                         f"{e['text']}" for e in state["entries"]]
     typed(index, "workflow", {}, body)
+    # Section « Revues et analyses » : revues, chiffrages, modèles de menaces écrits par d'autres skills.
+    hubs = vault_ontology.Hubs(ONTOLOGY, vault, {rel: (meta, vault_ontology.heading(notes[rel]) or rel)
+                                                 for rel, meta in metas.items()})
+    notes = {rel: hubs.text(rel, metas[rel]["type"], text) for rel, text in notes.items()}
 
     # Chaque note suit l'ontologie du vault (types, propriétés, relations, tags) : sinon rien n'est écrit.
     def resolve(path: str):
@@ -417,7 +442,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             elif path.is_dir() and not any(path.iterdir()):
                 path.rmdir()
     # Vérification : chaque wikilink écrit pointe vers une note qui existe.
-    broken = sorted({target for text in notes.values() for target in re.findall(r"\[\[([^|\]]+)", text)
+    broken = sorted({target for text in notes.values() for target in re.findall(r"\[\[([^|\]\\]+)", text)
                      if not (vault / f"{target}.md").exists() and not (vault / target).is_file()})
     errors += [f"lien cassé : [[{target}]]" for target in broken]
     return {"vault": str(vault), "folder": base, "notes": len(notes), "removed": removed,
