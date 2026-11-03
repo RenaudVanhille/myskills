@@ -311,6 +311,14 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
     files_dir = f"{base}/Fichiers"
     copies: dict[str, Path] = {}  # chemin dans le vault -> fichier du workflow
     stage_notes = []
+
+    def drawio_source(file: str) -> list[str]:
+        """Lien vers la source draw.io d'un PNG exporté (x.drawio.png -> x.drawio), copiée à côté."""
+        if not file.lower().endswith(".drawio.png") or not (folder / file[:-4]).is_file():
+            return []
+        copies[f"{files_dir}/{file[:-4]}"] = folder / file[:-4]
+        name = Path(file[:-4]).name
+        return [f"Source modifiable : [[{files_dir}/{file[:-4]}|{name}]] (draw.io).", ""]
     for stage in state["stages"]:
         if not stage.get("files"):
             continue
@@ -323,7 +331,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                 copy = f"{files_dir}/{file}"
                 copies[copy] = source
                 body += [f"### {file}", "", f"![[{copy}]]" if source.suffix.lower() == ".md"
-                         else f"![[{copy}|{IMAGE_WIDTH}]]", ""]
+                         else f"![[{copy}|{IMAGE_WIDTH}]]", ""] + drawio_source(file)
             else:
                 body.append(f"- `{file}`")
         typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
@@ -336,7 +344,9 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         found = next((p for p in pictures if (folder / p).is_file()), None)
         if found and names.get(opt["id"]) in notes:
             copies[f"{files_dir}/{found}"] = folder / found
-            notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + f"\n\n## Schéma\n\n![[{files_dir}/{found}|{IMAGE_WIDTH}]]\n"
+            caption = [f"*Schéma de l'option {opt['id']} : {opt.get('name', opt['id'])}.*", ""] + drawio_source(found)
+            notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + "\n\n" + "\n".join(
+                ["## Schéma", "", f"![[{files_dir}/{found}|{IMAGE_WIDTH}]]", ""] + caption).rstrip() + "\n"
 
     reviews = []
     for stage in state["stages"]:
@@ -442,6 +452,8 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
                 removed += 1
             elif path.is_dir() and not any(path.iterdir()):
                 path.rmdir()
+    # Tableaux Obsidian Bases du workflow (vues de l'ontologie), avant la vérification des liens.
+    vault_ontology.write_base(ONTOLOGY, vault, base)
     # Vérification : chaque wikilink écrit pointe vers une note qui existe.
     broken = sorted({target for text in notes.values() for target in re.findall(r"\[\[([^|\]\\]+)", text)
                      if not (vault / f"{target}.md").exists() and not (vault / target).is_file()})

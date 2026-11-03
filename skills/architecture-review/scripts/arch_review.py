@@ -1059,7 +1059,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
     for label, items in (("Constats ouverts", [c for c in constats if not c[1]["accepted"]]),
                          ("Constats acceptés", [c for c in constats if c[1]["accepted"]])):
         if items:
-            body += ["", f"## {label}", ""] + [f"- {v.link(rel, heading)} ({f['severity']}) : {f['element']}"
+            body += ["", f"## {label}", ""] + [f"- {v.link(rel, heading)} ({f['severity']}) : {v.detail(f['message'], f['element'])}"
                                               for rel, f, heading in items]
     if risques:
         body += ["", "## Risques", ""] + [f"- {v.link(rel, r['id'] + ' ' + v.short(r['text']))} ({r['severity']})"

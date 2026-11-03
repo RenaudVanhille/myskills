@@ -11,6 +11,7 @@
     "version": {"type": "integer", "minimum": 1},
     "labels": {"type": "object", "description": "Libellé affiché d'une valeur de propriété (a-faire : à faire).", "additionalProperties": {"type": "string", "minLength": 1}},
     "_labels": {"type": "string"},
+    "_views": {"type": "string"},
     "tags": {
       "type": "object",
       "required": ["pattern", "type_prefix"],
@@ -35,7 +36,8 @@
             "folder": {"type": "string", "description": "Sous-dossier conseillé, relatif au dossier du workflow ou du référentiel ; vide : à sa racine."},
             "required": {"type": "array", "items": {"type": "string"}},
             "properties": {"$ref": "#/$defs/properties"},
-            "facets": {"type": "array", "items": {"type": "string"}, "description": "Propriétés recopiées en tags <propriété>/<valeur>."}
+            "facets": {"type": "array", "items": {"type": "string"}, "description": "Propriétés recopiées en tags <propriété>/<valeur>."},
+            "views": {"type": "array", "description": "Tableaux Obsidian Bases du type, dans Tableaux.base du workflow.", "items": {"type": "object", "required": ["name", "columns"], "additionalProperties": false, "properties": {"name": {"type": "string", "minLength": 1}, "columns": {"type": "array", "items": {"type": "string"}, "minItems": 1}, "filter": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "sort": {"type": "array", "items": {"type": "string"}}}}}
           }
         }
       },
