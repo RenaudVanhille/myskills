@@ -42,7 +42,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 | `init DOSSIER [--definition NOM\|DEF.json \| --stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, définition introuvable ou non conforme, vault introuvable |
 | `start DOSSIER ETAPE` | avant de travailler sur l'étape | une étape dont elle dépend n'est pas validée, ou un de ses livrables a changé depuis |
 | `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
-| `check DOSSIER ETAPE` | descriptions de l'étape écrites, si sa définition a un champ `run` : tous ses contrôles en un appel | l'étape n'est pas démarrée, pas de `run` ; une erreur par contrôle en échec |
+| `check DOSSIER ETAPE [--submit]` | descriptions de l'étape écrites, si sa définition a un champ `run` : tous ses contrôles en un appel ; avec `--submit`, soumission dans le même appel à zéro erreur | l'étape n'est pas démarrée, pas de `run` ; une erreur par contrôle en échec |
 | `submit DOSSIER ETAPE [--files F ...]` | livrables vérifiés par leurs scripts | l'étape n'est ni en cours ni en revue (une étape en revue se soumet à nouveau si ses livrables changent), fichier introuvable, livrable attendu par la définition absent |
 | `review DOSSIER ETAPE --decision valide\|retour --text "..."` | quand l'utilisateur a répondu | validation : étape pas en revue, ou fichiers modifiés depuis la soumission |
 | `review DOSSIER ETAPE --from-vault` | l'utilisateur a rempli sa note de revue dans Obsidian | pas de vault, note sans propriété `revue` |
@@ -60,7 +60,8 @@ Avec une définition, le rapport de `init`, `start` et `status` donne aussi
 `stage` : l'étape à produire (skills, agent, entrées, livrables attendus,
 contrôles à lancer, consignes). Suivez-le ; si l'étape a un champ `run`,
 écrivez toutes ses descriptions puis lancez `check` une fois, au lieu de
-chaque contrôle à part (un tour au lieu d'un par script) ; `submit` sans `--files` soumet
+chaque contrôle à part (un tour au lieu d'un par script), avec `--submit`
+pour soumettre dans le même appel ; `submit` sans `--files` soumet
 les livrables de la définition. `ready` liste les étapes qui peuvent
 démarrer maintenant : quand il y en a plusieurs, elles se mènent en
 parallèle (section 2).

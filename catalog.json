@@ -2527,12 +2527,14 @@
         {
           "name": "options_build.py",
           "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (wa_check.py de well-architected-review) (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option (pos_impact.py d'urbanization-map), en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
-          "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
+          "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema ; uv run scripts/options_build.py options.json --draft [--requirements exigences.json]",
           "options": {
             "options.json": "description des options ; requirements est relatif à ce fichier",
             "--decision": "décision de l'utilisateur après la revue (option, by, why, date, refs, comme le champ decision) : n'écrit que l'ADR, sans toucher la comparaison validée",
             "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+            "--draft": "écrit un brouillon d'options.json (absent) depuis le catalogue : critères pondérés, qualifications d'hébergeur exigées (hosting), deux options à décrire, recommandation ; le rapport liste les hébergeurs qualifiés et les exigences indispensables",
+            "--requirements": "avec --draft : catalogue d'exigences, relatif au .json (défaut : exigences.json)"
           },
           "input": {
             "format": "json",
@@ -2946,7 +2948,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements.",
+            "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, critères, qualifications exigées, hébergeurs qualifiés du catalogue, exigences indispensables.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -3178,6 +3180,67 @@
                   "properties": {
                     "input": {
                       "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "draft",
+                    "criteria",
+                    "hosting",
+                    "providers",
+                    "indispensables",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "draft": {
+                      "type": "string"
+                    },
+                    "criteria": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "hosting": {
+                      "type": [
+                        "object",
+                        "null"
+                      ]
+                    },
+                    "providers": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "indispensables": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
                     },
                     "errors": {
                       "type": "array",
@@ -6813,7 +6876,7 @@
         {
           "name": "journal.py",
           "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-          "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
+          "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -6823,7 +6886,8 @@
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
-            "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json"
+            "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; le rapport est alors celui de submit (command submit, checks gardés)",
+            "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit"
           },
           "report": {
             "format": "json",

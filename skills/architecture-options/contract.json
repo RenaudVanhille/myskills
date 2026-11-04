@@ -20,12 +20,14 @@
     {
       "name": "options_build.py",
       "role": "Vérifie les références aux exigences, calcule le score pondéré et le rang de chaque option, élimine celles qui laissent une exigence indispensable non couverte, signale une recommandation qui ne suit pas le classement, puis écrit la comparaison, la description des schémas et l'ADR ; écrit la matrice de traçabilité exigence, option, composant (tracabilite.md, tracabilite.csv) et, pour une option avec provider, la description cloud_build.py de son schéma aux icônes officielles et sa revue Well-Architected des piliers (wa_check.py de well-architected-review) (constats par pilier dans la comparaison, constats de l'option retenue dans l'ADR). Avec le POS du SI, vérifie le placement de chaque option (pos_impact.py d'urbanization-map), en compte les impacts (créations, évolutions, remplacements, redondances, flux entre zones) et écrit son POS cible.",
-      "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema",
+      "usage": "uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema ; uv run scripts/options_build.py options.json --draft [--requirements exigences.json]",
       "options": {
         "options.json": "description des options ; requirements est relatif à ce fichier",
         "--decision": "décision de l'utilisateur après la revue (option, by, why, date, refs, comme le champ decision) : n'écrit que l'ADR, sans toucher la comparaison validée",
         "--out-dir": "dossier des fichiers produits (défaut : celui du .json)",
-        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+        "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
+        "--draft": "écrit un brouillon d'options.json (absent) depuis le catalogue : critères pondérés, qualifications d'hébergeur exigées (hosting), deux options à décrire, recommandation ; le rapport liste les hébergeurs qualifiés et les exigences indispensables",
+        "--requirements": "avec --draft : catalogue d'exigences, relatif au .json (défaut : exigences.json)"
       },
       "input": {
         "format": "json",
@@ -439,7 +441,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements.",
+        "description": "Nombre d'options et de critères, classement (score en %, exigences indispensables non couvertes), option recommandée et décidée, fichiers produits, erreurs et avertissements. Avec --draft : brouillon écrit, critères, qualifications exigées, hébergeurs qualifiés du catalogue, exigences indispensables.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
@@ -671,6 +673,67 @@
               "properties": {
                 "input": {
                   "type": "string"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "input",
+                "draft",
+                "criteria",
+                "hosting",
+                "providers",
+                "indispensables",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "draft": {
+                  "type": "string"
+                },
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "hosting": {
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "providers": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "indispensables": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "errors": {
                   "type": "array",

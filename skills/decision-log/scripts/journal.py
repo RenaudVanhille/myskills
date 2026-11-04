@@ -43,7 +43,9 @@ Avec un champ `run` dans une étape de la définition, `check DOSSIER ETAPE`
 lance en un seul appel tous les contrôles mécaniques de l'étape (scripts des
 skills, une fois par fichier pour `foreach`, avec le vault du workflow pour
 `vault`) depuis le dossier du workflow, et rend leurs erreurs : l'agent écrit
-toutes ses descriptions, puis contrôle et exporte tout d'un coup.
+toutes ses descriptions, puis contrôle et exporte tout d'un coup. Avec
+`--submit`, une étape dont tous les contrôles passent est soumise dans le même
+appel (livrables de la définition) : un tour de moins par étape.
 
 Les messages de passage et rapports finaux d'agent sont validés par le
 skill `agent-handoff` (check_message.py), qui les note au journal par
@@ -56,7 +58,7 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
-    uv run scripts/journal.py check DOSSIER ETAPE
+    uv run scripts/journal.py check DOSSIER ETAPE [--submit]
     uv run scripts/journal.py status DOSSIER
     uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
@@ -686,6 +688,9 @@ def main() -> int:
             command.add_argument("--why", help="justification")
             command.add_argument("--refs", help="exigences, options ou entrées concernées, séparées par des virgules")
             command.add_argument("--by", choices=["agent", "utilisateur"], default="agent")
+        if name == "check":
+            command.add_argument("--submit", action="store_true",
+                                 help="soumettre l'étape dans le même appel si tous ses contrôles passent")
         if name == "submit":
             command.add_argument("--files", nargs="+", help="chemins relatifs au dossier (défaut : livrables de la "
                                                               "définition du workflow)")
@@ -706,7 +711,9 @@ def main() -> int:
             state, entry = load_state(args.folder, errors), None
             stage = stage_of(state, args.stage, errors) if state else None
             checks = run_checks(args.folder, state, stage, errors) if stage else []
-        else:
+            if args.submit and checks and not errors:
+                args.command, args.files = "submit", None
+        if args.command != "check":
             with locked(args.folder):
                 state, entry = run(args, errors, warnings)
                 if state and not errors and args.command != "status":
@@ -716,7 +723,7 @@ def main() -> int:
         state, entry, memory = None, None, None
         errors.append(str(error))
     current, action = next_action(state) if state else (None, "corriger l'erreur")
-    if checks:
+    if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
                   else f"soumettre {args.stage} (submit)")
     startable = ready(state) if state and not errors else []

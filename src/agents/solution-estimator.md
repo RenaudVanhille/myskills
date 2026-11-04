@@ -65,7 +65,10 @@ workflow, la commande les trace aussi au journal.
    (format : `scripts/lib/abaques.schema.json` du skill `api-contract`). Sans eux,
    les scripts prennent des valeurs par défaut à calibrer et le disent :
    rappelle-le à la livraison, sans poser de question.
-4. Experts, en parallèle et avec un message de passage court (dossier,
+4. Si `decoupage-back.lots.json` existe déjà (étape backend d'un
+   workflow, faite par `backend-estimator`), reprends-le tel quel : pas de
+   nouveau découpage backend ni de relecture de `api.json`. Sinon, experts,
+   en parallèle et avec un message de passage court (dossier,
    `exigences.json`, `options.json`, option, composant) : `backend-estimator`
    si `api.json` existe, si l'utilisateur demande un détail du backend, ou
    dans une mission d'avant-vente (`nature` de `mission.json`), même sans
