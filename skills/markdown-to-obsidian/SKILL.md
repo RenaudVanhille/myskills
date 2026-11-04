@@ -128,6 +128,12 @@ NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
 pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
 à networkx : ne relisez pas le vault note à note.
 
+Chaque dossier de workflow a aussi son `Tableaux.base` (Obsidian Bases,
+plugin cœur) : une vue tableau par entrée `views` de l'ontologie
+(exigences par priorité, constats et risques ouverts par gravité...),
+réécrit par les scripts à chaque passage et lié depuis la note du workflow.
+Un nouveau tableau s'ajoute dans l'ontologie, sans code.
+
 ## 5. Finir à la main
 
 - **Ancres** : un lien `[[note#section]]` doit reprendre le texte exact du

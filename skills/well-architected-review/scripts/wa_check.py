@@ -510,7 +510,9 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
         name = v.safe_name(f"{f['rule']} {f['element']}")
         note = f"{base}/Constats/{title}/{name}"
         heading = f"{f['rule']} {v.short(f['message'])}"
-        lines.append(f"- {v.link(note, heading)} ({f['severity']}" + (", accepté)" if f["accepted"] else ")"))
+        context = v.detail(f["message"], f["element"])
+        lines.append(f"- {v.link(note, heading)} ({f['severity']}" + (", accepté)" if f["accepted"] else ")")
+                     + (f" : {context}" if context else ""))
         body = [f"# {heading}", ""]
         if f["severity"] == "haute" and not f["accepted"]:
             body += v.callout("warning", "Gravité haute", [f["message"]])

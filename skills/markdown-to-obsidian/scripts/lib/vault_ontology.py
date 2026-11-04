@@ -334,6 +334,18 @@ def short(text: str, limit: int = 80) -> str:
     return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;") + "…"
 
 
+def detail(text: str, fallback: str = "", limit: int = 100) -> str:
+    """Phrase de contexte d'un élément listé : ce qui suit le libellé court (short) du message, sinon fallback
+    (« Scénario non satisfait sans risque noté : la connexion est refusée » donne « la connexion est refusée »)."""
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    head = short(text, 10 ** 6)
+    rest = text.split(head, 1)[1].lstrip(" :.") if head in text else ""
+    rest = rest.rstrip(" .")
+    if not rest or len(rest.split()) < 2:
+        return fallback
+    return rest if len(rest) <= limit else rest[:limit].rsplit(" ", 1)[0].rstrip(" ,;") + "…"
+
+
 def heading(body: str) -> str | None:
     """Titre de la note : sa première ligne « # »."""
     return next((line[2:].strip() for line in body.splitlines() if line.startswith("# ")), None)
@@ -413,12 +425,18 @@ def hub_lines(onto: dict, rel: str, kind: str, notes: dict[str, tuple[dict, str]
     def parent(meta):
         found = targets(meta.get("issu-de"))
         return found[0] if found else None
+    tables = []
     if kind == "workflow":
         incoming = [r for r, (m, _) in notes.items() if m.get("type") in sources and not parent(m)]
+        kinds = view_kinds(onto, notes)
+        if kinds:
+            names = [v["name"].lower() for k in kinds for v in types[k]["views"]]
+            tables = [f"- Tableaux filtrables : {link(rel.rsplit('/', 1)[0] + '/' + BASE, 'Tableaux')} "
+                      f"({', '.join(names)})"]
     else:
         incoming = [r for r, (m, _) in notes.items() if r != rel and any(rel in targets(m.get(n)) for n in hubs)]
     if not incoming:
-        return []
+        return [HUB, "", HUB_TITLE, ""] + tables if tables else []
     listed = set(incoming)
     incoming = [r for r in incoming if parent(notes[r][0]) not in listed]
     listed = set(incoming)
@@ -476,7 +494,83 @@ def hub_lines(onto: dict, rel: str, kind: str, notes: dict[str, tuple[dict, str]
         if n > 10:
             lines.append(f"- et {count(n - 10, 'autre note', 'autres notes')} de type "
                          f"{types.get(kind_, {}).get('label', kind_).lower()}")
-    return [HUB, "", HUB_TITLE, ""] + lines
+    return [HUB, "", HUB_TITLE, ""] + tables + lines
+
+
+BASE = "Tableaux.base"
+BASE_MARK = "# myskills : tableaux générés depuis l'ontologie du vault, réécrits à chaque passage"
+
+
+def yaml_text(text) -> str:
+    return "'" + str(text).replace("'", "''") + "'"
+
+
+def view_kinds(onto: dict, notes: dict[str, tuple[dict, str]]) -> list[str]:
+    """Types qui ont des vues (views de l'ontologie) et des notes parmi notes, dans l'ordre de l'ontologie."""
+    present = {m.get("type") for m, _ in notes.values()}
+    return [k for k, spec in onto["types"].items() if spec.get("views") and k in present]
+
+
+def base_text(onto: dict, folder: str, kinds: list[str]) -> str:
+    """Fichier Obsidian Bases (YAML) : une vue tableau par vue de l'ontologie des types kinds, sur les notes
+    du dossier folder. Une énumération se trie dans son ordre (formule rang_<propriété>)."""
+    formulas, shown, views = {}, {}, []
+    for kind in kinds:
+        spec = onto["types"][kind]
+        schema = {**onto.get("common", {}), **spec.get("properties", {})}
+        for view in spec["views"]:
+            filters = [f'file.hasTag("{type_tag(onto, kind)}")']
+            filters += [" || ".join(f"{name} == {json.dumps(v, ensure_ascii=False)}" for v in values)
+                        for name, values in view.get("filter", {}).items()]
+            sort = []
+            for name in view.get("sort", []):
+                enum = schema.get(name, {}).get("enum")
+                if not enum:
+                    sort.append(name if name.startswith("file.") else f"note.{name}")
+                    continue
+                formula = "rang_" + name.replace("-", "_")
+                expr = str(len(enum) + 1)
+                for rank, value in reversed(list(enumerate(enum, 1))):
+                    expr = f"if({name} == {json.dumps(value, ensure_ascii=False)}, {rank}, {expr})"
+                formulas[formula] = expr
+                sort.append(f"formula.{formula}")
+            for name in view["columns"]:
+                shown[f"note.{name}"] = label(onto, name).capitalize()
+            views += ["  - type: table", f"    name: {yaml_text(view['name'])}", "    filters:", "      and:"]
+            views += [f"        - {yaml_text(f)}" for f in filters]
+            views += ["    order:", "      - file.name", "      - note.aliases"]
+            views += [f"      - note.{name}" for name in view["columns"]]
+            if sort:
+                views += ["    sort:"] + [line for prop in sort for line in
+                                          (f"      - property: {prop}", "        direction: ASC")]
+    lines = [BASE_MARK, "filters:", "  and:",
+             f"    - {yaml_text('file.inFolder(' + json.dumps(folder, ensure_ascii=False) + ')')}"]
+    if formulas:
+        lines += ["formulas:"] + [f"  {name}: {yaml_text(expr)}" for name, expr in formulas.items()]
+    lines += ["properties:", "  note.aliases:", "    displayName: Titre"]
+    lines += [line for prop, name in shown.items() for line in (f"  {prop}:", f"    displayName: {yaml_text(name)}")]
+    return "\n".join(lines + ["views:"] + views) + "\n"
+
+
+def write_base(onto: dict, vault: Path, folder: str, notes: dict[str, tuple[dict, str]] | None = None) -> str | None:
+    """Écrit (ou retire) <folder>/Tableaux.base selon les notes du dossier ; rend son chemin s'il existe.
+    Un fichier Tableaux.base sans la marque de myskills appartient à l'utilisateur : jamais touché."""
+    if not folder:
+        return None
+    path = Path(vault) / folder / BASE
+    if path.is_file() and not path.read_text(encoding="utf-8", errors="replace").startswith(BASE_MARK):
+        return None
+    kinds = view_kinds(onto, scan(vault, folder) if notes is None else notes)
+    if not kinds:
+        if path.is_file():
+            path.unlink()
+        return None
+    text = base_text(onto, folder, kinds)
+    if not path.is_file() or path.read_text(encoding="utf-8") != text:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+    return f"{folder}/{BASE}"
 
 
 def with_hub(text: str, lines: list[str]) -> str:
@@ -644,4 +738,6 @@ class Notes:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
         refresh_hubs(self.onto, self.vault, self.metas)
+        for folder in sorted({hub_scope(self.vault, rel, m.get("type")) for rel, m in self.metas.items()}):
+            write_base(self.onto, self.vault, folder)
         return {"vault": str(self.vault), "notes": len(self.texts), "removed": removed}
