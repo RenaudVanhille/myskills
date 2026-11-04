@@ -66,7 +66,7 @@ ROOT = TESTS.parent
 CSV = TESTS / "costs.csv"
 COLUMNS = ["date", "label", "commit", "case", "agent", "model", "ok", "turns", "cost_usd",
            "input_tokens", "cache_creation_tokens", "cache_read_tokens", "output_tokens",
-           "subagents", "duration_s", "score"]
+           "subagents", "duration_s", "score", "models", "subagent_types"]
 
 
 def commit() -> str:
@@ -137,7 +137,27 @@ def row_of(name: str, case: dict, model: str, data: dict, ok: bool) -> dict:
             "cache_read_tokens": usage.get("cache_read_input_tokens"),
             "output_tokens": usage.get("output_tokens"),
             "subagents": data.get("subagent_stats", {}).get("spawned"),
-            "duration_s": round(data.get("duration_ms", 0) / 1000)}
+            "duration_s": round(data.get("duration_ms", 0) / 1000),
+            "models": models_of(data),
+            "subagent_types": " ".join(f"{k}={v}" for k, v in sorted(
+                data.get("subagent_stats", {}).get("by_type", {}).items()))}
+
+
+def models_of(data: dict) -> str:
+    """Coût par modèle (« opus=1.82 sonnet=0.41 ») : on voit ce que coûtent les sous-agents."""
+    usage = data.get("modelUsage", {})
+    names = {name: name.split("-")[1] if name.startswith("claude-") else name for name in usage}
+    return " ".join(f"{names[n]}={u.get('costUSD', 0):.3f}" for n, u in sorted(usage.items()))
+
+
+def sum_models(values) -> str:
+    """Somme des coûts par modèle de plusieurs lignes (« opus=1.82 sonnet=0.41 »)."""
+    total: dict[str, float] = {}
+    for value in values:
+        for item in (value or "").split():
+            name, _, cost = item.partition("=")
+            total[name] = total.get(name, 0) + float(cost or 0)
+    return " ".join(f"{n}={c:.3f}" for n, c in sorted(total.items()))
 
 
 def stages(work: Path) -> dict[str, str]:
@@ -187,7 +207,8 @@ def run_case(case: dict, model: str, keep: bool, backend: str = "checks") -> lis
                 break
             prompt = case["rounds"]["next"]
         total = {"case": case["id"], "agent": case["agent"], "model": model,
-                 "ok": (work / case["output"]).exists() and all(r["ok"] for r in rows)}
+                 "ok": (work / case["output"]).exists() and all(r["ok"] for r in rows),
+                 "models": sum_models(r["models"] for r in rows)}
         for field in ("turns", "cost_usd", "input_tokens", "cache_creation_tokens", "cache_read_tokens",
                       "output_tokens", "subagents", "duration_s"):
             total[field] = round(sum(r[field] or 0 for r in rows), 4)

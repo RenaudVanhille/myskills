@@ -87,21 +87,10 @@ indispensable ou importante et par scénario attendu : complétez et
 ## 2. Comparer le code (facultatif)
 
 Si le code existe, `"code": {"root": "../src"}` et un motif `code` par
-composant (`src/api/**`, un dossier, `*.py`). Le script lance
-`graphify extract RACINE --code-only` (skill externe graphify, installé à
-part, `uv tool install graphifyy`) : analyse locale par tree-sitter, sans
-modèle ; le graphe reste dans `graphify-out/` à côté de
-la revue, réutilisé aux relances. Avec un graphe déjà produit, donnez
-`"graph"`. Le script signale les dépendances du code entre composants sans
-flux déclaré, les cycles entre composants et les fichiers non rattachés.
-Par défaut, seul le code est lu. Pour enrichir le graphe avec les documents
-du dossier (README, `docs/`, ADR), `"semantic": "claude"` les fait lire par
-le modèle du harness (`ANTHROPIC_MODEL` pour un modèle léger : c'est un
-travail de niveau simple) et `"semantic": "ollama"` par un modèle local ;
-aucun autre fournisseur. Dans Copilot ou Kiro, lancez plutôt le skill
-graphify de l'outil (ses sous-agents au niveau simple) puis donnez le
-`graph.json` obtenu. Les liens tirés des documents (INFERRED) ne changent
-pas les contrôles du code.
+composant : le script lance graphify (skill externe, analyse locale sans
+modèle) et signale dépendances non déclarées, cycles et fichiers non
+rattachés. Graphe existant, documents lus (`semantic`), Copilot ou Kiro :
+`references/code.md`, à lire seulement dans ce cas.
 
 ## 3. Lancer la revue
 
@@ -109,15 +98,9 @@ pas les contrôles du code.
 uv run scripts/arch_review.py revue.json [--fail-on moyenne]
 ```
 
-`--rules` liste les règles :
-
-| Axe | Contrôles |
-| --- | --- |
-| Structure | cycle d'appels synchrones, base partagée par plusieurs composants, dépendance vers une couche supérieure, composant pivot (6 voisins ou plus), chaîne de plus de 4 appels synchrones, dépendance synchrone à un externe sur le parcours utilisateur, point unique de défaillance quand la disponibilité est exigée, composant sans flux |
-| Code | dépendance du code absente de l'architecture, cycle entre composants dans le code, code non rattaché |
-| Traçabilité | exigence indispensable sans composant, décision ni scénario (ou non couverte par l'option), exigence non fonctionnelle sans scénario, composant sans exigence ni décision |
-| Scénarios | non satisfait ou à risque sans risque noté, non satisfait (gravité : son importance), sans mesure, à vérifier, scénario attendu absent (QUA-06 : pointe de charge, panne, sinistre, attaque, croissance, incident selon les exigences) |
-| Décisions et risques | aucune décision, décision proposée, compromis sans décision, risque haut sans atténuation, risque ouvert (gravité : la sienne), risque sans responsable |
+`--rules` liste les règles (structure, code, traçabilité, scénarios,
+décisions et risques, principes du client), détaillées dans
+`references/regles.md`.
 
 Les scénarios attendus sont des règles de complétude
 (`references/scenarios-attendus.json`), complétées par celles de

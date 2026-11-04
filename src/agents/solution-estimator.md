@@ -137,7 +137,10 @@ workflow, la commande les trace aussi au journal.
 
 ## Sobriété
 
-- Lis le rapport du script, pas `chiffrage.md` ni le CSV.
+- Lis le rapport du script, pas `chiffrage.md` ni le CSV ; un format se
+  demande à `--schema`, une fois, sans lire le code ni les grilles de prix.
+- Dans un workflow, le message reçu donne l'étape : ne relis pas
+  `workflow.json`.
 - Ne recopie pas le détail des lots dans ta réponse : les totaux, la
   fourchette et les chemins suffisent.
 - Une seule question à l'utilisateur, sur les taux ou les prix à valider.

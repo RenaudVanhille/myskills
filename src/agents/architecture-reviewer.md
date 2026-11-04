@@ -135,8 +135,10 @@ workflow, la commande les trace aussi au journal.
 
 ## Sobriété
 
-- Lis les rapports des scripts, pas les fichiers qu'ils écrivent, sauf le
-  tableau des menaces, une fois.
+- Lis les rapports des scripts, pas les fichiers qu'ils écrivent (notes du
+  vault comprises), sauf le tableau des menaces, une fois.
+- Dans un workflow, le message reçu donne l'étape : ne relis pas
+  `workflow.json`.
 - Ne recopie pas les constats dans ta réponse : donne les compteurs et les
   chemins.
 - Une seule question à l'utilisateur, sur les écarts à accepter.

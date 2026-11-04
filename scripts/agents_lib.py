@@ -62,7 +62,12 @@ def levels_text(level: str, flavor: str) -> str:
         "outils, relecture des fichiers) : il coûte plus qu'une commande lancée",
         "toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la",
         "même façon, plusieurs pages à transcrire par la vision) ou une étape",
-        f"entière d'un autre niveau que le tien ; {choice}"])
+        f"entière d'un autre niveau que le tien ; {choice}", "",
+        "Un skill s'ouvre par l'outil de skill de ton outil, qui donne son dossier :",
+        "ses scripts sont dans son `scripts/`, lancés par ce chemin. Ne les cherche",
+        "pas sur le disque (`find`, `which`) et ne lis pas leur code pour deviner un",
+        "format : `--schema` le donne. Donne à un sous-agent les chemins des scripts",
+        "dont il a besoin."])
 
 
 def parse_agent(path: Path) -> tuple[dict[str, str], str]:
