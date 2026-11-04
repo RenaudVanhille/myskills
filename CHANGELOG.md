@@ -1,5 +1,37 @@
 # Journal des versions
 
+## [0.11.0](https://github.com/RenaudVanhille/myskills/compare/v0.10.0...v0.11.0) (2026-11-04)
+
+
+### Ajouts
+
+* compte rendu, plan de recette, modèle de données, dimensionnement et workflow cadrage ([#56](https://github.com/RenaudVanhille/myskills/issues/56)) ([68929a5](https://github.com/RenaudVanhille/myskills/commit/68929a51ca14f9bc4b788301cba104658c3c5c38))
+* **markdown-to-obsidian:** tableaux Obsidian Bases, listes avec contexte et schémas légendés ([#62](https://github.com/RenaudVanhille/myskills/issues/62)) ([be6ba05](https://github.com/RenaudVanhille/myskills/commit/be6ba05ce57c71d6b9dabd712257c6b1943bd6cf))
+* **mockup-to-html:** maquette mesurée en local et comparaison bloc par bloc ([#49](https://github.com/RenaudVanhille/myskills/issues/49)) ([a60b251](https://github.com/RenaudVanhille/myskills/commit/a60b251a460668a9c23d79aaf4828037a34042d1))
+* **mockup-to-html:** réemploi entre écrans et abaques frontend pour le chiffrage ([#53](https://github.com/RenaudVanhille/myskills/issues/53)) ([77bcf6e](https://github.com/RenaudVanhille/myskills/commit/77bcf6e677406262e3e5d5b82741204d30908925))
+* notes Obsidian plus lisibles (titres, callouts, livrables liés, revues et analyses) ([#57](https://github.com/RenaudVanhille/myskills/issues/57)) ([2d0f151](https://github.com/RenaudVanhille/myskills/commit/2d0f151d8470f8956e6b06ab9a222fa666df4c34))
+* **solution-estimate:** experts frontend et backend, réemploi et points à challenger ([#52](https://github.com/RenaudVanhille/myskills/issues/52)) ([3086d2e](https://github.com/RenaudVanhille/myskills/commit/3086d2ee8b0c148ecf88562b6bd555d1fc1ab55e))
+* **ui-designer:** agent UX/UI, composants d'application et revue UX et accessibilité ([#51](https://github.com/RenaudVanhille/myskills/issues/51)) ([f6d169d](https://github.com/RenaudVanhille/myskills/commit/f6d169de1dc92d70036087205957bba1e43ebdcf))
+* workflow maquettes, constats UX chiffrés et ébauche des interfaces ([#55](https://github.com/RenaudVanhille/myskills/issues/55)) ([1b5bde4](https://github.com/RenaudVanhille/myskills/commit/1b5bde441b65a0ca6a12bd5ec8920e015313e7e4))
+
+
+### Corrections
+
+* CI sans gh sur des runners choisis, OCR Tesseract de Docling, SKILL.md sous le budget ([#54](https://github.com/RenaudVanhille/myskills/issues/54)) ([9feb5e3](https://github.com/RenaudVanhille/myskills/commit/9feb5e32289656fd6a748cb282200d1a99a8be42))
+
+
+### Coût et performances
+
+* **architecture-workflow:** étape backend en Sonnet, brouillon d'options et check --submit ([#63](https://github.com/RenaudVanhille/myskills/issues/63)) ([9672e96](https://github.com/RenaudVanhille/myskills/commit/9672e9625f1217560b6f87257a9ea4d8dd15da41))
+* sous-agents qui trouvent les scripts sans fouiller le disque et SKILL.md allégés ([#61](https://github.com/RenaudVanhille/myskills/issues/61)) ([ce38475](https://github.com/RenaudVanhille/myskills/commit/ce384758cd884eead6d294cde1b7f6240eaa0995))
+
+
+### Remaniements
+
+* espace de travail, modèles locaux et hébergeurs en source unique ([#59](https://github.com/RenaudVanhille/myskills/issues/59)) ([722f172](https://github.com/RenaudVanhille/myskills/commit/722f172bb51b5963c7a274e8fe5189e2f3746429))
+* lecture des descriptions, option --schema et --vault par des helpers communs ([#60](https://github.com/RenaudVanhille/myskills/issues/60)) ([a85c354](https://github.com/RenaudVanhille/myskills/commit/a85c354c5683ddc5c70b6b6d4521159a7311b4c3))
+* **markdown-to-obsidian:** ontologie du vault en source unique, sans copie dans les skills ([#58](https://github.com/RenaudVanhille/myskills/issues/58)) ([979c349](https://github.com/RenaudVanhille/myskills/commit/979c3490ab0041b354ac492e64391b30b283c847))
+
 ## [0.10.0](https://github.com/RenaudVanhille/myskills/compare/v0.9.0...v0.10.0) (2026-10-30)
 
 
