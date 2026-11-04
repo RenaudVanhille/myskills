@@ -159,7 +159,7 @@
         "schemas/pos-option-*.json"
       ],
       "checks": [
-        "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+        "architecture-options : options_build.py options.json --draft d'abord (critères, qualifications exigées, hébergeurs qualifiés), puis options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
       ],
       "run": [
         {
@@ -396,12 +396,45 @@
       "instructions": "Étape facultative, proposée quand le dossier de consultation contient des maquettes d'écrans (images de documents/ ou extraites dans sources/attachments/) : l'utilisateur dit s'il la veut. Mêmes règles que le workflow maquettes : descriptions dans pages/, jamais de HTML à la main ; constats UX retenus avec l'utilisateur ; decoupage.lots.json repris par le chiffrage (--lots)."
     },
     {
+      "id": "backend",
+      "label": "Découpage et lots backend",
+      "level": "moyen",
+      "after": [
+        "schemas"
+      ],
+      "facultative": true,
+      "skills": [
+        "api-contract"
+      ],
+      "agent": "backend-estimator",
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "decision.json"
+      ],
+      "deliverables": [
+        "decoupage-back.lots.json",
+        "decoupage-back.md"
+      ],
+      "optional": [
+        "api/api.json",
+        "api/*",
+        "decoupage-back.json",
+        "decoupage-back.csv"
+      ],
+      "checks": [
+        "api-contract : api_build.py api/api.json (s'il manque : --draft --requirements exigences.json --options options.json --option <retenue>, puis complété), puis api_breakdown.py api/api.json --out decoupage-back (--abaques si fournis) ; ajustements dans decoupage-back.lots.json avec leur raison (note)"
+      ],
+      "instructions": "Étape facultative, proposée dans la même question que le chiffrage : faite si l'utilisateur veut le chiffrage, sautée avec lui. Elle passe à backend-estimator (niveau moyen), lancé en parallèle des autres étapes prêtes, avec le dossier, l'option retenue et les chemins de api_build.py et api_breakdown.py ; api/api.json de l'étape schémas est repris s'il existe, jamais réécrit. Le chiffrage reprend ses lots (--lots decoupage-back.lots.json) sans refaire le découpage."
+    },
+    {
       "id": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
       "after": [
         "schemas",
-        "maquettes"
+        "maquettes",
+        "backend"
       ],
       "facultative": true,
       "skills": [
@@ -446,7 +479,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Si l'étape maquettes est faite, le brouillon reprend ses lots : estimate_build.py chiffrage.json --draft --lots decoupage.lots.json."
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json [--lots decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée."
     },
     {
       "id": "revue",

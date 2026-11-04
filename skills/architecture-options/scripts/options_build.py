@@ -40,12 +40,20 @@ Sans `criteria`, les critères sont les catégories des exigences non
 fonctionnelles retenues, pondérées par leur plus haute priorité
 (indispensable 3, importante 2, souhaitable 1).
 
+Avec `--draft` (options.json absent), le script écrit un brouillon depuis le
+catalogue : critères pondérés, qualifications d'hébergeur exigées par les
+exigences (`hosting`), deux options à décrire et la recommandation ; le
+rapport liste les hébergeurs du catalogue qui ont ces qualifications et les
+exigences indispensables à couvrir. Le modèle n'écrit que les choix.
+
     uv run scripts/options_build.py options.json [--decision decision.json] [--out-dir DOSSIER] | --schema
+    uv run scripts/options_build.py options.json --draft [--requirements exigences.json]
 """
 
 import argparse
 import csv
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -112,6 +120,61 @@ def default_criteria(catalog: dict[str, dict]) -> list[dict]:
             item["weight"] = max(item["weight"], WEIGHTS[req["priority"]])
             item["refs"].append(req["id"])
     return list(criteria.values())
+
+
+QUALIFICATIONS = {"secnumcloud": r"secnum\s*cloud", "hds": r"\bhds\b|h[ée]bergeur de donn[ée]es de sant[ée]"}
+
+
+def draft(path: Path, requirements: str) -> dict:
+    """Brouillon d'options.json depuis le catalogue : critères, qualifications exigées, squelette des options."""
+    errors, warnings = [], []
+    if path.exists():
+        errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
+        return {"input": str(path), "errors": errors, "warnings": warnings}
+    catalog = load_catalog(path.parent, {"requirements": requirements}, errors, warnings)
+    if errors:
+        return {"input": str(path), "errors": errors, "warnings": warnings}
+    kept = {k: r for k, r in catalog.items() if r.get("status", "retenue") == "retenue"}
+    hosting: dict = {}
+    required, refs = [], []
+    for ref, req in kept.items():
+        text = " ".join(str(req.get(k, "")) for k in ("title", "text", "metric")).lower()
+        for name, pattern in QUALIFICATIONS.items():
+            if re.search(pattern, text):
+                required += [name] if name not in required else []
+                refs += [ref] if ref not in refs else []
+    if required:
+        hosting = {"qualifications": required, "refs": refs}
+    providers = [k for k, v in PROVIDERS["providers"].items() if all(q in v["qualifications"] for q in required)]
+    criteria = default_criteria(kept)
+    skeleton = {"id": "", "name": "À nommer", "summary": "À écrire",
+                "components": [{"id": "a-definir", "label": "À définir"}], "flows": [], "gaps": {},
+                "scores": {c["id"]: 3 for c in criteria}, "score_notes": {c["id"]: "À justifier" for c in criteria},
+                "pros": [], "cons": [], "risks": []}
+    spec = {"_draft": "Brouillon de options_build.py --draft : nommer et décrire 2 ou 3 options (composants avec "
+                      "refs, flux, provider et type pour une option cloud, écarts), noter chaque critère de 1 à 5 "
+                      "avec sa raison, écrire la recommandation, puis retirer cette clé.",
+            "title": "Options d'architecture : " + catalog_title(path.parent / requirements),
+            "requirements": requirements,
+            "criteria": criteria,
+            "options": [{**skeleton, "id": "A"}, {**skeleton, "id": "B"}],
+            "recommendation": {"option": "A", "why": "À écrire"}}
+    if hosting:
+        spec["hosting"] = hosting
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        json.dump(spec, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+    must = [k for k, r in kept.items() if r.get("priority") == "indispensable"]
+    return {"input": str(path), "draft": str(path), "criteria": [c["id"] for c in criteria],
+            "hosting": hosting or None, "providers": providers if required else None,
+            "indispensables": must, "errors": errors, "warnings": warnings}
+
+
+def catalog_title(path: Path) -> str:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("title") or "projet"
+    except (OSError, ValueError):
+        return "projet"
 
 
 def check_refs(where: str, refs, catalog: dict, errors: list[str]) -> None:
@@ -481,6 +544,10 @@ def main() -> int:
     parser.add_argument("spec", type=Path, nargs="?", help="description options.json")
     parser.add_argument("--decision", type=Path, help="décision de l'utilisateur (JSON) : n'écrit que l'ADR")
     parser.add_argument("--out-dir", type=Path, help="dossier des fichiers produits (défaut : celui du .json)")
+    parser.add_argument("--draft", action="store_true",
+                        help="écrit un brouillon d'options.json depuis le catalogue d'exigences")
+    parser.add_argument("--requirements", default="exigences.json",
+                        help="avec --draft : catalogue, relatif au .json (défaut : exigences.json)")
     schema_option(parser)
     args = parser.parse_args()
     if args.schema:
@@ -488,6 +555,10 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("description JSON attendue")
+    if args.draft:
+        report = draft(args.spec, args.requirements)
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if report["errors"] else 0
     spec, invalid = read_spec(args.spec, __file__)
     if invalid:
         print(json.dumps({"input": str(args.spec), "errors": invalid, "warnings": []}, ensure_ascii=False))

@@ -39,7 +39,18 @@ de l'existant), pas des variantes d'un même schéma.
 
 ## 2. Décrire les options
 
-Fichier `options.json`, à côté de `exigences.json` :
+Commencez par le brouillon, sans lire le catalogue des hébergeurs ni le code :
+
+```bash
+uv run scripts/options_build.py options.json --draft
+```
+
+Il écrit `options.json` avec les critères pondérés, `hosting` (qualifications
+exigées par les exigences, SecNumCloud ou HDS) et deux options à décrire ; le
+rapport donne les hébergeurs qualifiés (`providers`) et les exigences
+indispensables à couvrir. `cloud_build.py --types <provider>` (skill
+`cloud-architecture`) liste les types de composants d'un hébergeur. Complétez
+le fichier :
 
 ```json
 {

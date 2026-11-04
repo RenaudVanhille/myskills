@@ -128,6 +128,7 @@
     "schemas",
     "conformite (facultative)",
     "maquettes (facultative)",
+    "backend (facultative)",
     "chiffrage (facultative)",
     "revue (facultative)",
     "registre",
@@ -137,7 +138,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Découpage et lots backend api-contract Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",

@@ -449,3 +449,39 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-11-04T00:32:49,apres-perf,a85c354,bout-en-bout-avant-vente/soutenance,architecture-workflow,sonnet,True,9,0.1733,15,32341,264264,1750,0,21,,sonnet=0.173,
 2026-11-04T00:32:49,apres-perf,a85c354,bout-en-bout-avant-vente/fin,architecture-workflow,sonnet,True,10,0.1879,19,32475,363173,2165,0,31,,sonnet=0.188,
 2026-11-04T00:32:49,apres-perf,a85c354,bout-en-bout-avant-vente,architecture-workflow,sonnet,True,112,5.1595,209,340464,4374889,36562,3,551,,opus=2.750 sonnet=2.410,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/documents,architecture-workflow,sonnet,True,13,0.2563,17,48210,350341,2841,0,38,,sonnet=0.256,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/depouillement+exigences,architecture-workflow,sonnet,True,15,0.2856,28,39915,588323,6704,0,79,,sonnet=0.286,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/qualification,architecture-workflow,sonnet,True,11,0.1936,21,30318,416942,3056,0,29,,sonnet=0.194,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/architectures,architecture-workflow,sonnet,True,7,0.7756,14,28477,248523,3213,1,123,,opus=0.605 sonnet=0.171,general-purpose=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/schemas,architecture-workflow,sonnet,True,9,0.1787,17,31541,308018,2172,0,70,,sonnet=0.179,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/conformite+backend+revue,architecture-workflow,sonnet,True,2,1.4439,5,6052,112431,1541,3,15,,opus=0.862 sonnet=0.582,general-purpose=1 myskills:architecture-reviewer=1 myskills:backend-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/chiffrage,architecture-workflow,sonnet,True,1,1.0659,4,3494,47745,1003,1,16,,opus=0.863 sonnet=0.203,myskills:solution-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/registre,architecture-workflow,sonnet,True,13,0.2661,26,42936,496507,4469,0,54,,sonnet=0.266,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/memoire,architecture-workflow,sonnet,True,14,0.372,25,59223,613426,7367,0,71,,sonnet=0.372,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/soutenance,architecture-workflow,sonnet,True,8,0.1518,15,26229,289509,1792,0,46,,sonnet=0.152,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/fin,architecture-workflow,sonnet,True,9,0.1696,15,30893,267628,1922,0,23,,sonnet=0.170,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente,architecture-workflow,sonnet,True,102,5.1591,187,347288,3739393,36080,5,564,,opus=2.330 sonnet=2.831,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/documents,architecture-workflow,sonnet,True,14,0.2711,19,50373,418318,2771,0,42,,sonnet=0.271,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/depouillement+exigences,architecture-workflow,sonnet,True,13,0.261,23,42589,464617,4415,0,72,,sonnet=0.261,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/qualification,architecture-workflow,sonnet,True,7,0.1717,13,29621,254525,2774,0,48,,sonnet=0.172,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/architectures,architecture-workflow,sonnet,True,1,0.8737,4,2584,47971,1440,1,17,,opus=0.663 sonnet=0.210,myskills:architecture-workflow=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/schemas,architecture-workflow,sonnet,True,13,0.2494,23,40057,557801,3331,0,65,,sonnet=0.249,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/conformite+backend+revue,architecture-workflow,sonnet,True,2,1.2928,5,4066,108829,1531,3,19,,opus=0.785 sonnet=0.508,general-purpose=1 myskills:architecture-reviewer=1 myskills:backend-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/chiffrage,architecture-workflow,sonnet,True,1,1.1929,4,3683,48556,1565,1,17,,opus=0.961 sonnet=0.232,myskills:solution-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/registre,architecture-workflow,sonnet,True,13,0.2409,22,38498,469354,3989,0,51,,sonnet=0.241,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/memoire,architecture-workflow,sonnet,True,10,0.3095,19,51501,391317,6437,0,57,,sonnet=0.310,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/soutenance,architecture-workflow,sonnet,True,9,0.1753,16,31408,308975,1872,0,29,,sonnet=0.175,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/fin,architecture-workflow,sonnet,True,9,0.1714,13,30192,270306,2354,0,32,,sonnet=0.171,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente,architecture-workflow,sonnet,True,92,5.2097,161,324572,3340569,32479,5,449,,opus=2.409 sonnet=2.800,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/documents,architecture-workflow,sonnet,True,13,0.2605,17,49478,360991,2645,0,40,,sonnet=0.260,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/depouillement+exigences,architecture-workflow,sonnet,True,13,0.303,24,47770,511845,6071,0,55,,sonnet=0.303,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/qualification,architecture-workflow,sonnet,True,10,0.2264,20,38541,379053,3429,0,52,,sonnet=0.226,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/architectures,architecture-workflow,sonnet,True,9,0.8827,18,32060,350882,3686,1,147,,opus=0.683 sonnet=0.200,general-purpose=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/schemas,architecture-workflow,sonnet,True,10,0.2054,17,35675,361514,2654,0,52,,sonnet=0.205,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/conformite+backend+revue,architecture-workflow,sonnet,True,1,1.4142,4,3317,54757,992,2,12,,opus=0.962 sonnet=0.452,myskills:architecture-reviewer=1 myskills:backend-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/chiffrage,architecture-workflow,sonnet,True,2,1.2772,6,3964,103135,1612,1,17,,opus=1.051 sonnet=0.226,myskills:solution-estimator=1
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/registre,architecture-workflow,sonnet,True,12,0.2658,23,43638,472614,4391,0,53,,sonnet=0.266,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/memoire,architecture-workflow,sonnet,True,13,0.317,23,49190,553016,6489,0,77,,sonnet=0.317,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/soutenance,architecture-workflow,sonnet,True,7,0.1637,13,31215,222262,1659,0,26,,sonnet=0.164,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente/fin,architecture-workflow,sonnet,True,7,0.1563,13,28953,215398,1890,0,26,,sonnet=0.156,
+2026-11-04T11:51:05,apres-perf2,be6ba05,bout-en-bout-avant-vente,architecture-workflow,sonnet,True,97,5.4722,178,363801,3585467,35518,4,557,,opus=2.696 sonnet=2.775,

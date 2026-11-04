@@ -17,7 +17,7 @@
     {
       "name": "journal.py",
       "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] | --schema",
+      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -27,7 +27,8 @@
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
         "--schema": "affiche le schéma de workflow.json sur une ligne",
         "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
-        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json"
+        "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; le rapport est alors celui de submit (command submit, checks gardés)",
+        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit"
       },
       "report": {
         "format": "json",

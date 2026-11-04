@@ -13,7 +13,7 @@ de même forme (`--schema` : `$defs.definition`) :
 | `conformite` | exigences et description en parallèle, menaces, rgpd, plan : menaces STRIDE, qualification de l'hébergeur, registre et AIPD RGPD, puis plan d'actions et dossier de conformité |
 | `migration-cloud` | exigences, evaluation, puis cible suivie du chiffrage, en parallèle de la feuille-de-route, et dossier (chiffrage et dossier facultatifs) : évaluation 6R et vagues, architecture cible, trajectoire avec chemin critique |
 | `maquettes` | design-system, pages, ux, decoupage : des maquettes d'écrans aux pages HTML comparées, à la revue UX et aux lots du chiffrage frontend (constats UX retenus compris) |
-| `avant-vente` | documents, depouillement, qualification, exigences, architectures, schemas, conformite, maquettes, chiffrage, revue, registre, memoire, soutenance : réponse à un appel d'offres, des documents reçus à l'offre |
+| `avant-vente` | documents, depouillement, qualification, exigences, architectures, schemas, conformite, maquettes, backend, chiffrage, revue, registre, memoire, soutenance : réponse à un appel d'offres, des documents reçus à l'offre |
 | `cadrage` | documents, comptes-rendus, exigences, modele-donnees, architectures, dimensionnement, interfaces, recette : cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette |
 
 ```json

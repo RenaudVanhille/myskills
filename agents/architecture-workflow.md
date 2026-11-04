@@ -91,10 +91,11 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    `stage` du rapport : `instructions` (consignes de l'étape), `skills` à
    appliquer, `checks` à lancer jusqu'à zéro erreur, `deliverables` à
    produire. Si l'étape a un champ `run`, écris d'abord toutes ses
-   descriptions, puis lance `journal.py check DOSSIER ETAPE` : il passe
-   tous ces contrôles en un appel (constructions, exports, revues) ;
-   corrige les descriptions citées dans `errors` et relance-le jusqu'à zéro
-   erreur. Seuls les `checks` sans équivalent dans `run` se lancent à part. `level` est le niveau de l'étape : s'il diffère du tien, vois
+   descriptions, lance à part les seuls `checks` sans équivalent dans
+   `run`, puis `journal.py check DOSSIER ETAPE --submit` : il passe tous
+   les contrôles de `run` en un appel (constructions, exports, revues) et,
+   à zéro erreur, soumet l'étape dans le même appel ; sinon corrige les
+   descriptions citées dans `errors` et relance-le. `level` est le niveau de l'étape : s'il diffère du tien, vois
    la « Grille des niveaux ». `agent` est l'agent à qui passer la main pour un
    travail de jugement que l'utilisateur demande ; les commandes des
    `checks` restent à toi.
@@ -105,17 +106,18 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    son champ `agent` s'il en a un (ses consignes et son modèle), sinon un
    sous-agent au modèle de son niveau ; avec le seul `stage` de son
    `start`, le dossier et les chemins des scripts de ses skills ; il
-   produit les livrables, lance les `checks` et note ses choix au journal
-   (`journal.py` attend son tour, rien ne se perd). Toi, tu soumets chaque
-   étape et tu présentes leurs revues ensemble. Sans outil de sous-agent,
+   produit les livrables, lance les `checks` (`check --submit` s'il y a un
+   `run`) et note ses choix au journal (`journal.py` attend son tour, rien
+   ne se perd). Toi, tu soumets les étapes qui ne le sont pas encore et tu
+   présentes leurs revues ensemble. Sans outil de sous-agent,
    fais-les l'une après l'autre.
 4. **Tracer** : note avec `journal.py log` chaque choix qui demande du
    jugement (déduction, priorité, phrase écartée, note, hypothèse), en une
    phrase, avec `--why` et `--refs`. Ce que seul l'utilisateur peut
    trancher se note `--kind question`.
 5. **Soumettre** : `journal.py submit DOSSIER ETAPE` pour chaque étape
-   menée (livrables de la définition ; il refuse s'il en manque un), puis
-   arrête-toi. Après la soumission, ne touche plus aux livrables, sauf à
+   menée qui n'a pas de `run` (livrables de la définition ; il refuse s'il
+   en manque un), puis arrête-toi. Après la soumission, ne touche plus aux livrables, sauf à
    soumettre à nouveau. Présente en quelques lignes les chemins des
    livrables, les compteurs des rapports, après un retour les seuls
    `changes`, les questions ouvertes, la note de revue du vault et ce qui

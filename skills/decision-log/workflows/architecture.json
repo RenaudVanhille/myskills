@@ -90,7 +90,7 @@
         "schemas/pos-option-*.json"
       ],
       "checks": [
-        "architecture-options : options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+        "architecture-options : options_build.py options.json --draft d'abord (critères, qualifications exigées, hébergeurs qualifiés), puis options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
       ],
       "run": [
         {
