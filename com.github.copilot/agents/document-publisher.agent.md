@@ -101,6 +101,12 @@ toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
 entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
 
+Un skill s'ouvre par l'outil de skill de ton outil, qui donne son dossier :
+ses scripts sont dans son `scripts/`, lancés par ce chemin. Ne les cherche
+pas sur le disque (`find`, `which`) et ne lis pas leur code pour deviner un
+format : `--schema` le donne. Donne à un sous-agent les chemins des scripts
+dont il a besoin.
+
 ## Sobriété
 
 - Corrige par éditions ciblées, aux lignes indiquées par les rapports des

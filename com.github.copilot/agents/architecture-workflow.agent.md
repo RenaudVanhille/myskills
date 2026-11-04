@@ -62,24 +62,21 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
 `next` du rapport de `journal.py`.
 
 1. **Reprendre** : `journal.py status DOSSIER`. Dans une mission
-   (`mission.json` au-dessus du dossier, skill `mission-workspace`), le
-   vault, les documents et les dépôts sont les siens : ne les demande pas,
-   et ne passe pas `--vault` ni `--folder` aux scripts, ils les trouvent
-   seuls. Pour une nouvelle avant-vente ou une nouvelle revue hors mission,
-   ouvre-la d'abord : `mission.py init DOSSIER --nature avant-vente|revue
-   --name "<projet>"` démarre le workflow de sa nature, vault compris.
-   Sinon, s'il n'y a pas de `workflow.json`, `journal.py init DOSSIER
-   --definition <workflow> --title "<projet>" [--vault VAULT --folder
-   <dossier>]` ; le dossier du vault se choisit avec `vault_profile.py`
-   (skill `markdown-to-obsidian`). Avant de livrer un dossier ou une offre
-   d'une mission, `mission.py check DOSSIER` : contrôles de cohérence entre
-   livrables, à corriger ou à faire accepter (avec la raison de
-   l'utilisateur).
-   Le champ `ask` du rapport liste ce qu'il faut demander avant de
-   commencer (vault, POS...) : cherche-le d'abord dans les documents et le
-   vault, puis pose en une seule question ce qui manque. Note au journal ce
-   qui est retenu et son chemin, ou l'hypothèse faite sans réponse. Pour
-   retrouver le contexte (reprise, retour, autre session), lis la note
+   (`mission.json` au-dessus du dossier, skill `mission-workspace`), vault,
+   documents et dépôts sont les siens : ne les demande pas, et ne passe ni
+   `--vault` ni `--folder` aux scripts. Nouvelle avant-vente ou revue hors
+   mission : `mission.py init DOSSIER --nature avant-vente|revue --name
+   "<projet>"` démarre le workflow de sa nature, vault compris. Sinon, sans
+   `workflow.json` : `journal.py init DOSSIER --definition <workflow>
+   --title "<projet>" [--vault VAULT --folder <dossier>]` (dossier du vault
+   choisi par `vault_profile.py`, skill `markdown-to-obsidian`). Avant de
+   livrer un dossier ou une offre d'une mission, `mission.py check DOSSIER`
+   (cohérence entre livrables, à corriger ou à faire accepter avec la
+   raison de l'utilisateur).
+   `ask` liste ce qu'il faut demander avant de commencer (vault, POS...) :
+   cherche-le d'abord dans les documents et le vault, puis pose en une
+   seule question ce qui manque ; note au journal ce qui est retenu, ou
+   l'hypothèse faite sans réponse. Pour retrouver le contexte, lis la note
    d'index du workflow dans le vault puis les notes liées utiles, plutôt
    que les livrables.
 2. **Une revue en attente** : avec un vault, `review --from-vault` d'abord
@@ -104,8 +101,10 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    **Étapes en parallèle** : quand `ready` liste plusieurs étapes (par
    exemple revue et chiffrage après les schémas), demande en une seule
    question celles qui sont facultatives, `start` chacune de celles
-   retenues, puis lance en même temps un sous-agent par étape, au modèle de
-   son niveau, avec le seul `stage` de son `start` et le dossier ; il
+   retenues, puis lance en même temps un sous-agent par étape : l'agent de
+   son champ `agent` s'il en a un (ses consignes et son modèle), sinon un
+   sous-agent au modèle de son niveau ; avec le seul `stage` de son
+   `start`, le dossier et les chemins des scripts de ses skills ; il
    produit les livrables, lance les `checks` et note ses choix au journal
    (`journal.py` attend son tour, rien ne se perd). Toi, tu soumets chaque
    étape et tu présentes leurs revues ensemble. Sans outil de sous-agent,
@@ -114,16 +113,14 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    jugement (déduction, priorité, phrase écartée, note, hypothèse), en une
    phrase, avec `--why` et `--refs`. Ce que seul l'utilisateur peut
    trancher se note `--kind question`.
-5. **Soumettre** : `journal.py submit DOSSIER ETAPE` (livrables pris dans
-   la définition ; il refuse s'il en manque un), pour chaque étape menée,
-   puis arrête-toi. Une fois soumis, ne touche plus aux livrables ; si un
-   changement s'impose avant la revue, soumets l'étape à nouveau. Présente
-   en quelques lignes : les chemins des livrables, les compteurs des
-   rapports, après un retour les seuls changements de `changes`, les
-   questions ouvertes, la note de revue du vault s'il y en a une, et ce qui
-   attend sa décision (les `instructions` de l'étape le disent). Termine
-   par le rapport final JSON, `status` à `partiel` et, dans `todo`,
-   « revue de l'étape <étape> ».
+5. **Soumettre** : `journal.py submit DOSSIER ETAPE` pour chaque étape
+   menée (livrables de la définition ; il refuse s'il en manque un), puis
+   arrête-toi. Après la soumission, ne touche plus aux livrables, sauf à
+   soumettre à nouveau. Présente en quelques lignes les chemins des
+   livrables, les compteurs des rapports, après un retour les seuls
+   `changes`, les questions ouvertes, la note de revue du vault et ce qui
+   attend sa décision. Termine par le rapport final JSON, `status` à
+   `partiel`, « revue de l'étape <étape> » dans `todo`.
 6. **Retour sur une étape validée** : `review --decision retour` remet à
    reprendre elle et les suivantes ; reprends-les dans l'ordre, chacune
    avec sa revue, par éditions ciblées en gardant les identifiants.
@@ -144,9 +141,9 @@ applique `check-prerequisites`. Ne le lance pas par précaution.
 | Concevoir et noter des options, trancher une ambiguïté, relire un schéma | complexe |
 
 Le niveau d'une étape (`level`) est celui de son travail principal : une
-étape d'un autre niveau que le tien se confie entière à un sous-agent du
-niveau de l'étape (après `start` ; toi, tu soumets), sauf si elle est
-courte.
+étape d'un autre niveau que le tien se confie entière à son `agent`, sinon
+à un sous-agent du niveau de l'étape (après `start` ; toi, tu soumets),
+sauf si elle est courte.
 
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :
@@ -160,6 +157,12 @@ outils, relecture des fichiers) : il coûte plus qu'une commande lancée
 toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
 entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `Claude Haiku 5.5`, moyen `Claude Sonnet 5.5`, complexe `Claude Opus 5.5`.
+
+Un skill s'ouvre par l'outil de skill de ton outil, qui donne son dossier :
+ses scripts sont dans son `scripts/`, lancés par ce chemin. Ne les cherche
+pas sur le disque (`find`, `which`) et ne lis pas leur code pour deviner un
+format : `--schema` le donne. Donne à un sous-agent les chemins des scripts
+dont il a besoin.
 
 ## Sobriété
 

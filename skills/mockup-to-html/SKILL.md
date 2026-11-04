@@ -133,43 +133,18 @@ relancez : `<page>.ux.md` est la revue à livrer.
 ## 5. Cibler une bibliothèque
 
 Sur demande, la même description donne la page dans une bibliothèque
-(`--target`) ; ne réécrivez rien :
-
-- `bootstrap` : classes et thème Bootstrap tirés des tokens, rendu et
-  comparé comme la page HTML (Bootstrap à version fixée, dans le cache :
-  `doctor.py maquettes --prefetch` avant un travail hors ligne) ;
-- `react-mui`, `react-antd` : `<Nom>Page.tsx`, `theme.ts` (tokens et
-  thème de la bibliothèque) et `App.tsx` ;
-- `vue-vuetify` : `<Nom>Page.vue`, `vuetify.ts` (thème Vuetify tiré des
-  tokens), `tokens.ts`, `App.vue`, `main.ts` ;
-- `angular-material` : composant autonome (`<nom>-page.component.ts`,
-  `.html`, `.css`), `tokens.ts` et `styles.scss` (thème Angular Material,
-  couleurs exactes des tokens).
-
-Pour React, Vue et Angular, le code est contrôlé mais pas rendu :
-construisez aussi la cible `html`, qui sert de référence visuelle, et
-dites que le rendu reste à vérifier dans le projet. Une autre
-bibliothèque (PrimeVue, PrimeNG, Tailwind) : prenez la plus proche et
-dites l'écart.
+(`--target` : `bootstrap`, `react-mui`, `react-antd`, `vue-vuetify`,
+`angular-material`) ; ne réécrivez rien. Fichiers produits, rendu et
+écarts : `references/cibles.md`, à lire seulement pour cette demande.
 
 ## 6. Découper et chiffrer le frontend
 
-```bash
-uv run scripts/ui_breakdown.py --target react-mui --component portail --out decoupage pages/*.json
-```
-
-Le rapport donne écrans, composants, motifs, réemploi et la charge à
-trois points ; `decoupage.md` est le découpage à livrer. `--target` réduit
-les composants fournis par la bibliothèque, `--component` rattache les lots
-au composant web de l'option. Un écran de même structure qu'un autre, ou
-semblable, ou fait de motifs, réutilise son lot (`reuse`). Les jours
-viennent d'abaques donnés avant le lancement (section `frontend` des
-abaques, `--abaques`), sinon par défaut : `calibrated` faux, à dire.
-Après la revue UX (§ 4), `--ux revue.json` ajoute un lot par constat
-retenu de gravité 2 ou plus (ce que la maquette ne montre pas : erreurs,
-confirmations, aide), aux jours de l'abaque `ux` ; `ux_lots` les compte.
-`estimate_build.py chiffrage.json --draft --lots decoupage.lots.json`
-(skill `solution-estimate`) reprend ces lots.
+`ui_breakdown.py --target <bibliothèque> --component <composant> --out
+decoupage pages/*.json` donne écrans, composants, réemploi et charge à
+trois points (`decoupage.md`, `decoupage.lots.json` pour
+`estimate_build.py --draft --lots`). Options (`--abaques`, `--ux
+revue.json`) et règles de réemploi : `references/decoupage.md`, à lire
+seulement pour un découpage.
 
 ## 7. Livrer
 

@@ -144,10 +144,18 @@ toi-même. Ne lui confie qu'un lot (au moins 5 fichiers à traiter de la
 même façon, plusieurs pages à transcrire par la vision) ou une étape
 entière d'un autre niveau que le tien ; avec le modèle du niveau du lot : simple `haiku`, moyen `sonnet`, complexe `opus`.
 
+Un skill s'ouvre par l'outil de skill de ton outil, qui donne son dossier :
+ses scripts sont dans son `scripts/`, lancés par ce chemin. Ne les cherche
+pas sur le disque (`find`, `which`) et ne lis pas leur code pour deviner un
+format : `--schema` le donne. Donne à un sous-agent les chemins des scripts
+dont il a besoin.
+
 ## Sobriété
 
-- Lis les rapports des scripts, pas les fichiers qu'ils écrivent, sauf le
-  tableau des menaces, une fois.
+- Lis les rapports des scripts, pas les fichiers qu'ils écrivent (notes du
+  vault comprises), sauf le tableau des menaces, une fois.
+- Dans un workflow, le message reçu donne l'étape : ne relis pas
+  `workflow.json`.
 - Ne recopie pas les constats dans ta réponse : donne les compteurs et les
   chemins.
 - Une seule question à l'utilisateur, sur les écarts à accepter.
