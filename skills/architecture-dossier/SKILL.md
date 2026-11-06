@@ -56,7 +56,9 @@ route, cible et chiffrage. `--template documentation` (workflow
 `documentation`, `--out documentation.md`) : synthèse, schémas, index et
 documents d'origine. `--template restitution` (workflow `restitution`,
 `--out restitution.md`) : décision attendue, vue d'ensemble et support en
-annexe. `--template memoire --tender ao.json` (workflow
+annexe. `--template existant` (workflow `retro-documentation`, `--out
+dossier-existant.md`) : C4 constaté, modèle actuel, revue, découpage et
+trajectoire. `--template memoire --tender ao.json` (workflow
 `avant-vente`, avec `--out memoire-technique.md`) : le mémoire technique
 d'une réponse à appel d'offres ; vous écrivez dans `memoire/` une section
 par thème des critères (`comprehension`, `solution`, `securite`,

@@ -1,0 +1,20 @@
+{
+  "title": "Dossier d'architecture de l'existant",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "périmètre analysé, architecture constatée, avis de la revue, dette et risques, cible et trajectoire si elles sont faites"},
+    {"id": "architecture", "title": "Architecture constatée", "kind": "images", "sources": ["c4/**/*.png", "schemas/*.png"], "required": true,
+     "help": "c4-architecture : c4_build.py c4.json --export png (brouillon par --draft graphify-out/graph.json)"},
+    {"id": "donnees", "title": "Modèle de données actuel", "sources": ["modele.md"],
+     "help": "data-model : model_import.py puis model_build.py modele.json"},
+    {"id": "revue", "title": "Revue d'architecture", "sources": ["revue.md", "*.revue.md"], "required": true,
+     "help": "architecture-review : arch_review.py revue.json (code comparé à l'architecture)"},
+    {"id": "menaces", "title": "Modèle de menaces", "sources": ["*.threats.md", "schemas/*.threats.md"]},
+    {"id": "well-architected", "title": "Revue Well-Architected", "sources": ["*.wa.md", "schemas/*.wa.md"]},
+    {"id": "domaines", "title": "Domaines et découpage cible", "sources": ["domaines.md"]},
+    {"id": "trajectoire", "title": "Trajectoire de modernisation", "sources": ["feuille-de-route.md"]},
+    {"id": "plan", "title": "Plan d'actions", "sources": ["plan-actions.md"],
+     "help": "architecture-dossier : actions.py . (points ouverts des revues, dédoublonnés et priorisés)"},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}

@@ -113,13 +113,13 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate cloud-cost Dossier d'architecture technique architecture-dossier"
+   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier"
   },
   {
    "name": "avant-vente",
    "agent": "architecture-workflow",
    "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
-   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, découpage en domaines facultatif, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, découpage en domaines facultatif, 2 ou 3 options de solution et la décision, puis matrice de conformité, chiffrage de la solution et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
    "stages": [
     "documents",
     "depouillement (facultative)",
@@ -140,7 +140,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Découpage et lots backend api-contract Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",
@@ -161,7 +161,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
+   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
   },
   {
    "name": "cloud-existant",
@@ -176,7 +176,7 @@
    "inputs": [
     "infra/**/*"
    ],
-   "match": "Description tirée du code cloud-architecture Schémas cloud cloud-architecture diagram-export Modèle de menaces STRIDE et revue Well-Architected threat-model well-architected-review"
+   "match": "Description tirée du code cloud-architecture Schémas cloud Modèle de menaces STRIDE et revue Well-Architected"
   },
   {
    "name": "conformite",
@@ -194,7 +194,7 @@
     "documents/*",
     "sources/*.md"
    ],
-   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Description cloud cloud-architecture diagram-export Menaces STRIDE et qualification de l'hébergement threat-model well-architected-review Registre des traitements et AIPD data-protection Plan d'actions et dossier de conformité architecture-dossier"
+   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Description cloud cloud-architecture diagram-export Menaces STRIDE et qualification de l'hébergement Registre des traitements et AIPD Plan d'actions et dossier de conformité architecture-dossier"
   },
   {
    "name": "documentation",
@@ -211,7 +211,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé diagram-brief excalidraw-diagram mermaid-diagram drawio-diagram diagram-export Document assemblé architecture-dossier"
+   "match": "Documents en Markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé Document assemblé architecture-dossier"
   },
   {
    "name": "maquettes",
@@ -227,7 +227,7 @@
    "inputs": [
     "maquettes/*"
    ],
-   "match": "Design system design-system Pages HTML comparées aux maquettes mockup-to-html design-system Revue UX et accessibilité mockup-to-html Découpage et lots du chiffrage frontend mockup-to-html"
+   "match": "Design system Pages HTML comparées aux maquettes Revue UX et accessibilité Découpage et lots du chiffrage frontend"
   },
   {
    "name": "migration-cloud",
@@ -246,7 +246,7 @@
     "documents/*",
     "sources/*.md"
    ],
-   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible cloud-architecture well-architected-review diagram-export Chiffrage de la migration solution-estimate cloud-cost Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
+   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible Chiffrage de la migration Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
   },
   {
    "name": "restitution",
@@ -267,7 +267,27 @@
     "../chiffrage.md",
     "../revue.md"
    ],
-   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé diagram-brief excalidraw-diagram c4-architecture mermaid-diagram drawio-diagram diagram-export Support de présentation architecture-deck Document de restitution architecture-dossier"
+   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé Support de présentation architecture-deck Document de restitution architecture-dossier"
+  },
+  {
+   "name": "retro-documentation",
+   "agent": "architecture-workflow",
+   "title": "Rétro-documentation et modernisation d'une application existante",
+   "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
+   "stages": [
+    "code",
+    "constat",
+    "infrastructure (facultative)",
+    "donnees (facultative)",
+    "domaines (facultative)",
+    "revue",
+    "trajectoire (facultative)",
+    "dossier (facultative)"
+   ],
+   "inputs": [
+    "code/**/*"
+   ],
+   "match": "Graphe du code  Architecture constatée Hébergement tiré de son code cloud-architecture Modèle de données actuel data-model Domaines et style d'architecture domain-design data-model Revue de l'existant Trajectoire de modernisation transition-roadmap Dossier de l'existant architecture-dossier"
   },
   {
    "name": "revue-dossier",
@@ -283,7 +303,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Revue d'architecture architecture-review threat-model well-architected-review Avis d'architecture architecture-dossier"
+   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Revue d'architecture Avis d'architecture architecture-dossier"
   }
  ],
  "skills": [
@@ -364,7 +384,7 @@
    "description": "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue.",
    "inputs": [
     "Décision de diagram-brief",
-    "Code, configuration ou description de l'architecture",
+    "Code, configuration ou description de l'architecture ; pour un existant, le graphe du code de graphify (graph.json)",
     "Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue"
    ],
    "match": "Modélise une architecture logicielle selon le modèle C4 (contexte, conteneurs, composants) avec LikeC4, valide le modèle et exporte une image par vue. À utiliser pour les schémas d'architecture."
@@ -417,7 +437,8 @@
    "description": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées.",
    "inputs": [
     "Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources)",
-    "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
+    "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n",
+    "Pour un existant : le schéma SQL de la base actuelle (CREATE TABLE), lu par model_import.py"
    ],
    "match": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées. Le script contrôle le modèle et écrit le diagramme entité-relation Mermaid, le dictionnaire de données et le schéma PostgreSQL (clés étrangères, tables d'association). À utiliser pour un modèle de données, un MCD ou MLD, un diagramme entité-relation, un dictionnaire de données ou un DDL de départ."
   },
