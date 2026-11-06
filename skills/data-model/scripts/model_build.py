@@ -17,17 +17,26 @@ non le modèle :
   relations 1-n et 1-1, tables d'association n-n), puis relit le diagramme :
   chaque entité et chaque relation doit y figurer.
 
+Avec `domains` (domaines.json de domain-design) et le champ `context` de
+chaque entité, le modèle se tient par contexte borné, après le découpage :
+contexte connu, propriétaire conforme au découpage, un schéma PostgreSQL par
+contexte et aucune clé étrangère d'un contexte à l'autre. Un lien entre deux
+contextes devient un identifiant de référence sans contrainte, signalé avec
+la relation de la carte des contextes qui le porte, ou son absence.
+
     uv run scripts/model_build.py MODELE.json [--out-dir DOSSIER] | --schema
 """
 
 import argparse
+import difflib
 import json
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from spec_schema import print_schema, read_spec  # noqa: E402
+from skill_paths import absent, schema_of  # noqa: E402
+from spec_schema import check, print_schema, read_spec  # noqa: E402
 
 SQL = {"uuid": "uuid", "string": "varchar(255)", "text": "text", "integer": "integer", "number": "double precision",
        "decimal": "numeric(14,2)", "boolean": "boolean", "date": "date", "datetime": "timestamptz", "json": "jsonb",
@@ -38,6 +47,37 @@ SENSITIVE = {"sante"}
 
 def snake(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+def schema_name(context: str) -> str:
+    return context.replace("-", "_")
+
+
+def table(entity: dict) -> str:
+    """Nom SQL de la table, qualifié par le schéma de son contexte borné s'il en a un."""
+    name = snake(entity["name"])
+    return f"{schema_name(entity['context'])}.{name}" if entity.get("context") else name
+
+
+def crosses(a: dict, b: dict) -> bool:
+    """Vrai si deux entités appartiennent à deux contextes bornés différents."""
+    return bool(a.get("context") and b.get("context") and a["context"] != b["context"])
+
+
+def target(src: dict, dst: dict) -> tuple[str, str]:
+    """Contrainte vers `dst` : clé étrangère dans un même contexte, simple référence commentée entre deux."""
+    if crosses(src, dst):
+        return "", f"référence vers {table(dst)} (contexte {dst['context']}), sans clé étrangère"
+    return f" REFERENCES {table(dst)}", ""
+
+
+def columns(rows: list[tuple[str, str]]) -> str:
+    """Colonnes séparées par des virgules, la virgule avant le commentaire éventuel."""
+    out = []
+    for i, (col, note) in enumerate(rows):
+        line = col + ("," if i < len(rows) - 1 else "")
+        out.append(f"{line} -- {note}" if note else line)
+    return "\n".join(out)
 
 
 def key_of(entity: dict) -> dict:
@@ -60,17 +100,20 @@ def mermaid(spec: dict) -> str:
 
 def ddl(spec: dict, warnings: list[str]) -> str:
     by = {e["name"]: e for e in spec["entities"]}
-    extra: dict[str, list[str]] = {e["name"]: [] for e in spec["entities"]}
+    extra: dict[str, list[tuple[str, str]]] = {e["name"]: [] for e in spec["entities"]}
     joins = []
     for r in spec.get("relations", []):
         src, dst = by[r["from"]], by[r["to"]]
         if r["kind"] == "n-n":
+            # Table d'association dans le contexte de « from » ; vers un autre contexte, sans clé étrangère.
             a, b = key_of(src), key_of(dst)
-            table = f"{snake(src['name'])}_{snake(dst['name'])}"
-            joins.append(f"CREATE TABLE {table} (\n"
-                         f"  {snake(src['name'])}_{a['name']} {SQL[a['type']]} NOT NULL REFERENCES {snake(src['name'])},\n"
-                         f"  {snake(dst['name'])}_{b['name']} {SQL[b['type']]} NOT NULL REFERENCES {snake(dst['name'])},\n"
-                         f"  PRIMARY KEY ({snake(src['name'])}_{a['name']}, {snake(dst['name'])}_{b['name']})\n);")
+            name = f"{snake(src['name'])}_{snake(dst['name'])}"
+            name = f"{schema_name(src['context'])}.{name}" if src.get("context") else name
+            far, note = target(src, dst)
+            rows = [(f"  {snake(src['name'])}_{a['name']} {SQL[a['type']]} NOT NULL REFERENCES {table(src)}", ""),
+                    (f"  {snake(dst['name'])}_{b['name']} {SQL[b['type']]} NOT NULL{far}", note),
+                    (f"  PRIMARY KEY ({snake(src['name'])}_{a['name']}, {snake(dst['name'])}_{b['name']})", "")]
+            joins.append(f"CREATE TABLE {name} (\n{columns(rows)}\n);")
             continue
         # 1-n et 1-1 : clé étrangère côté « to », sauf si un champ ref la porte déjà.
         if any(f.get("ref") == src["name"] for f in dst["fields"]):
@@ -78,13 +121,16 @@ def ddl(spec: dict, warnings: list[str]) -> str:
         k = key_of(src)
         null = " NOT NULL" if r.get("required") else ""
         unique = " UNIQUE" if r["kind"] == "1-1" else ""
-        extra[dst["name"]].append(f"  {snake(src['name'])}_{k['name']} {SQL[k['type']]}{null}{unique} "
-                                  f"REFERENCES {snake(src['name'])}")
+        far, note = target(dst, src)
+        extra[dst["name"]].append((f"  {snake(src['name'])}_{k['name']} {SQL[k['type']]}{null}{unique}{far}", note))
     out = [f"-- {spec['title']} : schéma PostgreSQL généré par model_build.py (data-model)."]
+    schemas = sorted({schema_name(e["context"]) for e in spec["entities"] if e.get("context")})
+    if schemas:
+        out.append("\n".join(f"CREATE SCHEMA IF NOT EXISTS {s};" for s in schemas))
     for e in spec["entities"]:
-        cols = []
+        rows = []
         for f in e["fields"]:
-            col = f"  {f['name']} {SQL[f['type']]}"
+            col, note = f"  {f['name']} {SQL[f['type']]}", ""
             if f.get("key"):
                 col += " PRIMARY KEY"
             elif f.get("required"):
@@ -92,13 +138,82 @@ def ddl(spec: dict, warnings: list[str]) -> str:
             if f.get("unique") and not f.get("key"):
                 col += " UNIQUE"
             if f.get("ref"):
-                col += f" REFERENCES {snake(f['ref'])}"
-            cols.append(col)
-        out.append(f"CREATE TABLE {snake(e['name'])} (\n" + ",\n".join(cols + extra[e["name"]]) + "\n);")
+                far, note = target(e, by[f["ref"]])
+                col += far
+            rows.append((col, note))
+        out.append(f"CREATE TABLE {table(e)} (\n{columns(rows + extra[e['name']])}\n);")
         personal = [f["name"] for f in e["fields"] if f.get("personal")]
         if personal:
-            out.append(f"COMMENT ON TABLE {snake(e['name'])} IS 'Données personnelles : {', '.join(personal)}';")
+            out.append(f"COMMENT ON TABLE {table(e)} IS 'Données personnelles : {', '.join(personal)}';")
     return "\n\n".join(out + joins) + "\n"
+
+
+def hint(value: str, pool) -> str:
+    close = difflib.get_close_matches(str(value), [str(p) for p in pool], n=1)
+    return f" ; vouliez-vous « {close[0]} » ?" if close else ""
+
+
+def check_contexts(spec: dict, base: Path, report: dict) -> None:
+    """Modèle par contexte borné : contextes et propriétaires repris du découpage, liens entre contextes signalés."""
+    errors, warnings = report["errors"], report["warnings"]
+    placed = [e for e in spec["entities"] if e.get("context")]
+    if not spec.get("domains"):
+        if placed:
+            warnings.append("context des entités sans découpage (domains) : contextes non vérifiés")
+        return
+    path = base / spec["domains"]
+    try:
+        domains = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"domains : {spec['domains']} illisible ({error})")
+        return
+    schema = schema_of("domain-design", "domain_build.py")
+    if schema is None:
+        warnings.append(f"domains : {path.name} non vérifié : " + absent("domain-design", "domain_build.py"))
+    else:
+        invalid = check(domains, schema)
+        if invalid:
+            errors += [f"domains : {path.name} : {e}" for e in invalid[:10]]
+            return
+    contexts = {c["id"]: c for c in domains.get("contexts", [])}
+    owner = {name: c["id"] for c in contexts.values() for name in c.get("entities", [])}
+    for i, e in enumerate(spec["entities"]):
+        where = f"entities/{i} ({e['name']})"
+        if not e.get("context"):
+            errors.append(f"{where}/context : contexte borné attendu avec domains ("
+                          + (f"« {owner[e['name']]} » d'après le découpage" if e["name"] in owner
+                             else ", ".join(contexts)) + ")")
+        elif e["context"] not in contexts:
+            errors.append(f"{where}/context : contexte inconnu « {e['context']} » de {path.name}"
+                          + hint(e["context"], contexts))
+        elif e["name"] in owner and owner[e["name"]] != e["context"]:
+            errors.append(f"{where}/context : « {e['context']} », alors que le découpage la donne à "
+                          f"« {owner[e['name']]} » : corriger l'un ou l'autre")
+    names = {e["name"] for e in spec["entities"]}
+    lost = [n for n in owner if n not in names]
+    if lost:
+        warnings.append(f"{len(lost)} entité(s) possédée(s) dans le découpage absente(s) du modèle : " + ", ".join(lost))
+    if errors:
+        return
+    by = {e["name"]: e for e in spec["entities"]}
+    mapped = {frozenset((r["upstream"], r["downstream"])): r for r in domains.get("relations", [])}
+    links = [(r["from"], r["to"], r["label"]) for r in spec.get("relations", [])]
+    links += [(f["ref"], e["name"], f["name"]) for e in spec["entities"] for f in e["fields"] if f.get("ref")]
+    seen = set()
+    for a, b, label in links:
+        if not crosses(by[a], by[b]) or (a, b) in seen:
+            continue
+        seen.add((a, b))
+        ca, cb = by[a]["context"], by[b]["context"]
+        report["cross_context"].append(f"{a} ({ca}) > {b} ({cb})")
+        rel = mapped.get(frozenset((ca, cb)))
+        warnings.append(f"lien {a} > {b} « {label} » entre les contextes {ca} et {cb} : identifiant de référence "
+                        "sans clé étrangère dans le SQL, " + (
+                            f"lu par la relation {rel['upstream']} > {rel['downstream']} de la carte "
+                            f"({rel.get('integration', 'sync')})" if rel else
+                            "et aucune relation de la carte des contextes ne le porte : déclarer la relation "
+                            "(domain-design) ou revoir le propriétaire de l'entité"))
+    report["contexts"] = len({e["context"] for e in spec["entities"]})
 
 
 def cell(text) -> str:
@@ -108,7 +223,9 @@ def cell(text) -> str:
 def markdown(spec: dict, diagram: str) -> str:
     lines = [f"# {spec['title']}", "", "```mermaid", diagram.rstrip(), "```", "", "## Dictionnaire de données"]
     for e in spec["entities"]:
-        lines += ["", f"### {e.get('label', e['name'])} (`{snake(e['name'])}`)", ""]
+        lines += ["", f"### {e.get('label', e['name'])} (`{table(e)}`)", ""]
+        if e.get("context"):
+            lines += [f"Contexte borné : {e['context']}.", ""]
         if e.get("description"):
             lines += [e["description"], ""]
         lines += ["| Champ | Type | Clé | Obligatoire | Donnée personnelle | Description |", "| --- | --- | --- | --- | --- | --- |"]
@@ -134,7 +251,7 @@ def main() -> int:
         print_schema(__file__)
         return 0
     report = {"input": str(args.spec), "outputs": [], "entities": 0, "relations": 0, "personal_fields": [],
-              "sensitive_fields": [], "errors": [], "warnings": []}
+              "sensitive_fields": [], "contexts": 0, "cross_context": [], "errors": [], "warnings": []}
     errors, warnings = report["errors"], report["warnings"]
 
     def done(code: int) -> int:
@@ -188,6 +305,9 @@ def main() -> int:
                            for ref in e.get("refs", []) if ref not in ids]
         except (OSError, ValueError, KeyError, TypeError) as error:
             errors.append(f"requirements : {spec['requirements']} illisible ({error})")
+    if errors:
+        return done(1)
+    check_contexts(spec, args.spec.parent, report)
     if errors:
         return done(1)
     if report["personal_fields"]:

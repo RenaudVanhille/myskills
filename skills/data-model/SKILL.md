@@ -14,9 +14,11 @@ dessine et écrit le SQL.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources) ; Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n.
-- **Sorties** : <nom>.mmd : diagramme entité-relation Mermaid (erDiagram) ; <nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations) ; <nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n).
-- **`model_build.py`** : Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL, puis relit le diagramme. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **Entrées** : Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources) ; Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n.
+- **Sorties** : <nom>.mmd : diagramme entité-relation Mermaid (erDiagram) ; <nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations) ; <nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes).
+- **`model_build.py`** : Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; avec le découpage (domains), contexte de chaque entité connu et conforme au propriétaire du découpage, liens entre contextes signalés avec la relation de la carte qui les porte ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL (un schéma par contexte, référence sans clé étrangère entre contextes), puis relit le diagramme. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **Dépend de** `domain-design` (`domain_build.py`, facultatif : sans lui, avertissement) : valider le découpage en domaines (domains) contre son schéma.
+- **Passe la main** au skill `domain-design` : lien entre deux contextes qu'aucune relation de la carte ne porte, ou entité sans contexte propriétaire : revoir le découpage.
 - **Passe la main** au skill `data-protection` : le modèle contient des données personnelles : registre des traitements et AIPD.
 - **Passe la main** au skill `diagram-export` : une image du diagramme est demandée (PNG, SVG) : export du .mmd.
 - **Passe la main** au skill `api-contract` : les ressources des interfaces doivent suivre le modèle (champs et types).
@@ -51,6 +53,17 @@ d'`api.json`. Fichier `modele.json` (`uv run scripts/model_build.py
   `n-n` donne une table d'association.
 - **Données personnelles** : `personal` avec sa nature (identité, contact,
   santé, financier, localisation) ; la santé est une donnée sensible.
+
+### Un modèle par contexte borné
+
+Quand un découpage en domaines existe (`domaines.json` de `domain-design`),
+le modèle vient après lui : `"domains": "domaines.json"` et, sur chaque
+entité, son `context` (le contexte qui la possède dans le découpage). Le
+script en fait un schéma PostgreSQL par contexte et ne crée aucune clé
+étrangère entre deux contextes : le lien reste un identifiant de
+référence, lu par l'API ou les événements de l'amont. Chaque lien entre
+contextes est signalé (`cross_context`) ; s'il n'a pas de relation dans la
+carte des contextes, revoir le découpage plutôt que le modèle.
 
 ## 2. Construire
 

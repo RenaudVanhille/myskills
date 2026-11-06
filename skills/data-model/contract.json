@@ -2,18 +2,18 @@
   "skill": "data-model",
   "level": "moyen",
   "inputs": [
-    "Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources)",
+    "Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources)",
     "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
   ],
   "outputs": [
     "<nom>.mmd : diagramme entité-relation Mermaid (erDiagram)",
     "<nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations)",
-    "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n)"
+    "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes)"
   ],
   "scripts": [
     {
       "name": "model_build.py",
-      "role": "Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL, puis relit le diagramme.",
+      "role": "Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; avec le découpage (domains), contexte de chaque entité connu et conforme au propriétaire du découpage, liens entre contextes signalés avec la relation de la carte qui les porte ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL (un schéma par contexte, référence sans clé étrangère entre contextes), puis relit le diagramme.",
       "usage": "uv run scripts/model_build.py MODELE.json [--out-dir DOSSIER] | --schema",
       "options": {
         "MODELE.json": "description du modèle de données",
@@ -42,6 +42,11 @@
               "minLength": 1,
               "description": "exigences.json (requirements-catalog), relatif à la description"
             },
+            "domains": {
+              "type": "string",
+              "minLength": 1,
+              "description": "domaines.json (domain-design), relatif à la description : chaque entité porte alors son contexte borné (context)"
+            },
             "entities": {
               "type": "array",
               "minItems": 1,
@@ -61,6 +66,11 @@
                   "label": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "context": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*$",
+                    "description": "contexte borné propriétaire (id d'un contexte de domains) : schéma SQL du contexte"
                   },
                   "description": {
                     "type": "string",
@@ -197,6 +207,8 @@
             "relations",
             "personal_fields",
             "sensitive_fields",
+            "contexts",
+            "cross_context",
             "errors",
             "warnings"
           ],
@@ -232,6 +244,18 @@
               },
               "description": "données de santé"
             },
+            "contexts": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "contextes bornés du modèle (0 sans découpage)"
+            },
+            "cross_context": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "liens entre deux contextes, sans clé étrangère : « Entité (contexte) > Entité (contexte) »"
+            },
             "errors": {
               "type": "array",
               "items": {
@@ -253,7 +277,20 @@
       }
     }
   ],
+  "requires": [
+    {
+      "skill": "domain-design",
+      "script": "domain_build.py",
+      "why": "valider le découpage en domaines (domains) contre son schéma",
+      "optional": true
+    }
+  ],
   "handoffs": [
+    {
+      "to": "domain-design",
+      "kind": "skill",
+      "when": "lien entre deux contextes qu'aucune relation de la carte ne porte, ou entité sans contexte propriétaire : revoir le découpage"
+    },
     {
       "to": "data-protection",
       "kind": "skill",
