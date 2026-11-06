@@ -379,6 +379,13 @@ def check_contracts() -> dict:
         target = ROOT / file
         if not target.exists() or target.read_text(encoding="utf-8") != expected:
             stale.append(file)
+    from workflow_docs import DOCS, workflow_docs
+
+    docs = workflow_docs()
+    for path, expected in docs.items():
+        if not path.exists() or path.read_text(encoding="utf-8") != expected:
+            stale.append(path.relative_to(ROOT).as_posix())
+    stale += [p.relative_to(ROOT).as_posix() for p in DOCS.glob("*.md") if p not in docs]
     if stale:
         failures.append(f"pas à jour, lancez uv run scripts/build.py : {', '.join(stale)}")
     # Fournisseurs des descriptions cloud : les quatre à icônes officielles et les hébergeurs dessinables du
