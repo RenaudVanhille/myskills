@@ -66,6 +66,56 @@
       ]
     },
     {
+      "id": "domaines",
+      "label": "Domaines et style d'architecture",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "domain-design",
+        "data-model"
+      ],
+      "inputs": [
+        "exigences.json"
+      ],
+      "deliverables": [
+        "domaines.json",
+        "domaines.md",
+        "domaines.styles.json",
+        "domaines.carte.drawio"
+      ],
+      "optional": [
+        "domaines.carte.json",
+        "domaines.carte.drawio.png",
+        "modele.json",
+        "modele.md",
+        "modele.mmd",
+        "modele.sql"
+      ],
+      "checks": [
+        "data-model : model_build.py modele.json (entités et relations, si l'utilisateur veut un découpage argumenté par les données)",
+        "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
+      ],
+      "run": [
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "args": [
+            "modele.json"
+          ],
+          "if": "modele.json"
+        },
+        {
+          "skill": "domain-design",
+          "script": "domain_build.py",
+          "args": [
+            "domaines.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences et du glossaire ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de domaines.json et se note au journal."
+    },
+    {
       "id": "architectures",
       "label": "Options d'architecture",
       "level": "complexe",
@@ -76,7 +126,9 @@
       ],
       "inputs": [
         "exigences.json",
-        "documents/pos*"
+        "documents/pos*",
+        "domaines.json",
+        "domaines.styles.json"
       ],
       "deliverables": [
         "options.json",
@@ -101,7 +153,7 @@
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire."
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
     },
     {
       "id": "schemas",
@@ -232,7 +284,8 @@
         "exigences.json",
         "decision.json",
         "adr-architecture.md",
-        "schemas/option-*.cloud.json"
+        "schemas/option-*.cloud.json",
+        "domaines.json"
       ],
       "deliverables": [
         "revue.json",
@@ -243,7 +296,7 @@
         "schemas/option-*.wa.md"
       ],
       "checks": [
-        "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
+        "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur ; avec domaines.json, revue.json porte domains et les règles DOM- contrôlent le découpage)",
         "si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json, avec --vault <vault> --folder <dossier> --option <id> si le workflow a un vault"
       ],
       "run": [

@@ -103,6 +103,7 @@
    "stages": [
     "documents",
     "exigences",
+    "domaines (facultative)",
     "architectures",
     "schemas",
     "revue (facultative)",
@@ -112,7 +113,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate cloud-cost Dossier d'architecture technique architecture-dossier"
+   "match": "Documents en Markdown doc-to-markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export architecture-deck api-contract Revue d'architecture architecture-review threat-model well-architected-review Chiffrage de l'option retenue solution-estimate cloud-cost Dossier d'architecture technique architecture-dossier"
   },
   {
    "name": "avant-vente",
@@ -445,6 +446,16 @@
     "Dossiers"
    ],
    "match": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (atelier, kick-off, présentation, démonstration...) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown."
+  },
+  {
+   "name": "domain-design",
+   "level": "complexe",
+   "description": "Définit les domaines d'une solution selon le DDD stratégique : sous-domaines cœur, support et génériques, contextes bornés (entités possédées, exigences, équipe, langage), carte des contextes (client-fournisseur, couche anticorruption, événements...).",
+   "inputs": [
+    "Les exigences (exigences.json de requirements-catalog) et, s'il existe, le modèle de données (modele.json de data-model)",
+    "Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style"
+   ],
+   "match": "Définit les domaines d'une solution selon le DDD stratégique : sous-domaines cœur, support et génériques, contextes bornés (entités possédées, exigences, équipe, langage), carte des contextes (client-fournisseur, couche anticorruption, événements...). Le script contrôle le découpage, calcule cohésion et couplage, recommande le style par une grille (monolithe modulaire, mixte ou microservices, et seulement si le projet s'y prête), dessine la carte en draw.io et prépare les composants de chaque style pour architecture-options. À utiliser pour découper un domaine, définir des bounded contexts, décider monolithe ou microservices."
   },
   {
    "name": "drawio-diagram",

@@ -78,6 +78,9 @@ workflow, la commande les trace aussi au journal.
    dépôts (`mission.py repo`, commit figé par `mission.py freeze`) ;
    sinon `code.repos`. Le script ajoute les appels entre services lus dans
    la configuration et les contrats. Avec une description cloud, donne `cloud`.
+   Avec un découpage en domaines (`domaines.json` de `domain-design`), donne
+   `domains` et les `contexts` de chaque composant : les règles DOM- le
+   confrontent à l'architecture (`--draft` le reprend s'il est à côté).
    Lance `arch_review.py revue.json` et lis le rapport ; dans une mission,
    le vault et le dossier sont trouvés seuls ; ailleurs, dans un workflow à
    vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue

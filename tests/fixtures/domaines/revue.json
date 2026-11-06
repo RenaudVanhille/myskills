@@ -1,0 +1,86 @@
+{
+ "title": "Revue du découpage en services du portail",
+ "domains": "domaines.json",
+ "components": [
+  {
+   "id": "assure",
+   "label": "Assuré",
+   "role": "person"
+  },
+  {
+   "id": "passerelle",
+   "label": "Passerelle d'API"
+  },
+  {
+   "id": "svc-declaration",
+   "label": "Service Déclaration",
+   "contexts": [
+    "declaration"
+   ]
+  },
+  {
+   "id": "svc-indemnisation",
+   "label": "Service Indemnisation",
+   "contexts": [
+    "indemnisation"
+   ]
+  },
+  {
+   "id": "svc-contrats",
+   "label": "Service Contrats",
+   "contexts": [
+    "contrats"
+   ]
+  },
+  {
+   "id": "db-commune",
+   "label": "Base commune",
+   "role": "db"
+  }
+ ],
+ "flows": [
+  {
+   "from": "assure",
+   "to": "passerelle"
+  },
+  {
+   "from": "passerelle",
+   "to": "svc-declaration"
+  },
+  {
+   "from": "svc-declaration",
+   "to": "svc-contrats",
+   "label": "vérifie la garantie"
+  },
+  {
+   "from": "svc-declaration",
+   "to": "svc-indemnisation",
+   "label": "ouvre le dossier"
+  },
+  {
+   "from": "svc-indemnisation",
+   "to": "svc-declaration",
+   "label": "lit la déclaration"
+  },
+  {
+   "from": "svc-contrats",
+   "to": "svc-indemnisation",
+   "label": "plafond"
+  },
+  {
+   "from": "svc-declaration",
+   "to": "db-commune"
+  },
+  {
+   "from": "svc-indemnisation",
+   "to": "db-commune"
+  }
+ ],
+ "decisions": [
+  {
+   "id": "D-01",
+   "title": "Services par contexte",
+   "status": "acceptee"
+  }
+ ]
+}

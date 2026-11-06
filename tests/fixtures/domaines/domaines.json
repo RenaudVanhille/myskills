@@ -1,0 +1,140 @@
+{
+ "title": "Domaines du portail sinistres",
+ "context": "Découper le portail de déclaration pour décider de son style.",
+ "requirements": "../workflow/exigences.json",
+ "model": "modele.json",
+ "subdomains": [
+  {
+   "id": "sinistres",
+   "name": "Sinistres",
+   "kind": "coeur",
+   "why": "déclaration en ligne et indemnisation rapide : ce qui distingue la mutuelle"
+  },
+  {
+   "id": "contrats",
+   "name": "Contrats",
+   "kind": "support",
+   "why": "nécessaire, tenu par l'outil existant"
+  },
+  {
+   "id": "communication",
+   "name": "Communication",
+   "kind": "generique",
+   "why": "envoi de courriels et SMS : service du marché"
+  }
+ ],
+ "contexts": [
+  {
+   "id": "declaration",
+   "name": "Déclaration",
+   "subdomain": "sinistres",
+   "team": "Équipe portail",
+   "entities": [
+    "Declaration",
+    "Piece"
+   ],
+   "uses": [
+    "Contrat",
+    "Assure"
+   ],
+   "refs": [
+    "EF-001",
+    "EF-002"
+   ],
+   "terms": {
+    "Sinistre": "événement déclaré par l'assuré, pas encore instruit",
+    "Pièce": "photo ou justificatif joint"
+   },
+   "needs": {
+    "echelle": "pics de déclarations après une tempête, dix fois la charge habituelle (ENF-001)"
+   }
+  },
+  {
+   "id": "indemnisation",
+   "name": "Indemnisation",
+   "subdomain": "sinistres",
+   "team": "Équipe portail",
+   "entities": [
+    "Dossier",
+    "Expertise",
+    "Reglement"
+   ],
+   "refs": [
+    "EF-003"
+   ],
+   "terms": {
+    "Sinistre": "dossier instruit par le gestionnaire, avec expertise et règlement"
+   }
+  },
+  {
+   "id": "contrats",
+   "name": "Contrats",
+   "subdomain": "contrats",
+   "team": "Équipe portail",
+   "entities": [
+    "Assure",
+    "Contrat",
+    "Garantie"
+   ]
+  },
+  {
+   "id": "notification",
+   "name": "Notification",
+   "subdomain": "communication",
+   "entities": [
+    "Notification"
+   ],
+   "uses": [
+    "Assure"
+   ]
+  }
+ ],
+ "relations": [
+  {
+   "upstream": "contrats",
+   "downstream": "declaration",
+   "patterns": [
+    "open-host",
+    "acl"
+   ],
+   "integration": "sync",
+   "label": "vérifie la garantie"
+  },
+  {
+   "upstream": "declaration",
+   "downstream": "indemnisation",
+   "patterns": [
+    "client-fournisseur"
+   ],
+   "integration": "async",
+   "label": "déclaration reçue"
+  },
+  {
+   "upstream": "contrats",
+   "downstream": "notification",
+   "patterns": [
+    "conformiste"
+   ],
+   "integration": "sync",
+   "label": "coordonnées"
+  }
+ ],
+ "factors": {
+  "devops": {
+   "value": "moyenne",
+   "why": "intégration continue en place, pas d'orchestrateur ni d'astreinte"
+  },
+  "stabilite": {
+   "value": "connue",
+   "why": "processus de sinistre stable depuis des années"
+  },
+  "coherence": {
+   "value": "eventuelle",
+   "why": "le dossier peut s'ouvrir quelques secondes après la déclaration"
+  },
+  "delai": {
+   "value": "court",
+   "why": "ouverture avant la saison des tempêtes"
+  }
+ }
+}

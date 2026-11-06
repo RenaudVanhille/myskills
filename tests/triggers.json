@@ -56,6 +56,8 @@
     {"prompt": "Vérifie l'accessibilité des couleurs de notre charte et donne-moi les design tokens.", "skill": "design-system"},
     {"prompt": "Découpe ces écrans en composants React MUI et estime la charge du front.", "skill": "mockup-to-html"},
     {"prompt": "Génère ces maquettes en Angular Material, et aussi en Vue avec Vuetify.", "skill": "mockup-to-html"},
-    {"prompt": "Voici le design system du client en tokens JSON : reprends-le pour nos maquettes.", "skill": "design-system"}
+    {"prompt": "Voici le design system du client en tokens JSON : reprends-le pour nos maquettes.", "skill": "design-system"},
+    {"prompt": "Découpe le portail en contextes bornés et dis-moi si des microservices se justifient ou si un monolithe modulaire suffit.", "skill": "domain-design"},
+    {"prompt": "Définis les sous-domaines cœur, support et génériques du SI sinistres et la carte des contextes.", "skill": "domain-design"}
   ]
 }
