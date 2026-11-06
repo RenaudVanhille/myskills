@@ -16,7 +16,14 @@ Avec `--from-options options.json --option A`, la description vient de
 l'option d'architecture-options : personnes et externes autour d'un système,
 composants en conteneurs, flux en relations ; rien à réécrire.
 
-    uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | --schema
+Avec `--draft graph.json` (graphe du code produit par graphify, analyse
+locale), le script écrit d'abord le brouillon de MODELE.json pour un
+existant : un conteneur par dossier de premier niveau du code, ses fichiers
+et sa technologie, les dépendances extraites entre dossiers en relations.
+Le modèle nomme ensuite les conteneurs, ajoute personnes, bases et
+externes, puis construit.
+
+    uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | MODELE.json --draft graph.json [--title TITRE] | --schema
 
 Avec --export, les vues sont aussi exportées (skill diagram-export, LikeC4)
 dans le même appel ; le rapport donne les images dans `export`.
@@ -44,6 +51,11 @@ PARENTS = {"person": {None}, "external": {None, "system"}, "system": {None},
 # Rôle d'un composant d'architecture-options -> type C4.
 ROLES = {"person": "person", "external": "external", "system": "container", "db": "database", "queue": "queue"}
 MAX_VIEW = 20
+# Relations du graphe de graphify qui valent dépendance (comme architecture-review).
+DEPENDS = {"calls", "imports", "imports_from", "references", "inherits", "implements", "uses"}
+TECH = {".py": "Python", ".java": "Java", ".kt": "Kotlin", ".ts": "TypeScript", ".tsx": "TypeScript",
+        ".js": "JavaScript", ".jsx": "JavaScript", ".cs": "C#", ".go": "Go", ".rb": "Ruby", ".php": "PHP",
+        ".rs": "Rust", ".scala": "Scala", ".swift": "Swift", ".vue": "Vue", ".sql": "SQL"}
 
 
 def quote(text: str) -> str:
@@ -54,6 +66,64 @@ def ident(text: str) -> str:
     """Identifiant LikeC4 : lettres, chiffres, tiret bas ; commence par une lettre."""
     value = re.sub(r"[^A-Za-z0-9_]+", "_", str(text)).strip("_") or "e"
     return value if value[0].isalpha() else "e_" + value
+
+
+def draft_from_graph(graph_path: Path, title: str, errors: list[str], warnings: list[str]) -> dict | None:
+    """Brouillon de description C4 d'un existant à partir du graphe du code (graphify) : un conteneur par
+    dossier de premier niveau, sous le préfixe commun (src/), et les dépendances extraites entre eux."""
+    try:
+        graph = json.loads(graph_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"--draft : graphe illisible {graph_path} ({error})")
+        return None
+    if not isinstance(graph, dict) or not isinstance(graph.get("nodes"), list) \
+            or not isinstance(graph.get("links", graph.get("edges")), list):
+        errors.append(f"--draft : {graph_path.name} n'est pas un graphe graphify (nodes et links attendus)")
+        return None
+    files = {}
+    for node in graph["nodes"]:
+        source = str(node.get("source_file") or "").replace("\\", "/").removeprefix("./")
+        if isinstance(node, dict) and node.get("file_type", "code") == "code" and source:
+            files[node["id"]] = source
+    if not files:
+        errors.append(f"--draft : aucun fichier de code dans {graph_path.name}")
+        return None
+    parts = [f.split("/") for f in set(files.values())]
+    common = 0
+    while all(len(p) > common + 1 for p in parts) and len({p[common] for p in parts}) == 1:
+        common += 1
+    group = {nid: (f.split("/")[common] if len(f.split("/")) > common + 1 else "racine") for nid, f in files.items()}
+    members: dict[str, set[str]] = {}
+    for nid, name in group.items():
+        members.setdefault(name, set()).add(files[nid])
+    deps: dict[tuple[str, str], int] = {}
+    for link in graph.get("links", graph.get("edges", [])):
+        if link.get("relation") not in DEPENDS or link.get("confidence", "EXTRACTED") != "EXTRACTED":
+            continue
+        a, b = group.get(link.get("source")), group.get(link.get("target"))
+        if a and b and a != b:
+            deps[(a, b)] = deps.get((a, b), 0) + 1
+    containers = []
+    for name in sorted(members):
+        found = sorted(members[name])
+        techs = sorted({TECH[Path(f).suffix] for f in found if Path(f).suffix in TECH})
+        element = {"id": ident(name), "kind": "container", "label": name,
+                   "description": f"{len(found)} fichier{'s' if len(found) > 1 else ''} : " + ", ".join(found[:3]) + (" ..." if len(found) > 3 else "")}
+        if techs:
+            element["tech"] = ", ".join(techs)
+        containers.append(element)
+    if len(containers) > MAX_VIEW:
+        warnings.append(f"{len(containers)} dossiers : regrouper les conteneurs (vue de {MAX_VIEW} éléments au plus)")
+    prefix = "/".join(parts[0][:common])
+    warnings.append("brouillon tiré du code (" + (f"dossiers sous {prefix}/" if prefix else "dossiers de premier niveau")
+                    + ") : nommer les conteneurs, regrouper ou séparer, ajouter personnes, bases et externes, puis "
+                      "c4_build.py sans --draft")
+    return {"title": title,
+            "elements": [{"id": "systeme", "kind": "system", "label": title, "elements": containers}],
+            "relations": [{"from": ident(a), "to": ident(b), "label": f"{n} dépendance{'s' if n > 1 else ''} dans le code"}
+                          for (a, b), n in sorted(deps.items())],
+            "views": [{"id": "index", "title": f"{title} (contexte)"},
+                      {"id": "conteneurs", "title": f"{title} (conteneurs)", "of": "systeme"}]}
 
 
 def from_options(path: Path, option_id: str, errors: list[str]) -> dict | None:
@@ -206,11 +276,35 @@ def main() -> int:
     parser.add_argument("--out-dir", type=Path, help="dossier LikeC4 (défaut : <nom>-c4 à côté de l'entrée)")
     parser.add_argument("--export", choices=["png", "svg"],
                         help="exporte aussi l'image (skill diagram-export) : construire et rendre en un appel")
+    parser.add_argument("--draft", type=Path, metavar="GRAPH.json",
+                        help="écrit le brouillon de MODELE.json depuis le graphe du code (graphify), puis s'arrête")
+    parser.add_argument("--title", help="avec --draft : nom du système (défaut : nom du dossier du graphe)")
     schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
+    if args.draft:
+        if not args.spec or args.from_options:
+            parser.error("--draft : MODELE.json à écrire attendu, sans --from-options")
+        errors, warnings = [], []
+        report = {"input": str(args.draft), "output": None, "elements": 0, "relations": 0, "views": 0,
+                  "errors": errors, "warnings": warnings}
+        if args.spec.exists():
+            errors.append(f"{args.spec} existe déjà : --draft ne réécrit pas une description")
+        else:
+            base = args.draft.resolve().parent
+            title = args.title or (base.parent.name if base.name == "graphify-out" else base.name) or "Système"
+            spec = draft_from_graph(args.draft, title, errors, warnings)
+            if spec is not None:
+                errors += validate(spec, __file__)
+            if not errors:
+                args.spec.parent.mkdir(parents=True, exist_ok=True)
+                args.spec.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+                report.update(output=str(args.spec), elements=1 + len(spec["elements"][0]["elements"]),
+                              relations=len(spec["relations"]), views=len(spec["views"]))
+        print(json.dumps(report, ensure_ascii=False))
+        return 1 if errors else 0
     if bool(args.spec) == bool(args.from_options) or bool(args.from_options) != bool(args.option):
         parser.error("MODELE.json, ou --from-options options.json --option ID")
     source = args.spec or args.from_options

@@ -365,7 +365,10 @@ def build_routes(agents_meta: dict[str, dict]) -> str:
                           "stages": [s["id"] + (" (facultative)" if s.get("facultative") else "")
                                      for s in definition["stages"]],
                           "inputs": definition["stages"][0].get("inputs", []),
-                          "match": " ".join(s["label"] + " " + " ".join(s["skills"]) for s in definition["stages"])})
+                          # Les skills d'une étape confiée à un agent spécialisé (schema-designer...) restent à cet
+                          # agent : ils ne font pas concurrence à l'agent sur son propre vocabulaire.
+                          "match": " ".join(s["label"] + ("" if s.get("agent") else " " + " ".join(s.get("skills", [])))
+                                            for s in definition["stages"])})
     data = {
         "_doc": "Fichier généré par scripts/build.py depuis les contrats, les agents et les workflows : ne pas modifier.",
         "agents": [{"name": name, "level": contract["level"], "description": short(agents_meta[name]["description"]),

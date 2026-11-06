@@ -14,13 +14,14 @@ une fois, chaque vue en montre une partie.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture ; Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue.
+- **Entrées** : Décision de diagram-brief ; Code, configuration ou description de l'architecture ; pour un existant, le graphe du code de graphify (graph.json) ; Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue.
 - **Sorties** : Dossier LikeC4 : specification.c4 et model.c4 ; Un PNG par vue (après export).
-- **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`c4_build.py`** : Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé ; avec --draft graph.json, le brouillon de la description d'un existant tiré du graphe du code (graphify). Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : --from-options : valider options.json contre son schéma et reprendre une option.
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : valider le modèle et exporter les vues.
 - **Passe la main** au skill `excalidraw-diagram` : une vue est destinée à un public non technique.
+- **Passe la main** au skill externe `graphify` (installé à part, contrat `shared/external/graphify.contract.json`) : C4 d'un existant sans graphe du code : graphify extract <dossier> --code-only (analyse locale) produit graphify-out/graph.json, que --draft lit.
 
 ## 1. Choisir le niveau
 
@@ -82,7 +83,11 @@ uv run scripts/c4_build.py --from-options options.json --option A [--out-dir DOS
 - `--from-options` reprend une option d'`architecture-options` : personnes
   et externes autour d'un système `solution`, composants en conteneurs,
   flux en relations.
-- À partir du code : lisez les points d'entrée, la configuration (Docker
+- À partir du code, partez du graphe de graphify (analyse locale) :
+  `uv run scripts/c4_build.py c4.json --draft graphify-out/graph.json`
+  écrit le brouillon (un conteneur par dossier de premier niveau, ses
+  fichiers et sa technologie, les dépendances extraites entre dossiers).
+  Complétez-le en lisant les points d'entrée, la configuration (Docker
   Compose, manifestes Kubernetes, fichiers d'environnement) et les clients
   HTTP ou de messagerie pour trouver conteneurs et relations. Notez dans la
   réponse ce qui est déduit et ce qui reste à confirmer.

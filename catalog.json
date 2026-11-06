@@ -2141,7 +2141,7 @@
           "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--tender ao.json] [--strict] | --schema",
           "options": {
             "DOSSIER": "dossier du workflow",
-            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs)",
+            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs ; existant : dossier de l'existant, C4 constaté, modèle actuel, revue, découpage et trajectoire)",
             "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
             "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
             "--tender": "dépouillement ao.json de tender-response : mémoire technique, sections à thème dans l'ordre des critères, critère sans section et dépassement du budget de pages signalés",
@@ -4404,7 +4404,7 @@
       "level": "moyen",
       "inputs": [
         "Décision de diagram-brief",
-        "Code, configuration ou description de l'architecture",
+        "Code, configuration ou description de l'architecture ; pour un existant, le graphe du code de graphify (graph.json)",
         "Description JSON du modèle (c4_build.py --schema), ou options.json d'architecture-options et l'option retenue"
       ],
       "outputs": [
@@ -4414,15 +4414,17 @@
       "scripts": [
         {
           "name": "c4_build.py",
-          "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé.",
-          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | --schema",
+          "role": "Écrit le modèle LikeC4 (model.c4, specification.c4 de la charte) à partir d'une description JSON courte ou d'une option d'architecture-options, puis le vérifie : identifiants uniques, relations vers des éléments connus (avec la valeur proche), imbrication C4, vues de 20 éléments au plus, likec4 validate s'il est installé ; avec --draft graph.json, le brouillon de la description d'un existant tiré du graphe du code (graphify).",
+          "usage": "uv run scripts/c4_build.py MODELE.json [--out-dir DOSSIER] [--export png|svg] | --from-options options.json --option ID [--out-dir DOSSIER] [--export png|svg] | MODELE.json --draft graph.json [--title TITRE] | --schema",
           "options": {
             "MODELE.json": "description du modèle : title, elements (imbriqués), relations, views",
             "--from-options": "options.json d'architecture-options, au lieu de MODELE.json",
             "--option": "identifiant de l'option, avec --from-options",
             "--out-dir": "dossier LikeC4 (défaut : <nom>-c4 ou option-<id>-c4 à côté de l'entrée)",
             "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête",
-            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue"
+            "--export": "exporte aussi l'image (diagram-export) dans le même appel : rapport export, une erreur si l'export échoue",
+            "--draft": "graphe du code produit par graphify (graph.json, analyse locale) : écrit le brouillon de MODELE.json d'un existant (un conteneur par dossier de premier niveau, dépendances extraites entre dossiers), puis s'arrête ; refuse de réécrire une description",
+            "--title": "avec --draft : nom du système (défaut : nom du dossier analysé)"
           },
           "exit_codes": {
             "0": "modèle écrit et vérifié (avertissements possibles)",
@@ -4634,6 +4636,11 @@
           "to": "excalidraw-diagram",
           "kind": "skill",
           "when": "une vue est destinée à un public non technique"
+        },
+        {
+          "to": "graphify",
+          "kind": "externe",
+          "when": "C4 d'un existant sans graphe du code : graphify extract <dossier> --code-only (analyse locale) produit graphify-out/graph.json, que --draft lit"
         }
       ],
       "requires": [
@@ -6116,12 +6123,14 @@
       "level": "moyen",
       "inputs": [
         "Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources)",
-        "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
+        "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n",
+        "Pour un existant : le schéma SQL de la base actuelle (CREATE TABLE), lu par model_import.py"
       ],
       "outputs": [
         "<nom>.mmd : diagramme entité-relation Mermaid (erDiagram)",
         "<nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations)",
-        "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes)"
+        "<nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes)",
+        "modele.json : brouillon du modèle actuel tiré du schéma SQL (model_import.py), à relire puis construire"
       ],
       "scripts": [
         {
@@ -6387,6 +6396,92 @@
           "exit_codes": {
             "0": "diagramme, dictionnaire et DDL écrits, diagramme relu (avertissements possibles : entité isolée, n-n, données personnelles ou de santé, rendu non vérifié)",
             "1": "description invalide, nom ou champ en double, clé absente ou multiple, entité ou exigence citée absente ; aucun fichier produit"
+          }
+        },
+        {
+          "name": "model_import.py",
+          "role": "Écrit le brouillon de modele.json depuis le schéma SQL d'une base existante : une entité par table, un champ par colonne au type simple, une référence par clé étrangère (en ligne ou en contrainte de table), table d'association en relation n-n, données personnelles devinées par le nom des colonnes ; instruction illisible signalée avec sa ligne, clé primaire composée ou absente et clé étrangère vers une table absente signalées ; brouillon validé contre le schéma de model_build.py avant d'être écrit, jamais par-dessus une description existante.",
+          "usage": "uv run scripts/model_import.py SCHEMA.sql [...] [--out modele.json] [--title TITRE]",
+          "options": {
+            "SCHEMA.sql": "fichiers SQL (DDL : CREATE TABLE de PostgreSQL, MySQL, SQL Server, Oracle, SQLite) ou dossiers qui en contiennent",
+            "--out": "description écrite (défaut : modele.json à côté de la première source) ; refusée si elle existe",
+            "--title": "titre du modèle (défaut : « Modèle de données actuel »)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Brouillon écrit, compteurs, tables d'association et données personnelles devinées.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "inputs",
+                "output",
+                "tables",
+                "entities",
+                "relations",
+                "associations",
+                "personal_fields",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tables": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "entities": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "relations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "associations": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "tables d'association devenues relations n-n"
+                },
+                "personal_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Entité.champ devinés comme données personnelles, à relire"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "brouillon écrit et conforme au schéma de model_build.py",
+            "1": "source introuvable, aucun CREATE TABLE reconnu, instruction illisible, table en double, description existante ou brouillon non conforme ; rien n'est écrit"
           }
         }
       ],

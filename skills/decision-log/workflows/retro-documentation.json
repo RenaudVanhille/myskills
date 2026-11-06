@@ -1,0 +1,338 @@
+{
+  "name": "retro-documentation",
+  "title": "Rétro-documentation et modernisation d'une application existante",
+  "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le ou les dépôts de code (dossier code/, ou dépôts de la mission), le dossier du code d'infrastructure s'il n'est pas dans infra/, et le schéma SQL de la base s'il n'est pas dans base/ ; sans réponse : code/ seul, étapes infrastructure et donnees sautées"
+  ],
+  "memory": {
+    "requirements": "exigences.json"
+  },
+  "stages": [
+    {
+      "id": "code",
+      "label": "Graphe du code",
+      "level": "simple",
+      "skills": [],
+      "inputs": [
+        "code/**/*"
+      ],
+      "deliverables": [
+        "graphify-out/graph.json"
+      ],
+      "checks": [
+        "graphify (skill externe, analyse locale) : graphify extract code --code-only (un graphe par dépôt pour plusieurs dépôts : graphify-out/<dépôt>/graph.json)"
+      ],
+      "instructions": "Graphe du code produit en local par graphify, sans lire le code soi-même ; graphify absent : donner sa commande d'installation (contrat shared/external/graphify.contract.json) et s'arrêter. Les dépôts, leur commit et ce qui est exclu (tests, code généré) se notent au journal."
+    },
+    {
+      "id": "constat",
+      "label": "Architecture constatée",
+      "level": "moyen",
+      "after": [
+        "code"
+      ],
+      "skills": [
+        "c4-architecture"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "graphify-out/graph.json",
+        "code/**/*"
+      ],
+      "deliverables": [
+        "c4.json",
+        "c4/**/*.png"
+      ],
+      "checks": [
+        "c4-architecture : c4_build.py c4.json --draft graphify-out/graph.json (brouillon), puis c4_build.py c4.json --out-dir c4 --export png"
+      ],
+      "run": [
+        {
+          "skill": "c4-architecture",
+          "script": "c4_build.py",
+          "args": [
+            "c4.json",
+            "--out-dir",
+            "c4",
+            "--export",
+            "png"
+          ]
+        }
+      ],
+      "instructions": "Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, regrouper ou séparer les dossiers, ajouter personnes, bases, files et systèmes externes lus dans la configuration (connexions, clients HTTP, files de messages). Chaque élément ou relation ajouté sans trace dans le code se note au journal comme hypothèse ; à la revue, présenter ce qui est constaté et ce qui est déduit."
+    },
+    {
+      "id": "infrastructure",
+      "label": "Hébergement tiré de son code",
+      "level": "moyen",
+      "facultative": true,
+      "after": [
+        "code"
+      ],
+      "skills": [
+        "cloud-architecture"
+      ],
+      "inputs": [
+        "infra/**/*"
+      ],
+      "deliverables": [
+        "schemas/infrastructure.json"
+      ],
+      "optional": [
+        "schemas/infrastructure.drawio",
+        "schemas/infrastructure.drawio.png"
+      ],
+      "checks": [
+        "cloud-architecture : iac_import.py infra --out schemas/infrastructure.json, puis cloud_build.py schemas/infrastructure.json --export png"
+      ],
+      "run": [
+        {
+          "skill": "cloud-architecture",
+          "script": "cloud_build.py",
+          "args": [
+            "schemas/infrastructure.json",
+            "--export",
+            "png"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée s'il y a du code d'infrastructure (Terraform, CloudFormation, Bicep, docker-compose, Kubernetes) : l'utilisateur dit s'il la veut (start) ou non (skip). Compléter la description importée : acteurs externes, protocoles et ports, flux que le code ne montre pas ; chacun se note au journal comme hypothèse."
+    },
+    {
+      "id": "donnees",
+      "label": "Modèle de données actuel",
+      "level": "moyen",
+      "facultative": true,
+      "after": [
+        "code"
+      ],
+      "skills": [
+        "data-model"
+      ],
+      "inputs": [
+        "base/**/*.sql"
+      ],
+      "deliverables": [
+        "modele.json",
+        "modele.md"
+      ],
+      "optional": [
+        "modele.mmd",
+        "modele.sql"
+      ],
+      "checks": [
+        "data-model : model_import.py base --out modele.json (brouillon tiré du DDL), puis model_build.py modele.json"
+      ],
+      "run": [
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "args": [
+            "modele.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée si le schéma SQL de la base est fourni : l'utilisateur dit s'il la veut (start) ou non (skip). Ne pas réécrire le modèle : relire le brouillon (libellés, données personnelles devinées, clés composées ou absentes, références vers des tables hors du fichier) et noter chaque correction au journal."
+    },
+    {
+      "id": "domaines",
+      "label": "Domaines et style d'architecture",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "domain-design",
+        "data-model"
+      ],
+      "inputs": [
+        "c4.json",
+        "modele.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "domaines.json",
+        "domaines.md",
+        "domaines.styles.json",
+        "domaines.carte.drawio"
+      ],
+      "optional": [
+        "domaines.carte.json",
+        "domaines.carte.drawio.png",
+        "modele.json",
+        "modele.md",
+        "modele.mmd",
+        "modele.sql"
+      ],
+      "checks": [
+        "data-model : model_build.py modele.json (modèle actuel de l'étape donnees, s'il existe)",
+        "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
+      ],
+      "run": [
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "args": [
+            "modele.json"
+          ],
+          "if": "modele.json"
+        },
+        {
+          "skill": "domain-design",
+          "script": "domain_build.py",
+          "args": [
+            "domaines.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de domaines.json et se note au journal.",
+      "after": [
+        "constat",
+        "donnees"
+      ]
+    },
+    {
+      "id": "revue",
+      "label": "Revue de l'existant",
+      "level": "complexe",
+      "after": [
+        "constat",
+        "infrastructure",
+        "domaines"
+      ],
+      "skills": [
+        "architecture-review",
+        "threat-model",
+        "well-architected-review"
+      ],
+      "agent": "architecture-reviewer",
+      "inputs": [
+        "c4.json",
+        "graphify-out/graph.json",
+        "schemas/infrastructure.json",
+        "modele.json",
+        "domaines.json"
+      ],
+      "deliverables": [
+        "revue.json",
+        "revue.md"
+      ],
+      "optional": [
+        "schemas/infrastructure.threats.md",
+        "schemas/infrastructure.wa.md"
+      ],
+      "checks": [
+        "architecture-review : arch_review.py revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (code comparé à l'architecture : règles CODE- ; avec domaines.json, règles DOM-)",
+        "si l'infrastructure est décrite et que l'utilisateur veut les menaces : threat-model : stride.py schemas/infrastructure.json ; well-architected-review : wa_check.py schemas/infrastructure.json --out schemas/infrastructure.wa.md"
+      ],
+      "run": [
+        {
+          "skill": "architecture-review",
+          "script": "arch_review.py",
+          "args": [
+            "revue.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "revue.json reprend les conteneurs et relations de c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
+    },
+    {
+      "id": "trajectoire",
+      "label": "Trajectoire de modernisation",
+      "level": "moyen",
+      "facultative": true,
+      "after": [
+        "revue"
+      ],
+      "skills": [
+        "transition-roadmap"
+      ],
+      "inputs": [
+        "revue.md",
+        "domaines.json",
+        "domaines.styles.json"
+      ],
+      "deliverables": [
+        "feuille-de-route.json",
+        "feuille-de-route.md"
+      ],
+      "optional": [
+        "feuille-de-route.csv",
+        "feuille-de-route-*.png"
+      ],
+      "checks": [
+        "transition-roadmap : roadmap_build.py feuille-de-route.json (zéro erreur ; chemin critique et échéance)"
+      ],
+      "run": [
+        {
+          "skill": "transition-roadmap",
+          "script": "roadmap_build.py",
+          "args": [
+            "feuille-de-route.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse."
+    },
+    {
+      "id": "dossier",
+      "label": "Dossier de l'existant",
+      "level": "simple",
+      "facultative": true,
+      "after": [
+        "revue",
+        "trajectoire",
+        "donnees"
+      ],
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "c4/**/*.png",
+        "modele.md",
+        "revue.md",
+        "domaines.md",
+        "feuille-de-route.md",
+        "journal.md"
+      ],
+      "deliverables": [
+        "synthese.md",
+        "dossier-existant.md"
+      ],
+      "optional": [
+        "plan-actions.md",
+        "plan-actions.csv"
+      ],
+      "checks": [
+        "architecture-dossier : actions.py . (plan d'actions tiré de la revue)",
+        "architecture-dossier : dossier_build.py . --template existant --out dossier-existant.md --strict",
+        "si l'utilisateur veut un Word ou un PDF : passer dossier-existant.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "actions.py",
+          "args": [
+            "."
+          ],
+          "if": "revue.json"
+        },
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "existant",
+            "--out",
+            "dossier-existant.md",
+            "--strict"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée en dernier : l'utilisateur dit s'il la veut (start) ou non (skip). Écrire synthese.md (une page : périmètre analysé, architecture constatée, avis de la revue, dette et risques principaux, cible et trajectoire si elles sont faites) à partir des rapports des étapes, sans relire les livrables ; le reste est assemblé par le script."
+    }
+  ]
+}

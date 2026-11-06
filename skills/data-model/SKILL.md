@@ -14,9 +14,10 @@ dessine et écrit le SQL.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources) ; Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n.
-- **Sorties** : <nom>.mmd : diagramme entité-relation Mermaid (erDiagram) ; <nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations) ; <nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes).
+- **Entrées** : Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources) ; Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n ; Pour un existant : le schéma SQL de la base actuelle (CREATE TABLE), lu par model_import.py.
+- **Sorties** : <nom>.mmd : diagramme entité-relation Mermaid (erDiagram) ; <nom>.md : diagramme et dictionnaire de données (champs, types, clés, données personnelles, relations) ; <nom>.sql : schéma PostgreSQL (tables, clés primaires et étrangères, tables d'association des relations n-n ; avec le découpage, un schéma par contexte et aucune clé étrangère entre contextes) ; modele.json : brouillon du modèle actuel tiré du schéma SQL (model_import.py), à relire puis construire.
 - **`model_build.py`** : Contrôle noms uniques, une clé par entité, références et extrémités de relations, exigences citées ; avec le découpage (domains), contexte de chaque entité connu et conforme au propriétaire du découpage, liens entre contextes signalés avec la relation de la carte qui les porte ; signale entité isolée, relation n-n, données personnelles et de santé ; écrit le diagramme Mermaid, le dictionnaire de données et le DDL PostgreSQL (un schéma par contexte, référence sans clé étrangère entre contextes), puis relit le diagramme. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`model_import.py`** : Écrit le brouillon de modele.json depuis le schéma SQL d'une base existante : une entité par table, un champ par colonne au type simple, une référence par clé étrangère (en ligne ou en contrainte de table), table d'association en relation n-n, données personnelles devinées par le nom des colonnes ; instruction illisible signalée avec sa ligne, clé primaire composée ou absente et clé étrangère vers une table absente signalées ; brouillon validé contre le schéma de model_build.py avant d'être écrit, jamais par-dessus une description existante. Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `domain-design` (`domain_build.py`, facultatif : sans lui, avertissement) : valider le découpage en domaines (domains) contre son schéma.
 - **Passe la main** au skill `domain-design` : lien entre deux contextes qu'aucune relation de la carte ne porte, ou entité sans contexte propriétaire : revoir le découpage.
 - **Passe la main** au skill `data-protection` : le modèle contient des données personnelles : registre des traitements et AIPD.
@@ -53,6 +54,13 @@ d'`api.json`. Fichier `modele.json` (`uv run scripts/model_build.py
   `n-n` donne une table d'association.
 - **Données personnelles** : `personal` avec sa nature (identité, contact,
   santé, financier, localisation) ; la santé est une donnée sensible.
+
+### Modèle d'une base existante
+
+Pour un existant, ne réécrivez pas le modèle : `uv run
+scripts/model_import.py schema.sql --out modele.json` en tire le brouillon
+(tables, colonnes, clés, tables d'association en n-n, données personnelles
+devinées). Relisez les avertissements et les libellés, puis construisez.
 
 ### Un modèle par contexte borné
 

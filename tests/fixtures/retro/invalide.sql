@@ -1,0 +1,5 @@
+CREATE TABLE assure (
+  id UUID PRIMARY KEY,
+  nom VARCHAR(120)
+;
+CREATE TABLE assure (id INT PRIMARY KEY);
