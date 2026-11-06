@@ -48,7 +48,7 @@ ROUTES = Path(__file__).resolve().parent / "lib" / "routes.json"
 MISSION_BONUS = 2.0
 LAYA = Path(__file__).resolve().parent / "route_laya.py"
 # Candidats soumis à Laya (les premiers du classement par mots), et confiance qui fait passer son choix en tête.
-LAYA_CANDIDATES, LAYA_CONFIDENT = 6, 0.6
+LAYA_CANDIDATES, LAYA_CONFIDENT = 8, 0.6
 STOP = set("""a au aux avec ce ces cette d dans de des du elle en et est il je la le les leur lui ma mais me
 mes mon ne nos notre nous on ou par pas pour qu que qui sa se ses son sur ta te tes ton tu un une vos votre
 vous l j m n s t y fais faire faut peux veux voudrais besoin aide aider moi ici sont avoir etre tout tous plus

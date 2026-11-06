@@ -40,7 +40,7 @@ workflow (`kind: workflow`) se lance par son agent (`architecture-workflow`)
 en donnant son nom dans `constraints` du message de passage
 (`"workflow : <nom>"`). `--kind skills` liste aussi les skills.
 
-Avec `--laya`, le modèle local Laya choisit parmi les six premiers
+Avec `--laya`, le modèle local Laya choisit parmi les huit premiers
 candidats ; son choix passe en tête à partir de 0,6 de confiance (champ
 `laya` du rapport). Il est facultatif : sans Laya, le classement par mots
 reste. Réservez-le aux demandes sans mot commun avec les candidats. Le

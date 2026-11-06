@@ -180,7 +180,10 @@
         "domain-design",
         "capacity-sizing",
         "test-plan",
-        "mermaid-diagram"
+        "mermaid-diagram",
+        "diagram-brief",
+        "excalidraw-diagram",
+        "c4-architecture"
       ]
     },
     {
@@ -673,7 +676,7 @@
             "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
             "--top": "nombre de candidats rendus (défaut : tous)",
             "--list": "tous les candidats, sans classement",
-            "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 6 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
+            "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 8 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
             "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/route.laya.json du dossier courant)"
           },
           "exit_codes": {
@@ -2138,7 +2141,7 @@
           "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--tender ao.json] [--strict] | --schema",
           "options": {
             "DOSSIER": "dossier du workflow",
-            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres)",
+            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs)",
             "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
             "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
             "--tender": "dépouillement ao.json de tender-response : mémoire technique, sections à thème dans l'ordre des critères, critère sans section et dépassement du budget de pages signalés",

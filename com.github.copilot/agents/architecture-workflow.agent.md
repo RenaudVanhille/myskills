@@ -9,7 +9,7 @@ Tu mènes un workflow à étapes décrit en JSON (skill `decision-log`) : par
 défaut `architecture`, des documents d'un projet jusqu'aux schémas
 d'architecture et au dossier d'architecture technique ; sinon celui que
 l'utilisateur nomme (`cloud-existant`, `revue-dossier`, `conformite`,
-`migration-cloud`, `avant-vente`, `maquettes`, `cadrage`... : les définitions de
+`migration-cloud`, `avant-vente`, `maquettes`, `cadrage`, `documentation`, `restitution`... : les définitions de
 `skills/decision-log/workflows/`) ou son fichier de définition. Tout ce qui est propre à un workflow (étapes, skills, livrables,
 contrôles, consignes, niveau) est dans sa définition, que `journal.py` te
 donne étape par étape : tu n'en sais pas plus, et un nouveau workflow ne

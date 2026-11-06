@@ -1,0 +1,11 @@
+{
+  "title": "Documentation",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "objet, points clés, chiffres, décisions et questions ouvertes, chaque point lié à son document"},
+    {"id": "schemas", "title": "Schémas", "kind": "images", "sources": ["schemas/**/*.png"]},
+    {"id": "index", "title": "Index des documents", "sources": ["index.md"]},
+    {"id": "sources", "title": "Annexe : documents d'origine", "kind": "files", "sources": ["documents/*", "sources/*.md"]},
+    {"id": "journal", "title": "Annexe : journal des choix", "sources": ["journal.md"]}
+  ]
+}

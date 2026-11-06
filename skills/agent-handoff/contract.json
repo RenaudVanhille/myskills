@@ -90,7 +90,7 @@
         "--kind": "candidats : agents et workflows par défaut ; skills, ou all",
         "--top": "nombre de candidats rendus (défaut : tous)",
         "--list": "tous les candidats, sans classement",
-        "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 6 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
+        "--laya": "le modèle local Laya (route_laya.py) choisit parmi les 8 premiers candidats ; son choix passe en tête à partir de 0,6 de confiance ; repli sur le classement par mots sans Laya",
         "--laya-cache": "cache des réponses de Laya (défaut : .myskills-tmp/route.laya.json du dossier courant)"
       },
       "exit_codes": {

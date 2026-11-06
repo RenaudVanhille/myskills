@@ -197,6 +197,23 @@
    "match": "Catalogue des exigences doc-to-markdown requirements-catalog Description cloud cloud-architecture diagram-export Menaces STRIDE et qualification de l'hébergement threat-model well-architected-review Registre des traitements et AIPD data-protection Plan d'actions et dossier de conformité architecture-dossier"
   },
   {
+   "name": "documentation",
+   "agent": "architecture-workflow",
+   "title": "Des documents en vrac à une documentation : notes du vault, synthèse, schémas et document",
+   "description": "Workflow de documentation de l'agent architecture-workflow : documents hétérogènes (PDF, Office, images, vidéos) en Markdown, notes rangées dans le vault Obsidian avec leur index, synthèse pour le public visé dont chaque point cite son document, schémas au format choisi selon le public et la destination, puis un document assemblé à publier en Word, PDF ou Confluence ; une porte de revue par étape.",
+   "stages": [
+    "documents",
+    "notes (facultative)",
+    "synthese",
+    "schemas",
+    "document"
+   ],
+   "inputs": [
+    "documents/*"
+   ],
+   "match": "Documents en Markdown doc-to-markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé diagram-brief excalidraw-diagram mermaid-diagram drawio-diagram diagram-export Document assemblé architecture-dossier"
+  },
+  {
    "name": "maquettes",
    "agent": "architecture-workflow",
    "title": "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend",
@@ -230,6 +247,27 @@
     "sources/*.md"
    ],
    "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible cloud-architecture well-architected-review diagram-export Chiffrage de la migration solution-estimate cloud-cost Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
+  },
+  {
+   "name": "restitution",
+   "agent": "architecture-workflow",
+   "title": "Restitution d'une architecture retenue au comité ou aux décideurs",
+   "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), support de présentation et document assemblé ; une porte de revue par étape.",
+   "stages": [
+    "messages",
+    "schemas",
+    "presentation",
+    "document"
+   ],
+   "inputs": [
+    "../options.json",
+    "../decision.json",
+    "../exigences.json",
+    "../adr-architecture.md",
+    "../chiffrage.md",
+    "../revue.md"
+   ],
+   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé diagram-brief excalidraw-diagram c4-architecture mermaid-diagram drawio-diagram diagram-export Support de présentation architecture-deck Document de restitution architecture-dossier"
   },
   {
    "name": "revue-dossier",
