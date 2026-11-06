@@ -1,0 +1,17 @@
+{
+  "title": "Dossier d'évolution",
+  "sections": [
+    {"id": "synthese", "title": "Synthèse", "sources": ["synthese.md"], "required": true,
+     "help": "demande, exigences touchées, impacts (contrats, données, SI), option retenue, coût du changement, ruptures et conditions"},
+    {"id": "exigences", "title": "Écart d'exigences", "sources": ["ecarts-exigences.md"], "required": true,
+     "help": "requirements-catalog : req_diff.py ../exigences.json exigences.json --out ecarts-exigences.md"},
+    {"id": "contrats", "title": "Écart de contrat d'interface", "sources": ["ecarts-api.md"],
+     "help": "api-contract : api_diff.py ../api.json api.json --out ecarts-api.md"},
+    {"id": "donnees", "title": "Modèle de données modifié", "sources": ["modele.md"]},
+    {"id": "options", "title": "Options de mise en œuvre", "sources": ["options.md"]},
+    {"id": "decision", "title": "Décision", "sources": ["adr-*.md"]},
+    {"id": "chiffrage", "title": "Chiffrage du changement", "sources": ["chiffrage.md"]},
+    {"id": "schemas", "title": "Schémas", "kind": "images", "sources": ["schemas/*.png"]},
+    {"id": "journal", "title": "Annexe : journal des décisions", "sources": ["journal.md"]}
+  ]
+}
