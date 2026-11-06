@@ -11,7 +11,8 @@
     "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
     "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences",
     "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue",
-    "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)"
+    "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)",
+    "ecarts-api.md : ruptures et ajouts compatibles entre le contrat validé et sa copie de travail d'une évolution (api_diff.py)"
   ],
   "scripts": [
     {
@@ -993,6 +994,368 @@
       "exit_codes": {
         "0": "séquences écrites (rendu à vérifier avec diagram-export --check)",
         "1": "description invalide, mermaid-diagram absent, exigence de --only portée par aucune interface, aucune exigence citée, diagramme refusé par mermaid_build.py ; aucun fichier produit"
+      }
+    },
+    {
+      "name": "api_diff.py",
+      "role": "Compare l'api.json validé et sa copie de travail d'une évolution : ruptures de contrat (opération retirée, méthode ou chemin changé, requête ou réponse changée, champ retiré ou de type changé, champ rendu obligatoire dans une ressource reçue, valeur d'énumération retirée, événement retiré ou de canal, de charge ou de sens changés, sécurité changée) et ajouts compatibles ; version majeure à monter signalée s'il y a une rupture ; avec --start, copie la référence dans la copie de travail ; les deux descriptions sont validées contre le schéma d'api_build.py.",
+      "usage": "uv run scripts/api_diff.py REFERENCE.json COPIE.json [--schema] [--start] [--out ecarts-api.md]",
+      "options": {
+        "REFERENCE.json": "api.json validé (référence)",
+        "COPIE.json": "copie de travail qui reçoit les changements",
+        "--start": "copie la référence dans COPIE.json si elle manque, puis s'arrête",
+        "--out": "écart en Markdown (ruptures, ajouts compatibles)",
+        "--schema": "affiche le schéma JSON des descriptions comparées sur une ligne, puis s'arrête"
+      },
+      "report": {
+        "format": "json",
+        "description": "Versions, ruptures et ajouts compatibles.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reference",
+            "copy",
+            "output",
+            "versions",
+            "breaking",
+            "compatible",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "reference": {
+              "type": "string"
+            },
+            "copy": {
+              "type": "string"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "versions": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "copy"
+              ],
+              "properties": {
+                "reference": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "copy": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "breaking": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "where",
+                  "change"
+                ],
+                "properties": {
+                  "where": {
+                    "type": "string"
+                  },
+                  "change": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "compatible": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "where",
+                  "change"
+                ],
+                "properties": {
+                  "where": {
+                    "type": "string"
+                  },
+                  "change": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "écart calculé (et écrit avec --out), ou copie de travail créée avec --start",
+        "1": "description illisible ou non conforme au schéma d'api_build.py"
+      },
+      "input": {
+        "format": "json",
+        "description": "Deux descriptions d'interfaces au format d'api_build.py (référence et copie de travail), validées avant tout travail.",
+        "same_as": "api-contract/api_build.py",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "resources"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string"
+            },
+            "servers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "security": {
+              "enum": [
+                "oauth2",
+                "oidc",
+                "bearer",
+                "apikey",
+                "none"
+              ],
+              "description": "schéma de sécurité de toute l'API (défaut : none)"
+            },
+            "requirements": {
+              "type": "string",
+              "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+            },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "options",
+                "option"
+              ],
+              "description": "option d'architecture dont les composants portent les interfaces",
+              "properties": {
+                "options": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "option": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "resources": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "fields"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Za-z0-9]*$"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "fields": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                  },
+                  "required": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "enums": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "operations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "method",
+                  "path",
+                  "summary"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][A-Za-z0-9]*$"
+                  },
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT",
+                      "PATCH",
+                      "DELETE"
+                    ]
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "summary": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "request": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "response": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 599
+                  },
+                  "errors": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 400,
+                      "maximum": 599
+                    }
+                  },
+                  "query": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "component": {
+                    "type": "string",
+                    "description": "composant de l'option qui porte l'opération"
+                  },
+                  "public": {
+                    "type": "boolean",
+                    "description": "sans authentification, par choix"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences portées (identifiants d'exigences.json)"
+                  }
+                }
+              }
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "channel",
+                  "payload"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Za-z0-9]*$"
+                  },
+                  "channel": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "payload": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "action": {
+                    "enum": [
+                      "send",
+                      "receive"
+                    ]
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "component": {
+                    "type": "string"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "exigences portées (identifiants d'exigences.json)"
+                  }
+                }
+              }
+            }
+          },
+          "description": "Au moins une opération (operations) ou un événement (events)."
+        }
       }
     }
   ],

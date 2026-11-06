@@ -214,6 +214,26 @@
    "match": "Documents en Markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé Document assemblé architecture-dossier"
   },
   {
+   "name": "evolution",
+   "agent": "architecture-workflow",
+   "title": "Évolution d'une solution validée : écarts, impacts, décision et chiffrage du changement",
+   "description": "Workflow d'évolution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier aux étapes validées : demande de changement en Markdown, copie de travail du catalogue d'exigences et écart calculé (ajoutées, modifiées, retirées, contextes bornés touchés), au choix l'écart de contrat d'interface (ruptures et version à monter) et le modèle de données modifié, au choix 2 options de mise en œuvre situées dans le SI et la décision (ADR), au choix le chiffrage du seul changement, puis le dossier d'évolution ; une porte de revue par étape.",
+   "stages": [
+    "documents",
+    "exigences",
+    "contrats (facultative)",
+    "donnees (facultative)",
+    "options (facultative)",
+    "decision (facultative)",
+    "chiffrage (facultative)",
+    "dossier"
+   ],
+   "inputs": [
+    "documents/*"
+   ],
+   "match": "Demande en Markdown Écart d'exigences requirements-catalog Écart de contrat d'interface api-contract Modèle de données modifié data-model Options de mise en œuvre architecture-options urbanization-map well-architected-review Décision architecture-options Chiffrage du changement Dossier d'évolution architecture-dossier"
+  },
+  {
    "name": "maquettes",
    "agent": "architecture-workflow",
    "title": "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend",

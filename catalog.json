@@ -982,7 +982,8 @@
         "<nom>.asyncapi.yaml : contrat AsyncAPI 3.0 des événements",
         "<nom>.api.md : tableaux des opérations, événements et ressources, couverture des exigences",
         "<base>.lots.json et <base>.md (api_breakdown.py) : lots backend à trois points au format de solution-estimate, avec le réemploi déduit, et leur découpage pour la revue",
-        "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)"
+        "<nom>.seq-<exigence>.mmd et <nom>.sequences.md : un diagramme de séquence Mermaid par exigence portée (api_sequences.py)",
+        "ecarts-api.md : ruptures et ajouts compatibles entre le contrat validé et sa copie de travail d'une évolution (api_diff.py)"
       ],
       "scripts": [
         {
@@ -1965,6 +1966,368 @@
             "0": "séquences écrites (rendu à vérifier avec diagram-export --check)",
             "1": "description invalide, mermaid-diagram absent, exigence de --only portée par aucune interface, aucune exigence citée, diagramme refusé par mermaid_build.py ; aucun fichier produit"
           }
+        },
+        {
+          "name": "api_diff.py",
+          "role": "Compare l'api.json validé et sa copie de travail d'une évolution : ruptures de contrat (opération retirée, méthode ou chemin changé, requête ou réponse changée, champ retiré ou de type changé, champ rendu obligatoire dans une ressource reçue, valeur d'énumération retirée, événement retiré ou de canal, de charge ou de sens changés, sécurité changée) et ajouts compatibles ; version majeure à monter signalée s'il y a une rupture ; avec --start, copie la référence dans la copie de travail ; les deux descriptions sont validées contre le schéma d'api_build.py.",
+          "usage": "uv run scripts/api_diff.py REFERENCE.json COPIE.json [--schema] [--start] [--out ecarts-api.md]",
+          "options": {
+            "REFERENCE.json": "api.json validé (référence)",
+            "COPIE.json": "copie de travail qui reçoit les changements",
+            "--start": "copie la référence dans COPIE.json si elle manque, puis s'arrête",
+            "--out": "écart en Markdown (ruptures, ajouts compatibles)",
+            "--schema": "affiche le schéma JSON des descriptions comparées sur une ligne, puis s'arrête"
+          },
+          "report": {
+            "format": "json",
+            "description": "Versions, ruptures et ajouts compatibles.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "copy",
+                "output",
+                "versions",
+                "breaking",
+                "compatible",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string"
+                },
+                "copy": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "versions": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "reference",
+                    "copy"
+                  ],
+                  "properties": {
+                    "reference": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "copy": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "breaking": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "where",
+                      "change"
+                    ],
+                    "properties": {
+                      "where": {
+                        "type": "string"
+                      },
+                      "change": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "compatible": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "where",
+                      "change"
+                    ],
+                    "properties": {
+                      "where": {
+                        "type": "string"
+                      },
+                      "change": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "écart calculé (et écrit avec --out), ou copie de travail créée avec --start",
+            "1": "description illisible ou non conforme au schéma d'api_build.py"
+          },
+          "input": {
+            "format": "json",
+            "description": "Deux descriptions d'interfaces au format d'api_build.py (référence et copie de travail), validées avant tout travail.",
+            "same_as": "api-contract/api_build.py",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "resources"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "type": "string"
+                },
+                "servers": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "security": {
+                  "enum": [
+                    "oauth2",
+                    "oidc",
+                    "bearer",
+                    "apikey",
+                    "none"
+                  ],
+                  "description": "schéma de sécurité de toute l'API (défaut : none)"
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "chemin d'exigences.json (requirements-catalog), relatif à la description"
+                },
+                "source": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "options",
+                    "option"
+                  ],
+                  "description": "option d'architecture dont les composants portent les interfaces",
+                  "properties": {
+                    "options": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "option": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "resources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "fields"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "fields": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "champ -> type : string, integer, number, boolean, date, date-time, uuid, email, uri, binary, une ressource, ou X[]"
+                      },
+                      "required": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "enums": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "method",
+                      "path",
+                      "summary"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][A-Za-z0-9]*$"
+                      },
+                      "method": {
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE"
+                        ]
+                      },
+                      "path": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "request": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "response": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "status": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      },
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 400,
+                          "maximum": 599
+                        }
+                      },
+                      "query": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "component": {
+                        "type": "string",
+                        "description": "composant de l'option qui porte l'opération"
+                      },
+                      "public": {
+                        "type": "boolean",
+                        "description": "sans authentification, par choix"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "channel",
+                      "payload"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Z][A-Za-z0-9]*$"
+                      },
+                      "channel": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "payload": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "action": {
+                        "enum": [
+                          "send",
+                          "receive"
+                        ]
+                      },
+                      "summary": {
+                        "type": "string"
+                      },
+                      "component": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "exigences portées (identifiants d'exigences.json)"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "Au moins une opération (operations) ou un événement (events)."
+            }
+          }
         }
       ],
       "requires": [
@@ -2141,7 +2504,7 @@
           "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--tender ao.json] [--strict] | --schema",
           "options": {
             "DOSSIER": "dossier du workflow",
-            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs ; existant : dossier de l'existant, C4 constaté, modèle actuel, revue, découpage et trajectoire)",
+            "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs ; existant : dossier de l'existant, C4 constaté, modèle actuel, revue, découpage et trajectoire ; evolution : dossier d'une évolution, écarts d'exigences et de contrat, options, décision et chiffrage du changement)",
             "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
             "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
             "--tender": "dépouillement ao.json de tender-response : mémoire technique, sections à thème dans l'ordre des critères, critère sans section et dépassement du budget de pages signalés",
@@ -15594,7 +15957,8 @@
       ],
       "outputs": [
         "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme)",
-        "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)"
+        "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)",
+        "ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py)"
       ],
       "scripts": [
         {
@@ -16160,6 +16524,362 @@
             "0": "toutes les questions posées (une phrase sans réponse est un avertissement)",
             "1": "description invalide ou Laya indisponible"
           }
+        },
+        {
+          "name": "req_diff.py",
+          "role": "Compare le catalogue validé et sa copie de travail d'une évolution : exigences ajoutées, retirées (absentes ou sorties du périmètre retenu) et modifiées champ par champ (texte, priorité, mesure, catégorie, nature, domaine, titre), exigence ajoutée sans source signalée ; avec --domains, contextes bornés qui portent chaque exigence changée et exigence ajoutée sans contexte ; avec --start, copie la référence dans la copie de travail ; les deux catalogues sont validés contre le schéma de req_build.py.",
+          "usage": "uv run scripts/req_diff.py REFERENCE.json COPIE.json [--schema] [--start] [--domains domaines.json] [--out ecarts.md]",
+          "options": {
+            "REFERENCE.json": "catalogue validé (exigences.json de référence)",
+            "COPIE.json": "copie de travail qui reçoit les changements",
+            "--start": "copie la référence dans COPIE.json si elle manque, avec les documents cités par ses exigences (dans le dossier sources de la copie), puis s'arrête",
+            "--domains": "domaines.json (domain-design) : contextes bornés qui portent les exigences changées",
+            "--out": "écart en Markdown (ajoutées, modifiées, retirées)",
+            "--schema": "affiche le schéma JSON des descriptions comparées sur une ligne, puis s'arrête"
+          },
+          "report": {
+            "format": "json",
+            "description": "Exigences ajoutées, retirées, modifiées, changements champ par champ et contextes touchés.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "copy",
+                "output",
+                "added",
+                "removed",
+                "modified",
+                "changes",
+                "contexts",
+                "copied_sources",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string"
+                },
+                "copy": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "added": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "removed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "modified": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "field",
+                      "before",
+                      "after"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "field": {
+                        "type": "string"
+                      },
+                      "before": {},
+                      "after": {}
+                    }
+                  }
+                },
+                "contexts": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "description": "exigence changée -> contextes qui la portent (avec --domains)"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "copied_sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "avec --start : documents cités par la référence copiés dans les sources de la copie"
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "écart calculé (et écrit avec --out), ou copie de travail créée avec --start",
+            "1": "catalogue illisible ou non conforme au schéma de req_build.py, ou domaines.json invalide"
+          },
+          "input": {
+            "format": "json",
+            "description": "Deux catalogues d'exigences au format de req_build.py (référence et copie de travail), validés avant tout travail ; domaines.json (--domains) validé contre le schéma de domain_build.py.",
+            "same_as": "requirements-catalog/req_build.py",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "requirements"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "sources": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dossier des documents Markdown, relatif au .json (défaut : sources)."
+                },
+                "requirements": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "title",
+                      "text",
+                      "priority"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                      },
+                      "nature": {
+                        "enum": [
+                          "fonctionnelle",
+                          "non-fonctionnelle"
+                        ],
+                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "text": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "priority": {
+                        "enum": [
+                          "indispensable",
+                          "importante",
+                          "souhaitable",
+                          "hors-perimetre"
+                        ]
+                      },
+                      "domain": {
+                        "type": "string",
+                        "description": "Domaine fonctionnel (exigence fonctionnelle)."
+                      },
+                      "category": {
+                        "enum": [
+                          "performance",
+                          "disponibilite",
+                          "securite",
+                          "conformite",
+                          "exploitabilite",
+                          "maintenabilite",
+                          "evolutivite",
+                          "interoperabilite",
+                          "utilisabilite",
+                          "portabilite",
+                          "cout",
+                          "autre"
+                        ]
+                      },
+                      "metric": {
+                        "type": "string",
+                        "description": "Mesure vérifiable (exigence non fonctionnelle)."
+                      },
+                      "sources": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "doc"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "doc": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Chemin du Markdown, relatif au dossier sources."
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "Citation exacte, retrouvée par le script."
+                            },
+                            "page": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "derived": {
+                        "type": "string",
+                        "description": "Exigence sans citation : d'où elle est déduite."
+                      },
+                      "questions": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "status": {
+                        "enum": [
+                          "retenue",
+                          "retiree"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "Raison du retrait."
+                      }
+                    }
+                  }
+                },
+                "ignored": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "doc",
+                      "quote",
+                      "reason"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "doc": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "quote": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "glossary": {
+                  "type": "array",
+                  "description": "Glossaire du projet : termes métier et sigles employés par les exigences.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "term",
+                      "definition"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "term": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "definition": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "aliases": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Synonymes, sigle ou forme développée."
+                      },
+                      "sources": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "doc"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "doc": {
+                              "type": "string",
+                              "minLength": 1,
+                              "description": "Chemin du Markdown, relatif au dossier sources."
+                            },
+                            "quote": {
+                              "type": "string",
+                              "description": "Citation exacte, retrouvée par le script."
+                            },
+                            "page": {
+                              "type": [
+                                "integer",
+                                "string"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       ],
       "requires": [
@@ -16167,6 +16887,12 @@
           "skill": "check-prerequisites",
           "script": "lib/model_store.py",
           "why": "modèles locaux : cache vérifié et flux réseau filtrés (guard_network)"
+        },
+        {
+          "skill": "domain-design",
+          "script": "domain_build.py",
+          "why": "req_diff.py --domains : valider domaines.json contre son schéma",
+          "optional": true
         }
       ],
       "handoffs": [
