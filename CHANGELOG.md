@@ -1,5 +1,21 @@
 # Journal des versions
 
+## [0.12.0](https://github.com/RenaudVanhille/myskills/compare/v0.11.0...v0.12.0) (2026-11-06)
+
+
+### Ajouts
+
+* **architecture-workflow:** workflow évolution, écarts d'exigences et de contrat ([#69](https://github.com/RenaudVanhille/myskills/issues/69)) ([fe3db13](https://github.com/RenaudVanhille/myskills/commit/fe3db13a55bbb1b94eb57fa53db1049b83feb5c4))
+* **architecture-workflow:** workflow rétro-documentation, modèle tiré du SQL et C4 tiré du code ([#68](https://github.com/RenaudVanhille/myskills/issues/68)) ([0bd5822](https://github.com/RenaudVanhille/myskills/commit/0bd5822fd4f05dcc823eb374b70181391d38a612))
+* **architecture-workflow:** workflows documentation et restitution ([#67](https://github.com/RenaudVanhille/myskills/issues/67)) ([5c4593c](https://github.com/RenaudVanhille/myskills/commit/5c4593c02666518d20cf5a321c9161bb0bc5b829))
+* **data-model:** domaines avant le modèle de données, un modèle par contexte borné ([#66](https://github.com/RenaudVanhille/myskills/issues/66)) ([28a8c84](https://github.com/RenaudVanhille/myskills/commit/28a8c847d3ef3a706da87bbf320f221b1386261c))
+* **domain-design:** domaines DDD, choix monolithe modulaire ou microservices, règles DOM- ([#64](https://github.com/RenaudVanhille/myskills/issues/64)) ([ffa5550](https://github.com/RenaudVanhille/myskills/commit/ffa555055f6e652679a07441e4276551064eebd7))
+
+
+### Documentation
+
+* **architecture-workflow:** page explicative et schéma de chaque workflow ([#70](https://github.com/RenaudVanhille/myskills/issues/70)) ([b2fd6be](https://github.com/RenaudVanhille/myskills/commit/b2fd6be553be9dca58836a288624e2477e7180f7))
+
 ## [0.11.0](https://github.com/RenaudVanhille/myskills/compare/v0.10.0...v0.11.0) (2026-11-04)
 
 
