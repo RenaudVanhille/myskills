@@ -1,0 +1,203 @@
+{
+ "title": "Modèle de données du portail sinistres par contexte",
+ "requirements": "../workflow/exigences.json",
+ "domains": "domaines.json",
+ "entities": [
+  {
+   "name": "Assure",
+   "context": "contrats",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "nom",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Contrat",
+   "context": "contrats",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "numero",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Garantie",
+   "context": "contrats",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "code",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Declaration",
+   "context": "declaration",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "nature",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Piece",
+   "context": "indemnisation",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "fichier",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Dossier",
+   "context": "indemnisation",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "etat",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Expertise",
+   "context": "indemnisaton",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "conclusion",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Reglement",
+   "context": "indemnisation",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "montant",
+     "type": "string"
+    }
+   ]
+  },
+  {
+   "name": "Notification",
+   "fields": [
+    {
+     "name": "id",
+     "type": "uuid",
+     "key": true
+    },
+    {
+     "name": "canal",
+     "type": "string"
+    }
+   ]
+  }
+ ],
+ "relations": [
+  {
+   "from": "Assure",
+   "to": "Contrat",
+   "kind": "1-n",
+   "label": "souscrit"
+  },
+  {
+   "from": "Contrat",
+   "to": "Garantie",
+   "kind": "1-n",
+   "label": "couvre"
+  },
+  {
+   "from": "Assure",
+   "to": "Declaration",
+   "kind": "1-n",
+   "label": "déclare"
+  },
+  {
+   "from": "Declaration",
+   "to": "Piece",
+   "kind": "1-n",
+   "label": "joint"
+  },
+  {
+   "from": "Declaration",
+   "to": "Dossier",
+   "kind": "1-1",
+   "label": "ouvre"
+  },
+  {
+   "from": "Dossier",
+   "to": "Expertise",
+   "kind": "1-n",
+   "label": "demande"
+  },
+  {
+   "from": "Dossier",
+   "to": "Reglement",
+   "kind": "1-n",
+   "label": "donne lieu à"
+  },
+  {
+   "from": "Contrat",
+   "to": "Declaration",
+   "kind": "1-n",
+   "label": "garantit"
+  },
+  {
+   "from": "Assure",
+   "to": "Notification",
+   "kind": "1-n",
+   "label": "reçoit"
+  },
+  {
+   "from": "Garantie",
+   "to": "Reglement",
+   "kind": "1-n",
+   "label": "plafonne"
+  }
+ ]
+}

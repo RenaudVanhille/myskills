@@ -1,7 +1,7 @@
 {
   "name": "avant-vente",
   "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
-  "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+  "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, découpage en domaines facultatif, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
@@ -135,6 +135,59 @@
       ]
     },
     {
+      "id": "domaines",
+      "label": "Domaines et style d'architecture",
+      "level": "complexe",
+      "facultative": true,
+      "skills": [
+        "domain-design",
+        "data-model"
+      ],
+      "inputs": [
+        "exigences.json"
+      ],
+      "deliverables": [
+        "domaines.json",
+        "domaines.md",
+        "domaines.styles.json",
+        "domaines.carte.drawio"
+      ],
+      "optional": [
+        "domaines.carte.json",
+        "domaines.carte.drawio.png",
+        "modele.json",
+        "modele.md",
+        "modele.mmd",
+        "modele.sql"
+      ],
+      "checks": [
+        "data-model : model_build.py modele.json (seulement sur un existant : modèle de données actuel, preuve du couplage réel)",
+        "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
+      ],
+      "run": [
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "args": [
+            "modele.json"
+          ],
+          "if": "modele.json"
+        },
+        {
+          "skill": "domain-design",
+          "script": "domain_build.py",
+          "args": [
+            "domaines.json"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels ou que le dossier de consultation demande un style (microservices, monolithe modulaire) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : sur un projet neuf, le modèle de données de chaque contexte vient après (data-model, champ context) ; sur un existant, le modèle actuel (model) mesure le couplage réel ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de domaines.json et se note au journal.",
+      "after": [
+        "exigences"
+      ]
+    },
+    {
       "id": "architectures",
       "label": "Options d'architecture",
       "level": "complexe",
@@ -145,7 +198,9 @@
       ],
       "inputs": [
         "exigences.json",
-        "documents/pos*"
+        "documents/pos*",
+        "domaines.json",
+        "domaines.styles.json"
       ],
       "deliverables": [
         "options.json",
@@ -170,10 +225,11 @@
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. À la revue, présenter l'option recommandée et le choix à faire.",
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire.",
       "after": [
         "exigences",
-        "qualification"
+        "qualification",
+        "domaines"
       ]
     },
     {
@@ -203,7 +259,8 @@
       ],
       "optional": [
         "tracabilite.csv",
-        "schemas/option-*.drawio", "schemas/option-*.conventions.md",
+        "schemas/option-*.drawio",
+        "schemas/option-*.conventions.md",
         "schemas/pos-option-*.drawio",
         "api/*"
       ],
@@ -250,7 +307,9 @@
           "args": [
             "{file}",
             "--scope",
-            "conventions", "--out", "schemas/{name}.conventions.md"
+            "conventions",
+            "--out",
+            "schemas/{name}.conventions.md"
           ],
           "foreach": "schemas/option-*.cloud.json"
         },

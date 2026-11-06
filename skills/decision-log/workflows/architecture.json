@@ -92,7 +92,7 @@
         "modele.sql"
       ],
       "checks": [
-        "data-model : model_build.py modele.json (entités et relations, si l'utilisateur veut un découpage argumenté par les données)",
+        "data-model : model_build.py modele.json (seulement sur un existant : modèle de données actuel, preuve du couplage réel)",
         "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
       ],
       "run": [
@@ -113,7 +113,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences et du glossaire ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de domaines.json et se note au journal."
+      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : sur un projet neuf, le modèle de données de chaque contexte vient après (data-model, champ context) ; sur un existant, le modèle actuel (model) mesure le couplage réel ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de domaines.json et se note au journal."
     },
     {
       "id": "architectures",
@@ -183,7 +183,8 @@
       ],
       "optional": [
         "tracabilite.csv",
-        "schemas/option-*.drawio", "schemas/option-*.conventions.md",
+        "schemas/option-*.drawio",
+        "schemas/option-*.conventions.md",
         "schemas/pos-option-*.drawio",
         "presentation.md",
         "api/*"
@@ -232,7 +233,9 @@
           "args": [
             "{file}",
             "--scope",
-            "conventions", "--out", "schemas/{name}.conventions.md"
+            "conventions",
+            "--out",
+            "schemas/{name}.conventions.md"
           ],
           "foreach": "schemas/option-*.cloud.json"
         },

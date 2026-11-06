@@ -2,7 +2,7 @@
   "skill": "domain-design",
   "level": "complexe",
   "inputs": [
-    "Les exigences (exigences.json de requirements-catalog) et, s'il existe, le modèle de données (modele.json de data-model)",
+    "Les exigences (exigences.json de requirements-catalog) et, sur un existant, le modèle de données actuel (modele.json de data-model)",
     "Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style"
   ],
   "outputs": [
@@ -57,7 +57,7 @@
             "model": {
               "type": "string",
               "minLength": 1,
-              "description": "description du modèle de données (data-model, modele.json), relative à la description : entités et relations pour la propriété et le couplage"
+              "description": "description d'un modèle de données existant (data-model, modele.json), relative à la description : entités et relations pour la propriété et le couplage. Sur un projet neuf, le découpage vient d'abord et le modèle de chaque contexte ensuite (data-model, champ context) : sans modèle, le couplage se calcule sur les entités possédées et utilisées"
             },
             "subdomains": {
               "type": "array",
@@ -419,9 +419,10 @@
               "required": [
                 "relations",
                 "cross",
-                "ratio"
+                "ratio",
+                "basis"
               ],
-              "description": "liens de données (relations du modèle et entités utilisées) : total, entre contextes, part",
+              "description": "liens de données (relations du modèle et entités utilisées ; sans modèle, entités possédées et utilisées) : total, entre contextes, part, base du calcul",
               "properties": {
                 "relations": {
                   "type": "integer",
@@ -435,6 +436,13 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 1
+                },
+                "basis": {
+                  "enum": [
+                    "modele",
+                    "contextes"
+                  ],
+                  "description": "base du calcul : relations du modèle de données (modele), ou entités possédées et utilisées sans modèle (contextes)"
                 }
               }
             },
@@ -579,7 +587,7 @@
     {
       "to": "data-model",
       "kind": "skill",
-      "when": "le modèle de données manque : entités et relations d'abord, pour la propriété et le couplage"
+      "when": "découpage validé : modèle de données de chaque contexte (champ context des entités, schéma par contexte, clé étrangère entre contextes signalée)"
     },
     {
       "to": "architecture-options",

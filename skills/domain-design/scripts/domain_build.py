@@ -14,7 +14,8 @@ et non le modèle :
 - vérifie qu'une entité n'a qu'un contexte propriétaire et qu'un contexte
   n'utilise que des entités possédées ailleurs ;
 - calcule la cohésion de chaque contexte et le couplage entre contextes
-  (relations du modèle de données et entités utilisées), repère les
+  (relations du modèle de données et entités utilisées ; sans modèle,
+  entités possédées et entités utilisées), repère les
   dépendances absentes de la carte, les cycles, le noyau partagé, les
   exigences fonctionnelles sans contexte ;
 - calcule le style recommandé avec la grille (équipes, contextes, besoins
@@ -225,6 +226,11 @@ def analyse(spec: dict, base: Path) -> dict:
             stats[a]["external"] += 1
             stats[b]["external"] += 1
             links[frozenset((a, b))] = links.get(frozenset((a, b)), 0) + 1
+    if model is None:
+        # Sans modèle de données (cas d'un projet neuf : domaines d'abord, modèle par contexte ensuite),
+        # chaque entité possédée compte comme un lien interne à son contexte.
+        for ctx in spec["contexts"]:
+            stats[ctx["id"]]["internal"] += len(ctx.get("entities", []))
     # Une entité utilisée compte comme lien quand le modèle ne relie pas déjà les deux contextes.
     for ctx in spec["contexts"]:
         for name in ctx.get("uses", []):
@@ -281,7 +287,8 @@ def analyse(spec: dict, base: Path) -> dict:
         warnings.append(f"decision : style {STYLES[decision['style']]} retenu contre la recommandation "
                         f"({STYLES[style['recommended']]}) : raison à noter au journal")
     return {"errors": errors, "warnings": warnings, "owner": owner, "links": links, "stats": stats,
-            "coupling": {"relations": total, "cross": cross, "ratio": ratio}, "cycles": loops, "style": style,
+            "coupling": {"relations": total, "cross": cross, "ratio": ratio,
+                         "basis": "modele" if model is not None else "contextes"}, "cycles": loops, "style": style,
             "catalog": reqs, "model": model}
 
 
@@ -479,7 +486,10 @@ def markdown(spec: dict, found: dict) -> str:
     coupling = found["coupling"]
     lines += ["", "## Couplage", "",
               f"{v.count(coupling['cross'], 'lien')} de données entre contextes sur {v.number(coupling['relations'])} "
-              f"(part {v.number(coupling['ratio'], 2)} ; fort au-delà de {v.number(COUPLED, 2)}).", ""]
+              f"(part {v.number(coupling['ratio'], 2)} ; fort au-delà de {v.number(COUPLED, 2)}), "
+              + ("relations du modèle de données et entités utilisées." if coupling["basis"] == "modele" else
+                 "entités possédées et entités utilisées, sans modèle de données : le modèle de chaque contexte "
+                 "vient après le découpage (data-model, champ context)."), ""]
     if found["links"]:
         lines += ["| Contextes | Liens de données |", "| --- | --- |"]
         order = [c["id"] for c in ctxs]

@@ -14,7 +14,7 @@ le style, dessine et écrit.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : complexe (modèle puissant).
-- **Entrées** : Les exigences (exigences.json de requirements-catalog) et, s'il existe, le modèle de données (modele.json de data-model) ; Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style.
+- **Entrées** : Les exigences (exigences.json de requirements-catalog) et, sur un existant, le modèle de données actuel (modele.json de data-model) ; Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style.
 - **Sorties** : <nom>.md : style recommandé et grille, sous-domaines, contextes et leur langage, carte des contextes, couplage, points d'attention ; <nom>.styles.json : composants et flux du monolithe modulaire, du mixte et des microservices, au format d'options.json ; <nom>.carte.drawio : carte des contextes (une colonne par sous-domaine), et son image avec --export.
 - **`domain_build.py`** : Vérifie sous-domaines, contextes, exigences et entités citées, un seul contexte propriétaire par entité ; calcule cohésion et couplage entre contextes, signale dépendance absente de la carte, cycle, noyau partagé, exigence fonctionnelle sans contexte ; calcule le style recommandé (monolithe modulaire, mixte, microservices) et les contextes à extraire avec la grille ; écrit le document, les squelettes de composants vérifiés contre le schéma d'options.json et la carte des contextes contrôlée par drawio_build.py. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
@@ -24,7 +24,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
 - **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `decoupage-domaines`, `contexte-borne`, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
-- **Passe la main** au skill `data-model` : le modèle de données manque : entités et relations d'abord, pour la propriété et le couplage.
+- **Passe la main** au skill `data-model` : découpage validé : modèle de données de chaque contexte (champ context des entités, schéma par contexte, clé étrangère entre contextes signalée).
 - **Passe la main** au skill `architecture-options` : options à comparer : partir des squelettes de <nom>.styles.json (style recommandé et une alternative).
 - **Passe la main** au skill `api-contract` : contrats des relations de la carte (API de l'amont, événements publiés).
 - **Passe la main** au skill `architecture-review` : contrôler une architecture contre le découpage (domains, règles DOM-).
@@ -34,10 +34,13 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 ## 1. Découper
 
 Partez des exigences fonctionnelles (`exigences.json`, leur `domain`), du
-glossaire et, s'il existe, du modèle de données (`modele.json` de
-`data-model` ; sans lui, la propriété des entités et le couplage ne se
-calculent pas : passez d'abord par `data-model` si l'utilisateur veut un
-découpage argumenté).
+glossaire et des processus métier, pas des tables : un découpage tiré des
+données donne des services « par entité », couplés par chaque processus.
+Sur un projet neuf, le découpage vient d'abord et le modèle de données de
+chaque contexte ensuite (`data-model`, champ `context`) ; le couplage se
+calcule alors sur les entités possédées et utilisées. Sur un existant, le
+modèle actuel (`model` : `modele.json` de `data-model`) mesure le couplage
+réel par ses relations.
 
 - **Sous-domaines** : `coeur` (ce qui différencie le métier, développé),
   `support` (nécessaire et spécifique), `generique` (à acheter ou réutiliser).

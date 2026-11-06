@@ -1013,7 +1013,7 @@
       "agent": "architecture-workflow",
       "prompt": "Nouvelle avant-vente « Portail sinistres » pour la Mutuelle exemple : ouvre la mission dans ce dossier (le dossier de consultation est dans documents/), puis lance le workflow avant-vente, sans POS.",
       "rounds": {
-        "next": "Je valide, sans autre retour. On répond (go). Pour le choix d'option, je retiens celle que tu recommandes. J'accepte les constats et écarts restants comme risques connus, raison : avant-vente, corrections suivies au plan d'actions ; ne modifie pas les étapes déjà validées. Je veux toutes les étapes facultatives, sauf les maquettes : il n'y en a pas ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
+        "next": "Je valide, sans autre retour. On répond (go). Pour le choix d'option, je retiens celle que tu recommandes. J'accepte les constats et écarts restants comme risques connus, raison : avant-vente, corrections suivies au plan d'actions ; ne modifie pas les étapes déjà validées. Je veux toutes les étapes facultatives, sauf les maquettes (il n'y en a pas) et les domaines (un seul domaine fonctionnel) ; pour le chiffrage, prends des hypothèses et note-les au journal. Continue avec toutes les étapes prêtes.",
         "max": 14
       },
       "inputs": [

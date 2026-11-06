@@ -119,12 +119,13 @@
    "name": "avant-vente",
    "agent": "architecture-workflow",
    "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
-   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
+   "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, découpage en domaines facultatif, 2 ou 3 options et la décision, puis matrice de conformité, chiffrage et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
    "stages": [
     "documents",
     "depouillement (facultative)",
     "qualification (facultative)",
     "exigences",
+    "domaines (facultative)",
     "architectures",
     "schemas",
     "conformite (facultative)",
@@ -139,17 +140,18 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Découpage et lots backend api-contract Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown doc-to-markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas architecture-options drawio-diagram cloud-architecture well-architected-review urbanization-map diagram-export api-contract Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend mockup-to-html design-system Découpage et lots backend api-contract Chiffrage de l'option retenue solution-estimate cloud-cost Revue d'architecture architecture-review threat-model well-architected-review Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",
    "agent": "architecture-workflow",
    "title": "Cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette",
-   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, options d'architecture, puis en parallèle modèle de données, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
    "stages": [
     "documents",
     "comptes-rendus (facultative)",
     "exigences",
+    "domaines (facultative)",
     "modele-donnees",
     "architectures",
     "dimensionnement",
@@ -159,7 +161,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown doc-to-markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
+   "match": "Documents en Markdown doc-to-markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
   },
   {
    "name": "cloud-existant",
@@ -376,7 +378,7 @@
    "level": "moyen",
    "description": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées.",
    "inputs": [
-    "Les exigences (exigences.json de requirements-catalog), le glossaire et, s'il existe, api.json d'api-contract (ressources)",
+    "Les exigences (exigences.json de requirements-catalog), le glossaire, le découpage en domaines s'il existe (domaines.json de domain-design : un modèle par contexte borné) et, s'il existe, api.json d'api-contract (ressources)",
     "Description JSON du modèle (model_build.py --schema) : entités, champs typés, clés, données personnelles, relations 1-1, 1-n, n-n"
    ],
    "match": "Modèle de données conceptuel et logique tiré des exigences, du glossaire et des interfaces : entités, champs typés, clés, relations 1-1, 1-n, n-n, données personnelles et de santé repérées. Le script contrôle le modèle et écrit le diagramme entité-relation Mermaid, le dictionnaire de données et le schéma PostgreSQL (clés étrangères, tables d'association). À utiliser pour un modèle de données, un MCD ou MLD, un diagramme entité-relation, un dictionnaire de données ou un DDL de départ."
@@ -452,7 +454,7 @@
    "level": "complexe",
    "description": "Définit les domaines d'une solution selon le DDD stratégique : sous-domaines cœur, support et génériques, contextes bornés (entités possédées, exigences, équipe, langage), carte des contextes (client-fournisseur, couche anticorruption, événements...).",
    "inputs": [
-    "Les exigences (exigences.json de requirements-catalog) et, s'il existe, le modèle de données (modele.json de data-model)",
+    "Les exigences (exigences.json de requirements-catalog) et, sur un existant, le modèle de données actuel (modele.json de data-model)",
     "Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style"
    ],
    "match": "Définit les domaines d'une solution selon le DDD stratégique : sous-domaines cœur, support et génériques, contextes bornés (entités possédées, exigences, équipe, langage), carte des contextes (client-fournisseur, couche anticorruption, événements...). Le script contrôle le découpage, calcule cohésion et couplage, recommande le style par une grille (monolithe modulaire, mixte ou microservices, et seulement si le projet s'y prête), dessine la carte en draw.io et prépare les composants de chaque style pour architecture-options. À utiliser pour découper un domaine, définir des bounded contexts, décider monolithe ou microservices."
