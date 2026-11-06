@@ -205,7 +205,8 @@ Le moteur `architecture-workflow` suit une définition JSON
 spécialisé. Les agents orchestrent et valident ; les skills font le travail
 par leurs scripts. Le vault Obsidian de la mission sert de mémoire partagée
 entre les étapes et les agents. Chaque passage de main est un message JSON
-validé (skill `agent-handoff`).
+validé (skill `agent-handoff`). Chaque workflow a sa page explicative,
+avec le schéma de ses étapes : [`docs/workflows/`](docs/workflows/README.md).
 
 ```mermaid
 ---
@@ -428,7 +429,8 @@ dans un sous-agent du niveau de son travail, avec un contexte court.
   skill qui l'écrit le déclare dans `vault.writes` de son contrat.
 - **Workflow** : une définition JSON dans `skills/decision-log/workflows/`
   (étapes avec niveau, skills, livrables, contrôles, consignes, mémoire du
-  vault) ; l'agent `architecture-workflow` la suit sans modification.
+  vault) ; l'agent `architecture-workflow` la suit sans modification, et
+  `build.py` en tire sa page dans `docs/workflows/`.
 
 Les règles complètes sont dans [`AGENTS.md`](AGENTS.md).
 

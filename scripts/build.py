@@ -19,6 +19,7 @@ le résultat : les outils installent le plugin depuis le dépôt.
     skills/drawio-diagram/scripts/lib/charter.json  couleurs de la charte (shared/references/style.md)
     sections « Contrat »                  SKILL.md et src/agents/*.md, depuis les contract.json
     CATALOG.md, catalog.json              catalogue des agents et des skills
+    docs/workflows/*.md                   une page par workflow avec son schéma, depuis leurs définitions JSON
     skills/agent-handoff/scripts/lib/routes.json  catalogue réduit au routage (route.py, agent orientation)
     .claude-plugin/*.json                 manifestes Claude Code, depuis plugin.json (version comprise)
 
@@ -33,6 +34,7 @@ from contracts_lib import (agent_contracts, agent_enums, build_catalog_json, bui
                            generated_libs, gitattributes,
                            plugin_manifests, render_agent as render_agent_contract, render_skill, replace_section,
                            shared_inputs, skill_contracts)
+from workflow_docs import DOCS, workflow_docs
 
 
 def write_contract_sections() -> None:
@@ -87,8 +89,11 @@ def main() -> None:
     write_text(REPO / "CATALOG.md", build_catalog_md(agents_meta))
     write_text(REPO / "catalog.json", build_catalog_json(agents_meta))
     write_text(REPO / "skills" / "agent-handoff" / "scripts" / "lib" / "routes.json", build_routes(agents_meta))
+    shutil.rmtree(DOCS, ignore_errors=True)
+    for path, text in workflow_docs().items():
+        write_text(path, text)
 
-    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, .claude-plugin/, CATALOG.md et catalog.json.")
+    print("Plugin régénéré. Pensez à committer agents/, com.github.copilot/, skills/, src/agents/, .claude-plugin/, docs/, CATALOG.md et catalog.json.")
 
 
 if __name__ == "__main__":
