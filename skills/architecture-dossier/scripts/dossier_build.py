@@ -148,7 +148,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("folder", type=Path, nargs="?", help="dossier du workflow (livrables validés)")
     parser.add_argument("--template", type=Path, help="gabarit des sections : fichier JSON, ou nom d'un gabarit livré "
-                                                      "(dat, défaut ; avis : avis sur un dossier reçu ; conformite : dossier de conformité ; migration : dossier de migration ; memoire : mémoire technique)")
+                                                      "(dat, défaut ; avis : avis sur un dossier reçu ; conformite : dossier de conformité ; migration : dossier de migration ; memoire : mémoire technique ; documentation ; restitution)")
     parser.add_argument("--out", type=Path, help="dossier produit (défaut : DOSSIER/dossier-architecture.md)")
     parser.add_argument("--title", help="titre du dossier (défaut : titre du workflow, sinon celui du gabarit)")
     parser.add_argument("--tender", type=Path,

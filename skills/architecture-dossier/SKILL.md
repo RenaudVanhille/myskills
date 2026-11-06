@@ -52,7 +52,11 @@ menaces, Well-Architected et documents reçus. `--template conformite`
 plan d'actions, exigences, menaces, Well-Architected, registre des
 traitements et AIPD. `--template migration` (workflow `migration-cloud`,
 avec `--out dossier-migration.md`) : synthèse, évaluation 6R, feuille de
-route, cible et chiffrage. `--template memoire --tender ao.json` (workflow
+route, cible et chiffrage. `--template documentation` (workflow
+`documentation`, `--out documentation.md`) : synthèse, schémas, index et
+documents d'origine. `--template restitution` (workflow `restitution`,
+`--out restitution.md`) : décision attendue, vue d'ensemble et support en
+annexe. `--template memoire --tender ao.json` (workflow
 `avant-vente`, avec `--out memoire-technique.md`) : le mémoire technique
 d'une réponse à appel d'offres ; vous écrivez dans `memoire/` une section
 par thème des critères (`comprehension`, `solution`, `securite`,

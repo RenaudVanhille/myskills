@@ -1,0 +1,229 @@
+{
+  "name": "documentation",
+  "title": "Des documents en vrac à une documentation : notes du vault, synthèse, schémas et document",
+  "description": "Workflow de documentation de l'agent architecture-workflow : documents hétérogènes (PDF, Office, images, vidéos) en Markdown, notes rangées dans le vault Obsidian avec leur index, synthèse pour le public visé dont chaque point cite son document, schémas au format choisi selon le public et la destination, puis un document assemblé à publier en Word, PDF ou Confluence ; une porte de revue par étape.",
+  "ask": [
+    "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
+    "le public du document (technique, non technique, mixte) et sa destination (Markdown, Obsidian, Word, PDF, Confluence, PowerPoint) ; sans réponse : public mixte et Word, hypothèse notée au journal"
+  ],
+  "stages": [
+    {
+      "id": "documents",
+      "label": "Documents en Markdown",
+      "level": "simple",
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "agent": "document-extractor",
+      "inputs": [
+        "documents/*"
+      ],
+      "deliverables": [
+        "sources/*.md"
+      ],
+      "checks": [
+        "doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources"
+      ],
+      "instructions": "Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Les pages de vision_pages sont transcrites par la vision ; à partir de 5 documents à transcrire, passer la main à document-extractor. Un document écarté se note au journal avec sa raison.",
+      "run": [
+        {
+          "skill": "doc-to-markdown",
+          "script": "validate.py",
+          "args": [
+            "sources/*.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notes",
+      "label": "Notes du vault",
+      "level": "simple",
+      "facultative": true,
+      "after": [
+        "documents"
+      ],
+      "skills": [
+        "markdown-to-obsidian"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "index.md"
+      ],
+      "checks": [
+        "markdown-to-obsidian : obsidianize.py index.md sources/*.md --vault <vault> --folder <dossier> (notes copiées dans le vault, sources/ inchangé), puis vault_check.py <vault> --folder <dossier>"
+      ],
+      "run": [
+        {
+          "skill": "markdown-to-obsidian",
+          "script": "obsidianize.py",
+          "args": [
+            "index.md",
+            "sources/*.md"
+          ],
+          "vault": true
+        }
+      ],
+      "instructions": "Étape facultative, proposée seulement si le workflow a un vault (ou dans une mission) ; sans vault, la sauter (skip) : sources/, validé, serait réécrit en place. index.md : un titre, puis une ligne par document, un lien Markdown vers sources/<nom>.md et son objet en une phrase tiré de son titre et de ses intertitres. Les notes vont dans le dossier du workflow du vault."
+    },
+    {
+      "id": "synthese",
+      "label": "Synthèse",
+      "level": "moyen",
+      "after": [
+        "documents"
+      ],
+      "skills": [
+        "doc-to-markdown"
+      ],
+      "inputs": [
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "synthese.md"
+      ],
+      "checks": [
+        "doc-to-markdown : validate.py synthese.md (liens vers les documents et images vérifiés)"
+      ],
+      "run": [
+        {
+          "skill": "doc-to-markdown",
+          "script": "validate.py",
+          "args": [
+            "synthese.md"
+          ]
+        }
+      ],
+      "instructions": "Une à deux pages pour le public donné à l'ouverture : objet, points clés, chiffres, décisions prises et questions ouvertes, dans les mots du public (sigles expliqués pour un public non technique). Chaque point cite son document par un lien vers sources/<nom>.md ; lire chaque source une seule fois. Une contradiction entre documents se signale dans les questions ouvertes ; un point sans source se note au journal comme hypothèse. À la revue, présenter les points clés et les questions ouvertes."
+    },
+    {
+      "id": "schemas",
+      "label": "Schémas pour le public visé",
+      "level": "moyen",
+      "after": [
+        "synthese"
+      ],
+      "skills": [
+        "diagram-brief",
+        "excalidraw-diagram",
+        "mermaid-diagram",
+        "drawio-diagram",
+        "diagram-export"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "synthese.md"
+      ],
+      "deliverables": [
+        "schemas/briefs/*.json",
+        "schemas/**/*.png"
+      ],
+      "optional": [
+        "schemas/decisions/*.json",
+        "schemas/excalidraw/*",
+        "schemas/mermaid/*",
+        "schemas/drawio/*"
+      ],
+      "checks": [
+        "diagram-brief : brief.py schemas/briefs/<nom>.json --out schemas/decisions/<nom>.json pour chaque schéma (public, destination, type, message, 3 à 7 éléments) : il choisit le format et le skill",
+        "selon la décision, une description par schéma dans le dossier de son format : excalidraw-diagram : excalidraw_build.py schemas/excalidraw/<nom>.json --export png ; mermaid-diagram : mermaid_build.py schemas/mermaid/<nom>.json --out schemas/mermaid/<nom>.mmd puis diagram-export : export.py en PNG ; drawio-diagram : drawio_build.py schemas/drawio/<nom>.json --export png",
+        "relire chaque PNG une fois"
+      ],
+      "run": [
+        {
+          "skill": "diagram-brief",
+          "script": "brief.py",
+          "args": [
+            "{file}",
+            "--out",
+            "schemas/decisions/{name}.json"
+          ],
+          "foreach": "schemas/briefs/*.json"
+        },
+        {
+          "skill": "excalidraw-diagram",
+          "script": "excalidraw_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "schemas/excalidraw/*.json"
+        },
+        {
+          "skill": "mermaid-diagram",
+          "script": "mermaid_build.py",
+          "args": [
+            "{file}",
+            "--out",
+            "schemas/mermaid/{name}.mmd"
+          ],
+          "foreach": "schemas/mermaid/*.json"
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "args": [
+            "{file}",
+            "--format",
+            "png"
+          ],
+          "foreach": "schemas/mermaid/*.mmd"
+        },
+        {
+          "skill": "drawio-diagram",
+          "script": "drawio_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "schemas/drawio/*.json"
+        }
+      ],
+      "instructions": "Un à trois schémas, chacun avec un seul message. Le brief de chaque schéma (diagram-brief) fixe le format et le skill selon le public et la destination : pour un public non technique, une vue d'ensemble Excalidraw ; pour un public technique, un schéma de flux ou de séquence (Mermaid) ou d'architecture (draw.io) ; une vue C4 détaillée passe à schema-designer. La description ne reprend que les éléments du brief ; un élément laissé de côté se dit dans left_out. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma détaillé demandé par l'utilisateur passe à schema-designer."
+    },
+    {
+      "id": "document",
+      "label": "Document assemblé",
+      "level": "simple",
+      "after": [
+        "schemas",
+        "notes"
+      ],
+      "skills": [
+        "architecture-dossier"
+      ],
+      "inputs": [
+        "synthese.md",
+        "schemas/**/*.png",
+        "index.md",
+        "sources/*.md"
+      ],
+      "deliverables": [
+        "documentation.md"
+      ],
+      "checks": [
+        "architecture-dossier : dossier_build.py . --template documentation --out documentation.md --strict (synthèse présente, liens et images vérifiés)",
+        "si l'utilisateur veut un Word, un PDF, une page Confluence ou XWiki, ou une présentation : passer documentation.md à document-publisher"
+      ],
+      "run": [
+        {
+          "skill": "architecture-dossier",
+          "script": "dossier_build.py",
+          "args": [
+            ".",
+            "--template",
+            "documentation",
+            "--out",
+            "documentation.md",
+            "--strict"
+          ]
+        }
+      ],
+      "instructions": "Assemblage mécanique par le script : synthèse, schémas, index et annexe des documents, sans réécrire la synthèse validée. La publication (Word, PDF, Confluence, PowerPoint) passe à document-publisher, qui produit les fichiers sans rien mettre en ligne."
+    }
+  ]
+}

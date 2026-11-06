@@ -1,0 +1,3 @@
+{"subject": "Portail sinistres", "audience": "non technique", "destination": "powerpoint",
+ "kind": "vue-ensemble", "message": "Les assurés déclarent en ligne, le gestionnaire reçoit tout sans ressaisie.",
+ "elements": ["assuré", "portail", "outil de gestion des sinistres", "courriel"]}

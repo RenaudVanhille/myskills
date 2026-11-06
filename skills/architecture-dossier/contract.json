@@ -20,7 +20,7 @@
       "usage": "uv run scripts/dossier_build.py DOSSIER [--template GABARIT.json] [--out dossier-architecture.md] [--title TITRE] [--tender ao.json] [--strict] | --schema",
       "options": {
         "DOSSIER": "dossier du workflow",
-        "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres)",
+        "--template": "gabarit des sections : fichier JSON, ou nom d'un gabarit livré (dat par défaut ; avis : avis d'architecture sur un dossier reçu ; conformite : dossier de conformité, menaces, RGPD et hébergement ; migration : dossier de migration ; memoire : mémoire technique d'une réponse à appel d'offres ; documentation : synthèse, schémas et index d'un lot de documents ; restitution : décision attendue et vue d'ensemble pour les décideurs)",
         "--out": "dossier produit (défaut : DOSSIER/dossier-architecture.md)",
         "--title": "titre (défaut : titre du workflow, sinon celui du gabarit)",
         "--tender": "dépouillement ao.json de tender-response : mémoire technique, sections à thème dans l'ordre des critères, critère sans section et dépassement du budget de pages signalés",
