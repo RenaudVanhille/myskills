@@ -845,6 +845,16 @@
         {
           "script": "decision-log/scripts/journal.py",
           "args": [
+            "skip",
+            "{work}",
+            "domaines",
+            "--text",
+            "un seul domaine fonctionnel, pas de découpage"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
             "start",
             "{work}",
             "architectures"
@@ -1237,6 +1247,146 @@
         "La revue UX contient au moins un constat rangé par heuristique, rattaché à un nœud, avec une correction.",
         "Le design system a le bleu #0b3d91 et l'orange #f97316 de la maquette, et ses contrastes sont contrôlés.",
         "La réponse donne la similarité avec la maquette, sans recopier le HTML."
+      ]
+    },
+    {
+      "id": "workflow-domaines",
+      "agent": "architecture-workflow",
+      "prompt": "Démarre l'étape domaines : découpe le portail en contextes bornés et dis-moi si des microservices se justifient. Nous sommes une seule équipe de cinq développeurs, l'intégration continue est en place mais sans Kubernetes ni astreinte, et le portail doit ouvrir avant la saison des tempêtes.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/domaines/modele.json",
+          "to": "modele.json"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--title",
+            "Portail sinistres",
+            "--definition",
+            "architecture"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "documents",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        }
+      ],
+      "output": "domaines.md",
+      "checks": [
+        {
+          "file": "domaines.json",
+          "contains": [
+            "\"contexts\"",
+            "\"factors\""
+          ]
+        },
+        {
+          "file": "domaines.md",
+          "contains": [
+            "## Style recommandé",
+            "## Carte des contextes"
+          ]
+        },
+        {
+          "file": "domaines.styles.json",
+          "contains": [
+            "\"microservices\""
+          ]
+        },
+        {
+          "file": "journal.md",
+          "contains": [
+            "domaines"
+          ]
+        }
+      ],
+      "rubric": [
+        "Chaque entité du modèle de données a un seul contexte propriétaire.",
+        "Le style recommandé n'est pas « microservices » : une seule équipe, DevOps partiel et délai court le déconseillent, et la réponse le dit.",
+        "Les facteurs de la grille donnés par l'utilisateur (équipe, maturité DevOps, délai) sont repris avec leur raison, sans nouvelle question sur eux.",
+        "L'étape domaines est soumise à la revue de l'utilisateur, pas validée par l'agent.",
+        "La réponse donne le style, les contextes à extraire et le chemin de la carte, sans recopier domaines.md."
       ]
     }
   ]

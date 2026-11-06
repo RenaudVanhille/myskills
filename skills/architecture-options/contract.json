@@ -183,6 +183,14 @@
                             "string"
                           ],
                           "description": "Option cloud : nombre d'instances (2, « 2-10 ») ; au-delà de 1, la revue Well-Architected compte le composant comme redondant."
+                        },
+                        "contexts": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "description": "Contextes bornés que porte le composant (domain-design) : un pour un service, plusieurs pour un monolithe modulaire ; contrôlés par architecture-review (domains)."
                         }
                       }
                     }

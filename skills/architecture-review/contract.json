@@ -17,7 +17,7 @@
   "scripts": [
     {
       "name": "arch_review.py",
-      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure, scénario attendu absent selon les règles de complétude : pointe de charge, panne, sinistre, attaque, croissance, incident), décisions et risques ; principes d'architecture du client (references.principes de la mission : composants et flux visés, champs exigés ou interdits) ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant. Avec --draft, écrit d'abord le brouillon de la description (source, squelettes de scénarios) que le modèle complète et évalue.",
+      "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure, scénario attendu absent selon les règles de complétude : pointe de charge, panne, sinistre, attaque, croissance, incident), décisions et risques ; principes d'architecture du client (references.principes de la mission : composants et flux visés, champs exigés ou interdits) ; avec le découpage de domain-design (domains), les règles DOM- : base partagée entre contextes, flux hors carte des contextes, appel synchrone de l'amont vers l'aval, cycle entre contextes, composant sans contexte, contexte sans composant, contexte éclaté, appels synchrones vers de nombreux contextes, services que la grille de style ne justifie pas ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant. Avec --draft, écrit d'abord le brouillon de la description (source, squelettes de scénarios) que le modèle complète et évalue.",
       "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | REVUE.json --draft [--option ID] | --rules | --schema",
       "options": {
         "REVUE.json": "description de la revue",
@@ -79,6 +79,11 @@
             "cloud": {
               "type": "string",
               "description": "Description cloud_build.py de la même architecture (schemas/option-<id>.cloud.json) : les piliers Well-Architected entrent dans la revue."
+            },
+            "domains": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Découpage en domaines de domain-design (domaines.json), relatif à la description : règles DOM- sur les contextes (contexts) des composants."
             },
             "code": {
               "type": "object",
@@ -341,6 +346,14 @@
                 "type": {
                   "type": "string",
                   "description": "Repris d'une option cloud d'architecture-options ; ignoré par la revue."
+                },
+                "contexts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Contextes bornés du découpage (domains) que porte le composant : un pour un service, plusieurs pour un monolithe modulaire."
                 }
               }
             },
@@ -692,7 +705,8 @@
                           "decisions",
                           "risques",
                           "well-architected",
-                          "principes"
+                          "principes",
+                          "domaines"
                         ]
                       },
                       "severity": {
@@ -974,6 +988,12 @@
       "skill": "well-architected-review",
       "script": "wa_check.py",
       "why": "piliers Well-Architected de la description cloud (cloud)",
+      "optional": true
+    },
+    {
+      "skill": "domain-design",
+      "script": "domain_build.py",
+      "why": "valider le découpage en domaines (domains), en reprendre contextes, carte et style recommandé pour les règles DOM-",
       "optional": true
     },
     {

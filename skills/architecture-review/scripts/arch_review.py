@@ -45,6 +45,7 @@ l'exigence ou l'option, issu-de la revue), vérifiées avant l'écriture.
 """
 
 import argparse
+import difflib
 import json
 import re
 import subprocess
@@ -64,7 +65,8 @@ workspace = require_module("mission-workspace", "lib/workspace.py")
 SEVERITIES = ("haute", "moyenne", "basse")
 AXES = {"structure": "Structure", "code": "Code et architecture", "tracabilite": "Traçabilité des exigences",
         "qualite": "Scénarios de qualité", "decisions": "Décisions", "risques": "Risques",
-        "well-architected": "Well-Architected (cloud)", "principes": "Principes du client"}
+        "well-architected": "Well-Architected (cloud)", "principes": "Principes du client",
+        "domaines": "Domaines et découpage"}
 ATTRIBUTES = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
               "conformite": "Conformité", "exploitabilite": "Exploitabilité", "maintenabilite": "Maintenabilité",
               "evolutivite": "Évolutivité", "interoperabilite": "Interopérabilité", "utilisabilite": "Utilisabilité",
@@ -162,6 +164,32 @@ RULES = {
     "RSK-01": ("risques", "haute", "Risque haut sans mesure d'atténuation",
                "Donner la mesure d'atténuation (mitigation) ou changer l'architecture.", f"arc42 §11 ; {ATAM}"),
     "RSK-02": ("risques", "basse", "Risque sans responsable", "Nommer le responsable (owner).", "arc42 §11"),
+    "DOM-01": ("domaines", "moyenne", "Base de données partagée entre contextes bornés",
+               "Un schéma ou une base par contexte ; les autres contextes passent par l'API ou les événements du "
+               "propriétaire.", "DDD (E. Evans) : contexte borné ; Database per service (microservices.io)"),
+    "DOM-02": ("domaines", "moyenne", "Flux entre contextes absent de la carte des contextes",
+               "Déclarer la relation dans la carte (amont, aval, motif) ou retirer le flux.",
+               "DDD (E. Evans) : carte des contextes"),
+    "DOM-03": ("domaines", "moyenne", "Appel synchrone de l'amont vers l'aval",
+               "L'amont publie un événement que l'aval consomme, ou la relation de la carte est inversée.",
+               "DDD (E. Evans) : relation client-fournisseur ; principe des dépendances stables (R. C. Martin)"),
+    "DOM-04": ("domaines", "moyenne", "Cycle de dépendances synchrones entre contextes",
+               "Un des contextes devient amont : l'autre sens passe en événements, ou les contextes fusionnent.",
+               "DDD (V. Vernon) : carte des contextes ; principe des dépendances acycliques"),
+    "DOM-05": ("domaines", "basse", "Composant applicatif sans contexte borné",
+               "Dire quel contexte le composant porte (contexts), ou le retirer.", "DDD (E. Evans) : contexte borné"),
+    "DOM-06": ("domaines", "moyenne", "Contexte borné porté par aucun composant",
+               "Rattacher le contexte à un composant (module du monolithe ou service), ou le retirer du découpage.",
+               "DDD (E. Evans) : contexte borné"),
+    "DOM-07": ("domaines", "basse", "Contexte éclaté en nombreux services",
+               "Regrouper les services du contexte : un contexte, un service, sauf besoin propre justifié.",
+               "Building Microservices (S. Newman) : taille d'un service"),
+    "DOM-08": ("domaines", "moyenne", "Composant qui appelle de manière synchrone de nombreux contextes",
+               "Réduire le couplage temporel : événements, données répliquées, ou revoir les frontières.",
+               "Building Microservices (S. Newman) : couplage temporel"),
+    "DOM-09": ("domaines", "moyenne", "Découpage en services que la grille de style ne justifie pas",
+               "Garder le contexte dans le monolithe modulaire, ou noter le style retenu et sa raison (decision de "
+               "domain-design).", "Monolith First (M. Fowler) ; grille de domain-design"),
     # Gravité variable : celle du principe (references.principes de la mission).
     "PRI-01": ("principes", "gravité du principe", "Principe d'architecture du client non respecté",
                "Respecter le principe, ou faire accepter l'écart (accept) avec la raison du client.",
@@ -621,6 +649,105 @@ def code_review(graph: dict, comps: list[dict], flows: list[dict], repos: list[d
     return result
 
 
+def domain_review(spec: dict, base: Path, comps: list[dict], flows: list[dict], role: dict, add,
+                  errors: list[str], warnings: list[str]) -> dict | None:
+    """Règles DOM- : composants et flux confrontés au découpage de domain-design (domains)."""
+    if not spec.get("domains"):
+        return None
+    module = load_module("domain-design", "domain_build.py")
+    if module is None:
+        warnings.append("domains : découpage non contrôlé : " + absent("domain-design", "domain_build.py"))
+        return None
+    path = base / spec["domains"]
+    described = load_json(path, "domains", errors)
+    if described is None:
+        return None
+    invalid = validate(described, module.__file__)
+    if invalid:
+        errors += [f"domains : {path.name} : {e}" for e in invalid]
+        return None
+    found = module.analyse(described, path.parent)
+    if found["errors"]:
+        errors += [f"domains : {e}" for e in found["errors"]]
+        return None
+    ctxs = [c["id"] for c in described["contexts"]]
+    for i, comp in enumerate(comps):
+        for ctx in comp.get("contexts", []):
+            if ctx not in ctxs:
+                close = difflib.get_close_matches(ctx, ctxs, n=1)
+                errors.append(f"components/{i} ({comp['id']})/contexts : contexte inconnu « {ctx} »"
+                              + (f" ; vouliez-vous « {close[0]} » ?" if close else f" ({', '.join(ctxs)})"))
+    if errors:
+        return None
+    of = {c["id"]: set(c.get("contexts", [])) for c in comps}
+    order = {c: i for i, c in enumerate(ctxs)}
+    relations = {(r["upstream"], r["downstream"]) for r in described.get("relations", [])}
+    linked = relations | {(b, a) for a, b in relations}
+    # Flux effectifs : par une file, du producteur au consommateur.
+    edges = [(f["from"], f["to"], f.get("style", "sync")) for f in flows
+             if role.get(f["from"]) != "queue" and role.get(f["to"]) != "queue"]
+    for q in [c["id"] for c in comps if role[c["id"]] == "queue"]:
+        producers = [f["from"] for f in flows if f["to"] == q]
+        consumers = [f["to"] for f in flows if f["from"] == q]
+        edges += [(a, b, "async") for a in producers for b in consumers if a != b]
+    ids = [c["id"] for c in comps]
+    for cid in ids:
+        if role[cid] == "db":
+            users = sorted({a for a, b, _ in edges if b == cid and role.get(a) == "system" and of[a]}
+                           | {b for a, b, _ in edges if a == cid and role.get(b) == "system" and of[b]}, key=ids.index)
+            if len({frozenset(of[u]) for u in users}) > 1:
+                add("DOM-01", cid, "utilisée par " + ", ".join(f"{u} ({', '.join(sorted(of[u]))})" for u in users))
+    seen = set()
+    for a, b, style in edges:
+        if role.get(a) not in APPLICATIVE or role.get(b) not in APPLICATIVE or role.get(b) == "db":
+            continue
+        ca, cb = of[a], of[b]
+        if not ca or not cb or ca & cb:
+            continue
+        pairs = {(x, y) for x in ca for y in cb}
+        if not pairs & linked and (a, b) not in seen:
+            seen.add((a, b))
+            add("DOM-02", f"{a}>{b}", f"{', '.join(sorted(ca))} vers {', '.join(sorted(cb))}, sans relation déclarée")
+        elif style == "sync" and pairs & relations and not {(y, x) for x, y in pairs} & relations:
+            add("DOM-03", f"{a}>{b}", f"{a} ({', '.join(sorted(ca))}, amont) attend {b} "
+                f"({', '.join(sorted(cb))}, aval)")
+    calls = {(x, y) for a, b, style in edges if style == "sync" and role.get(b) != "db"
+             for x in of.get(a, ()) for y in of.get(b, ()) if x != y and not of[a] & of[b]}
+    for group in cycles(ctxs, calls):
+        add("DOM-04", ">".join(group + group[:1]), "appels synchrones en boucle entre contextes")
+    for cid in ids:
+        if role[cid] in ("system", "db") and not of[cid]:
+            add("DOM-05", cid, next(c["label"] for c in comps if c["id"] == cid))
+    carried = {x for c in comps for x in of[c["id"]]}
+    for ctx in ctxs:
+        if ctx not in carried:
+            add("DOM-06", ctx, "aucun composant ne le cite dans contexts")
+    services = {ctx: [c["id"] for c in comps if role[c["id"]] == "system" and of[c["id"]] == {ctx}] for ctx in ctxs}
+    for ctx, items in services.items():
+        if len(items) > 3:
+            add("DOM-07", ctx, f"{len(items)} services : {', '.join(items)}")
+    for cid in ids:
+        if role[cid] != "system":
+            continue
+        targets = {y for a, b, style in edges if a == cid and style == "sync" and role.get(b) == "system"
+                   for y in of.get(b, ()) if y not in of[cid]}
+        if len(targets) >= 3:
+            add("DOM-08", cid, f"appels synchrones vers {len(targets)} contextes ({', '.join(sorted(targets, key=order.get))})")
+    # Style : celui retenu par l'utilisateur (decision), sinon la recommandation de la grille.
+    style = found["style"]
+    chosen = (described.get("decision") or {}).get("style") or style["recommended"]
+    extract = set((described.get("decision") or {}).get("extract") or style["extract"])
+    deployables = [c["id"] for c in comps if role[c["id"]] == "system" and of[c["id"]]]
+    why = f"style {chosen.replace('-', ' ')} (score {style['score']:+d})"
+    if chosen == "monolithe-modulaire" and len(deployables) > 1:
+        add("DOM-09", ", ".join(deployables), f"{len(deployables)} composants déployables pour un {why}")
+    elif chosen == "mixte":
+        for cid in deployables:
+            if len(of[cid]) == 1 and not of[cid] & extract:
+                add("DOM-09", cid, f"contexte {next(iter(of[cid]))} en service séparé, non extrait par la grille ({why})")
+    return {"domains": str(path), "style": chosen, "contexts": len(ctxs)}
+
+
 def plain(text: str) -> str:
     text = unicodedata.normalize("NFKD", str(text))
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
@@ -751,6 +878,9 @@ def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
             "scenarios": scenarios, "risks": [], "decisions": [],
             "_draft": "Brouillon de arch_review.py --draft : stimulus, environnement, réponse et mesure à écrire ou "
                       "corriger, puis évaluer chaque scénario (status, note) ; risques et décisions à ajouter."}
+    # Découpage de domain-design à côté d'options.json : contrôlé par les règles DOM-.
+    if (path.parent / "domaines.json").is_file():
+        spec["domains"] = "domaines.json"
     invalid = validate(spec, __file__)
     if invalid:
         errors.extend(invalid)
@@ -884,6 +1014,8 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
             if role[cid] in {"system", "db"} and cid in reach and count_of(byid[cid]) < 2:
                 add("STR-08", cid, "une seule instance sur le parcours de l'utilisateur, disponibilité exigée")
 
+    domains = domain_review(spec, base, comps, flows, role, add, errors, warnings)
+
     # Traçabilité des exigences.
     trace = None
     if catalog:
@@ -954,7 +1086,8 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
             add("RSK-02", risk["id"], risk["text"])
 
     rules = len(RULES) - (0 if spec.get("code") is not None else sum(1 for r in RULES.values() if r[0] == "code")) \
-        - (0 if client else 1) + len(client or [])
+        - (0 if client else 1) + len(client or []) \
+        - (0 if domains else sum(1 for r in RULES.values() if r[0] == "domaines"))
     # Piliers Well-Architected de la description cloud (skill well-architected-review).
     cloud = None
     if spec.get("cloud"):

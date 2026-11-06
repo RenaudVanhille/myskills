@@ -177,6 +177,7 @@
         "design-system",
         "meeting-notes",
         "data-model",
+        "domain-design",
         "capacity-sizing",
         "test-plan",
         "mermaid-diagram"
@@ -2690,6 +2691,14 @@
                                 "string"
                               ],
                               "description": "Option cloud : nombre d'instances (2, « 2-10 ») ; au-delà de 1, la revue Well-Architected compte le composant comme redondant."
+                            },
+                            "contexts": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "description": "Contextes bornés que porte le composant (domain-design) : un pour un service, plusieurs pour un monolithe modulaire ; contrôlés par architecture-review (domains)."
                             }
                           }
                         }
@@ -3354,7 +3363,7 @@
       "scripts": [
         {
           "name": "arch_review.py",
-          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure, scénario attendu absent selon les règles de complétude : pointe de charge, panne, sinistre, attaque, croissance, incident), décisions et risques ; principes d'architecture du client (references.principes de la mission : composants et flux visés, champs exigés ou interdits) ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant. Avec --draft, écrit d'abord le brouillon de la description (source, squelettes de scénarios) que le modèle complète et évalue.",
+          "role": "Contrôle une architecture logicielle ou solution décrite en JSON, à la manière d'une revue ATAM : structure (cycles de dépendances synchrones, base partagée, couches, composant pivot, chaîne synchrone longue, dépendance synchrone à un système externe, point unique de défaillance), traçabilité des exigences (exigence indispensable sans composant ni décision, exigence non fonctionnelle sans scénario de qualité), scénarios de qualité (non satisfaits ou à risque sans risque noté, sans mesure, scénario attendu absent selon les règles de complétude : pointe de charge, panne, sinistre, attaque, croissance, incident), décisions et risques ; principes d'architecture du client (references.principes de la mission : composants et flux visés, champs exigés ou interdits) ; avec le découpage de domain-design (domains), les règles DOM- : base partagée entre contextes, flux hors carte des contextes, appel synchrone de l'amont vers l'aval, cycle entre contextes, composant sans contexte, contexte sans composant, contexte éclaté, appels synchrones vers de nombreux contextes, services que la grille de style ne justifie pas ; avec une description cloud, les piliers Well-Architected (wa_check.py de well-architected-review) ; avec le code, dépendances du code absentes de l'architecture et cycles entre composants, à partir du graphe de graphify (skill externe : code analysé en local ; documents, si demandés, lus par le modèle du harness ou un modèle local). Calcule l'avis et écrit <sujet>.revue.md ; avec --vault, verse la revue, ses constats et ses risques dans le vault Obsidian, notes vérifiées contre l'ontologie avant l'écriture ; avec plusieurs dépôts (code.repos, ou ceux de la mission), un graphe par dépôt et les appels entre services lus dans la configuration et les contrats (URL d'un autre service, base de données, canaux AsyncAPI) : appel absent de l'architecture, flux déclaré sans trace, base partagée, dépôt sans composant. Avec --draft, écrit d'abord le brouillon de la description (source, squelettes de scénarios) que le modèle complète et évalue.",
           "usage": "uv run scripts/arch_review.py REVUE.json [--out REVUE.revue.md] [--fail-on haute|moyenne|basse|aucune] [--vault VAULT --folder DOSSIER_DU_VAULT] | REVUE.json --draft [--option ID] | --rules | --schema",
           "options": {
             "REVUE.json": "description de la revue",
@@ -3416,6 +3425,11 @@
                 "cloud": {
                   "type": "string",
                   "description": "Description cloud_build.py de la même architecture (schemas/option-<id>.cloud.json) : les piliers Well-Architected entrent dans la revue."
+                },
+                "domains": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Découpage en domaines de domain-design (domaines.json), relatif à la description : règles DOM- sur les contextes (contexts) des composants."
                 },
                 "code": {
                   "type": "object",
@@ -3678,6 +3692,14 @@
                     "type": {
                       "type": "string",
                       "description": "Repris d'une option cloud d'architecture-options ; ignoré par la revue."
+                    },
+                    "contexts": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "Contextes bornés du découpage (domains) que porte le composant : un pour un service, plusieurs pour un monolithe modulaire."
                     }
                   }
                 },
@@ -4029,7 +4051,8 @@
                               "decisions",
                               "risques",
                               "well-architected",
-                              "principes"
+                              "principes",
+                              "domaines"
                             ]
                           },
                           "severity": {
@@ -4311,6 +4334,12 @@
           "skill": "well-architected-review",
           "script": "wa_check.py",
           "why": "piliers Well-Architected de la description cloud (cloud)",
+          "optional": true
+        },
+        {
+          "skill": "domain-design",
+          "script": "domain_build.py",
+          "why": "valider le découpage en domaines (domains), en reprendre contextes, carte et style recommandé pour les règles DOM-",
           "optional": true
         },
         {
@@ -9969,6 +9998,625 @@
       ],
       "description": "Convertit un document PDF (y compris scanné, par OCR), DOCX, PPTX, XLSX ou une image en Markdown propre, en local, avec les images extraites dans attachments/ ; une vidéo (atelier, kick-off, présentation, démonstration...) ou un audio en images clés et transcription locale. À utiliser pour extraire le texte, les tableaux, les images ou la parole d'un document ou d'une vidéo vers du Markdown.",
       "path": "skills/doc-to-markdown"
+    },
+    {
+      "skill": "domain-design",
+      "level": "complexe",
+      "inputs": [
+        "Les exigences (exigences.json de requirements-catalog) et, s'il existe, le modèle de données (modele.json de data-model)",
+        "Description JSON du découpage (domain_build.py --schema) : sous-domaines, contextes bornés (entités, exigences, équipe, langage, besoins propres), carte des contextes, facteurs de la grille de style"
+      ],
+      "outputs": [
+        "<nom>.md : style recommandé et grille, sous-domaines, contextes et leur langage, carte des contextes, couplage, points d'attention",
+        "<nom>.styles.json : composants et flux du monolithe modulaire, du mixte et des microservices, au format d'options.json",
+        "<nom>.carte.drawio : carte des contextes (une colonne par sous-domaine), et son image avec --export"
+      ],
+      "scripts": [
+        {
+          "name": "domain_build.py",
+          "role": "Vérifie sous-domaines, contextes, exigences et entités citées, un seul contexte propriétaire par entité ; calcule cohésion et couplage entre contextes, signale dépendance absente de la carte, cycle, noyau partagé, exigence fonctionnelle sans contexte ; calcule le style recommandé (monolithe modulaire, mixte, microservices) et les contextes à extraire avec la grille ; écrit le document, les squelettes de composants vérifiés contre le schéma d'options.json et la carte des contextes contrôlée par drawio_build.py.",
+          "usage": "uv run scripts/domain_build.py DOMAINES.json [--out-dir DOSSIER] [--export png|svg] [--vault VAULT --folder DOSSIER_DU_VAULT] | --schema",
+          "options": {
+            "DOMAINES.json": "description du découpage",
+            "--out-dir": "dossier des fichiers produits (défaut : celui de la description)",
+            "--export": "exporter aussi la carte des contextes en image (diagram-export)",
+            "--vault": "vault Obsidian où écrire aussi une note decoupage-domaines et une note contexte-borne par contexte, selon son ontologie",
+            "--folder": "dossier des notes dans le vault, celui du workflow (Workflows/<titre>) ; avec --vault",
+            "--schema": "affiche le schéma de la description sur une ligne"
+          },
+          "input": {
+            "format": "json",
+            "description": "Découpage décrit par le modèle ; validé avant tout traitement.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "required": [
+                "title",
+                "subdomains",
+                "contexts"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 200
+                },
+                "context": {
+                  "type": "string",
+                  "maxLength": 600,
+                  "description": "Objet du découpage, repris dans le document."
+                },
+                "requirements": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "exigences.json (requirements-catalog), relatif à la description"
+                },
+                "model": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "description du modèle de données (data-model, modele.json), relative à la description : entités et relations pour la propriété et le couplage"
+                },
+                "subdomains": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "name",
+                      "kind"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "enum": [
+                          "coeur",
+                          "support",
+                          "generique"
+                        ],
+                        "description": "coeur : différenciant, développé et confié aux meilleurs ; support : nécessaire, spécifique ; generique : à acheter ou réutiliser"
+                      },
+                      "why": {
+                        "type": "string",
+                        "maxLength": 300
+                      }
+                    }
+                  }
+                },
+                "contexts": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "name",
+                      "subdomain"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9-]*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "subdomain": {
+                        "type": "string",
+                        "description": "identifiant du sous-domaine"
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 400
+                      },
+                      "team": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "équipe qui le développe et l'exploite"
+                      },
+                      "entities": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Za-z0-9]*$"
+                        },
+                        "description": "entités possédées (noms du modèle de données) : un seul contexte propriétaire par entité"
+                      },
+                      "uses": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Z][A-Za-z0-9]*$"
+                        },
+                        "description": "entités d'un autre contexte qu'il lit (par son API ou ses événements)"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                        },
+                        "description": "exigences portées par le contexte"
+                      },
+                      "terms": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "minLength": 3,
+                          "maxLength": 300
+                        },
+                        "description": "langage du contexte : terme -> sens dans ce contexte"
+                      },
+                      "needs": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "description": "besoins propres au contexte, plus forts que ceux des autres, chacun avec sa raison",
+                        "properties": {
+                          "echelle": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 300
+                          },
+                          "cadence": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 300
+                          },
+                          "isolation": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 300
+                          },
+                          "technologie": {
+                            "type": "string",
+                            "minLength": 3,
+                            "maxLength": 300
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "relations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "upstream",
+                      "downstream",
+                      "patterns"
+                    ],
+                    "properties": {
+                      "upstream": {
+                        "type": "string",
+                        "description": "contexte amont (fournisseur)"
+                      },
+                      "downstream": {
+                        "type": "string",
+                        "description": "contexte aval, qui dépend de l'amont"
+                      },
+                      "patterns": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "enum": [
+                            "partenariat",
+                            "client-fournisseur",
+                            "conformiste",
+                            "acl",
+                            "open-host",
+                            "langage-publie",
+                            "noyau-partage",
+                            "chemins-separes"
+                          ]
+                        },
+                        "description": "motifs de la carte des contextes"
+                      },
+                      "integration": {
+                        "enum": [
+                          "sync",
+                          "async"
+                        ],
+                        "description": "appel synchrone de l'aval vers l'amont, ou événements de l'amont (défaut : sync)"
+                      },
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      }
+                    }
+                  }
+                },
+                "factors": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "facteurs de la grille de style, chacun avec sa valeur et sa raison",
+                  "properties": {
+                    "devops": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "why"
+                      ],
+                      "additionalProperties": false,
+                      "description": "maturité intégration et déploiement continus, conteneurs, observabilité, astreinte",
+                      "properties": {
+                        "value": {
+                          "enum": [
+                            "faible",
+                            "moyenne",
+                            "forte"
+                          ]
+                        },
+                        "why": {
+                          "type": "string",
+                          "minLength": 3,
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "stabilite": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "why"
+                      ],
+                      "additionalProperties": false,
+                      "description": "frontières du domaine connues et stables",
+                      "properties": {
+                        "value": {
+                          "enum": [
+                            "incertaine",
+                            "connue"
+                          ]
+                        },
+                        "why": {
+                          "type": "string",
+                          "minLength": 3,
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "coherence": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "why"
+                      ],
+                      "additionalProperties": false,
+                      "description": "cohérence transactionnelle exigée entre contextes",
+                      "properties": {
+                        "value": {
+                          "enum": [
+                            "forte",
+                            "eventuelle"
+                          ]
+                        },
+                        "why": {
+                          "type": "string",
+                          "minLength": 3,
+                          "maxLength": 300
+                        }
+                      }
+                    },
+                    "delai": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "why"
+                      ],
+                      "additionalProperties": false,
+                      "description": "délai de mise en production",
+                      "properties": {
+                        "value": {
+                          "enum": [
+                            "court",
+                            "normal"
+                          ]
+                        },
+                        "why": {
+                          "type": "string",
+                          "minLength": 3,
+                          "maxLength": 300
+                        }
+                      }
+                    }
+                  }
+                },
+                "decision": {
+                  "type": "object",
+                  "required": [
+                    "style",
+                    "why"
+                  ],
+                  "additionalProperties": false,
+                  "description": "style retenu par l'utilisateur, après la revue",
+                  "properties": {
+                    "style": {
+                      "enum": [
+                        "monolithe-modulaire",
+                        "mixte",
+                        "microservices"
+                      ]
+                    },
+                    "why": {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 300
+                    },
+                    "extract": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "contextes extraits en services (mixte)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Fichiers écrits, compteurs, couplage et style recommandé.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "subdomains",
+                "contexts",
+                "relations",
+                "coupling",
+                "style",
+                "vault",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "subdomains": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "contexts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "relations": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "coupling": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "relations",
+                    "cross",
+                    "ratio"
+                  ],
+                  "description": "liens de données (relations du modèle et entités utilisées) : total, entre contextes, part",
+                  "properties": {
+                    "relations": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "cross": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "ratio": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "style": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "recommended",
+                    "score",
+                    "extract",
+                    "confidence",
+                    "missing"
+                  ],
+                  "properties": {
+                    "recommended": {
+                      "enum": [
+                        "monolithe-modulaire",
+                        "mixte",
+                        "microservices"
+                      ]
+                    },
+                    "score": {
+                      "type": "integer"
+                    },
+                    "extract": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "contextes à extraire en services (mixte)"
+                    },
+                    "confidence": {
+                      "enum": [
+                        "faible",
+                        "moyenne",
+                        "bonne"
+                      ]
+                    },
+                    "missing": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "facteurs non renseignés"
+                    }
+                  }
+                },
+                "vault": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "vault",
+                        "folder",
+                        "notes",
+                        "removed"
+                      ],
+                      "properties": {
+                        "vault": {
+                          "type": "string"
+                        },
+                        "folder": {
+                          "type": "string"
+                        },
+                        "notes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "removed": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  ]
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "document, squelettes et carte écrits (avertissements possibles : dépendance hors carte, cycle, entité sans contexte, grille incomplète)",
+            "1": "description invalide, identifiant en double, sous-domaine, contexte, exigence ou entité inconnus, entité possédée par deux contextes ; aucun fichier produit"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "requirements-catalog",
+          "script": "req_build.py",
+          "why": "valider exigences.json contre son schéma",
+          "optional": true
+        },
+        {
+          "skill": "data-model",
+          "script": "model_build.py",
+          "why": "valider la description du modèle de données (entités, relations)",
+          "optional": true
+        },
+        {
+          "skill": "architecture-options",
+          "script": "options_build.py",
+          "why": "vérifier les squelettes de composants de chaque style contre le schéma d'options.json",
+          "optional": true
+        },
+        {
+          "skill": "drawio-diagram",
+          "script": "drawio_build.py",
+          "why": "dessiner et contrôler la carte des contextes",
+          "optional": true
+        },
+        {
+          "skill": "markdown-to-obsidian",
+          "script": "lib/vault_ontology.py",
+          "why": "ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "lib/workspace.py",
+          "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "data-model",
+          "kind": "skill",
+          "when": "le modèle de données manque : entités et relations d'abord, pour la propriété et le couplage"
+        },
+        {
+          "to": "architecture-options",
+          "kind": "skill",
+          "when": "options à comparer : partir des squelettes de <nom>.styles.json (style recommandé et une alternative)"
+        },
+        {
+          "to": "api-contract",
+          "kind": "skill",
+          "when": "contrats des relations de la carte (API de l'amont, événements publiés)"
+        },
+        {
+          "to": "architecture-review",
+          "kind": "skill",
+          "when": "contrôler une architecture contre le découpage (domains, règles DOM-)"
+        },
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "image de la carte demandée après coup"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) : la question à poser, une seule fois"
+        }
+      ],
+      "vault": {
+        "writes": [
+          "decoupage-domaines",
+          "contexte-borne"
+        ],
+        "reads": false
+      },
+      "description": "Définit les domaines d'une solution selon le DDD stratégique : sous-domaines cœur, support et génériques, contextes bornés (entités possédées, exigences, équipe, langage), carte des contextes (client-fournisseur, couche anticorruption, événements...). Le script contrôle le découpage, calcule cohésion et couplage, recommande le style par une grille (monolithe modulaire, mixte ou microservices, et seulement si le projet s'y prête), dessine la carte en draw.io et prépare les composants de chaque style pour architecture-options. À utiliser pour découper un domaine, définir des bounded contexts, décider monolithe ou microservices.",
+      "path": "skills/domain-design"
     },
     {
       "skill": "drawio-diagram",
