@@ -6,6 +6,11 @@
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le POS du SI (plan d'occupation des sols : JSON ou CSV d'urbanization-map, ou note avec son tableau), s'il n'est ni dans documents/ ni dans le vault ; sans POS, l'hypothèse se note au journal à l'étape architectures"
   ],
+  "keywords": [
+    "proposer des architectures",
+    "options d'architecture",
+    "cahier des charges"
+  ],
   "memory": {
     "requirements": "exigences.json",
     "options": "options.json",

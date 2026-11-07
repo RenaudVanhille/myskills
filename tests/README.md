@@ -45,6 +45,13 @@ sortie 1 si un cas échoue.
 Une étape peut aussi être `{"copy": [source, destination]}` (fichier de
 travail), porter `"env"` (variables de l'étape, `{out}` permis : cache isolé,
 `MYSKILLS_OFFLINE`) ou `"exit": "any"` quand le code dépend de la machine.
+`"report_in"` admet une valeur parmi une liste (deux candidats également
+justes en tête de `route.py`, par exemple).
+
+Le cas `routage-reference` est le jeu de demandes de référence du routage :
+une demande courante par ligne et le candidat attendu en tête. Toute
+demande mal routée s'y ajoute avant de corriger les synonymes de `route.py`
+ou les `keywords` du workflow.
 
 ### 2. Agents (dans chaque outil)
 
@@ -62,6 +69,9 @@ Un cas peut aussi porter des contrôles sans modèle (`checks` : fichier
 présent, texte ou motif contenu, valeur ou nombre d'éléments d'un JSON) ;
 `--backend checks` ne fait que ceux-là. La note du cas (`score`, de 0 à 1)
 est la part des contrôles et des affirmations vérifiés.
+
+Chaque workflow a au moins un cas d'agent : `id` `workflow-<nom>` ou
+`bout-en-bout-<nom>`, ou champ `workflow` (contrôlé par le cas `contrats`).
 
 Les cas `reference-*` (et `migration-evaluation`) sont des missions de
 référence, sur des documents fictifs mais complets : un appel d'offres

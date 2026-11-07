@@ -6,6 +6,16 @@
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le ou les dépôts de code (dossier code/, ou dépôts de la mission), le dossier du code d'infrastructure s'il n'est pas dans infra/, et le schéma SQL de la base s'il n'est pas dans base/ ; sans réponse : code/ seul, étapes infrastructure et donnees sautées"
   ],
+  "keywords": [
+    "legacy",
+    "vieux monolithe",
+    "application ancienne",
+    "code source",
+    "documenter le code",
+    "moderniser",
+    "microservices",
+    "reprise de l'existant"
+  ],
   "memory": {
     "requirements": "exigences.json"
   },

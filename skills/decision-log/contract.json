@@ -607,6 +607,14 @@
                   },
                   "description": "Ce que l'agent demande à l'utilisateur en une seule question avant la première étape, s'il ne le trouve pas (vault, POS du SI...)."
                 },
+                "keywords": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Mots et expressions d'une demande qui désignent ce workflow sans être dans ses libellés (legacy, comité...) : ajoutés au texte de classement de route.py (agent-handoff)."
+                },
                 "memory": {
                   "type": "object",
                   "additionalProperties": false,

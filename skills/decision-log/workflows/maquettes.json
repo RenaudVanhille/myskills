@@ -6,6 +6,11 @@
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "la bibliothèque visée (html, bootstrap, react-mui, react-antd, vue-vuetify, angular-material) et les tokens du client s'il en a (sans réponse : html et design system tiré des maquettes, hypothèse notée au journal)"
   ],
+  "keywords": [
+    "maquettes d'écrans",
+    "découpage du front",
+    "reproduire les maquettes"
+  ],
   "stages": [
     {
       "id": "design-system",

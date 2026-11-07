@@ -68,7 +68,7 @@
     "Un contexte : description, code, ADR, Markdown ou image d'un schéma existant",
     "Si possible le public, la destination et le dossier de sortie"
    ],
-   "match": "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
+   "match": "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public (technique, métier, commerciaux) et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
   },
   {
    "name": "solution-estimator",
@@ -113,7 +113,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier"
+   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier proposer des architectures options d'architecture cahier des charges"
   },
   {
    "name": "avant-vente",
@@ -211,7 +211,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé Document assemblé architecture-dossier"
+   "match": "Documents en Markdown Notes du vault markdown-to-obsidian Synthèse doc-to-markdown Schémas pour le public visé Document assemblé architecture-dossier documenter documentation lisible documents Word et PowerPoint synthèse de documents"
   },
   {
    "name": "evolution",
@@ -231,7 +231,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Demande en Markdown Écart d'exigences requirements-catalog Écart de contrat d'interface api-contract Modèle de données modifié data-model Options de mise en œuvre architecture-options urbanization-map well-architected-review Décision architecture-options Chiffrage du changement Dossier d'évolution architecture-dossier"
+   "match": "Demande en Markdown Écart d'exigences requirements-catalog Écart de contrat d'interface api-contract Modèle de données modifié data-model Options de mise en œuvre architecture-options urbanization-map well-architected-review Décision architecture-options Chiffrage du changement Dossier d'évolution architecture-dossier demande de changement modification nouvelle version rupture de contrat impact du changement"
   },
   {
    "name": "maquettes",
@@ -247,7 +247,7 @@
    "inputs": [
     "maquettes/*"
    ],
-   "match": "Design system Pages HTML comparées aux maquettes Revue UX et accessibilité Découpage et lots du chiffrage frontend"
+   "match": "Design system Pages HTML comparées aux maquettes Revue UX et accessibilité Découpage et lots du chiffrage frontend maquettes d'écrans découpage du front reproduire les maquettes"
   },
   {
    "name": "migration-cloud",
@@ -287,7 +287,7 @@
     "../chiffrage.md",
     "../revue.md"
    ],
-   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé Support de présentation architecture-deck Document de restitution architecture-dossier"
+   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé Support de présentation architecture-deck Document de restitution architecture-dossier comité de direction décideurs présentation public non technique option retenue"
   },
   {
    "name": "retro-documentation",
@@ -307,7 +307,7 @@
    "inputs": [
     "code/**/*"
    ],
-   "match": "Graphe du code  Architecture constatée Hébergement tiré de son code cloud-architecture Modèle de données actuel data-model Domaines et style d'architecture domain-design data-model Revue de l'existant Trajectoire de modernisation transition-roadmap Dossier de l'existant architecture-dossier"
+   "match": "Graphe du code  Architecture constatée Hébergement tiré de son code cloud-architecture Modèle de données actuel data-model Domaines et style d'architecture domain-design data-model Revue de l'existant Trajectoire de modernisation transition-roadmap Dossier de l'existant architecture-dossier legacy vieux monolithe application ancienne code source documenter le code moderniser microservices reprise de l'existant"
   },
   {
    "name": "revue-dossier",

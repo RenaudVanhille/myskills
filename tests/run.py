@@ -164,7 +164,7 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
         failures += [f"{name} : description {Path(first).name} non conforme au schéma d'entrée, {e}"
                      for e in schema_errors(spec, spec_schema)]
     report_schema = CONTRACTS.get(name)
-    if not (step.get("report") or step.get("report_contains") or report_schema):
+    if not (step.get("report") or step.get("report_contains") or step.get("report_in") or report_schema):
         return
     try:
         report = json.loads(result.stdout)
@@ -183,6 +183,14 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
             failures.append(f"{name} : {key} = {got!r}, attendu {wanted!r}")
             # Les avertissements du rapport disent souvent pourquoi (repli, outil absent).
             failures += [f"{name} : avertissement : {w}"[:400] for w in report_warnings(report)[:3]]
+    for key, allowed in step.get("report_in", {}).items():
+        try:
+            got = lookup(report, key)
+        except (KeyError, IndexError, TypeError):
+            failures.append(f"{name} : {key} absent du rapport")
+            continue
+        if got not in allowed:
+            failures.append(f"{name} : {key} = {got!r}, attendu l'un de {allowed!r}")
     for key, text in step.get("report_contains", {}).items():
         try:
             got = lookup(report, key)
@@ -317,8 +325,16 @@ def check_contracts() -> dict:
     from agents_lib import parse_agent as parse, split_list as split
 
     engine = set(split(parse(ROOT / "src" / "agents" / "architecture-workflow.md")[0].get("skills", "")))
+    # Chaque workflow a au moins un cas d'agent (id workflow-<nom> ou bout-en-bout-<nom>, ou champ workflow) :
+    # sa définition seule ne dit pas si un vrai agent sait la suivre.
+    agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
+    played = {c.get("workflow") for c in agent_cases} | {c["id"].removeprefix(p) for c in agent_cases
+                                                         for p in ("workflow-", "bout-en-bout-") if c["id"].startswith(p)}
     for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
         definition = json.loads(path.read_text(encoding="utf-8"))
+        if path.stem not in played:
+            failures.append(f"workflows/{path.name} : aucun cas d'agent dans tests/agent-cases.json "
+                            f"(id workflow-{path.stem}, ou champ workflow)")
         for stage in definition.get("stages", []):
             if not stage.get("level"):
                 failures.append(f"workflows/{path.name} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
