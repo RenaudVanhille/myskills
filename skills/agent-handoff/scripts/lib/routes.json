@@ -18,15 +18,13 @@
   {
    "name": "architecture-workflow",
    "level": "moyen",
-   "description": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique.",
+   "description": "Déroule un workflow prédictible décrit en JSON, par défaut des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences avec sources, 2 ou 3 options comparées, schémas, puis au choix revue, chiffrage et dossier d'architecture technique.",
    "receives": [
-    "Un dossier de projet contenant documents/ : cahiers des charges, comptes rendus, spécifications (PDF, Office, Markdown, images)",
-    "Avec le workflow architecture, le POS du SI existant (plan d'occupation des sols, JSON ou CSV de urbanization-map), pour situer la solution dans l'architecture globale",
-    "Le vault Obsidian qui sert de mémoire partagée",
-    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour",
-    "Ou le dossier d'une mission (mission.json, skill mission-workspace) : son vault, ses documents et ses dépôts, sans les redemander"
+    "Un dossier de projet : documents/ (cahiers des charges, comptes rendus, spécifications en PDF, Office, Markdown ou images), ou le dossier d'une mission (mission.json, skill mission-workspace) avec son vault, ses documents et ses dépôts",
+    "Le workflow à suivre (architecture par défaut, ou une définition de skills/decision-log/workflows/) et ce que son champ ask demande (vault Obsidian, POS du SI...)",
+    "À chaque porte de revue, la réponse de l'utilisateur : validation ou retour"
    ],
-   "match": "Déroule un workflow prédictible des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences fonctionnelles et non fonctionnelles avec sources, 2 ou 3 options d'architecture comparées, schémas associés, puis au choix revue d'architecture, chiffrage et dossier d'architecture technique. Suit aussi d'autres workflows décrits en JSON, comme du code d'infrastructure jusqu'au schéma cloud et au modèle de menaces, ou l'instruction d'un dossier reçu jusqu'à l'avis d'architecture. S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
+   "match": "Déroule un workflow prédictible décrit en JSON, par défaut des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences avec sources, 2 ou 3 options comparées, schémas, puis au choix revue, chiffrage et dossier d'architecture technique. Suit aussi les autres workflows livrés (avant-vente, cadrage, migration, rétro-documentation, évolution, restitution...). S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal."
   },
   {
    "name": "backend-estimator",
