@@ -327,6 +327,11 @@ def check_contracts() -> dict:
     engine = set(split(parse(ROOT / "src" / "agents" / "architecture-workflow.md")[0].get("skills", "")))
     # Chaque workflow a au moins un cas d'agent (id workflow-<nom> ou bout-en-bout-<nom>, ou champ workflow) :
     # sa définition seule ne dit pas si un vrai agent sait la suivre.
+    # Chaque script déclaré est lancé par au moins un cas de cases.json (lent compris).
+    cases_text = (TESTS / "cases.json").read_text(encoding="utf-8")
+    failures += [f"{name} : {script['name']} lancé par aucun cas de tests/cases.json"
+                 for name, contract in skills.items() for script in contract.get("scripts", [])
+                 if f"/scripts/{script['name']}\"" not in cases_text]
     agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
     played = {c.get("workflow") for c in agent_cases} | {c["id"].removeprefix(p) for c in agent_cases
                                                          for p in ("workflow-", "bout-en-bout-") if c["id"].startswith(p)}

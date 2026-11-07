@@ -222,7 +222,7 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
    script d'un autre skill appelé ; pour un agent, le marqueur
    `{{niveaux}}`, pour un workflow, une définition JSON avec un `level` par
    étape. Puis `uv run scripts/build.py`.
-2. Au moins un cas dans `tests/cases.json` (dont un cas d'entrée invalide
+2. Au moins un cas dans `tests/cases.json` par script **(vérifiée)** (dont un cas d'entrée invalide
    pour un script qui lit une description), fixtures dans `tests/fixtures/`.
 3. `uv run tests/run.py` sans échec, `regles` et `contrats` compris.
 4. Pour un agent, un cas dans `tests/agent-cases.json` ; mesure du coût avec
