@@ -330,8 +330,11 @@ def check_contracts() -> dict:
     agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
     played = {c.get("workflow") for c in agent_cases} | {c["id"].removeprefix(p) for c in agent_cases
                                                          for p in ("workflow-", "bout-en-bout-") if c["id"].startswith(p)}
+    workflows_doc = (ROOT / "skills" / "decision-log" / "references" / "workflows.md").read_text(encoding="utf-8")
     for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
         definition = json.loads(path.read_text(encoding="utf-8"))
+        if f"| `{path.stem}` |" not in workflows_doc:
+            failures.append(f"workflows/{path.name} : absent du tableau de decision-log/references/workflows.md")
         if path.stem not in played:
             failures.append(f"workflows/{path.name} : aucun cas d'agent dans tests/agent-cases.json "
                             f"(id workflow-{path.stem}, ou champ workflow)")

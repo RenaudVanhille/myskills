@@ -71,12 +71,12 @@ fonctionnent aussi hors workflow : ils valident alors sans tracer.
 
 ## 2. Workflows décrits en JSON
 
-`--definition` prend un workflow livré dans `workflows/` (`architecture`,
-`avant-vente`, `cadrage`, `cloud-existant`, `revue-dossier`, `conformite`,
-`migration-cloud`, `maquettes`) ou un fichier JSON de même forme
-(`--schema` : `$defs.definition`). Étapes de chacun et exemple de
-définition : `references/workflows.md`, à lire seulement pour en choisir ou
-en écrire un.
+`--definition` prend un workflow livré dans `workflows/` ou un fichier JSON
+de même forme (`--schema` : `$defs.definition`). Étapes de chacun et
+exemple de définition : `references/workflows.md`, à lire seulement pour
+en choisir ou en écrire un. Étapes en parallèle, retour sur une étape
+validée et mission : `references/moteur.md`, à lire quand le cas se
+présente.
 
 Chaque motif de `deliverables` doit correspondre à au moins un fichier à la
 soumission ; ceux d'`optional` sont soumis s'ils existent.
