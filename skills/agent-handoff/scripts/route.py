@@ -52,7 +52,11 @@ LAYA_CANDIDATES, LAYA_CONFIDENT = 8, 0.6
 STOP = set("""a au aux avec ce ces cette d dans de des du elle en et est il je la le les leur lui ma mais me
 mes mon ne nos notre nous on ou par pas pour qu que qui sa se ses son sur ta te tes ton tu un une vos votre
 vous l j m n s t y fais faire faut peux veux voudrais besoin aide aider moi ici sont avoir etre tout tous plus
-quoi comment""".split())
+quoi comment partir leur leurs deux trois comme mettre dont lance lancer demarre""".split())
+# Expressions ramenées à un mot avant découpage : « à jour » n'est pas « jours » de charge, « cahier des charges »
+# n'est pas un plan de charge.
+PHRASES = {"a jour": "actualise", "cahier des charges": "exigences", "non technique": "decideurs",
+           "code source": "code", "demande de changement": "evolution"}
 # Extension d'un fichier fourni -> mots qui la rapprochent des bons candidats.
 EXTENSIONS = {".pdf": "pdf document convertit", ".docx": "word document convertit",
               ".pptx": "powerpoint presentation document", ".xlsx": "excel document",
@@ -65,11 +69,15 @@ SYNONYMS = {"coute": "chiff", "budge": "chiff", "prix": "chiff",
             "estim": "chiff", "combi": "chiff", "diagr": "schem", "dessi": "schem", "conve": "conve",
             "impor": "conve", "extra": "conve", "trans": "conve", "secur": "menac", "risqu": "menac", "strid": "menac",
             "exige": "exige", "besoi": "exige", "cahie": "exige", "spec": "exige", "speci": "exige",
-            "publi": "publi", "expor": "publi", "infra": "infra", "terra": "infra", "kuber": "infra"}
+            "publi": "publi", "expor": "publi", "infra": "infra", "terra": "infra", "kuber": "infra",
+            "chang": "evolu", "modif": "evolu", "comit": "decid", "direc": "decid", "expli": "schem"}
 
 
 def words(text: str) -> set[str]:
     plain = unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+    plain = re.sub(r"[^a-z0-9]+", " ", plain)
+    for phrase, word in PHRASES.items():
+        plain = re.sub(rf"\b{phrase}\b", word, plain)
     roots = {w[:5] for w in re.findall(r"[a-z0-9]+", plain) if w not in STOP and len(w) > 1}
     return {SYNONYMS.get(r, r) for r in roots}
 

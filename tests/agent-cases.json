@@ -536,6 +536,7 @@
     },
     {
       "id": "migration-evaluation",
+      "workflow": "migration-cloud",
       "agent": "architecture-workflow",
       "prompt": "J'ai validé les exigences. Continue le workflow de migration : l'inventaire est documents/inventaire.csv, l'hébergeur cible est AWS (région de Paris).",
       "inputs": [
@@ -625,6 +626,7 @@
     },
     {
       "id": "migration-feuille-de-route",
+      "workflow": "migration-cloud",
       "agent": "architecture-workflow",
       "prompt": "Je valide l'évaluation 6R. Fais maintenant la feuille de route ; la cible viendra après.",
       "inputs": [
@@ -1387,6 +1389,308 @@
         "Les facteurs de la grille donnés par l'utilisateur (équipe, maturité DevOps, délai) sont repris avec leur raison, sans nouvelle question sur eux.",
         "L'étape domaines est soumise à la revue de l'utilisateur, pas validée par l'agent.",
         "La réponse donne le style, les contextes à extraire et le chemin de la carte, sans recopier domaines.md."
+      ]
+    },
+    {
+      "id": "workflow-cadrage",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow de cadrage du portail sinistres sur les documents de documents/ et la transcription de l'atelier dans reunions/, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "documents/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "documents/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/reunion/atelier.md",
+          "to": "reunions/atelier.md"
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"comptes-rendus\"",
+            "\"documents\""
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow cadrage est initialisé avec sa définition (workflow.json).",
+        "Documents et comptes rendus sont menés ensemble, l'étape comptes-rendus n'étant pas sautée puisqu'une transcription est fournie.",
+        "Les documents sont dans sources/ et le compte rendu de l'atelier cite la transcription.",
+        "Aucune étape n'est validée par l'agent : il attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "workflow-conformite",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow de conformité du portail sinistres : les exigences sont dans sources/, l'infrastructure est le Terraform de infra/, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/iac/terraform/main.tf",
+          "to": "infra/main.tf"
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"exigences\"",
+            "\"description\""
+          ]
+        },
+        {
+          "file": "exigences.json",
+          "json": "requirements",
+          "min": 5
+        }
+      ],
+      "rubric": [
+        "Exigences et description de l'infrastructure sont menées ensemble (description ne dépend pas des exigences).",
+        "schemas/architecture.json est tiré du Terraform par iac_import.py, pas écrit à la main.",
+        "Les étapes menaces, rgpd et plan restent à faire.",
+        "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "workflow-documentation",
+      "agent": "architecture-workflow",
+      "prompt": "Fais une documentation lisible pour la direction à partir des documents de documents/, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/samples/architecture.docx",
+          "to": "documents/architecture.docx"
+        },
+        {
+          "from": "fixtures/samples/rapport-texte.pdf",
+          "to": "documents/rapport-texte.pdf"
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"documentation\"",
+            "\"documents\""
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow choisi est documentation (et non architecture ni avant-vente).",
+        "Les deux documents sont convertis en Markdown dans sources/ par convert.py en une commande, puis validés par validate.py.",
+        "L'étape notes est sautée faute de vault, avec la raison au journal.",
+        "L'étape documents est soumise à la revue ; la synthèse n'est pas écrite avant la validation."
+      ]
+    },
+    {
+      "id": "workflow-restitution",
+      "agent": "architecture-workflow",
+      "prompt": "Le dossier d'architecture est validé. Prépare la restitution de l'option retenue pour le comité de direction, un public non technique.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "options.json"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/decision.json",
+          "to": "decision.json"
+        },
+        {
+          "from": "fixtures/pptx/images/schema-flux.png",
+          "to": "schemas/architectures.drawio.png"
+        }
+      ],
+      "output": "restitution/synthese.md",
+      "checks": [
+        {
+          "file": "restitution/workflow.json",
+          "contains": [
+            "\"messages\""
+          ]
+        },
+        {
+          "file": "restitution/synthese.md",
+          "contains": [
+            "##"
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow restitution est mené dans le sous-dossier restitution/, sans modifier options.json, exigences.json ni decision.json du dossier parent.",
+        "synthese.md tient sur une page : décision demandée, recommandation et pourquoi dans les mots du métier, risques, suite.",
+        "Au moins un brief de schéma (schemas/briefs/*.json) est contrôlé par brief.py et vise un public non technique.",
+        "L'étape messages est soumise à la revue, pas validée par l'agent."
+      ]
+    },
+    {
+      "id": "workflow-retro-documentation",
+      "agent": "architecture-workflow",
+      "prompt": "Mets à jour la documentation de notre vieille application à partir de son code : le dépôt est dans code/ et son graphe graphify est déjà dans graphify-out/. Sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/review/code/src",
+          "to": "code/src"
+        },
+        {
+          "from": "fixtures/review/code-graph.json",
+          "to": "graphify-out/graph.json"
+        },
+        {
+          "from": "fixtures/retro/schema.sql",
+          "to": "code/schema.sql"
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"retro-documentation\"",
+            "\"code\""
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow choisi est retro-documentation.",
+        "Le graphe fourni est repris tel quel, sans relire tout le code ni relancer graphify, et l'étape code est soumise à la revue.",
+        "Le journal note le dépôt et ce qui est exclu, ou dit qu'il n'y a rien à exclure.",
+        "Aucune étape n'est validée : le workflow attend la revue de l'utilisateur."
+      ]
+    },
+    {
+      "id": "workflow-evolution",
+      "agent": "architecture-workflow",
+      "prompt": "Le client demande une évolution du portail validé : un rappel téléphonique de l'assuré sous 24 heures après chaque déclaration. Mène l'écart d'exigences, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        }
+      ],
+      "output": "evolution/ecarts-exigences.md",
+      "checks": [
+        {
+          "file": "evolution/ecarts-exigences.md",
+          "contains": [
+            "24"
+          ]
+        },
+        {
+          "file": "evolution/workflow.json",
+          "contains": [
+            "\"exigences\""
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow evolution est mené dans le sous-dossier evolution/ et la demande dite oralement est écrite dans evolution/sources/demande.md avec les mots de l'utilisateur.",
+        "exigences.json du dossier parent n'est pas modifié ; la copie de travail vient de req_diff.py --start.",
+        "L'écart liste au moins une exigence ajoutée sur le rappel sous 24 heures, citant la demande.",
+        "L'étape exigences est soumise à la revue, pas validée par l'agent."
+      ]
+    },
+    {
+      "id": "workflow-maquettes",
+      "agent": "architecture-workflow",
+      "prompt": "Lance le workflow maquettes sur les écrans de maquettes/, en HTML simple, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/maquettes/accueil.png",
+          "to": "maquettes/accueil.png"
+        },
+        {
+          "from": "fixtures/maquettes/backoffice.png",
+          "to": "maquettes/backoffice.png"
+        }
+      ],
+      "output": "design-system.json",
+      "checks": [
+        {
+          "file": "design-system.json",
+          "contains": [
+            "#0b3d91"
+          ]
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"design-system\""
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow maquettes est initialisé et l'étape design-system est confiée à ui-designer.",
+        "Le design system reprend les couleurs mesurées sur les maquettes, contrôlé par ds_build.py.",
+        "Les pages ne sont pas produites avant la validation du design system.",
+        "L'étape design-system est soumise à la revue, pas validée par l'agent."
+      ]
+    },
+    {
+      "id": "workflow-revue-dossier",
+      "agent": "architecture-workflow",
+      "prompt": "Instruis le dossier d'architecture reçu du prestataire (documents/dossier-architecture.md) pour le comité d'architecture, sans vault Obsidian.",
+      "inputs": [
+        {
+          "from": "fixtures/references/dossier-recu/dossier-architecture.md",
+          "to": "documents/dossier-architecture.md"
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"revue-dossier\"",
+            "\"documents\""
+          ]
+        },
+        {
+          "file": "sources/dossier-architecture.md",
+          "contains": [
+            "#"
+          ]
+        }
+      ],
+      "rubric": [
+        "Le workflow choisi est revue-dossier (et non une revue directe sans journal).",
+        "Le dossier déjà en Markdown est copié tel quel dans sources/, sans conversion.",
+        "L'étape documents est soumise à la revue ; exigences, revue et avis restent à faire.",
+        "L'agent ne donne pas d'avis avant la revue d'architecture."
       ]
     }
   ]

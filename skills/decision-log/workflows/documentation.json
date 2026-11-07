@@ -6,6 +6,12 @@
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le public du document (technique, non technique, mixte) et sa destination (Markdown, Obsidian, Word, PDF, Confluence, PowerPoint) ; sans réponse : public mixte et Word, hypothèse notée au journal"
   ],
+  "keywords": [
+    "documenter",
+    "documentation lisible",
+    "documents Word et PowerPoint",
+    "synthèse de documents"
+  ],
   "stages": [
     {
       "id": "documents",

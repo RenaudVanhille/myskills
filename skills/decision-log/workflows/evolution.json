@@ -6,6 +6,13 @@
     "le dossier validé qui évolue (défaut : le dossier parent) ; évolution menée dans son sous-dossier evolution/ (ou evolution-<nom>/ s'il y en a plusieurs)",
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)"
   ],
+  "keywords": [
+    "demande de changement",
+    "modification",
+    "nouvelle version",
+    "rupture de contrat",
+    "impact du changement"
+  ],
   "memory": {
     "requirements": "exigences.json",
     "options": "options.json",

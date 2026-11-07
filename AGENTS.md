@@ -111,7 +111,11 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   `level`, et ses skills figurent dans ceux de l'agent **(vérifiée)**. Une
   étape qui ne dépend pas de la précédente le dit dans `after`, qui ne cite
   que des étapes placées avant elle **(vérifiée)** : les étapes prêtes en
-  même temps se mènent en parallèle.
+  même temps se mènent en parallèle. Chaque workflow a au moins un cas
+  d'agent dans `tests/agent-cases.json` **(vérifiée)** ; les mots d'une
+  demande qui le désignent sans figurer dans ses libellés (legacy,
+  comité...) vont dans `keywords`, et toute demande mal routée s'ajoute au
+  cas `routage-reference`.
 
 ## 3. Sobriété en tokens
 

@@ -1,6 +1,6 @@
 ---
 name: schema-designer
-description: "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
+description: "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public (technique, métier, commerciaux) et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
 tools: Read, Write, Edit, Bash, Skill, Agent
 model: sonnet
 ---
