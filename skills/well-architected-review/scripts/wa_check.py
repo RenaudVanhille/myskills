@@ -504,11 +504,12 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
     option_rel = f"{base}/Options/Option {option}" if option else None
     up = f"Revue : [[{rel}|{title}]]"
     v = vault_ontology
+    constats, cleanup = v.folders_of(base, "Constats", f"Option {option}" if option else title)
     lines = []
     order = sorted(findings, key=lambda f: (bool(f["accepted"]), SEVERITIES.index(f["severity"]), f["rule"]))
     for f in order:
         name = v.safe_name(f"{f['rule']} {f['element']}")
-        note = f"{base}/Constats/{title}/{name}"
+        note = f"{constats}/{name}"
         heading = f"{f['rule']} {v.short(f['message'])}"
         context = v.detail(f["message"], f["element"])
         lines.append(f"- {v.link(note, heading)} ({f['severity']}" + (", accepté)" if f["accepted"] else ")")
@@ -529,7 +530,7 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
     accepted = len(findings) - len(open_)
     text = (f"{v.count(len(open_), 'constat ouvert')}" + (f", dont {v.number(high)} de gravité haute" if high else "")
             + (f" ; {v.count(accepted, 'accepté')}" if accepted else ""))
-    report = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    report = notes.attach(f"{base}/Rapports/{v.folder_key(title)}/{out.name}", out) if out.is_file() else f"`{out.name}`"
     body = [f"# Revue Well-Architected : {spec.get('title', 'architecture')}", ""]
     body += v.callout("warning" if high else "success" if not open_ else "note", text) + \
         [f"Revue complète : {report}.", ""]
@@ -538,7 +539,7 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
               {"ouverts": len(open_), "hauts": high,
                "fournisseur": ", ".join(sorted(clouds)) or None},
               {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["well-architected"])
-    result = notes.write(errors, cleanup=(f"{base}/Constats/{title}",))
+    result = notes.write(errors, cleanup=cleanup)
     return {**result, "folder": base} if result else None
 
 

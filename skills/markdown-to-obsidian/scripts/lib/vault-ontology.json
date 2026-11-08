@@ -24,7 +24,7 @@
     "mission": {
       "label": "Mission",
       "description": "Note d'index d'une mission (un répertoire, un vault) : nature, client, statut, workflows et leurs étapes, dépôts revus, contrôles de cohérence ; écrite par mission.py (mission-workspace).",
-      "folder": "",
+      "folder": "", "color": "#64748b",
       "required": ["nature"],
       "properties": {
         "nature": {"enum": ["avant-vente", "revue"]},
@@ -38,13 +38,13 @@
     "workflow": {
       "label": "Workflow",
       "description": "Note d'index d'un workflow : étapes, statuts, liens vers tout ce qu'il a produit.",
-      "folder": "",
+      "folder": "", "color": "#64748b",
       "properties": {}
     },
     "etape": {
       "label": "Étape",
       "description": "Étape soumise d'un workflow, avec ses livrables intégrés.",
-      "folder": "Étapes",
+      "folder": "Étapes", "color": "#94a3b8",
       "required": ["etape", "statut"],
       "properties": {
         "etape": {"type": "string"},
@@ -55,7 +55,7 @@
     "revue": {
       "label": "Revue d'étape",
       "description": "Porte de revue d'une étape : l'utilisateur y valide ou demande une reprise (propriété revue, section « Votre retour »).",
-      "folder": "Revues",
+      "folder": "Revues", "color": "#94a3b8",
       "required": ["etape", "soumission"],
       "properties": {
         "etape": {"type": "string"},
@@ -66,7 +66,7 @@
     "exigence": {
       "label": "Exigence",
       "description": "Exigence fonctionnelle ou non fonctionnelle du catalogue (requirements-catalog).",
-      "folder": "Exigences",
+      "folder": "Exigences", "color": "#16a34a",
       "required": ["id", "nature", "priorite", "statut"],
       "properties": {
         "nature": {"enum": ["fonctionnelle", "non-fonctionnelle"]},
@@ -81,13 +81,13 @@
     "terme": {
       "label": "Terme du glossaire",
       "description": "Terme métier, sa définition et ses synonymes (aliases).",
-      "folder": "Glossaire",
+      "folder": "Glossaire", "color": "#4ade80",
       "properties": {}
     },
     "option-architecture": {
       "label": "Option d'architecture",
       "description": "Option proposée par architecture-options : composants, écarts, position dans le SI.",
-      "folder": "Options",
+      "folder": "Options", "color": "#7c3aed",
       "required": ["id", "retenue"],
       "properties": {
         "retenue": {"type": "boolean"}
@@ -96,7 +96,7 @@
     "decision": {
       "label": "Entrée du journal",
       "description": "Choix, hypothèse, question, soumission, retour ou validation tracé par decision-log.",
-      "folder": "Décisions",
+      "folder": "Décisions", "color": "#a855f7",
       "required": ["id", "nature", "etape", "par", "date"],
       "properties": {
         "nature": {"enum": ["choix", "hypothese", "question", "soumission", "retour", "validation", "invalidation", "passage", "rapport", "saut"]},
@@ -109,7 +109,7 @@
     "adr": {
       "label": "ADR",
       "description": "Architecture Decision Record : l'option retenue et sa justification.",
-      "folder": "",
+      "folder": "", "color": "#a855f7",
       "required": ["statut"],
       "properties": {
         "statut": {"enum": ["proposee", "acceptee", "remplacee", "rejetee"]}
@@ -119,7 +119,7 @@
     "document": {
       "label": "Document importé",
       "description": "Document converti en note (doc-to-markdown, markdown-to-obsidian).",
-      "folder": "",
+      "folder": "", "color": "#0d9488",
       "properties": {
         "title": {"type": "string"},
         "created": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}"},
@@ -131,7 +131,7 @@
     "application": {
       "label": "Application du SI",
       "description": "Application du plan d'occupation des sols (urbanization-map) : zone, quartier, îlot.",
-      "folder": "Applications",
+      "folder": "Applications", "color": "#0891b2",
       "required": ["id"],
       "properties": {
         "zone": {"type": "string"},
@@ -144,7 +144,7 @@
     "revue-architecture": {
       "label": "Revue d'architecture",
       "description": "Avis rendu sur une option ou un ADR, avec ses constats et ses risques.",
-      "folder": "Revues d'architecture",
+      "folder": "Revues d'architecture", "color": "#dc2626",
       "required": ["avis"],
       "properties": {
         "avis": {"enum": ["favorable", "reserves", "defavorable"]}
@@ -154,7 +154,7 @@
     "constat": {
       "label": "Constat",
       "description": "Constat d'une revue (Well-Architected, revue d'architecture) : règle, gravité, statut.",
-      "folder": "Constats",
+      "folder": "Constats", "color": "#f97316",
       "required": ["id", "gravite", "statut"],
       "properties": {
         "gravite": {"enum": ["haute", "moyenne", "basse"]},
@@ -167,7 +167,7 @@
     "risque": {
       "label": "Risque",
       "description": "Risque d'architecture, sa gravité et ce qui l'atténue.",
-      "folder": "Risques",
+      "folder": "Risques", "color": "#ef4444",
       "required": ["id", "gravite", "statut"],
       "properties": {
         "gravite": {"enum": ["haute", "moyenne", "basse"]},
@@ -179,7 +179,7 @@
     "menace": {
       "label": "Menace",
       "description": "Menace STRIDE du modèle de menaces (threat-model) et sa mesure.",
-      "folder": "Menaces",
+      "folder": "Menaces", "color": "#b91c1c",
       "required": ["id", "stride", "statut"],
       "properties": {
         "stride": {"enum": ["S", "T", "R", "I", "D", "E"]},
@@ -192,7 +192,7 @@
     "modele-menaces": {
       "label": "Modèle de menaces",
       "description": "Modèle de menaces STRIDE préparé par threat-model (stride.py) : frontières, flux à risque, menaces à analyser.",
-      "folder": "Modèles de menaces",
+      "folder": "Modèles de menaces", "color": "#dc2626",
       "required": ["menaces"],
       "properties": {
         "menaces": {"type": "integer", "minimum": 0},
@@ -202,7 +202,7 @@
     "revue-well-architected": {
       "label": "Revue Well-Architected",
       "description": "Contrôle d'une architecture cloud contre les piliers Well-Architected et les conventions de schéma (well-architected-review), avec ses constats.",
-      "folder": "Revues Well-Architected",
+      "folder": "Revues Well-Architected", "color": "#dc2626",
       "required": ["ouverts"],
       "properties": {
         "ouverts": {"type": "integer", "minimum": 0},
@@ -214,7 +214,7 @@
     "traitement": {
       "label": "Traitement de données personnelles",
       "description": "Fiche du registre des traitements (RGPD, article 30) et son analyse d'impact (data-protection).",
-      "folder": "Traitements",
+      "folder": "Traitements", "color": "#db2777",
       "required": ["id", "base-legale"],
       "properties": {
         "base-legale": {"enum": ["consentement", "contrat", "obligation-legale", "interet-vital", "mission-publique", "interet-legitime"]},
@@ -227,7 +227,7 @@
     "chiffrage": {
       "label": "Chiffrage",
       "description": "Chiffrage d'une option (solution-estimate) : charge, fourchette, coût total, budget, hébergeur ; sans taux journalier, la charge seule.",
-      "folder": "Chiffrages",
+      "folder": "Chiffrages", "color": "#ca8a04",
       "required": ["charge"],
       "properties": {
         "total": {"type": "number", "description": "Coût total sur l'horizon (espérance), dans la devise ; absent pour un chiffrage en charges seules."},
@@ -242,7 +242,7 @@
     "lot": {
       "label": "Lot",
       "description": "Lot de travail d'un chiffrage, estimé à trois points.",
-      "folder": "Lots",
+      "folder": "Lots", "color": "#eab308",
       "required": ["id", "charge"],
       "properties": {
         "charge": {"type": "number", "description": "Charge en jours (espérance)."},
@@ -255,7 +255,7 @@
     "decoupage-domaines": {
       "label": "Découpage en domaines",
       "description": "Sous-domaines, contextes bornés, carte des contextes et style d'architecture recommandé par la grille (domain-design).",
-      "folder": "Domaines",
+      "folder": "Domaines", "color": "#2563eb",
       "required": ["style"],
       "properties": {
         "style": {"enum": ["monolithe-modulaire", "mixte", "microservices"]},
@@ -267,7 +267,7 @@
     "contexte-borne": {
       "label": "Contexte borné",
       "description": "Contexte borné (DDD) du découpage de domain-design : sous-domaine, équipe, entités possédées, langage, exigences portées.",
-      "folder": "Contextes",
+      "folder": "Contextes", "color": "#3b82f6",
       "required": ["id", "sous-domaine", "nature"],
       "properties": {
         "sous-domaine": {"type": "string"},

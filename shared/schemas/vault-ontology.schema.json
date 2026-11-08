@@ -34,6 +34,7 @@
             "label": {"type": "string", "minLength": 1},
             "description": {"type": "string", "minLength": 1},
             "folder": {"type": "string", "description": "Sous-dossier conseillé, relatif au dossier du workflow ou du référentiel ; vide : à sa racine."},
+            "color": {"type": "string", "pattern": "^#[0-9a-f]{6}$", "description": "Couleur du type dans la vue graphe et sur son tag type/<type>, écrite seulement par vault_check.py --style (opt-in)."},
             "required": {"type": "array", "items": {"type": "string"}},
             "properties": {"$ref": "#/$defs/properties"},
             "facets": {"type": "array", "items": {"type": "string"}, "description": "Propriétés recopiées en tags <propriété>/<valeur>."},

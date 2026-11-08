@@ -1269,6 +1269,7 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
     base = vault_ontology.safe_folder(folder)
     title = vault_ontology.safe_name(spec["title"], "chiffrage")
     rel = f"{base}/Chiffrages/{title}"
+    lots_dir, cleanup = vault_ontology.folders_of(base, "Lots", title)
     totals, currency = found["totals"], spec.get("currency", "€")
     option_rel = f"{base}/Options/Option {option['id']}"
     lots: dict[str, dict] = {}
@@ -1294,7 +1295,7 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
             body += ["", "## Exigences", ""] + [
                 f"- {v.link(f'{base}/Exigences/{r}', notes.title(f'{base}/Exigences/{r}', r))}"
                 if notes.exists(f"{base}/Exigences/{r}") else f"- {r}" for r in lot["refs"]]
-        notes.add(f"{base}/Lots/{title}/{v.safe_name(lot['id'])}", "lot",
+        notes.add(f"{lots_dir}/{v.safe_name(lot['id'])}", "lot",
                   {"id": lot["id"], "charge": round(lot["days"], 1), "phase": lot["phase"],
                    "composant": lot["component"] or None, "complexite": lot["complexity"]},
                   {"porte-sur": exigences or [(option_rel, f"Option {option['id']}")], "issu-de": (rel, title)}, body)
@@ -1314,9 +1315,9 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
         body += v.callout("abstract", f"Charge de réalisation : {days(totals['build']['days'])}", [
             f"De {v.number(totals['build']['days_low'])} à {days(totals['build']['days_high'])}, "
             "sans taux journalier."])
-    detail = notes.attach(f"{base}/Rapports/{title}/{md.name}", md) if md.is_file() else f"`{md.name}`"
+    detail = notes.attach(f"{base}/Rapports/{v.folder_key(title)}/{md.name}", md) if md.is_file() else f"`{md.name}`"
     body += [f"Chiffrage complet : {detail}.", "", "## Lots", ""]
-    body += [f"- {v.link(f'{base}/Lots/{title}/{v.safe_name(i)}', i + ' ' + lots[i]['name'])} : "
+    body += [f"- {v.link(f'{lots_dir}/{v.safe_name(i)}', i + ' ' + lots[i]['name'])} : "
              f"{days(lots[i]['days'])}" for i in lots]
     body += ["", "## Hypothèses de production", ""] + [
         f"- {s['name']} : {cost(s['tco']['total'])} sur {years}, réalisation {cost(s['build']['cost'])}, "
@@ -1331,7 +1332,7 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
         props.update({"total": totals["tco"]["total"], "devise": currency, "horizon": totals["tco"]["years"],
                       "budget": budget})
     notes.add(rel, "chiffrage", props, {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
-    result = notes.write(errors, cleanup=(f"{base}/Lots/{title}",))
+    result = notes.write(errors, cleanup=cleanup)
     return {**result, "folder": base} if result else None
 
 

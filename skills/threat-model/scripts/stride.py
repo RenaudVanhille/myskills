@@ -179,7 +179,7 @@ def write_vault(vault: Path, folder: str, spec: dict, report: dict, out: Path, o
     title = vault_ontology.safe_name(spec.get("title", "architecture"), "menaces")
     option_rel = f"{base}/Options/Option {option}" if option else None
     v = vault_ontology
-    detail = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    detail = notes.attach(f"{base}/Rapports/{vault_ontology.folder_key(title)}/{out.name}", out) if out.is_file() else f"`{out.name}`"
     crossing = (f"{v.count(report['crossing'], 'flux traversant', 'flux traversant')} une frontière de confiance "
                 f"({v.count(report['boundaries'], 'frontière')})")
     body = [f"# Modèle de menaces : {spec.get('title', 'architecture')}", ""]

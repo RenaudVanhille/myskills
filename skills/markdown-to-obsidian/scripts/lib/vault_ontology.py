@@ -281,6 +281,73 @@ def safe_folder(folder: str) -> str:
     return "/".join(safe_name(p) for p in re.split(r"[\\/]+", str(folder)) if p.strip())
 
 
+LINKING = {"de", "du", "des", "d'", "la", "le", "les", "l'", "et", "à", "au", "aux", "en", "pour", "sur", "par",
+           "un", "une", "-"}
+
+
+def folder_key(title, default: str = "notes", limit: int = 40) -> str:
+    """Sous-dossier court tiré d'un titre (constats, risques, lots, rapports) : « Option A - Application web
+    dans le cloud européen » donne « Option A » ; un autre titre est coupé au mot sous limit caractères."""
+    name = safe_name(title, default)
+    found = re.match(r"(Option\s+[\w.-]+)\s+-\s+", name)
+    if found:
+        return found.group(1)
+    if len(name) <= limit:
+        return name
+    words = name[:limit + 1].split(" ")[:-1] or [name[:limit]]
+    while len(words) > 1 and words[-1].lower() in LINKING:
+        words.pop()  # pas de « Chiffrage du portail de » : le dernier mot porte le sens
+    return " ".join(words).rstrip(" ,;-.")
+
+
+def folders_of(base: str, kind: str, title, default: str = "notes") -> tuple[str, tuple[str, ...]]:
+    """Dossier court des notes d'un titre, et dossiers à nettoyer : lui et l'ancien dossier au titre long
+    (migration des vaults écrits avant les dossiers courts : leurs notes générées y sont retirées)."""
+    key, old = folder_key(title, default), safe_name(title, default)
+    folder = f"{base}/{kind}/{key}"
+    return folder, (folder,) + ((f"{base}/{kind}/{old}",) if old != key else ())
+
+
+SNIPPET = "myskills-types"
+
+
+def write_style(onto: dict, vault: Path) -> dict:
+    """Couleurs des types (champ color de l'ontologie), à la demande seulement : groupes de couleurs de la vue
+    graphe (.obsidian/graph.json, par tag type/<type>, les autres groupes et réglages gardés) et extrait CSS
+    qui colore les tags type/<type> (.obsidian/snippets, activé dans appearance.json)."""
+    prefix = onto["tags"]["type_prefix"]
+    colored = [(kind, spec["color"]) for kind, spec in onto["types"].items() if spec.get("color")]
+    config = Path(vault) / ".obsidian"
+    config.mkdir(exist_ok=True)
+
+    def read(name: str) -> dict:
+        try:
+            data = json.loads((config / name).read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    graph = read("graph.json")
+    ours = f"tag:#{prefix}/"
+    kept = [g for g in graph.get("colorGroups", []) if not str(g.get("query", "")).startswith(ours)]
+    graph["colorGroups"] = kept + [{"query": f"{ours}{kind}", "color": {"a": 1, "rgb": int(color[1:], 16)}}
+                                   for kind, color in colored]
+    (config / "graph.json").write_text(json.dumps(graph, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    css = ["/* myskills : couleur des tags type/<type>, tirée de l'ontologie du vault ; réécrit par",
+           "   vault_check.py --style. */"]
+    css += [f'a.tag[href="#{prefix}/{kind}"] {{ background-color: {color}26; color: {color}; }}'
+            for kind, color in colored]
+    (config / "snippets").mkdir(exist_ok=True)
+    snippet = config / "snippets" / f"{SNIPPET}.css"
+    snippet.write_text("\n".join(css) + "\n", encoding="utf-8")
+    appearance = read("appearance.json")
+    enabled = [s for s in appearance.get("enabledCssSnippets", []) if s != SNIPPET] + [SNIPPET]
+    appearance["enabledCssSnippets"] = enabled
+    (config / "appearance.json").write_text(json.dumps(appearance, ensure_ascii=False, indent=2) + "\n",
+                                            encoding="utf-8")
+    return {"graph": str(config / "graph.json"), "groups": len(colored), "kept": len(kept), "snippet": str(snippet)}
+
+
 # --- Lisibilité dans Obsidian : nombres, libellés, callouts, titres et section des liens générés ---
 
 THIN = " "  # espace fine insécable : séparateur des milliers en français
@@ -718,6 +785,8 @@ class Notes:
                 if rel not in self.texts and path.read_text(encoding="utf-8", errors="replace").startswith(mark):
                     path.unlink()
                     removed += 1
+            if folder.is_dir() and not any(folder.iterdir()):
+                folder.rmdir()  # ancien dossier vidé (migration vers les dossiers courts)
         # Section générée : chaque note visée (option, exigence, workflow) liste ce qui l'évalue.
         hubs = Hubs(self.onto, self.vault, {r: (m, heading(self.texts[r]) or r.rsplit("/", 1)[-1])
                                             for r, m in self.metas.items()})
