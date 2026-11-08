@@ -67,7 +67,7 @@ Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une 
 - **Livrables** : `index.md`
 - **Contrôle** : markdown-to-obsidian : obsidianize.py index.md sources/*.md --vault <vault> --folder <dossier> (notes copiées dans le vault, sources/ inchangé), puis vault_check.py <vault> --folder <dossier>
 
-Étape facultative, proposée seulement si le workflow a un vault (ou dans une mission) ; sans vault, la sauter (skip) : sources/, validé, serait réécrit en place. index.md : un titre, puis une ligne par document, un lien Markdown vers sources/<nom>.md et son objet en une phrase tiré de son titre et de ses intertitres. Les notes vont dans le dossier du workflow du vault.
+Étape facultative, proposée seulement si le workflow a un vault (ou dans une mission) ; sans vault, la sauter (skip) : sources/, validé, serait réécrit en place. index.md : un titre, puis une ligne par document, un lien Markdown vers sources/<nom>.md et son objet en une phrase tiré de son titre et de ses intertitres. Les notes vont dans le dossier du workflow du vault. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER notes --submit).
 
 ### 3. Synthèse
 
@@ -95,4 +95,4 @@ Un à trois schémas, chacun avec un seul message. Le brief de chaque schéma (d
 - **Contrôle** : architecture-dossier : dossier_build.py . --template documentation --out documentation.md --strict (synthèse présente, liens et images vérifiés)
 - **Contrôle** : si l'utilisateur veut un Word, un PDF, une page Confluence ou XWiki, ou une présentation : passer documentation.md à document-publisher
 
-Assemblage mécanique par le script : synthèse, schémas, index et annexe des documents, sans réécrire la synthèse validée. La publication (Word, PDF, Confluence, PowerPoint) passe à document-publisher, qui produit les fichiers sans rien mettre en ligne.
+Assemblage mécanique par le script : synthèse, schémas, index et annexe des documents, sans réécrire la synthèse validée. La publication (Word, PDF, Confluence, PowerPoint) passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit).

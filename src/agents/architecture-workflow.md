@@ -91,7 +91,8 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    `run`, puis `journal.py check DOSSIER ETAPE --submit` : il passe tous
    les contrôles de `run` en un appel (constructions, exports, revues) et,
    à zéro erreur, soumet l'étape dans le même appel ; sinon corrige les
-   descriptions citées dans `errors` et relance-le. `level` est le niveau de l'étape : s'il diffère du tien, vois
+   descriptions citées dans `errors` et relance-le. Une étape sans rien à
+   écrire (ses consignes le disent) : `start DOSSIER ETAPE --submit`. `level` est le niveau de l'étape : s'il diffère du tien, vois
    la « Grille des niveaux ». `agent` est l'agent à qui passer la main pour un
    travail de jugement que l'utilisateur demande ; les commandes des
    `checks` restent à toi.

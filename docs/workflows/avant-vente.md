@@ -229,7 +229,7 @@ Le brouillon reprend les questions des exigences, les hypothèses et exclusions 
 - **Livrables** : `presentation.md`
 - **Contrôle** : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)
 
-Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas.
+Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER soutenance --submit).
 
 ## Mémoire partagée
 
