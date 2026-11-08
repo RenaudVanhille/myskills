@@ -3,7 +3,7 @@
 # ///
 """Vérifie les notes typées d'un vault Obsidian contre l'ontologie et exporte leur graphe.
 
-Lit le vault (sans le modifier). Chaque note dont le frontmatter a une
+Lit le vault sans le modifier, sauf `--style`. Chaque note dont le frontmatter a une
 propriété `type` est vérifiée contre l'ontologie (`scripts/lib/vault-ontology.json`,
 source unique de l'ontologie) : type connu, propriétés obligatoires,
 valeurs permises, relations (wikilinks) permises depuis ce type et visant une
@@ -14,9 +14,12 @@ vérifiées. Une note générée (propriété `genere`) est aussi relue pour sa 
 NetworkX (`nodes`, `links` avec `relation` ; `lien` pour un wikilink du corps),
 lisible par networkx, graphify ou un autre agent sans relire le vault.
 `--ontology` affiche l'ontologie résumée sur une ligne, pour écrire une note
-sans lire le fichier.
+sans lire le fichier. `--style`, à la demande de l'utilisateur seulement (il
+touche la configuration du vault), colore chaque type d'après l'ontologie :
+groupes de couleurs de la vue graphe (`.obsidian/graph.json`, ses autres
+réglages gardés) et extrait CSS des tags `type/<type>` activé.
 
-    uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict]
+    uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style]
     uv run scripts/vault_check.py --ontology [TYPE]
 """
 
@@ -66,6 +69,8 @@ def main() -> int:
     parser.add_argument("--folder", help="ne vérifier que les notes de ce dossier du vault (liens résolus dans tout le vault)")
     parser.add_argument("--graph", type=Path, help="écrire le graphe des notes (node-link NetworkX) dans ce fichier JSON")
     parser.add_argument("--strict", action="store_true", help="code de sortie 1 aussi sur un avertissement")
+    parser.add_argument("--style", action="store_true",
+                        help="colorer les types dans la vue graphe et sur leurs tags (écrit dans .obsidian, à la demande)")
     parser.add_argument("--ontology", nargs="?", const="", metavar="TYPE",
                         help="afficher l'ontologie résumée (ou celle d'un type) et s'arrêter")
     args = parser.parse_args()
@@ -151,12 +156,13 @@ def main() -> int:
                               encoding="utf-8")
         graph = {"file": str(args.graph), "nodes": len(nodes), "links": len(links)}
 
+    style = vault_ontology.write_style(onto, vault) if args.style else None
     failed = [r["note"] for r in results if r["errors"]]
     errors = [f"{len(failed)} note(s) hors ontologie, détail dans results : {', '.join(failed[:10])}"
               + (" ..." if len(failed) > 10 else "")] if failed else []
     report = {"vault": str(vault), "notes": len(scope), "typed": sum(kinds.values()), "untyped": untyped,
               "types": dict(kinds.most_common()), "relations": relations, "graph": graph, "results": results,
-              "errors": errors,
+              **({"style": style} if style else {}), "errors": errors,
               "warnings": [] if scope else ["aucune note dans le périmètre"]}
     print(json.dumps(report, ensure_ascii=False))
     warned = any(r["warnings"] for r in results)

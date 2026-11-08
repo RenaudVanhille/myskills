@@ -421,7 +421,7 @@ def write_vault(vault: Path, folder: str, spec: dict, result: dict, errors: list
         body = [f"# {r['id']} : {EVENTS[r['event']]} ({r['treatment']})", "", r.get("impacts", ""), ""]
         body += vault_ontology.callout("danger", "Risque résiduel élevé", [level_text]) if zone == "élevé" \
             else [level_text]
-        notes.add(f"{base}/Risques/{vault_ontology.safe_name(spec['title'])}/{vault_ontology.safe_name(r['id'])}",
+        notes.add(f"{base}/Risques/{vault_ontology.folder_key(spec['title'])}/{vault_ontology.safe_name(r['id'])}",
                   "risque", {"id": r["id"], "statut": status,
                              "gravite": {"élevé": "haute", "significatif": "moyenne", "limité": "basse"}[zone]},
                   relations, body, ["rgpd"])

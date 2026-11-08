@@ -1145,11 +1145,13 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
 
     up = f"Revue : [[{review_rel}|{title}]]"
     v = vault_ontology
+    constats_dir, cleanup_c = v.folders_of(base, "Constats", title)
+    risques_dir, cleanup_r = v.folders_of(base, "Risques", title)
     severities = ("haute", "moyenne", "basse")
     rank = lambda s: severities.index(s) if s in severities else len(severities)  # noqa: E731
     constats = []
     for f in sorted(found["findings"], key=lambda f: (rank(f["severity"]), f["rule"], f["element"])):
-        rel = f"{base}/Constats/{title}/{v.safe_name(f['rule'] + ' ' + f['element'])}"
+        rel = f"{constats_dir}/{v.safe_name(f['rule'] + ' ' + f['element'])}"
         heading = f"{f['rule']} {v.short(f['message'])}"
         constats.append((rel, f, heading))
         body = [f"# {heading}", ""]
@@ -1163,7 +1165,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
     risques = []
     accepted = {f["element"] for f in found["findings"] if f["rule"] in ("RSK-01", "RSK-03") and f["accepted"]}
     for r in sorted(spec.get("risks", []), key=lambda r: (rank(r["severity"]), r["id"])):
-        rel = f"{base}/Risques/{title}/{v.safe_name(r['id'])}"
+        rel = f"{risques_dir}/{v.safe_name(r['id'])}"
         risques.append((rel, r))
         body = [f"# {r['id']} {r['text']}", ""]
         if r["severity"] == "haute":
@@ -1182,7 +1184,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
                   {"porte-sur": about(r.get("refs", [])), "issu-de": (review_rel, title)}, body, ["architecture"])
     open_ = [f for _, f, _ in constats if not f["accepted"]]
     high = sum(f["severity"] == "haute" for f in open_)
-    report = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    report = notes.attach(f"{base}/Rapports/{v.folder_key(title)}/{out.name}", out) if out.is_file() else f"`{out.name}`"
     kind = {"favorable": "success", "favorable avec réserves": "note"}.get(verdict, "danger")
     body = [f"# Revue d'architecture : {spec['title']}", ""]
     body += v.callout(kind, f"Avis : {verdict}", [
@@ -1201,7 +1203,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
     notes.add(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body,
               ["architecture"])
     # Constats et risques d'une revue précédente qui ne sont plus relevés : notes générées retirées.
-    result = notes.write(errors, cleanup=(f"{base}/Constats/{title}", f"{base}/Risques/{title}"))
+    result = notes.write(errors, cleanup=cleanup_c + cleanup_r)
     return {**result, "folder": base} if result else None
 
 

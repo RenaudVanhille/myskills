@@ -1,0 +1,4 @@
+{
+  "showTags": true,
+  "colorGroups": [{"query": "path:Perso", "color": {"a": 1, "rgb": 255}}, {"query": "tag:#type/constat", "color": {"a": 1, "rgb": 1}}]
+}

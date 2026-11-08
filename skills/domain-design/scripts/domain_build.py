@@ -528,7 +528,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, out: Path, er
                    **({"equipe": c["team"]} if c.get("team") else {}), "entites": len(c.get("entities", [])),
                    "extraire": "oui" if c["id"] in style["extract"] else "non"},
                   {"decoupage": (main_rel, spec["title"]), "depend-de": ups, "couvre": couvre}, body, ["architecture"])
-    detail = notes.attach(f"{base}/Rapports/{title}/{out.name}", out) if out.is_file() else f"`{out.name}`"
+    detail = notes.attach(f"{base}/Rapports/{v.folder_key(title)}/{out.name}", out) if out.is_file() else f"`{out.name}`"
     body = [f"# Domaines : {spec['title']}", ""]
     body += v.callout("success" if not found["warnings"] else "warning",
                       f"Style recommandé : {STYLES[style['recommended']]}",
