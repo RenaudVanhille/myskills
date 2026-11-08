@@ -122,6 +122,7 @@
       "id": "docling-flux-filtres",
       "skill": "doc-to-markdown",
       "slow": true,
+      "models": ["docling-layout-heron"],
       "_note": "Docling (version épinglée) lancé derrière guard_network() (uvx), modèles lus dans le cache vérifié préparé par doctor.py extraction --prefetch, hors ligne pour Hugging Face ; aucun repli sur MarkItDown.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/convert.py",

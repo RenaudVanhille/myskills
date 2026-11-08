@@ -646,6 +646,16 @@ def report_warnings(report) -> list[str]:
     return found
 
 
+def model_ready(model: str) -> bool:
+    """Modèle local complet et vérifié dans le cache (model_store du skill check-prerequisites)."""
+    sys.path.insert(0, str(ROOT / "skills" / "check-prerequisites" / "scripts" / "lib"))
+    import model_store
+    try:
+        return model_store.local_model(model) is not None
+    except (KeyError, OSError):
+        return False
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -674,12 +684,18 @@ def main() -> int:
                 print(f"      - {failure}")
             for notice in results[-1].get("notices", []):
                 print(f"      ! {notice}")
-    selected = []
+    selected, missing = [], {}
     for case in cases:
         if only and case["id"] not in only:
             continue
         if case.get("slow") and not args.slow and not only:
             skipped.append(case["id"])
+            continue
+        # Modèle local absent du cache vérifié : prérequis de la machine, pas un échec du skill. En CI, le cas
+        # tourne quand même (doctor.py --prefetch l'a préparé, sinon il doit échouer).
+        absent = [m for m in case.get("models", []) if not os.environ.get("CI") and not model_ready(m)]
+        if absent:
+            missing[case["id"]] = absent
             continue
         selected.append(case)
     # Les cas sont indépendants (dossier temporaire chacun) : on les lance en
@@ -698,10 +714,13 @@ def main() -> int:
 
     passed = sum(r["ok"] for r in results)
     if args.json:
-        print(json.dumps({"results": results, "skipped": skipped}, ensure_ascii=False, indent=2))
+        print(json.dumps({"results": results, "skipped": skipped, "missing": missing}, ensure_ascii=False, indent=2))
     else:
         print(f"\n{passed}/{len(results)} cas réussis"
               + (f", {len(skipped)} lents ignorés (--slow) : {', '.join(skipped)}" if skipped else ""))
+        for case_id, models in missing.items():
+            print(f"prérequis manquant, {case_id} non lancé : modèle {', '.join(models)} absent du cache ; "
+                  "préparez la machine avec uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch")
     return 0 if passed == len(results) else 1
 
 

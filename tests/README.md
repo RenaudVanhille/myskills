@@ -71,6 +71,11 @@ valeur d'un champ de chaque élément d'une liste : `each` + `in`) ;
 `--backend checks` ne fait que ceux-là. La note du cas (`score`, de 0 à 1)
 est la part des contrôles et des affirmations vérifiés.
 
+Un cas de `cases.json` qui lit un modèle local le déclare dans `models` :
+sans ce modèle dans le cache vérifié, `run.py` ne le lance pas et l'annonce
+comme prérequis manquant, avec la commande `doctor.py --prefetch` (en CI,
+variable `CI`, il tourne quand même et échoue si le modèle manque).
+
 Chaque workflow a au moins un cas d'agent : `id` `workflow-<nom>` ou
 `bout-en-bout-<nom>`, ou champ `workflow` (contrôlé par le cas `contrats`).
 
