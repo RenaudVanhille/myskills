@@ -11,8 +11,10 @@ les schémas) :
 1. Demander en une seule question celles qui sont facultatives.
 2. `start` chacune de celles retenues.
 3. Lancer en même temps un sous-agent par étape : l'agent de son champ
-   `agent` s'il en a un (ses consignes et son modèle), sinon un sous-agent
-   au modèle de son niveau. Il reçoit le seul `stage` de son `start`, le
+   `agent` s'il en a un (ses consignes), sinon un sous-agent, toujours au
+   modèle du niveau de l'étape (`level`, paramètre de modèle de l'outil de
+   sous-agent) : une étape moyenne confiée à un agent complexe tourne au
+   modèle standard. Il reçoit le seul `stage` de son `start`, le
    dossier et les chemins des scripts de ses skills ; il produit les
    livrables, lance les `checks` (`check --submit` s'il y a un `run`) et
    note ses choix au journal (`journal.py` attend son tour, rien ne se

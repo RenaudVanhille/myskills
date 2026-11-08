@@ -1034,6 +1034,23 @@
       ],
       "output": "memoire-technique.md",
       "max_cost_usd": 20.0,
+      "checks": [
+        {"file": "workflow.json", "json": "stages", "each": "status", "in": ["validee", "sautee"]},
+        {"file": "ao.json", "json": "criteria", "min": 2},
+        {"file": "qualification.json", "json": "decision", "min": 1},
+        {"file": "exigences.json", "json": "requirements", "min": 12},
+        {"file": "options.json", "json": "options", "min": 2},
+        {"file": "decision.json"},
+        {"file": "schemas/architectures.drawio"},
+        {"file": "conformite.json", "json": "answers", "min": 12},
+        {"file": "chiffrage.json", "json": "work", "min": 9},
+        {"file": "chiffrage.md", "contains": ["intrusion", "formation"], "matches": "reprise|migration"},
+        {"file": "revue.json", "json": "risks", "min": 1},
+        {"file": "revue.md", "matches": "avis"},
+        {"file": "registre.json", "json": "items", "min": 3},
+        {"file": "memoire-technique.md", "contains": ["Compréhension du besoin", "Solution proposée", "conformité"]},
+        {"file": "presentation.md"}
+      ],
       "rubric": [
         "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur, l'étape maquettes sautée faute de maquettes.",
         "Dépouillement et exigences ont été menés ensemble après les documents ; chiffrage et revue ensemble après les schémas.",

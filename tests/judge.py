@@ -161,7 +161,10 @@ def lookup(data, path: str):
 
 
 def run_checks(case: dict, folder: Path) -> list[dict]:
-    """Contrôles sans modèle du cas : chacun {file, contains | matches | json + equals | min}."""
+    """Contrôles sans modèle du cas : chacun {file, contains | matches | json + equals | min | each + in}.
+
+    `each` + `in` : chaque élément de la liste `json` a son champ `each` parmi les valeurs `in`
+    (toutes les étapes d'un journal validées ou sautées, par exemple)."""
     results = []
     for check in case.get("checks", []):
         path = folder / check["file"]
@@ -186,6 +189,13 @@ def run_checks(case: dict, folder: Path) -> list[dict]:
                     size = len(value) if isinstance(value, (list, dict, str)) else value
                     ok = ok and isinstance(size, (int, float)) and size >= check["min"]
                     detail = f"{check['json']} : {size}"
+                if "each" in check:
+                    values = [item.get(check["each"]) if isinstance(item, dict) else None
+                              for item in (value if isinstance(value, list) else [])]
+                    wrong = sorted({str(v) for v in values if v not in check["in"]})
+                    ok = ok and bool(values) and not wrong
+                    detail = f"{check['json']}.{check['each']} hors {check['in']} : {', '.join(wrong)}" if wrong \
+                        else f"{check['json']} : {len(values)} éléments"
         results.append({"check": check, "ok": ok, "detail": detail})
     return results
 

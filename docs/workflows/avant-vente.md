@@ -84,8 +84,8 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 8. Matrice de conformité (facultative) | moyen | `architecture-workflow` | `tender-response` | `conformite.json`, `conformite.md`, `conformite.xlsx` | 7 |
 | 9. Maquettes d'écrans, revue UX et lots frontend (facultative) | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `design-system.json`, `pages/*.json`, `revue-ux.json`, `decoupage.md`, `decoupage.lots.json` | 1 |
 | 10. Découpage et lots backend (facultative) | moyen | `backend-estimator` | `api-contract` | `decoupage-back.lots.json`, `decoupage-back.md` | 7 |
-| 11. Chiffrage de l'option retenue (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `chiffrage.json`, `chiffrage.md` | 7, 9, 10 |
-| 12. Revue d'architecture (facultative) | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 7 |
+| 11. Chiffrage de l'option retenue (facultative) | moyen | `solution-estimator` | `solution-estimate`, `cloud-cost` | `chiffrage.json`, `chiffrage.md` | 7, 9, 10 |
+| 12. Revue d'architecture (facultative) | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 7 |
 | 13. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `registre.json`, `registre.md`, `questions-client.md` | 8, 11, 12 |
 | 14. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 13 |
 | 15. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 14 |
@@ -192,17 +192,17 @@ decision.json reprend le choix fait par l'utilisateur à la revue précédente :
 - **Contrôle** : cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)
 - **Contrôle** : solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)
 
-Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json [--lots decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée.
+Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. En avant-vente, solution-estimator est lancé au niveau de l'étape (moyen) : le brouillon et les lots des experts font le découpage, il complète et arbitre ; il ne remonte au niveau complexe que s'il bute. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json [--lots decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée.
 
 ### 12. Revue d'architecture
 
 - **Entrées** : `options.json`, `exigences.json`, `decision.json`, `adr-architecture.md`, `schemas/option-*.cloud.json`
 - **Livrables** : `revue.json`, `revue.md`
-- **Livrables possibles** : `schemas/option-*.threats.md`, `schemas/option-*.wa.md`
+- **Livrables possibles** : `schemas/option-*.threats.md`
 - **Contrôle** : architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)
 - **Contrôle** : si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json, avec --vault <vault> --folder <dossier> --option <id> si le workflow a un vault
 
-Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal.
+Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, lancé au niveau de l'étape (moyen) sur le brouillon arch_review.py revue.json --draft (scénarios tirés des exigences de qualité), qui rend revue.json ; il ne remonte au niveau complexe que s'il bute. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes).
 
 ### 13. Hypothèses, exclusions et questions
 

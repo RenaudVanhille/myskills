@@ -489,7 +489,7 @@
     {
       "id": "chiffrage",
       "label": "Chiffrage de l'option retenue",
-      "level": "complexe",
+      "level": "moyen",
       "after": [
         "schemas",
         "maquettes",
@@ -538,12 +538,12 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json [--lots decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée."
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. En avant-vente, solution-estimator est lancé au niveau de l'étape (moyen) : le brouillon et les lots des experts font le découpage, il complète et arbitre ; il ne remonte au niveau complexe que s'il bute. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json [--lots decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée."
     },
     {
       "id": "revue",
       "label": "Revue d'architecture",
-      "level": "complexe",
+      "level": "moyen",
       "after": [
         "schemas"
       ],
@@ -566,8 +566,7 @@
         "revue.md"
       ],
       "optional": [
-        "schemas/option-*.threats.md",
-        "schemas/option-*.wa.md"
+        "schemas/option-*.threats.md"
       ],
       "checks": [
         "architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur)",
@@ -583,7 +582,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
+      "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, lancé au niveau de l'étape (moyen) sur le brouillon arch_review.py revue.json --draft (scénarios tirés des exigences de qualité), qui rend revue.json ; il ne remonte au niveau complexe que s'il bute. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes)."
     },
     {
       "id": "registre",
