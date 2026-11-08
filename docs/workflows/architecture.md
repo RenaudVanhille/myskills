@@ -117,11 +117,11 @@ decision.json reprend le choix fait par l'utilisateur à la revue précédente :
 
 - **Entrées** : `options.json`, `exigences.json`, `decision.json`, `adr-architecture.md`, `schemas/option-*.cloud.json`, `domaines.json`
 - **Livrables** : `revue.json`, `revue.md`
-- **Livrables possibles** : `schemas/option-*.threats.md`, `schemas/option-*.wa.md`
+- **Livrables possibles** : `schemas/option-*.threats.md`
 - **Contrôle** : architecture-review : arch_review.py revue.json --vault <vault> --folder <dossier> si le workflow a un vault (avis calculé ; constat de gravité haute traité ou accepté avec la raison de l'utilisateur ; avec domaines.json, revue.json porte domains et les règles DOM- contrôlent le découpage)
 - **Contrôle** : si l'option retenue est cloud et que l'utilisateur veut les menaces : threat-model : stride.py schemas/option-<id>.cloud.json, avec --vault <vault> --folder <dossier> --option <id> si le workflow a un vault
 
-Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal.
+Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes).
 
 ### 7. Chiffrage de l'option retenue
 

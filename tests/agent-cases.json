@@ -1041,7 +1041,7 @@
         {"file": "exigences.json", "json": "requirements", "min": 12},
         {"file": "options.json", "json": "options", "min": 2},
         {"file": "decision.json"},
-        {"file": "schemas/architectures.drawio.png"},
+        {"file": "schemas/architectures.drawio"},
         {"file": "conformite.json", "json": "answers", "min": 12},
         {"file": "chiffrage.json", "json": "work", "min": 9},
         {"file": "chiffrage.md", "contains": ["intrusion", "formation"], "matches": "reprise|migration"},
