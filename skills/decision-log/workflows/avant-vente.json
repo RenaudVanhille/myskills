@@ -708,7 +708,7 @@
           ]
         }
       ],
-      "instructions": "Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas."
+      "instructions": "Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER soutenance --submit)."
     }
   ]
 }

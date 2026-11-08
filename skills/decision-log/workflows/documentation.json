@@ -72,7 +72,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée seulement si le workflow a un vault (ou dans une mission) ; sans vault, la sauter (skip) : sources/, validé, serait réécrit en place. index.md : un titre, puis une ligne par document, un lien Markdown vers sources/<nom>.md et son objet en une phrase tiré de son titre et de ses intertitres. Les notes vont dans le dossier du workflow du vault."
+      "instructions": "Étape facultative, proposée seulement si le workflow a un vault (ou dans une mission) ; sans vault, la sauter (skip) : sources/, validé, serait réécrit en place. index.md : un titre, puis une ligne par document, un lien Markdown vers sources/<nom>.md et son objet en une phrase tiré de son titre et de ses intertitres. Les notes vont dans le dossier du workflow du vault. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER notes --submit)."
     },
     {
       "id": "synthese",
@@ -229,7 +229,7 @@
           ]
         }
       ],
-      "instructions": "Assemblage mécanique par le script : synthèse, schémas, index et annexe des documents, sans réécrire la synthèse validée. La publication (Word, PDF, Confluence, PowerPoint) passe à document-publisher, qui produit les fichiers sans rien mettre en ligne."
+      "instructions": "Assemblage mécanique par le script : synthèse, schémas, index et annexe des documents, sans réécrire la synthèse validée. La publication (Word, PDF, Confluence, PowerPoint) passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit)."
     }
   ]
 }

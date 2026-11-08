@@ -46,13 +46,16 @@ skills, une fois par fichier pour `foreach`, avec le vault du workflow pour
 toutes ses descriptions, puis contrôle et exporte tout d'un coup. Avec
 `--submit`, une étape dont tous les contrôles passent est soumise dans le même
 appel (livrables de la définition) : un tour de moins par étape.
+`start DOSSIER ETAPE --submit` fait de même dès le démarrage, pour une étape
+que ses scripts produisent entièrement à partir des étapes validées
+(support de soutenance) : démarrée, contrôlée et soumise en un appel.
 
 Les messages de passage et rapports finaux d'agent sont validés par le
 skill `agent-handoff` (check_message.py), qui les note au journal par
 `trace()` quand le dossier est celui d'un workflow.
 
     uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c | --definition NOM|DEF.json] [--vault VAULT [--folder F]]
-    uv run scripts/journal.py start DOSSIER ETAPE
+    uv run scripts/journal.py start DOSSIER ETAPE [--submit]
     uv run scripts/journal.py skip DOSSIER ETAPE --text "mots de l'utilisateur"
     uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
@@ -688,9 +691,11 @@ def main() -> int:
             command.add_argument("--why", help="justification")
             command.add_argument("--refs", help="exigences, options ou entrées concernées, séparées par des virgules")
             command.add_argument("--by", choices=["agent", "utilisateur"], default="agent")
-        if name == "check":
+        if name in ("check", "start"):
             command.add_argument("--submit", action="store_true",
-                                 help="soumettre l'étape dans le même appel si tous ses contrôles passent")
+                                 help="soumettre l'étape dans le même appel si tous ses contrôles passent"
+                                      + (" (start : démarrer, lancer les contrôles run, puis soumettre ; pour une "
+                                         "étape dont le script produit tout)" if name == "start" else ""))
         if name == "submit":
             command.add_argument("--files", nargs="+", help="chemins relatifs au dossier (défaut : livrables de la "
                                                               "définition du workflow)")
@@ -719,6 +724,17 @@ def main() -> int:
                 if state and not errors and args.command != "status":
                     save(args.folder, state)
                 memory = synchronize(args.folder, state, warnings) if state and not errors else None
+        if args.command == "start" and getattr(args, "submit", False) and state and not errors:
+            # Étape produite par ses seuls scripts : démarrage, contrôles et soumission en un appel.
+            stage = stage_of(state, args.stage, errors)
+            checks = run_checks(args.folder, state, stage, errors) if stage else []
+            if checks and not errors:
+                args.command, args.files = "submit", None
+                with locked(args.folder):
+                    state, entry = run(args, errors, warnings)
+                    if state and not errors:
+                        save(args.folder, state)
+                    memory = synchronize(args.folder, state, warnings) if state and not errors else None
     except TimeoutError as error:
         state, entry, memory = None, None, None
         errors.append(str(error))

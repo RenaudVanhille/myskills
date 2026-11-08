@@ -40,7 +40,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 | Commande | Quand | Le script refuse si |
 | --- | --- | --- |
 | `init DOSSIER [--definition NOM\|DEF.json \| --stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, définition introuvable ou non conforme, vault introuvable |
-| `start DOSSIER ETAPE` | avant de travailler sur l'étape | une étape dont elle dépend n'est pas validée, ou un de ses livrables a changé depuis |
+| `start DOSSIER ETAPE [--submit]` | avant de travailler sur l'étape ; avec `--submit`, pour une étape que ses scripts produisent entièrement : contrôles et soumission dans le même appel | une étape dont elle dépend n'est pas validée, ou un de ses livrables a changé depuis |
 | `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
 | `check DOSSIER ETAPE [--submit]` | descriptions de l'étape écrites, si sa définition a un champ `run` : tous ses contrôles en un appel ; avec `--submit`, soumission dans le même appel à zéro erreur | l'étape n'est pas démarrée, pas de `run` ; une erreur par contrôle en échec |
 | `submit DOSSIER ETAPE [--files F ...]` | livrables vérifiés par leurs scripts | l'étape n'est ni en cours ni en revue (une étape en revue se soumet à nouveau si ses livrables changent), fichier introuvable, livrable attendu par la définition absent |

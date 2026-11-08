@@ -7407,7 +7407,7 @@
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
-            "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; le rapport est alors celui de submit (command submit, checks gardés)",
+            "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
             "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit"
           },
           "report": {

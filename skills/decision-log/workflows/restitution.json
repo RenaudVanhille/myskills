@@ -191,7 +191,7 @@
           ]
         }
       ],
-      "instructions": "Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier."
+      "instructions": "Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER presentation --submit)."
     },
     {
       "id": "document",
@@ -230,7 +230,7 @@
           ]
         }
       ],
-      "instructions": "Assemblage mécanique : synthèse, schémas et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne."
+      "instructions": "Assemblage mécanique : synthèse, schémas et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit)."
     }
   ]
 }
