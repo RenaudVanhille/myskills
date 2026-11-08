@@ -128,9 +128,10 @@ applique `check-prerequisites`. Ne le lance pas par précaution.
 | Concevoir et noter des options, trancher une ambiguïté, relire un schéma | complexe |
 
 Le niveau d'une étape (`level`) est celui de son travail principal : une
-étape d'un autre niveau que le tien se confie entière à son `agent`, sinon
-à un sous-agent du niveau de l'étape (après `start` ; toi, tu soumets),
-sauf si elle est courte.
+étape d'un autre niveau que le tien, ou qui a un `agent`, se confie entière
+à son `agent`, sinon à un sous-agent, toujours au modèle du niveau de
+l'étape, pas de l'agent (après `start` ; toi, tu soumets), sauf si elle est
+courte et de ton niveau.
 
 Pour chaque action, commence au niveau le plus bas qui convient et monte
 d'un niveau si elle échoue :

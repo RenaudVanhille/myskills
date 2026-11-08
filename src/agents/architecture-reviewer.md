@@ -55,7 +55,8 @@ workflow, la commande les trace aussi au journal.
    précaution.
 2. **Plusieurs analyses demandées** (revue d'architecture, menaces,
    Well-Architected, AIPD) et un outil de sous-agent : confie chacune à un
-   sous-agent du niveau complexe, lancés en même temps, avec ses seules
+   sous-agent au modèle sous lequel tu tournes (celui du niveau que
+   l'appelant t'a donné), lancés en même temps, avec ses seules
    entrées (chemins), son étape ci-dessous et le dossier de sortie ; l'AIPD
    attend les menaces quand les deux sont demandées. Chaque sous-agent rend
    ses chemins, ses compteurs et ses points à trancher, pas de contenu.
