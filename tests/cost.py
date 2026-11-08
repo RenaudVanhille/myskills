@@ -80,7 +80,10 @@ def prepare(case: dict, work: Path) -> None:
     for item in case["inputs"]:
         source, target = (item, Path(item).name) if isinstance(item, str) else (item["from"], item["to"])
         (work / target).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(TESTS / source, work / target)
+        if (TESTS / source).is_dir():  # un dossier (code à revoir...) se copie en entier
+            shutil.copytree(TESTS / source, work / target, dirs_exist_ok=True)
+        else:
+            shutil.copy2(TESTS / source, work / target)
     runner = ["uv", "run", "--quiet"] if shutil.which("uv") else [sys.executable]
     for step in case.get("setup", []):
         script = ROOT / "skills" / step["script"]

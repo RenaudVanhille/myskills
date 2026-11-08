@@ -1583,7 +1583,7 @@
     {
       "id": "workflow-evolution",
       "agent": "architecture-workflow",
-      "prompt": "Le client demande une évolution du portail validé : un rappel téléphonique de l'assuré sous 24 heures après chaque déclaration. Mène l'écart d'exigences, sans vault Obsidian.",
+      "prompt": "J'ai validé la demande d'évolution du portail (evolution/sources/demande.md) : un rappel téléphonique de l'assuré sous 24 heures après chaque déclaration. Mène l'écart d'exigences, sans vault Obsidian.",
       "inputs": [
         {
           "from": "fixtures/workflow/sources/cahier-des-charges.md",
@@ -1600,7 +1600,17 @@
         {
           "from": "fixtures/workflow/exigences.json",
           "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/evolution/demande.md",
+          "to": "evolution/sources/demande.md"
         }
+      ],
+      "setup": [
+        {"script": "decision-log/scripts/journal.py", "args": ["init", "{work}/evolution", "--title", "Portail sinistres : rappel sous 24 h", "--definition", "evolution"]},
+        {"script": "decision-log/scripts/journal.py", "args": ["start", "{work}/evolution", "documents"]},
+        {"script": "decision-log/scripts/journal.py", "args": ["submit", "{work}/evolution", "documents"]},
+        {"script": "decision-log/scripts/journal.py", "args": ["review", "{work}/evolution", "documents", "--decision", "valide", "--text", "ok"]}
       ],
       "output": "evolution/ecarts-exigences.md",
       "checks": [
@@ -1618,7 +1628,7 @@
         }
       ],
       "rubric": [
-        "Le workflow evolution est mené dans le sous-dossier evolution/ et la demande dite oralement est écrite dans evolution/sources/demande.md avec les mots de l'utilisateur.",
+        "Le workflow evolution est mené dans le sous-dossier evolution/, à partir de la demande validée evolution/sources/demande.md.",
         "exigences.json du dossier parent n'est pas modifié ; la copie de travail vient de req_diff.py --start.",
         "L'écart liste au moins une exigence ajoutée sur le rappel sous 24 heures, citant la demande.",
         "L'étape exigences est soumise à la revue, pas validée par l'agent."
