@@ -219,6 +219,9 @@ def forgotten(spec: dict, catalog: dict, option: dict, rules: list[dict]) -> lis
 
 
 DEFAULTS = {"pilotage": 12, "contingency": 10, "run": 15}
+# Lot de cadrage du brouillon : % des jours de réalisation et d'intégration [mini, probable, maxi], à calibrer.
+CADRAGE = {"name": "Cadrage et architecture détaillée", "phase": "cadrage", "ratio": [8, 10, 15],
+           "profile": "architecte"}
 MONEY = re.compile(r"(\d[\d  .]*)\s*(?:€|euros?|eur)\s*(?:par|/)\s*(mois|an)", re.I)
 
 
@@ -281,10 +284,28 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
                         "d'abaque, à relire")
     if errors:
         return report
-    work.append({"id": "", "name": "Cadrage et architecture détaillée", "phase": "cadrage", "effort": {}})
-    for rule in rules:
-        if rule.get("draft") and applies(rule, catalog, option, bool(lines)):
-            work.append({"id": "", "name": rule["draft"]["name"], "phase": rule["draft"]["phase"], "effort": {}})
+    # Un poste déjà couvert par un lot d'expert (plan de recette, tests de charge...) n'est pas ajouté une 2e fois.
+    names = " ".join(plain(w["name"]) for w in work)
+    transverse = [CADRAGE] + [rule["draft"] for rule in rules
+                              if rule.get("draft") and applies(rule, catalog, option, bool(lines))
+                              and not (rule.get("pattern") and re.search(rule["pattern"], names))]
+    # Réalisation et intégration toutes chiffrées (lots des experts) : les lots transverses à ratio en
+    # reçoivent une charge de départ, que l'agent relit au lieu de l'estimer.
+    build = [w for w in work if w["phase"] in BUILD_PHASES]
+    base_days = sum(three_points(v)[3] for w in build for v in w["effort"].values()) \
+        if build and all(w["effort"] for w in build) else 0
+    prefilled = 0
+    for lot in transverse:
+        task = {"id": "", "name": lot["name"], "phase": lot["phase"], "effort": {}}
+        if base_days and lot.get("ratio") and lot.get("profile"):
+            task["effort"] = {lot["profile"]: [round(base_days * r / 100 * 2) / 2 for r in lot["ratio"]]}
+            task["note"] = (f"Ratio de {'-'.join(str(r) for r in lot['ratio'])} % des {days(base_days)} jours de "
+                            "réalisation et d'intégration, espérance avant réemploi (valeur par défaut, à calibrer)")
+            prefilled += 1
+        work.append(task)
+    if prefilled:
+        warnings.append(f"{prefilled} lots transverses chiffrés par ratio des {days(base_days)} jours de réalisation "
+                        "et d'intégration (note de chaque lot), à relire")
     order = list(PHASES)
     work.sort(key=lambda w: order.index(w["phase"]))
     renamed, owner = {}, {}

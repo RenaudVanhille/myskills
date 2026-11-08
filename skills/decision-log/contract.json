@@ -913,6 +913,22 @@
                         "conduite-changement",
                         "pilotage"
                       ]
+                    },
+                    "ratio": {
+                      "type": "array",
+                      "minItems": 3,
+                      "maxItems": 3,
+                      "items": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100
+                      },
+                      "description": "Charge du lot en % des jours de réalisation et d'intégration [mini, probable, maxi] : --draft la remplit quand tous ces lots ont leur charge (lots des experts)."
+                    },
+                    "profile": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$",
+                      "description": "Profil de la charge tirée du ratio."
                     }
                   }
                 },

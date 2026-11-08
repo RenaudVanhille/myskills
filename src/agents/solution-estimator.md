@@ -85,7 +85,8 @@ workflow, la commande les trace aussi au journal.
    porte les lots des experts, un lot par autre composant, les lots
    transverses, les valeurs usuelles, le budget et l'infrastructure ;
    complète-le sans le réécrire (skill `solution-estimate`, section 2).
-   Estime à trois points les lots restés vides. Un lot qui réutilise un
+   Estime à trois points les lots restés vides ; un lot transverse chiffré
+   par ratio (`note`) se relit, et ne change qu'avec sa raison dans `note`. Un lot qui réutilise un
    autre lot ou un existant le déclare (`reuse` : `from`, `percent`,
    `basis`) : charge saisie sans réemploi, le script la réduit. Pas de
    marge dans un lot : pilotage et provision s'ajoutent une seule fois.

@@ -1,5 +1,5 @@
 {
- "_doc": "Postes souvent oubliés d'un chiffrage (schéma shared/schemas/rules.schema.json). Un poste manque quand sa condition (when) vaut, qu'aucun lot de sa phase n'existe et que son motif (pattern, sans accents ni majuscules) n'apparaît dans aucun lot, ligne d'infrastructure, hypothèse ni exclusion. draft : lot transverse que --draft ajoute. Les règles de l'utilisateur et de la mission s'y ajoutent.",
+ "_doc": "Postes souvent oubliés d'un chiffrage (schéma shared/schemas/rules.schema.json). Un poste manque quand sa condition (when) vaut, qu'aucun lot de sa phase n'existe et que son motif (pattern, sans accents ni majuscules) n'apparaît dans aucun lot, ligne d'infrastructure, hypothèse ni exclusion. draft : lot transverse que --draft ajoute ; avec ratio (% des jours de réalisation et d'intégration, [mini, probable, maxi], à calibrer) et profile, --draft remplit sa charge quand tous ces lots ont la leur. Les règles de l'utilisateur et de la mission s'y ajoutent.",
  "chiffrage": [
   {
    "id": "CHF-securite",
@@ -7,7 +7,13 @@
    "pattern": "intrusion|pentest|audit de securite|tests? de securite",
    "draft": {
     "name": "Tests de sécurité (test d'intrusion)",
-    "phase": "tests"
+    "phase": "tests",
+    "ratio": [
+     3,
+     5,
+     8
+    ],
+    "profile": "expert-securite"
    },
    "when": {
     "categories": [
@@ -41,7 +47,13 @@
    "phase": "tests",
    "draft": {
     "name": "Recette",
-    "phase": "tests"
+    "phase": "tests",
+    "ratio": [
+     15,
+     20,
+     25
+    ],
+    "profile": "testeur"
    },
    "source": "pratique de chiffrage"
   },
@@ -52,7 +64,13 @@
    "phase": "deploiement",
    "draft": {
     "name": "Mise en production",
-    "phase": "deploiement"
+    "phase": "deploiement",
+    "ratio": [
+     3,
+     5,
+     8
+    ],
+    "profile": "devops"
    },
    "source": "pratique de chiffrage"
   },
@@ -63,7 +81,13 @@
    "phase": "conduite-changement",
    "draft": {
     "name": "Formation et conduite du changement",
-    "phase": "conduite-changement"
+    "phase": "conduite-changement",
+    "ratio": [
+     2,
+     4,
+     6
+    ],
+    "profile": "consultant"
    },
    "source": "pratique de chiffrage"
   },
@@ -73,7 +97,13 @@
    "pattern": "tests? de (charge|performance|montee en charge)|\\bstress\\b|tir de (charge|performance)",
    "draft": {
     "name": "Tests de charge et de performance",
-    "phase": "tests"
+    "phase": "tests",
+    "ratio": [
+     3,
+     5,
+     8
+    ],
+    "profile": "testeur"
    },
    "when": {
     "categories": [
