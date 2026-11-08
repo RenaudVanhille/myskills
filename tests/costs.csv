@@ -593,3 +593,15 @@ date,label,commit,case,agent,model,ok,turns,cost_usd,input_tokens,cache_creation
 2026-11-08T20:54:07,foundry-pr77,0d526d3,bout-en-bout-avant-vente/soutenance,architecture-workflow,agent,True,8,0.0793,15,15548,241106,1631,0,20,,sonnet=0.079,
 2026-11-08T20:54:07,foundry-pr77,0d526d3,bout-en-bout-avant-vente/fin,architecture-workflow,agent,True,8,0.0791,15,14293,244209,1895,0,19,,sonnet=0.079,
 2026-11-08T20:54:07,foundry-pr77,0d526d3,bout-en-bout-avant-vente,architecture-workflow,agent,False,113,3.2118,207,266866,3727603,38033,5,591,0.93,opus=0.861 sonnet=2.352,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/documents,architecture-workflow,agent,True,13,0.1421,21,31791,353554,2718,0,29,,sonnet=0.142,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/depouillement+exigences,architecture-workflow,agent,True,14,0.2322,27,44445,549990,6600,0,59,,sonnet=0.232,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/qualification,architecture-workflow,agent,True,8,0.3848,15,16843,247718,2788,1,69,,opus=0.290 sonnet=0.095,general-purpose=1
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/architectures,architecture-workflow,agent,True,8,0.7041,15,17582,241211,3593,1,137,,opus=0.600 sonnet=0.104,general-purpose=1
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/schemas,architecture-workflow,agent,True,16,0.164,31,24236,610473,4234,0,56,,sonnet=0.164,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/conformite+backend+revue,architecture-workflow,agent,True,1,0.6962,4,2222,51666,1603,3,14,,sonnet=0.696,general-purpose=1 myskills:architecture-reviewer=1 myskills:backend-estimator=1
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/chiffrage,architecture-workflow,agent,True,8,0.3596,15,18523,245030,2994,1,99,,sonnet=0.360,myskills:solution-estimator=1
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/registre,architecture-workflow,agent,True,10,0.1169,19,20768,341897,3074,0,32,,sonnet=0.117,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/memoire,architecture-workflow,agent,True,11,0.1988,21,34871,420633,6952,0,55,,sonnet=0.199,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/soutenance,architecture-workflow,agent,True,6,0.0644,11,14183,164466,1250,0,16,,sonnet=0.064,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente/fin,architecture-workflow,agent,True,8,0.0745,15,14011,244112,1499,0,18,,sonnet=0.074,
+2026-11-08T21:09:57,foundry-pr77-fix,93b391a,bout-en-bout-avant-vente,architecture-workflow,agent,True,103,3.1376,194,239475,3470750,37305,6,584,1.0,opus=0.890 sonnet=2.247,
