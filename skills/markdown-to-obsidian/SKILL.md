@@ -151,6 +151,13 @@ l'utilisateur. Ses callouts `> [!question]` et `> [!retour]` y sont relus
 (`vault_ontology.vault_annotations`), et une note générée obsolète mais
 annotée n'est pas supprimée.
 
+À côté, `Carte.canvas` (Obsidian Canvas, plugin cœur) montre les liens
+d'un coup d'œil : workflow, exigences, options, revues et analyses, puis
+constats et risques en colonnes (champ `canvas` de l'ontologie), reliés par
+leurs relations typées. Elle est réécrite à chaque passage : pour l'arranger
+à la main, copiez-la ; une carte qui contient un nœud ajouté par l'utilisateur
+n'est plus touchée.
+
 Les scripts qui écrivent dans le vault le font un à la fois (verrou
 `.myskills-vault.lock` à sa racine, `vault_ontology.vault_lock`) et en
 écriture atomique : des étapes menées en parallèle ne perdent ni note ni

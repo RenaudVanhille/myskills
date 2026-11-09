@@ -725,6 +725,8 @@ def hub_lines(onto: dict, rel: str, kind: str, notes: dict[str, tuple[dict, str]
             names = [v["name"].lower() for k in kinds for v in types[k]["views"]]
             tables = [f"- Tableaux filtrables : {link(rel.rsplit('/', 1)[0] + '/' + BASE, 'Tableaux')} "
                       f"({', '.join(names)})"]
+        if canvas_data(onto, notes):
+            tables.append(f"- Carte des liens : {link(rel.rsplit('/', 1)[0] + '/' + CANVAS, 'Carte')}")
     else:
         incoming = [r for r, (m, _) in notes.items() if r != rel and any(rel in targets(m.get(n)) for n in hubs)]
     if not incoming:
@@ -790,6 +792,8 @@ def hub_lines(onto: dict, rel: str, kind: str, notes: dict[str, tuple[dict, str]
 
 
 BASE = "Tableaux.base"
+CANVAS = "Carte.canvas"
+CANVAS_ID = "myskills-"  # préfixe des nœuds et liens d'une carte générée
 BASE_MARK = "# myskills : tableaux générés depuis l'ontologie du vault, réécrits à chaque passage"
 
 
@@ -844,15 +848,81 @@ def base_text(onto: dict, folder: str, kinds: list[str]) -> str:
     return "\n".join(lines + ["views:"] + views) + "\n"
 
 
+def canvas_data(onto: dict, notes: dict[str, tuple[dict, str]]) -> dict | None:
+    """Carte JSON Canvas des notes : une colonne par entrée canvas.columns de l'ontologie, au plus canvas.max
+    notes par colonne (le reste compté dans un nœud texte), liens = relations typées entre notes de la carte."""
+    spec = onto.get("canvas") or {}
+    columns, limit = spec.get("columns") or [], int(spec.get("max", 30))
+    width, height, gap_x, gap_y = 360, 60, 520, 90
+    nodes, edges, where, ids = [], [], {}, {}
+    for col, kinds in enumerate(columns):
+        rels = sorted(r for r, (m, _) in notes.items() if m.get("type") in kinds)
+        rels.sort(key=lambda r: kinds.index(notes[r][0]["type"]))
+        for row, rel in enumerate(rels[:limit]):
+            node_id = f"{CANVAS_ID}{len(nodes)}"
+            node = {"id": node_id, "type": "file", "file": f"{rel}.md", "x": col * gap_x, "y": row * gap_y,
+                    "width": width, "height": height}
+            color = onto["types"].get(notes[rel][0]["type"], {}).get("color")
+            if color:
+                node["color"] = color
+            nodes.append(node)
+            where[rel], ids[rel] = col, node_id
+        if len(rels) > limit:
+            nodes.append({"id": f"{CANVAS_ID}{len(nodes)}", "type": "text", "x": col * gap_x, "y": limit * gap_y,
+                          "width": width, "height": height,
+                          "text": f"… et {count(len(rels) - limit, 'autre note', 'autres notes')} : voir les tableaux"})
+    if len(where) < 2:
+        return None
+    for rel in where:
+        meta = notes[rel][0]
+        for name, relation in onto["relations"].items():
+            if name in spec.get("skip_relations", []):
+                continue
+            for target in targets(meta.get(name)):
+                if target not in where or target == rel:
+                    continue
+                a, b = where[rel], where[target]
+                sides = ("right", "left") if b > a else ("left", "right") if b < a else ("bottom", "top")
+                edges.append({"id": f"{CANVAS_ID}e{len(edges)}", "fromNode": ids[rel], "fromSide": sides[0],
+                              "toNode": ids[target], "toSide": sides[1], "toEnd": "arrow",
+                              "label": relation.get("label", name)})
+    return {"nodes": nodes, "edges": edges}
+
+
+def write_canvas(onto: dict, vault: Path, folder: str, notes: dict[str, tuple[dict, str]]) -> str | None:
+    """Écrit (ou retire) <folder>/Carte.canvas ; rend son chemin s'il existe. Une carte dont un nœud n'a pas
+    le préfixe de myskills appartient à l'utilisateur (ou a été enrichie par lui) : jamais touchée."""
+    path = Path(vault) / folder / CANVAS
+    if path.is_file():
+        try:
+            current = json.loads(path.read_text(encoding="utf-8"))
+            ours = all(str(n.get("id", "")).startswith(CANVAS_ID) for n in current.get("nodes", []))
+        except (ValueError, AttributeError):
+            ours = False
+        if not ours:
+            return f"{folder}/{CANVAS}"
+    data = canvas_data(onto, notes)
+    if not data:
+        if path.is_file():
+            path.unlink()
+        return None
+    text = json.dumps(data, ensure_ascii=False, indent="\t") + "\n"
+    if not path.is_file() or path.read_text(encoding="utf-8") != text:
+        save(path, text)
+    return f"{folder}/{CANVAS}"
+
+
 def write_base(onto: dict, vault: Path, folder: str, notes: dict[str, tuple[dict, str]] | None = None) -> str | None:
     """Écrit (ou retire) <folder>/Tableaux.base selon les notes du dossier ; rend son chemin s'il existe.
     Un fichier Tableaux.base sans la marque de myskills appartient à l'utilisateur : jamais touché."""
     if not folder:
         return None
     path = Path(vault) / folder / BASE
+    notes = scan(vault, folder) if notes is None else notes
+    write_canvas(onto, vault, folder, notes)
     if path.is_file() and not path.read_text(encoding="utf-8", errors="replace").startswith(BASE_MARK):
         return None
-    kinds = view_kinds(onto, scan(vault, folder) if notes is None else notes)
+    kinds = view_kinds(onto, notes)
     if not kinds:
         if path.is_file():
             path.unlink()

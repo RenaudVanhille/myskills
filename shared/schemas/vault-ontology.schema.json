@@ -12,6 +12,11 @@
     "labels": {"type": "object", "description": "Libellé affiché d'une valeur de propriété (a-faire : à faire).", "additionalProperties": {"type": "string", "minLength": 1}},
     "_labels": {"type": "string"},
     "_views": {"type": "string"},
+    "_canvas": {"type": "string"},
+    "canvas": {"type": "object", "description": "Carte Obsidian Canvas de chaque dossier de workflow (Carte.canvas).", "required": ["columns"], "additionalProperties": false,
+      "properties": {"columns": {"type": "array", "minItems": 1, "items": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}, "description": "une colonne par entrée, de gauche à droite : types de note"},
+                     "max": {"type": "integer", "minimum": 1, "description": "notes au plus par colonne"},
+                     "skip_relations": {"type": "array", "items": {"type": "string"}, "description": "relations non tracées sur la carte"}}},
     "tags": {
       "type": "object",
       "required": ["pattern", "type_prefix"],
