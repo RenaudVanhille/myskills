@@ -499,7 +499,8 @@ def markdown(spec: dict, found: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_vault(vault: Path, folder: str, spec: dict, found: dict, out: Path, errors: list[str]) -> dict | None:
+def write_vault(vault: Path, folder: str, spec: dict, found: dict, out: Path, errors: list[str],
+                warnings: list[str] | None = None) -> dict | None:
     """Note decoupage-domaines et une note contexte-borne par contexte, liées aux exigences du workflow."""
     v = vault_ontology
     notes = v.Notes(vault, "domain-design")
@@ -542,7 +543,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, out: Path, er
     body += ["", f"Détail, carte et grille : {detail}."]
     notes.add(main_rel, "decoupage-domaines", {"style": style["recommended"], "contextes": len(spec["contexts"]),
                                                "score": style["score"]}, {}, body, ["architecture"])
-    result = notes.write(errors, cleanup=(f"{base}/Contextes",))
+    result = notes.write(errors, cleanup=(f"{base}/Contextes",), warnings=warnings)
     return {**result, "folder": base} if result else None
 
 
@@ -627,7 +628,7 @@ def main() -> int:
     if errors:
         return done(1)
     if args.vault:
-        report["vault"] = write_vault(args.vault, args.folder, spec, found, md, errors)
+        report["vault"] = write_vault(args.vault, args.folder, spec, found, md, errors, report["warnings"])
     return done(1 if errors else 0)
 
 

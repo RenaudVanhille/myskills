@@ -138,8 +138,12 @@ court, plutôt que de lire les notes.
 Une étape soumise a sa note de revue (`Revues/Revue <étape>`) : l'utilisateur
 y met la propriété `revue` à `validée` ou `retour` et écrit son retour sous
 « Votre retour » ; `review --from-vault` la lit et trace la décision comme
-prise dans Obsidian. Les autres notes sont générées (`genere: decision-log`) :
-ne les modifiez pas, un retour passe par `review`. Les autres notes du vault ne sont jamais
-touchées. Pour choisir le dossier, lisez d'abord le profil du vault
+prise dans Obsidian. Les autres notes sont générées (`genere: decision-log`) et
+réécrites à chaque passage, sauf leur section « Mes notes », toujours gardée :
+l'utilisateur y écrit, et chaque callout `> [!question]` ou `> [!retour]` qui
+s'y trouve devient, à la commande suivante, une entrée `question` ou
+`annotation` du journal (champ `annotations` du rapport, à prendre en compte).
+Une note générée devenue inutile mais annotée est gardée et signalée. Les
+autres notes du vault ne sont jamais touchées. Pour choisir le dossier, lisez d'abord le profil du vault
 (`vault_profile.py` du skill `markdown-to-obsidian`). Hors journal,
 `vault_sync.py DOSSIER --vault VAULT` refait la synchronisation.
