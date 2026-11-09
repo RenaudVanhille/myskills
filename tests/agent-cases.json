@@ -287,6 +287,93 @@
       ]
     },
     {
+      "id": "workflow-contexte-vault",
+      "agent": "architecture-workflow",
+      "prompt": "L'étape architectures est en cours : d'après la mémoire du workflow dans le vault, quelles exigences l'option B ne couvre-t-elle pas ? Note la réponse au journal comme hypothèse de l'étape architectures, sans rien soumettre.",
+      "inputs": [
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "options.json"
+        },
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "vault/Notes/cahier-des-charges.md"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--title",
+            "Portail sinistres",
+            "--stages",
+            "exigences,architectures",
+            "--vault",
+            "{work}/vault"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences",
+            "--files",
+            "exigences.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "architectures"
+          ]
+        }
+      ],
+      "output": "journal.md",
+      "checks": [
+        {
+          "file": "journal.md",
+          "contains": [
+            "Hypothèse",
+            "ENF-001",
+            "ENF-004"
+          ]
+        }
+      ],
+      "rubric": [
+        "Le journal contient une hypothèse de l'étape architectures qui cite ENF-001 et ENF-004 comme non couvertes par l'option B.",
+        "L'étape architectures est toujours en cours : rien n'a été soumis ni validé."
+      ]
+    },
+    {
       "id": "workflow-reprise",
       "agent": "architecture-workflow",
       "prompt": "Où en est le workflow ? Reprends là où on s'est arrêté.",
