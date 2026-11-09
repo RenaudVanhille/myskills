@@ -10,6 +10,22 @@
         "fixtures/workflow/sources/compte-rendu-atelier.md"
       ],
       "output": "passage.json",
+      "checks": [
+        {
+          "file": "passage.json",
+          "contains": [
+            "architecture-workflow",
+            "cahier-des-charges",
+            "compte-rendu-atelier"
+          ]
+        },
+        {
+          "file": "mission.json",
+          "contains": [
+            "avant-vente"
+          ]
+        }
+      ],
       "rubric": [
         "passage.json est un message de passage vers architecture-workflow, avec le workflow architecture dans constraints.",
         "Les deux documents fournis figurent dans files.",
@@ -26,6 +42,19 @@
       ],
       "output": "sortie/architecture.md",
       "expected": "architecture.md",
+      "checks": [
+        {
+          "file": "sortie/architecture.md",
+          "contains": [
+            "# Architecture du service de paiement",
+            "## Composants",
+            "## Flux",
+            "| API |",
+            "PostgreSQL"
+          ],
+          "matches": "!\\["
+        }
+      ],
       "rubric": [
         "Le texte obtenu a un titre principal et des sous-titres Composants et Flux.",
         "Le texte obtenu contient le tableau des trois composants API, Worker et Base avec leur rôle et leur technologie.",
@@ -41,6 +70,16 @@
       ],
       "output": "sortie/rapport-texte.md",
       "expected": "rapport-texte.md",
+      "checks": [
+        {
+          "file": "sortie/rapport-texte.md",
+          "contains": [
+            "Architecture du service de paiement",
+            "notifie le client"
+          ],
+          "matches": "^# "
+        }
+      ],
       "rubric": [
         "Le texte obtenu utilise des titres Markdown (lignes qui commencent par #).",
         "Aucun mot n'est coupé en deux en fin de ligne, comme « cli » suivi de « ent ».",
@@ -56,6 +95,15 @@
       ],
       "output": "sortie/rapport-scanne.md",
       "expected": "rapport-scanne.md",
+      "checks": [
+        {
+          "file": "sortie/rapport-scanne.md",
+          "contains": [
+            "Architecture du service de paiement"
+          ],
+          "matches": "appelle la banque"
+        }
+      ],
       "rubric": [
         "Le texte obtenu contient le titre Architecture du service de paiement.",
         "Le texte obtenu contient la phrase sur la réception des commandes, l'appel à la banque et la notification du client."
@@ -70,6 +118,16 @@
       ],
       "output": "sortie/schema-flux.md",
       "expected": "schema-flux.md",
+      "checks": [
+        {
+          "file": "sortie/schema-flux.md",
+          "contains": [
+            "Worker",
+            "Banque"
+          ],
+          "matches": "!\\[.*schema-flux"
+        }
+      ],
       "rubric": [
         "Le texte obtenu affiche l'image du schéma.",
         "Le texte obtenu décrit un flux qui va de l'API au Worker puis à la Banque."
@@ -80,11 +138,26 @@
       "agent": "document-extractor",
       "prompt": "Importe presentation.pptx à la racine de mon vault Obsidian vault/, avec ses images.",
       "inputs": [
-        {"from": "fixtures/vault-vide/app.json", "to": "vault/.obsidian/app.json"},
+        {
+          "from": "fixtures/vault-vide/app.json",
+          "to": "vault/.obsidian/app.json"
+        },
         "fixtures/samples/presentation.pptx"
       ],
       "output": "vault/presentation.md",
       "expected": "presentation.md",
+      "checks": [
+        {
+          "file": "vault/presentation.md",
+          "contains": [
+            "title:",
+            "tags:",
+            "![[",
+            "Flux d'un paiement"
+          ],
+          "matches": "\\A---"
+        }
+      ],
       "rubric": [
         "Le texte obtenu commence par un frontmatter YAML avec au moins title et tags.",
         "L'image est intégrée avec la syntaxe Obsidian ![[...]].",
@@ -99,6 +172,21 @@
         "fixtures/diagrams/contexte-paiement.md"
       ],
       "output": "schemas/paiement.drawio",
+      "checks": [
+        {
+          "file": "schemas/paiement.drawio",
+          "contains": [
+            "Client",
+            "API",
+            "Worker",
+            "Banque",
+            "dashed=1"
+          ]
+        },
+        {
+          "file": "schemas/paiement.drawio.png"
+        }
+      ],
       "rubric": [
         "Le schéma contient des formes nommées Client, API, file de messages, Worker, Banque et base PostgreSQL ou équivalentes.",
         "Le schéma relie l'API à la file, la file au Worker, puis le Worker à la Banque et à la base.",
@@ -113,6 +201,22 @@
         "fixtures/diagrams/pos-inventaire.csv"
       ],
       "output": "schemas/pos-inventaire.drawio",
+      "checks": [
+        {
+          "file": "schemas/pos-inventaire.drawio",
+          "contains": [
+            "Pilotage",
+            "Opérations",
+            "Support",
+            "Référentiels",
+            "Échanges",
+            "Sinistres"
+          ]
+        },
+        {
+          "file": "schemas/pos-inventaire.drawio.png"
+        }
+      ],
       "rubric": [
         "Le schéma a des zones Pilotage, Opérations, Support, Référentiels et Échanges.",
         "Le schéma montre les quartiers Distribution, Contrats et Sinistres dans la zone Opérations.",
@@ -127,6 +231,15 @@
         "fixtures/diagrams/contexte-paiement.md"
       ],
       "output": "schemas/paiement.excalidraw",
+      "checks": [
+        {
+          "file": "schemas/paiement.excalidraw",
+          "contains": [
+            "\"elements\"",
+            "\"text\""
+          ]
+        }
+      ],
       "rubric": [
         "Le schéma a au plus sept éléments principaux.",
         "Les libellés sont en mots simples, sans nom de technologie comme Java ou PostgreSQL."
@@ -140,6 +253,16 @@
         "expected/architecture.md"
       ],
       "output": "publication/architecture.html",
+      "checks": [
+        {
+          "file": "publication/architecture.html",
+          "contains": [
+            "Architecture du service de paiement",
+            "<table",
+            "PostgreSQL"
+          ]
+        }
+      ],
       "rubric": [
         "La page contient le titre Architecture du service de paiement.",
         "La page contient le tableau des composants sous forme de tableau HTML."
@@ -149,7 +272,9 @@
       "id": "publier-pptx",
       "agent": "document-publisher",
       "prompt": "Fais une présentation PowerPoint de dossier.md pour le comité de direction, avec le gabarit par défaut. Environnement de test : MD2PPTX_SKILL désigne volontairement la doublure du skill markdown-to-pptx, utilise-la.",
-      "env": {"MD2PPTX_SKILL": "{tests}/fixtures/md2pptx-stub"},
+      "env": {
+        "MD2PPTX_SKILL": "{tests}/fixtures/md2pptx-stub"
+      },
       "inputs": [
         {
           "from": "fixtures/pptx/dossier.md",
@@ -161,6 +286,11 @@
         }
       ],
       "output": "dossier.pptx",
+      "checks": [
+        {
+          "file": "dossier.pptx"
+        }
+      ],
       "rubric": [
         "dossier.pptx a été produit par pptx_publish.py (skill markdown-publish, qui appelle le skill externe markdown-to-pptx) et son rapport n'a aucune erreur.",
         "Le rapport final de l'agent est un JSON sur une ligne, avec dossier.pptx dans files.",
@@ -176,6 +306,24 @@
         "fixtures/workflow/sources/compte-rendu-atelier.md"
       ],
       "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages.0.status",
+          "equals": "en-revue"
+        },
+        {
+          "file": "workflow.json",
+          "json": "stages.1.status",
+          "equals": "a-faire"
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"soumission\""
+          ]
+        }
+      ],
       "rubric": [
         "Le journal montre l'étape documents en revue et les étapes exigences, architectures et schemas à faire.",
         "Le journal contient une entrée de soumission de l'étape documents.",
@@ -187,10 +335,26 @@
       "agent": "architecture-workflow",
       "prompt": "Nouvelle avant-vente « Portail sinistres » pour la Mutuelle exemple : ouvre la mission dans ce dossier (les documents reçus sont dans documents/) et mène la première étape jusqu'à sa revue.",
       "inputs": [
-        {"from": "fixtures/workflow/sources/cahier-des-charges.md", "to": "documents/cahier-des-charges.md"},
-        {"from": "fixtures/workflow/sources/compte-rendu-atelier.md", "to": "documents/compte-rendu-atelier.md"}
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "documents/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "documents/compte-rendu-atelier.md"
+        }
       ],
       "output": "mission.json",
+      "checks": [
+        {
+          "file": "mission.json",
+          "contains": [
+            "Portail sinistres",
+            "Mutuelle exemple",
+            "avant-vente"
+          ]
+        }
+      ],
       "rubric": [
         "mission.json décrit une mission de nature avant-vente nommée Portail sinistres, client Mutuelle exemple.",
         "Le vault de la mission existe avec une note Mission et la note d'index du workflow avant-vente.",
@@ -209,6 +373,23 @@
         }
       ],
       "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages.0.status",
+          "equals": "en-revue"
+        },
+        {
+          "file": "workflow.json",
+          "json": "stages.1.status",
+          "equals": "a-faire"
+        },
+        {
+          "file": "schemas/architecture.json",
+          "json": "flows",
+          "min": 3
+        }
+      ],
       "rubric": [
         "Le journal montre l'étape description en revue et les étapes schemas et menaces à faire.",
         "schemas/architecture.json a été produit depuis le Terraform (iac_import.py) et soumis à la revue.",
@@ -279,6 +460,31 @@
         }
       ],
       "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages.0.status",
+          "equals": "en-revue"
+        },
+        {
+          "file": "workflow.json",
+          "json": "stages.1.status",
+          "equals": "a-faire"
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"retour\""
+          ],
+          "matches": "accessibilit|RGAA"
+        },
+        {
+          "file": "exigences.json",
+          "contains": [
+            "RGAA"
+          ]
+        }
+      ],
       "rubric": [
         "Le journal contient un retour de l'utilisateur sur l'étape exigences qui demande une exigence d'accessibilité.",
         "Le journal montre une nouvelle soumission de l'étape exigences qui liste une exigence ajoutée.",
@@ -437,6 +643,18 @@
         }
       ],
       "output": "journal.md",
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages.0.status",
+          "equals": "en-revue"
+        },
+        {
+          "file": "workflow.json",
+          "json": "stages.1.status",
+          "equals": "a-faire"
+        }
+      ],
       "rubric": [
         "L'étape exigences est toujours en revue : l'agent ne l'a pas validée sans réponse de l'utilisateur.",
         "Aucune étape architectures n'a démarré."
@@ -450,6 +668,16 @@
         "fixtures/diagrams/contexte-paiement.md"
       ],
       "output": "c4/model.c4",
+      "checks": [
+        {
+          "file": "c4/model.c4",
+          "contains": [
+            "Worker",
+            "Banque"
+          ],
+          "matches": "\\bview\\b"
+        }
+      ],
       "rubric": [
         "Le modèle LikeC4 décrit un système de paiement avec ses conteneurs API, Worker, file de messages et base.",
         "La Banque est un système externe au système de paiement.",
@@ -464,6 +692,17 @@
         "fixtures/diagrams/contexte-paiement.md"
       ],
       "output": "contexte-paiement.md",
+      "checks": [
+        {
+          "file": "contexte-paiement.md",
+          "contains": [
+            "```mermaid",
+            "sequenceDiagram",
+            "Banque",
+            "Le client passe commande sur le site web"
+          ]
+        }
+      ],
       "rubric": [
         "Le fichier contient un bloc ```mermaid de type sequenceDiagram.",
         "La séquence fait intervenir le Client, l'API, le Worker et la Banque.",
@@ -481,6 +720,18 @@
         }
       ],
       "output": "schemas/cloud-aws-web.drawio",
+      "checks": [
+        {
+          "file": "schemas/cloud-aws-web.drawio",
+          "contains": [
+            "mxgraph.aws4",
+            "API commandes"
+          ]
+        },
+        {
+          "file": "schemas/cloud-aws-web.drawio.png"
+        }
+      ],
       "rubric": [
         "Le schéma utilise les icônes AWS officielles (styles mxgraph.aws4).",
         "Le schéma montre un VPC avec ses sous-réseaux et le service API commandes.",
@@ -495,6 +746,11 @@
         "expected/architecture.md"
       ],
       "output": "publication/architecture.docx",
+      "checks": [
+        {
+          "file": "publication/architecture.docx"
+        }
+      ],
       "rubric": [
         "Le document Word contient le titre Architecture du service de paiement.",
         "Le document contient le tableau des composants API, Worker et Base."
@@ -511,6 +767,21 @@
         }
       ],
       "output": "revue/cloud-aws-web.threats.md",
+      "checks": [
+        {
+          "file": "revue/cloud-aws-web.threats.md",
+          "contains": [
+            "STRIDE"
+          ],
+          "matches": "mesure"
+        },
+        {
+          "file": "revue/cloud-aws-web.wa.md",
+          "contains": [
+            "##"
+          ]
+        }
+      ],
       "rubric": [
         "Le modèle de menaces liste les flux qui traversent une frontière de confiance.",
         "Chaque flux exposé a au moins une menace STRIDE et une parade proposée, ou est marqué à analyser.",
@@ -522,10 +793,32 @@
       "agent": "architecture-reviewer",
       "prompt": "Fais le registre des traitements et l'analyse d'impact RGPD du portail décrit par cloud-aws-web.json et exigences.json, dans rgpd/ (description rgpd/aipd.json). Le portail traite les déclarations de sinistres des assurés, dont des certificats médicaux.",
       "inputs": [
-        {"from": "fixtures/diagrams/cloud-aws-web.json", "to": "cloud-aws-web.json"},
-        {"from": "fixtures/workflow/exigences.json", "to": "exigences.json"}
+        {
+          "from": "fixtures/diagrams/cloud-aws-web.json",
+          "to": "cloud-aws-web.json"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        }
       ],
       "output": "rgpd/aipd.aipd.md",
+      "checks": [
+        {
+          "file": "rgpd/aipd.json"
+        },
+        {
+          "file": "rgpd/aipd.registre.md",
+          "matches": "base légale",
+          "contains": [
+            "santé"
+          ]
+        },
+        {
+          "file": "rgpd/aipd.aipd.md",
+          "matches": "gravité"
+        }
+      ],
       "rubric": [
         "Le registre (rgpd/aipd.registre.md) donne pour chaque traitement sa finalité, sa base légale, ses données et sa durée de conservation.",
         "Les données de santé sont marquées sensibles avec une exception de l'article 9.2.",
@@ -548,6 +841,22 @@
         }
       ],
       "output": "chiffrage.md",
+      "checks": [
+        {
+          "file": "chiffrage.json",
+          "json": "option",
+          "equals": "A"
+        },
+        {
+          "file": "chiffrage.json",
+          "json": "work",
+          "min": 5
+        },
+        {
+          "file": "chiffrage.md",
+          "matches": "3 ans"
+        }
+      ],
       "rubric": [
         "Le chiffrage porte sur l'option A et donne la charge de réalisation avec une fourchette.",
         "Chaque ligne d'infrastructure a une base de prix, présentée comme une hypothèse quand aucun devis n'est fourni.",
@@ -610,10 +919,30 @@
       "agent": "architecture-reviewer",
       "prompt": "Fais la revue d'architecture de l'option A de options.json, dans revue/.",
       "inputs": [
-        {"from": "fixtures/workflow/options.json", "to": "options.json"},
-        {"from": "fixtures/workflow/exigences.json", "to": "exigences.json"}
+        {
+          "from": "fixtures/workflow/options.json",
+          "to": "options.json"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        }
       ],
       "output": "revue/revue.md",
+      "checks": [
+        {
+          "file": "revue/revue.md",
+          "contains": [
+            "avis"
+          ],
+          "matches": "synchrone"
+        },
+        {
+          "file": "revue/revue.json",
+          "json": "scenarios",
+          "min": 3
+        }
+      ],
       "rubric": [
         "La revue donne un avis : favorable, favorable avec réserves ou défavorable.",
         "L'arbre d'utilité a au moins un scénario de qualité pour la performance, la disponibilité et la sécurité, chacun évalué avec sa raison.",
@@ -700,9 +1029,21 @@
       "output": "migration.md",
       "_reference": "Mission de référence : migration (inventaire de 8 applications vers AWS).",
       "checks": [
-        {"file": "migration.json", "json": "applications", "min": 8},
-        {"file": "migration.md", "matches": "APP-03"},
-        {"file": "workflow.json", "contains": ["\"evaluation\""]}
+        {
+          "file": "migration.json",
+          "json": "applications",
+          "min": 8
+        },
+        {
+          "file": "migration.md",
+          "matches": "APP-03"
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"evaluation\""
+          ]
+        }
       ],
       "rubric": [
         "migration.json a une entrée par application de l'inventaire (8), sans application inventée.",
@@ -814,6 +1155,21 @@
         }
       ],
       "output": "feuille-de-route.md",
+      "checks": [
+        {
+          "file": "feuille-de-route.json"
+        },
+        {
+          "file": "feuille-de-route.md",
+          "matches": "chemin critique"
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"feuille-de-route\""
+          ]
+        }
+      ],
       "rubric": [
         "La validation de l'évaluation est notée au journal avec les mots de l'utilisateur.",
         "La feuille de route reprend les vagues de migration.waves.json et ajoute des chantiers transverses (socle, sécurité, décommissionnement).",
@@ -1039,6 +1395,27 @@
         }
       ],
       "output": "dossier-architecture.md",
+      "checks": [
+        {
+          "file": "synthese.md",
+          "contains": [
+            "#"
+          ]
+        },
+        {
+          "file": "dossier-architecture.md",
+          "contains": [
+            "##",
+            "ENF-"
+          ]
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"dossier\""
+          ]
+        }
+      ],
       "rubric": [
         "synthese.md tient en une page : objet, option retenue et pourquoi, points ouverts, sans revue ni chiffrage inventés.",
         "dossier-architecture.md est assemblé par dossier_build.py avec les exigences, les options, l'ADR et le schéma.",
@@ -1061,6 +1438,37 @@
       ],
       "output": "schemas/architecture.threats.md",
       "max_cost_usd": 3.0,
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages",
+          "each": "status",
+          "in": [
+            "validee",
+            "sautee"
+          ]
+        },
+        {
+          "file": "schemas/architecture.json",
+          "json": "flows",
+          "min": 3
+        },
+        {
+          "file": "schemas/architecture.drawio"
+        },
+        {
+          "file": "schemas/architecture.threats.md",
+          "contains": [
+            "STRIDE"
+          ]
+        },
+        {
+          "file": "schemas/architecture.wa.md",
+          "contains": [
+            "##"
+          ]
+        }
+      ],
       "rubric": [
         "Les trois étapes sont validées, chacune avec les mots de l'utilisateur au journal.",
         "Schémas et menaces ont été menés ensemble après la description.",
@@ -1091,6 +1499,56 @@
       ],
       "output": "dossier-architecture.md",
       "max_cost_usd": 10.0,
+      "checks": [
+        {
+          "file": "workflow.json",
+          "json": "stages",
+          "each": "status",
+          "in": [
+            "validee",
+            "sautee"
+          ]
+        },
+        {
+          "file": "exigences.json",
+          "json": "requirements",
+          "min": 8
+        },
+        {
+          "file": "options.json",
+          "json": "options",
+          "min": 2
+        },
+        {
+          "file": "decision.json"
+        },
+        {
+          "file": "adr-architecture.md"
+        },
+        {
+          "file": "schemas/architectures.drawio"
+        },
+        {
+          "file": "revue.json",
+          "json": "scenarios",
+          "min": 3
+        },
+        {
+          "file": "chiffrage.json",
+          "json": "work",
+          "min": 5
+        },
+        {
+          "file": "synthese.md"
+        },
+        {
+          "file": "dossier-architecture.md",
+          "contains": [
+            "##",
+            "ENF-"
+          ]
+        }
+      ],
       "rubric": [
         "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur.",
         "Revue et chiffrage ont été menés ensemble après les schémas.",
@@ -1122,21 +1580,84 @@
       "output": "memoire-technique.md",
       "max_cost_usd": 20.0,
       "checks": [
-        {"file": "workflow.json", "json": "stages", "each": "status", "in": ["validee", "sautee"]},
-        {"file": "ao.json", "json": "criteria", "min": 2},
-        {"file": "qualification.json", "json": "decision", "min": 1},
-        {"file": "exigences.json", "json": "requirements", "min": 12},
-        {"file": "options.json", "json": "options", "min": 2},
-        {"file": "decision.json"},
-        {"file": "schemas/architectures.drawio"},
-        {"file": "conformite.json", "json": "answers", "min": 12},
-        {"file": "chiffrage.json", "json": "work", "min": 9},
-        {"file": "chiffrage.md", "contains": ["intrusion", "formation"], "matches": "reprise|migration"},
-        {"file": "revue.json", "json": "risks", "min": 1},
-        {"file": "revue.md", "matches": "avis"},
-        {"file": "registre.json", "json": "items", "min": 3},
-        {"file": "memoire-technique.md", "contains": ["Compréhension du besoin", "Solution proposée", "conformité"]},
-        {"file": "presentation.md"}
+        {
+          "file": "workflow.json",
+          "json": "stages",
+          "each": "status",
+          "in": [
+            "validee",
+            "sautee"
+          ]
+        },
+        {
+          "file": "ao.json",
+          "json": "criteria",
+          "min": 2
+        },
+        {
+          "file": "qualification.json",
+          "json": "decision",
+          "min": 1
+        },
+        {
+          "file": "exigences.json",
+          "json": "requirements",
+          "min": 12
+        },
+        {
+          "file": "options.json",
+          "json": "options",
+          "min": 2
+        },
+        {
+          "file": "decision.json"
+        },
+        {
+          "file": "schemas/architectures.drawio"
+        },
+        {
+          "file": "conformite.json",
+          "json": "answers",
+          "min": 12
+        },
+        {
+          "file": "chiffrage.json",
+          "json": "work",
+          "min": 9
+        },
+        {
+          "file": "chiffrage.md",
+          "contains": [
+            "intrusion",
+            "formation"
+          ],
+          "matches": "reprise|migration"
+        },
+        {
+          "file": "revue.json",
+          "json": "risks",
+          "min": 1
+        },
+        {
+          "file": "revue.md",
+          "matches": "avis"
+        },
+        {
+          "file": "registre.json",
+          "json": "items",
+          "min": 3
+        },
+        {
+          "file": "memoire-technique.md",
+          "contains": [
+            "Compréhension du besoin",
+            "Solution proposée",
+            "conformité"
+          ]
+        },
+        {
+          "file": "presentation.md"
+        }
       ],
       "rubric": [
         "Toutes les étapes sont validées ou sautées avec les mots de l'utilisateur, l'étape maquettes sautée faute de maquettes.",
@@ -1711,10 +2232,45 @@
         }
       ],
       "setup": [
-        {"script": "decision-log/scripts/journal.py", "args": ["init", "{work}/evolution", "--title", "Portail sinistres : rappel sous 24 h", "--definition", "evolution"]},
-        {"script": "decision-log/scripts/journal.py", "args": ["start", "{work}/evolution", "documents"]},
-        {"script": "decision-log/scripts/journal.py", "args": ["submit", "{work}/evolution", "documents"]},
-        {"script": "decision-log/scripts/journal.py", "args": ["review", "{work}/evolution", "documents", "--decision", "valide", "--text", "ok"]}
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}/evolution",
+            "--title",
+            "Portail sinistres : rappel sous 24 h",
+            "--definition",
+            "evolution"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}/evolution",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}/evolution",
+            "documents"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}/evolution",
+            "documents",
+            "--decision",
+            "valide",
+            "--text",
+            "ok"
+          ]
+        }
       ],
       "output": "evolution/ecarts-exigences.md",
       "checks": [
