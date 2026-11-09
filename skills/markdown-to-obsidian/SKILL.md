@@ -135,6 +135,10 @@ relations) des notes voulues : `--type risque --where statut=ouvert`,
 `--text paiement`, `--related "Option A" [--relation evalue] [--depth 2]`
 (note désignée par chemin, titre, alias ou id), `--fields`, `--limit`.
 
+Si l'utilisateur demande comment chercher lui-même dans le vault (recherche
+d'Obsidian sur les propriétés et tags, Omnisearch facultatif, outils
+écartés), donnez-lui `references/recherche.md` sans le lire.
+
 Chaque dossier de workflow a aussi son `Tableaux.base` (Obsidian Bases,
 plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 (exigences par priorité, constats et risques ouverts par gravité...),
@@ -146,6 +150,12 @@ gardent à chaque réécriture (`vault_ontology.with_user`) : c'est la place de
 l'utilisateur. Ses callouts `> [!question]` et `> [!retour]` y sont relus
 (`vault_ontology.vault_annotations`), et une note générée obsolète mais
 annotée n'est pas supprimée.
+
+Les scripts qui écrivent dans le vault le font un à la fois (verrou
+`.myskills-vault.lock` à sa racine, `vault_ontology.vault_lock`) et en
+écriture atomique : des étapes menées en parallèle ne perdent ni note ni
+section. Un vault occupé plus de 60 s (`MYSKILLS_VAULT_LOCK_WAIT`) donne une
+erreur sans rien écrire ; un verrou de plus de 2 min est repris.
 
 Si l'utilisateur le demande, `vault_check.py VAULT --style` colore chaque
 type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
