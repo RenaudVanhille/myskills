@@ -951,6 +951,25 @@
       ]
     },
     {
+      "id": "vault-annotations",
+      "skill": "decision-log",
+      "_note": "Section « Mes notes » gardée à la réécriture, callouts question et retour tracés une fois au journal, note obsolète annotée gardée.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/w/exigences.json"]},
+        {"copy": ["{fixtures}/workflow/options.json", "{out}/w/options.json"]},
+        {"copy": ["{fixtures}/vault-annotations/Option A.md", "{out}/vault/Projets/Sinistres/Options/Option A.md"]},
+        {"copy": ["{fixtures}/vault-annotations/Option Z.md", "{out}/vault/Projets/Sinistres/Options/Option Z.md"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report_contains": {"warnings": "Option Z n'a plus lieu d'être, gardée pour vos notes"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "exit": 0, "report": {"annotations.0.kind": "question", "annotations.0.text": "Le coût des pics est-il plafonné ?", "annotations.1.kind": "annotation", "annotations.1.note": "Projets/Sinistres/Options/Option A"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["status", "{out}/w"], "exit": 0, "report": {"annotations": null, "questions": 1}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--folder", "Projets/Sinistres/Décisions", "--strict"], "exit": 0, "report": {"errors": [], "types.decision": 2}}
+      ],
+      "contains": {"vault/Projets/Sinistres/Options/Option A.md": ["Mon avis : à comparer avec le progiciel.", "> [!retour] Préférer un hébergement en France", "## Mes notes"],
+                   "vault/Projets/Sinistres/Options/Option Z.md": ["À garder : piste pour plus tard."],
+                   "w/journal.md": ["| Annotation | utilisateur | Préférer un hébergement en France |"],
+                   "vault/Projets/Sinistres/Décisions/D-002.md": ["nature: \"annotation\"", "[[Projets/Sinistres/Options/Option A|Option A : Application web dans le cloud européen]]"]}
+    },
+    {
       "id": "vault",
       "skill": "decision-log",
       "_note": "Mémoire partagée : une note par exigence, option et décision dans le vault, liens vérifiés, autres fichiers du vault intacts.",
