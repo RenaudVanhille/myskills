@@ -281,6 +281,22 @@
                                   "fillColor=#fee2e2", "Gestion vie", "Légende", "name=\"Opérations\""]}
     },
     {
+      "id": "export-drawio",
+      "skill": "diagram-export",
+      "slow": true,
+      "tools": ["drawio"],
+      "_note": "Export réel par draw.io Desktop d'un schéma à plusieurs pages : une image par page, numéro de page accepté par draw.io avant et depuis 27.0.2 (base 0 puis 1).",
+      "steps": [
+        {"script": "{skills}/urbanization-map/scripts/pos_build.py",
+         "args": ["{fixtures}/diagrams/pos-assurance.json", "--out", "{out}/pos.drawio", "--detail", "ilot", "--zoom"],
+         "exit": 0, "report": {"errors": [], "pages": 6}},
+        {"script": "{skills}/diagram-export/scripts/export.py", "args": ["{out}/pos.drawio", "--out", "{out}"],
+         "exit": 0, "report": {"errors": []}}
+      ],
+      "files": ["pos.drawio.png", "pos-2.drawio.png", "pos-6.drawio.png"],
+      "absent": ["pos-7.drawio.png"]
+    },
+    {
       "id": "pos-csv",
       "skill": "urbanization-map",
       "steps": [

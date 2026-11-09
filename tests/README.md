@@ -74,7 +74,8 @@ est la part des contrôles et des affirmations vérifiés.
 Un cas de `cases.json` qui lit un modèle local le déclare dans `models` :
 sans ce modèle dans le cache vérifié, `run.py` ne le lance pas et l'annonce
 comme prérequis manquant, avec la commande `doctor.py --prefetch` (en CI,
-variable `CI`, il tourne quand même et échoue si le modèle manque).
+variable `CI`, il tourne quand même et échoue si le modèle manque). De même
+pour un outil externe déclaré dans `tools` (`drawio`).
 
 Chaque workflow a au moins un cas d'agent : `id` `workflow-<nom>` ou
 `bout-en-bout-<nom>`, ou champ `workflow` (contrôlé par le cas `contrats`).
