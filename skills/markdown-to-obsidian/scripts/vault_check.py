@@ -3,7 +3,7 @@
 # ///
 """Vérifie les notes typées d'un vault Obsidian contre l'ontologie et exporte leur graphe.
 
-Lit le vault sans le modifier, sauf `--style`. Chaque note dont le frontmatter a une
+Lit le vault sans le modifier, sauf `--style` et `--templates`. Chaque note dont le frontmatter a une
 propriété `type` est vérifiée contre l'ontologie (`scripts/lib/vault-ontology.json`,
 source unique de l'ontologie) : type connu, propriétés obligatoires,
 valeurs permises, relations (wikilinks) permises depuis ce type et visant une
@@ -17,9 +17,15 @@ lisible par networkx, graphify ou un autre agent sans relire le vault.
 sans lire le fichier. `--style`, à la demande de l'utilisateur seulement (il
 touche la configuration du vault), colore chaque type d'après l'ontologie :
 groupes de couleurs de la vue graphe (`.obsidian/graph.json`, ses autres
-réglages gardés) et extrait CSS des tags `type/<type>` activé.
+réglages gardés) et extrait CSS des tags `type/<type>` activé. `--templates
+[DOSSIER]`, à la demande aussi, écrit un modèle de note par type (dossier
+`Modèles` par défaut, plugin cœur Modèles réglé et activé) et le type Obsidian
+de chaque propriété (`.obsidian/types.json`, réglages de l'utilisateur
+gardés) : une note créée à la main suit l'ontologie et se vérifie ici ; le
+dossier des modèles n'est pas vérifié.
 
     uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style]
+        [--templates [DOSSIER]]
     uv run scripts/vault_check.py --ontology [TYPE]
 """
 
@@ -36,10 +42,13 @@ SKIP_DIRS = {".obsidian", ".trash", ".git", ".myskills-tmp", "node_modules"}
 
 
 def notes_of(vault: Path) -> dict[str, Path]:
-    """Notes du vault : chemin relatif sans .md -> fichier."""
+    """Notes du vault : chemin relatif sans .md -> fichier ; le dossier des modèles n'en fait pas partie."""
     found = {}
+    templates = vault_ontology.templates_folder(vault)
     for path in sorted(vault.rglob("*.md")):
         relative = path.relative_to(vault)
+        if templates and relative.as_posix().startswith(templates + "/"):
+            continue
         if not any(part in SKIP_DIRS for part in relative.parts[:-1]):
             found[relative.with_suffix("").as_posix()] = path
     return found
@@ -71,6 +80,8 @@ def main() -> int:
     parser.add_argument("--strict", action="store_true", help="code de sortie 1 aussi sur un avertissement")
     parser.add_argument("--style", action="store_true",
                         help="colorer les types dans la vue graphe et sur leurs tags (écrit dans .obsidian, à la demande)")
+    parser.add_argument("--templates", nargs="?", const=vault_ontology.TEMPLATES, metavar="DOSSIER",
+                        help="écrire un modèle de note par type et le type des propriétés (.obsidian, à la demande)")
     parser.add_argument("--ontology", nargs="?", const="", metavar="TYPE",
                         help="afficher l'ontologie résumée (ou celle d'un type) et s'arrêter")
     args = parser.parse_args()
@@ -88,6 +99,8 @@ def main() -> int:
                           "warnings": []}, ensure_ascii=False))
         return 1
     vault = args.vault.resolve()
+    # Modèles écrits d'abord : leur dossier, désormais réglé, est exclu de la vérification.
+    templates = vault_ontology.write_templates(onto, vault, args.templates) if args.templates else None
     paths = notes_of(vault)
     resolve = resolver(paths)
     parsed = {rel: vault_ontology.parse(path.read_text(encoding="utf-8", errors="replace"))
@@ -162,7 +175,8 @@ def main() -> int:
               + (" ..." if len(failed) > 10 else "")] if failed else []
     report = {"vault": str(vault), "notes": len(scope), "typed": sum(kinds.values()), "untyped": untyped,
               "types": dict(kinds.most_common()), "relations": relations, "graph": graph, "results": results,
-              **({"style": style} if style else {}), "errors": errors,
+              **({"style": style} if style else {}), **({"templates": templates} if templates else {}),
+              "errors": errors,
               "warnings": [] if scope else ["aucune note dans le périmètre"]}
     print(json.dumps(report, ensure_ascii=False))
     warned = any(r["warnings"] for r in results)
