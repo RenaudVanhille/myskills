@@ -102,7 +102,10 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   pas cité en code. La section « Revues et analyses » des notes visées par
   une relation `hub` est tenue par `vault_ontology`, comme les tableaux
   `Tableaux.base` tirés des `views` de l'ontologie et la carte
-  `Carte.canvas` tirée de son champ `canvas`. `vault_check.py`
+  `Carte.canvas` tirée de son champ `canvas`. La section « Mes notes » d'une
+  note générée appartient à l'utilisateur : gardée à chaque réécriture
+  (`Notes`), ses callouts `[!question]` et `[!retour]` relus par
+  `vault_annotations`. `vault_check.py`
   signale les écarts (`lisibilité :`).
 - **Workflows** : un workflow est une définition JSON
   (`skills/decision-log/workflows/`), seule source des étapes, des skills,

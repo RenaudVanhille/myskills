@@ -461,6 +461,61 @@ def readability(body: str, title_of) -> list[str]:
 
 HUB = "%% myskills : section générée, réécrite à chaque passage %%"
 HUB_TITLE = "## Revues et analyses"
+# Section de l'utilisateur dans une note générée : gardée à chaque réécriture, ses callouts relus par l'agent.
+USER_TITLE = "## Mes notes"
+USER_HINT = ("%% myskills : écrivez sous ce titre, la section est gardée à chaque passage ; "
+             "un callout > [!question] ou > [!retour] est relu par l'agent %%")
+ANNOTATION = re.compile(r"^>\s*\[!(question|retour)\][-+]?\s*(.*)$", re.I)
+
+
+def user_section(text: str) -> str:
+    """Ce que l'utilisateur a écrit sous « Mes notes » (sans le titre ni la consigne), vide sinon."""
+    if USER_TITLE not in text:
+        return ""
+    part = text.split(USER_TITLE, 1)[1].split(HUB, 1)[0]
+    return part.replace(USER_HINT, "").strip()
+
+
+def with_user(text: str, section: str = "") -> str:
+    """Texte d'une note générée terminé par sa section « Mes notes » (vide ou reprise de l'ancienne note),
+    avant la section générée éventuelle."""
+    hub = (HUB + text.split(HUB, 1)[1]) if HUB in text else ""
+    base = text.split(HUB, 1)[0].split(USER_TITLE, 1)[0].rstrip()
+    user = "\n".join([USER_TITLE, "", USER_HINT] + (["", section.strip()] if section.strip() else []))
+    return base + "\n\n" + user + "\n" + ("\n" + hub.rstrip() + "\n" if hub else "")
+
+
+def annotations(text: str) -> list[dict]:
+    """Callouts [!question] et [!retour] de la section « Mes notes » : [{kind, text}], texte sur une ligne."""
+    found, lines, i = [], user_section(text).splitlines(), 0
+    while i < len(lines):
+        match = ANNOTATION.match(lines[i].strip())
+        i += 1
+        if not match:
+            continue
+        parts = [match.group(2).strip()]
+        while i < len(lines) and lines[i].lstrip().startswith(">"):
+            parts.append(lines[i].lstrip().lstrip(">").strip())
+            i += 1
+        words = " ".join(p for p in parts if p)
+        if words:
+            found.append({"kind": match.group(1).lower(), "text": words})
+    return found
+
+
+def vault_annotations(vault: Path, folder: str) -> list[dict]:
+    """Annotations des notes générées d'un dossier du vault : [{note, title, kind, text}], par note."""
+    root, found = Path(vault) / folder if folder else Path(vault), []
+    for path in sorted(root.rglob("*.md")) if root.is_dir() else []:
+        rel = path.relative_to(vault).with_suffix("").as_posix()
+        if rel.split("/", 1)[0].startswith("."):
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        if USER_TITLE not in text or not text.startswith("---\ngenere:"):
+            continue
+        title = heading(parse(text)[1]) or path.stem
+        found += [{"note": rel, "title": title, **a} for a in annotations(text)]
+    return found
 
 
 def hub_relations(onto: dict) -> list[str]:
@@ -830,7 +885,10 @@ class Notes:
                     kept[name] = items if isinstance(value, list) else items[0]
             self.metas[rel] = with_alias(meta(self.onto, kind, props, kept, tags, genere=self.genere),
                                          heading("\n".join(body)), rel)
-            self.texts[rel] = render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+            text = render(self.metas[rel]) + "\n" + "\n".join(body).rstrip() + "\n"
+            path = self.vault / f"{rel}.md"
+            old = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n") if path.is_file() else ""
+            self.texts[rel] = with_user(text, user_section(old))
 
     def resolve(self, path: str):
         if path in self.metas:
@@ -839,8 +897,9 @@ class Notes:
             raise KeyError(path)
         return (parse((self.vault / f"{path}.md").read_text(encoding="utf-8", errors="replace"))[0] or {}).get("type")
 
-    def write(self, errors: list[str], cleanup=()) -> dict | None:
-        """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites ;
+    def write(self, errors: list[str], cleanup=(), warnings: list[str] | None = None) -> dict | None:
+        """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites,
+        sauf celles où l'utilisateur a écrit sous « Mes notes » (gardées, signalées dans warnings) ;
         met à jour la section « Revues et analyses » des notes écrites et des notes qu'elles visent."""
         self.build()
         invalid = [f"{rel} : {e}" for rel, m in self.metas.items()
@@ -848,13 +907,17 @@ class Notes:
         if invalid:
             errors += ["vault : note hors ontologie, rien n'est écrit : " + e for e in invalid[:10]]
             return None
-        removed = 0
+        removed, kept = 0, []
         mark = f"---\ngenere: {self.genere}\n"
         for sub in cleanup:
             folder = self.vault / sub
             for path in sorted(folder.glob("*.md")) if folder.is_dir() else []:
                 rel = path.relative_to(self.vault).with_suffix("").as_posix()
-                if rel not in self.texts and path.read_text(encoding="utf-8", errors="replace").startswith(mark):
+                old = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+                if rel not in self.texts and old.startswith(mark):
+                    if user_section(old):
+                        kept.append(rel)  # note obsolète, mais l'utilisateur y a écrit : gardée
+                        continue
                     path.unlink()
                     removed += 1
             if folder.is_dir() and not any(folder.iterdir()):
@@ -881,4 +944,7 @@ class Notes:
         refresh_hubs(self.onto, self.vault, self.metas)
         for folder in sorted({hub_scope(self.vault, rel, m.get("type")) for rel, m in self.metas.items()}):
             write_base(self.onto, self.vault, folder)
+        if warnings is not None:
+            warnings += [f"vault : {rel} n'a plus lieu d'être, gardée pour vos notes : déplacez-les puis "
+                         "supprimez-la" for rel in kept]
         return {"vault": str(self.vault), "notes": len(self.texts), "removed": removed}
