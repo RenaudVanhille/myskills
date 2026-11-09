@@ -790,9 +790,7 @@ def write_canvas(onto: dict, vault: Path, folder: str, notes: dict[str, tuple[di
         return None
     text = json.dumps(data, ensure_ascii=False, indent="\t") + "\n"
     if not path.is_file() or path.read_text(encoding="utf-8") != text:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        save(path, text)
     return f"{folder}/{CANVAS}"
 
 
