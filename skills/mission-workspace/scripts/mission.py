@@ -285,6 +285,9 @@ def coherence(root: Path, mission: dict, flows: list[dict], repos: list[dict], e
     for key, value in mission.get("references", {}).items():
         if not (root / value).exists():
             add("MIS-08", key, f"{value} introuvable")
+    shared = (mission.get("referentiel") or {}).get("path")
+    if shared and not (root / shared).is_dir():  # absolu ou relatif à la mission, hors de la mission
+        add("MIS-08", "referentiel", f"{shared} introuvable")
     order = {s: i for i, s in enumerate(SEVERITIES)}
     findings.sort(key=lambda f: (f["accepted"] is not None, order[f["severity"]], f["rule"], f["element"]))
     return findings

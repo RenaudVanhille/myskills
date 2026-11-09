@@ -17,12 +17,13 @@ trouvent seuls en remontant depuis leurs fichiers : ne leur passez plus
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Un dossier par mission : avant-vente (documents reçus, souvent des PDF) ou revue d'architecture (documentation et code, un dépôt par service) ; Facultatif : la description de la mission en JSON (nature, client, échéance, workflows, dépôts, référentiels, écarts acceptés), schéma shared/schemas/mission.schema.json.
-- **Sorties** : mission.json à la racine de la mission, documents/, le vault Obsidian de la mission (et code/ pour une revue), le workflow de la nature démarré (workflow.json) ; Dans le vault : la note Mission (type mission) : workflows et étapes, dépôts et commits, référentiels, contrôles de cohérence ; Rapport : état de la mission et contrôles de cohérence entre livrables (MIS-01 à MIS-09).
+- **Entrées** : Un dossier par mission : avant-vente (documents reçus, souvent des PDF) ou revue d'architecture (documentation et code, un dépôt par service) ; Facultatif : la description de la mission en JSON (nature, client, échéance, workflows, dépôts, référentiels, écarts acceptés), schéma shared/schemas/mission.schema.json ; Facultatif : le référentiel du client partagé entre ses missions (referentiel.path de mission.json) : dossier de notes typées application, terme, adr.
+- **Sorties** : mission.json à la racine de la mission, documents/, le vault Obsidian de la mission (et code/ pour une revue), le workflow de la nature démarré (workflow.json) ; Dans le vault : la note Mission (type mission) : workflows et étapes, dépôts et commits, référentiels, contrôles de cohérence ; Rapport : état de la mission et contrôles de cohérence entre livrables (MIS-01 à MIS-09) ; Avec referentiel.py : dans le vault de la mission, Référentiel/ (notes du référentiel du client) ; dans le référentiel, les notes versées par push --apply.
 - **`mission.py`** : Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`referentiel.py`** : Partage le référentiel du client entre ses missions (applications du SI, glossaire, ADR) : pull copie ses notes typées dans le vault de la mission (Référentiel/, liens réécrits, notes retirées du référentiel retirées) ; push verse les notes de la mission de ces types dans le référentiel (titre, propriétés, texte d'introduction, liens vers des notes non partagées réduits à leur libellé), sans jamais écraser une note présente (même id, titre ou alias) : alias complétés, différence de texte signalée en conflit ; à blanc sans --apply. Notes vérifiées contre l'ontologie, sous le verrou du vault. Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `decision-log` (`journal.py`, obligatoire) : démarrer le workflow de la mission (init) et lire son état (status).
 - **Dépend de** `markdown-to-obsidian` (`lib/vault_ontology.py`, obligatoire) : ontologie du vault Obsidian (source unique) : construire et vérifier les notes écrites.
-- **Vault Obsidian** : écrit les notes de type `mission` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
+- **Vault Obsidian** : écrit les notes de type `mission`, `application`, `terme`, `adr` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
 - **Passe la main** à l'agent `architecture-workflow` : la mission est ouverte : dérouler son workflow (avant-vente pour une avant-vente, revue-dossier pour une revue).
 - **Passe la main** à l'agent `architecture-reviewer` : revue d'architecture de la mission, dépôts de code compris.
 - **Passe la main** à l'utilisateur : un contrôle ouvert demande une décision : corriger le livrable, ou accepter l'écart avec sa raison (accept).
@@ -80,3 +81,23 @@ vault. Un contrôle ouvert se corrige dans le livrable qu'il cite (la
 correction dans `fix`), ou s'accepte dans `accept` de `mission.json`
 (`"MIS-02@gestion": "raison"`) avec les mots de l'utilisateur, jamais
 sans sa raison. Lancez `check` avant de livrer un dossier ou une offre.
+
+## 4. Référentiel du client entre missions
+
+Un client a souvent plusieurs missions : ses applications, son glossaire et
+ses ADR se capitalisent dans **son** référentiel, un dossier de notes typées
+hors de la mission (`"referentiel": {"path": "..."}` dans `mission.json`,
+absolu ou relatif). Jamais un référentiel commun à plusieurs clients.
+
+```bash
+uv run scripts/referentiel.py pull DOSSIER          # au début : copie dans <vault>/Référentiel/
+uv run scripts/referentiel.py push DOSSIER          # à la fin : ce qui serait versé (à blanc)
+uv run scripts/referentiel.py push DOSSIER --apply  # après accord de l'utilisateur
+```
+
+`push` ne verse que les types `application`, `terme` et `adr` (`--types`),
+réduits au titre, aux propriétés et au texte d'introduction ; une note déjà
+présente n'est jamais écrasée (alias complétés, différence signalée dans
+`conflicts`). Montrez `added` et `conflicts` à l'utilisateur avant
+`--apply` : c'est lui qui décide de ce qui sort de la mission. Un référentiel
+introuvable donne MIS-08 au `check`.
