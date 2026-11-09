@@ -115,7 +115,8 @@ def check_meta(onto: dict, data: dict, generated: bool | None = None) -> tuple[l
         if data.get(name) in (None, ""):
             errors.append(f"{name} : propriété obligatoire pour le type {kind}")
     for name, value in data.items():
-        if name == "type" or value is None:
+        # Propriété vide (laissée vide dans Obsidian ou par un modèle) : comme absente.
+        if name == "type" or value is None or value == "" or value == []:
             continue
         if name in onto["relations"]:
             relation = onto["relations"][name]
@@ -346,6 +347,123 @@ def write_style(onto: dict, vault: Path) -> dict:
     (config / "appearance.json").write_text(json.dumps(appearance, ensure_ascii=False, indent=2) + "\n",
                                             encoding="utf-8")
     return {"graph": str(config / "graph.json"), "groups": len(colored), "kept": len(kept), "snippet": str(snippet)}
+
+
+TEMPLATES = "Modèles"
+TEMPLATE_MARK = "myskills-modele"
+
+
+def templates_folder(vault: Path) -> str | None:
+    """Dossier des modèles du vault (.obsidian/templates.json du plugin cœur Modèles), sinon None."""
+    try:
+        folder = json.loads((Path(vault) / ".obsidian" / "templates.json").read_text(encoding="utf-8")).get("folder")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return str(folder).strip("/") or None if folder else None
+
+
+def property_kind(schema: dict) -> str | None:
+    """Type de propriété Obsidian (types.json) d'un schéma de l'ontologie, None s'il n'y en a pas d'évident."""
+    if schema.get("type") == "array":
+        return "multitext"
+    if schema.get("type") in ("integer", "number"):
+        return "number"
+    if schema.get("type") == "boolean":
+        return "checkbox"
+    if str(schema.get("pattern", "")).startswith("^\\d{4}-\\d{2}-\\d{2}"):
+        return "date"
+    return "text" if schema.get("type") == "string" or "enum" in schema else None
+
+
+def property_types(onto: dict) -> dict[str, str]:
+    """Type Obsidian de chaque propriété et relation de l'ontologie ; une propriété aux types divergents
+    d'un type de note à l'autre est laissée à Obsidian."""
+    found: dict[str, set[str]] = {}
+    schemas = [onto["common"]] + [spec.get("properties", {}) for spec in onto["types"].values()]
+    for props in schemas:
+        for name, schema in props.items():
+            kind = property_kind(schema)
+            if kind and name not in ("type", "genere"):
+                found.setdefault(name, set()).add(kind)
+    for name, spec in onto["relations"].items():
+        found.setdefault(name, set()).add("multitext" if spec.get("many") else "text")
+    out = {name: kinds.pop() for name, kinds in sorted(found.items()) if len(kinds) == 1}
+    out["aliases"], out["tags"] = "aliases", "tags"
+    return out
+
+
+def template_text(onto: dict, kind: str) -> str:
+    """Modèle de note d'un type (plugin cœur Modèles) : frontmatter avec ses propriétés obligatoires et ses
+    relations à remplir, tag type/<type>, aide en callout sur les valeurs permises."""
+    spec = onto["types"][kind]
+    props = {**onto["common"], **spec.get("properties", {})}
+    relations = [name for name, rel in onto["relations"].items()
+                 if kind in rel.get("from", []) or "*" in rel.get("from", [])]
+    lines = ["---", f"type: {json.dumps(kind)}"]
+    for name in [n for n in spec.get("required", []) if n != "type"]:
+        schema = props.get(name, {})
+        value = '"{{date:YYYY-MM-DD}}"' if property_kind(schema) == "date" else \
+            ("[]" if schema.get("type") == "array" else '""')
+        lines.append(f"{name}: {value}")
+    lines += [f"{name}: []" if onto["relations"][name].get("many") else f'{name}: ""' for name in relations]
+    lines += [f"ontologie: {onto['version']}", "tags:", f"  - {type_tag(onto, kind)}", "---", "", "# {{title}}", ""]
+    help_ = [spec.get("description", "")]
+    allowed = [f"**{n}** : {', '.join(map(str, props[n]['enum']))}" for n in spec.get("required", []) + [
+        n for n in spec.get("properties", {}) if n not in spec.get("required", [])] if "enum" in props.get(n, {})]
+    help_ += ["Valeurs permises : " + " ; ".join(dict.fromkeys(allowed)) + "."] if allowed else []
+    if relations:
+        help_.append("Relations en wikilinks entre guillemets (\"[[Note]]\") : " + ", ".join(
+            f"**{n}** vers {', '.join(onto['relations'][n]['to'])}" for n in relations) + ".")
+    help_.append(f"Vérifiez la note avec `vault_check.py` (skill markdown-to-obsidian). %% {TEMPLATE_MARK} %%")
+    return "\n".join(lines + callout("info", f"Modèle : {spec.get('label', kind)}", help_, folded=True)) + "\n"
+
+
+def write_templates(onto: dict, vault: Path, folder: str = TEMPLATES) -> dict:
+    """À la demande : un modèle par type dans folder (réglé dans .obsidian/templates.json pour le plugin cœur
+    Modèles, activé dans core-plugins.json s'il existe) et le type Obsidian des propriétés de l'ontologie dans
+    .obsidian/types.json (types que l'utilisateur a réglés lui-même gardés). Seuls les modèles de myskills
+    (marque myskills-modele) sont réécrits."""
+    vault, config = Path(vault), Path(vault) / ".obsidian"
+    config.mkdir(exist_ok=True)
+
+    def read(name: str):
+        try:
+            return json.loads((config / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def dump(name: str, data) -> None:
+        (config / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    target, written, kept = vault / safe_folder(folder), 0, []
+    target.mkdir(parents=True, exist_ok=True)
+    for kind, spec in onto["types"].items():
+        path = target / f"{safe_name(spec.get('label', kind))}.md"
+        if path.is_file() and TEMPLATE_MARK not in path.read_text(encoding="utf-8", errors="replace"):
+            kept.append(path.name)  # modèle de l'utilisateur au même nom : jamais écrasé
+            continue
+        path.write_text(template_text(onto, kind), encoding="utf-8", newline="\n")
+        written += 1
+    settings = read("templates.json")
+    settings = settings if isinstance(settings, dict) else {}
+    settings["folder"] = safe_folder(folder)
+    settings.setdefault("dateFormat", "YYYY-MM-DD")
+    dump("templates.json", settings)
+    plugins, enabled = read("core-plugins.json"), False
+    if isinstance(plugins, dict):
+        plugins["templates"], enabled = True, True
+        dump("core-plugins.json", plugins)
+    elif isinstance(plugins, list):
+        plugins, enabled = list(dict.fromkeys(plugins + ["templates"])), True
+        dump("core-plugins.json", plugins)
+    types = read("types.json")
+    types = types if isinstance(types, dict) else {}
+    current = types.get("types") if isinstance(types.get("types"), dict) else {}
+    ours = property_types(onto)
+    types["types"] = {**ours, **current}  # un type réglé par l'utilisateur l'emporte
+    dump("types.json", types)
+    return {"folder": safe_folder(folder), "templates": written, "kept": kept, "properties": len(ours),
+            "plugin": enabled}
 
 
 # --- Lisibilité dans Obsidian : nombres, libellés, callouts, titres et section des liens générés ---

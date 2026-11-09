@@ -310,15 +310,16 @@
     },
     {
       "name": "vault_check.py",
-      "role": "Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style).",
-      "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style] | --ontology [TYPE]",
+      "role": "Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style et --templates).",
+      "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style] [--templates [DOSSIER]] | --ontology [TYPE]",
       "options": {
         "VAULT": "racine du vault",
         "--folder": "ne vérifier que ce dossier du vault (liens résolus dans tout le vault)",
         "--graph": "écrit le graphe des notes au format node-link de NetworkX (nodes ; links avec relation, lien pour un wikilink du corps)",
         "--strict": "code de sortie 1 aussi sur un avertissement",
         "--ontology": "affiche l'ontologie résumée (ou celle d'un type) sur une ligne et s'arrête",
-        "--style": "à la demande de l'utilisateur seulement : écrit les couleurs des types (champ color de l'ontologie) dans .obsidian/graph.json (groupes de couleurs par tag type/<type>, autres réglages gardés) et l'extrait CSS .obsidian/snippets/myskills-types.css, activé dans appearance.json"
+        "--style": "à la demande de l'utilisateur seulement : écrit les couleurs des types (champ color de l'ontologie) dans .obsidian/graph.json (groupes de couleurs par tag type/<type>, autres réglages gardés) et l'extrait CSS .obsidian/snippets/myskills-types.css, activé dans appearance.json",
+        "--templates": "à la demande de l'utilisateur seulement : écrit un modèle de note par type de l'ontologie dans DOSSIER (défaut Modèles, réglé dans .obsidian/templates.json et activé dans core-plugins.json s'il existe ; modèle de l'utilisateur au même nom gardé) et le type Obsidian de chaque propriété dans .obsidian/types.json (types réglés par l'utilisateur gardés) ; le dossier des modèles n'est pas vérifié"
       },
       "report": {
         "format": "json",
@@ -465,6 +466,43 @@
                     },
                     "snippet": {
                       "type": "string"
+                    }
+                  }
+                },
+                "templates": {
+                  "type": "object",
+                  "description": "avec --templates : modèles écrits et réglages",
+                  "required": [
+                    "folder",
+                    "templates",
+                    "kept",
+                    "properties",
+                    "plugin"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "folder": {
+                      "type": "string"
+                    },
+                    "templates": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "modèles de l'utilisateur au même nom, non écrasés"
+                    },
+                    "properties": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "propriétés typées dans types.json"
+                    },
+                    "plugin": {
+                      "type": "boolean",
+                      "description": "plugin cœur Modèles activé (core-plugins.json présent)"
                     }
                   }
                 }
