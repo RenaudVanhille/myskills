@@ -951,6 +951,27 @@
       ]
     },
     {
+      "id": "referentiel-client",
+      "skill": "mission-workspace",
+      "_note": "Référentiel du client entre missions : push à blanc puis appliqué (note tenue à la main jamais écrasée, conflit signalé), pull dans le vault de la mission conforme à l'ontologie, types non partageables et référentiel absent refusés.",
+      "steps": [
+        {"script": "{skills}/mission-workspace/scripts/mission.py", "args": ["init", "{out}/m", "--nature", "avant-vente", "--name", "Portail", "--client", "Mutuelle"], "exit": 0},
+        {"copy": ["{fixtures}/workflow/exigences.json", "{out}/m/exigences.json"]},
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/m"], "exit": 0},
+        {"copy": ["{fixtures}/referentiel/ref", "{out}/ref"]},
+        {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["pull", "{out}/m"], "exit": 1, "report_contains": {"errors": "aucun référentiel"}},
+        {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["push", "{out}/m", "--ref", "{out}/ref", "--types", "terme,exigence"], "exit": 1, "report_contains": {"errors": "exigence non partageable"}},
+        {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["push", "{out}/m", "--ref", "{out}/ref"], "exit": 0, "report": {"applied": false, "notes": 4, "added": ["Glossaire/Assuré", "Glossaire/Déclaration", "Glossaire/Gestionnaire"]}, "report_contains": {"conflicts": "Glossaire/Sinistre : texte différent dans la mission « Portail »", "warnings": "à blanc : 3 notes à verser"}},
+        {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["push", "{out}/m", "--ref", "{out}/ref", "--apply"], "exit": 0, "report": {"applied": true, "warnings": []}},
+        {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["pull", "{out}/m", "--ref", "{out}/ref"], "exit": 0, "report": {"notes": 5, "removed": 0}, "report_contains": {"added": "Référentiel/Applications/Outil de gestion"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/m/vault", "--strict"], "exit": 0, "report": {"errors": [], "types.application": 1}}
+      ],
+      "contains": {"ref/Glossaire/Assuré.md": ["genere: referentiel", "source: \"Portail\"", "Titulaire d'un contrat de la mutuelle"],
+                   "ref/Glossaire/Sinistre.md": ["défini par le service juridique"],
+                   "m/vault/Référentiel/Applications/Outil de gestion.md": ["genere: referentiel", "id: \"app-ogs\"", "[[Référentiel/Glossaire/Sinistre]]"],
+                   "m/vault/Référentiel/Glossaire/Sinistre.md": ["  - \"Dossier de sinistre\""]}
+    },
+    {
       "id": "vault",
       "skill": "decision-log",
       "_note": "Mémoire partagée : une note par exigence, option et décision dans le vault, liens vérifiés, autres fichiers du vault intacts.",
