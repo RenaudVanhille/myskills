@@ -939,6 +939,18 @@
       ]
     },
     {
+      "id": "vault-verrou",
+      "skill": "decision-log",
+      "_note": "Verrou du vault partagé par les skills qui y écrivent : un vault occupé par un autre script fait attendre puis échouer proprement (erreur de vault_sync, avertissement du journal qui avance quand même), sans rien écrire.",
+      "steps": [
+        {"copy": ["{fixtures}/workflow/sources/cahier-des-charges.md", "{out}/vault/Notes/cahier-des-charges.md"]},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0, "report": {"memory.notes": 1}},
+        {"copy": ["{fixtures}/vault-verrou/verrou.lock", "{out}/vault/.myskills-vault.lock"]},
+        {"script": "{skills}/decision-log/scripts/vault_sync.py", "args": ["{out}/w"], "env": {"MYSKILLS_VAULT_LOCK_WAIT": "0.3"}, "exit": 1, "report": {"notes": 0}, "report_contains": {"errors": "vault occupé par un autre script"}},
+        {"script": "{skills}/decision-log/scripts/journal.py", "args": ["start", "{out}/w", "documents"], "env": {"MYSKILLS_VAULT_LOCK_WAIT": "0.3"}, "exit": 0, "report_contains": {"warnings": "vault : vault occupé"}}
+      ]
+    },
+    {
       "id": "vault",
       "skill": "decision-log",
       "_note": "Mémoire partagée : une note par exigence, option et décision dans le vault, liens vérifiés, autres fichiers du vault intacts.",

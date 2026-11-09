@@ -134,6 +134,12 @@ plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 réécrit par les scripts à chaque passage et lié depuis la note du workflow.
 Un nouveau tableau s'ajoute dans l'ontologie, sans code.
 
+Les scripts qui écrivent dans le vault le font un à la fois (verrou
+`.myskills-vault.lock` à sa racine, `vault_ontology.vault_lock`) et en
+écriture atomique : des étapes menées en parallèle ne perdent ni note ni
+section. Un vault occupé plus de 60 s (`MYSKILLS_VAULT_LOCK_WAIT`) donne une
+erreur sans rien écrire ; un verrou de plus de 2 min est repris.
+
 Si l'utilisateur le demande, `vault_check.py VAULT --style` colore chaque
 type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
 `type/<type>` : il écrit dans `.obsidian/` (ses autres réglages gardés),

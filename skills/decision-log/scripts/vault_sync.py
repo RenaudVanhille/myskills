@@ -143,7 +143,20 @@ def checked(path: Path, schema: dict | None, errors: list[str], warnings: list[s
 
 
 def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> dict:
-    """Écrit les notes ; renvoie le rapport (notes écrites, supprimées, liens cassés)."""
+    """Écrit les notes ; renvoie le rapport (notes écrites, supprimées, liens cassés). Sous le verrou du vault,
+    que partagent tous les skills qui y écrivent."""
+    if not Path(vault).is_dir():
+        return {"vault": str(vault), "folder": target, "notes": 0, "removed": 0,
+                "errors": [f"vault introuvable : {vault}"], "warnings": []}
+    try:
+        with vault_ontology.vault_lock(vault):
+            return _sync(folder, vault, target, data)
+    except TimeoutError as error:
+        return {"vault": str(vault), "folder": target, "notes": 0, "removed": 0, "errors": [str(error)],
+                "warnings": []}
+
+
+def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> dict:
     errors: list[str] = []
     warnings: list[str] = []
     state = checked(folder / "workflow.json", schema_for("workflow"), errors, warnings)
@@ -425,9 +438,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
         path = vault / f"{rel}.md"
         if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
             continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        vault_ontology.save(path, text)
     # Copies des livrables : Fichiers/ est entièrement généré (un Markdown copié porte la marque).
     for rel, source in copies.items():
         path = vault / rel
@@ -436,8 +447,7 @@ def sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> di
             data_ = (f"---\n{MARK}\nsource: {json.dumps(source.name)}\n---\n\n").encode("utf-8") + data_
         if path.is_file() and path.read_bytes() == data_:
             continue
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data_)
+        vault_ontology.save(path, data_)
     removed = 0
     for path in (vault / base).rglob("*.md"):
         rel = path.relative_to(vault).with_suffix("").as_posix()

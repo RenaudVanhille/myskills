@@ -91,7 +91,10 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   `mission.json`, skill `mission-workspace`), un script qui écrit dans le
   vault prend celui de la mission par défaut et refuse tout autre, par
   `scripts/lib/workspace.py` (`vault_target`) **(vérifiée)**. Un nouveau
-  type ou une nouvelle relation s'ajoute dans l'ontologie, sans code. `vault_check.py`
+  type ou une nouvelle relation s'ajoute dans l'ontologie, sans code. Toute écriture
+  dans le vault passe par `Notes.write` (ou `vault_sync`), sous le verrou du
+  vault (`vault_lock`) et en écriture atomique (`save`) : des skills lancés en
+  parallèle n'y perdent rien. `vault_check.py`
   (`markdown-to-obsidian`) vérifie un vault et exporte son graphe typé.
 - **Lisibilité dans Obsidian** : une note générée se lit sans ouvrir ses
   liens. Titre `#` parlant (repris en alias par `vault_ontology`), liens

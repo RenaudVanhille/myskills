@@ -16,8 +16,11 @@ markdown-to-obsidian. Les autres skills les chargent par
 dans le `requires` de leur contrat, sans copie.
 """
 
+import contextlib
 import json
+import os
 import re
+import time
 import unicodedata
 from pathlib import Path
 
@@ -29,6 +32,55 @@ except ImportError:
 HERE = Path(__file__).resolve().parent
 LINK = re.compile(r"^\[\[([^\[\]|#]+)(#[^\[\]|]*)?(\|[^\[\]]*)?\]\]$")
 BODY_LINK = re.compile(r"(?<!!)\[\[([^\[\]|#]+)(?:#[^\[\]|]*)?(?:\|[^\[\]]*)?\]\]")
+# Verrou du vault : un seul script y écrit à la fois (skills lancés en parallèle par un workflow).
+LOCK_NAME = ".myskills-vault.lock"
+LOCK_STALE = 120  # secondes : au-delà, verrou d'une commande interrompue, repris
+
+
+@contextlib.contextmanager
+def vault_lock(vault: Path, wait: float | None = None):
+    """Verrou du vault pour une écriture : lecture des notes visées, vérification, écriture, sections
+    générées et tableaux, d'un seul tenant. Attend wait secondes (défaut : MYSKILLS_VAULT_LOCK_WAIT, sinon
+    60), puis lève TimeoutError ; un verrou plus vieux que LOCK_STALE est repris."""
+    wait = float(os.environ.get("MYSKILLS_VAULT_LOCK_WAIT", 60)) if wait is None else wait
+    lock, deadline = Path(vault) / LOCK_NAME, time.monotonic() + wait
+    while True:
+        try:
+            os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            break
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > LOCK_STALE:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                continue
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"vault occupé par un autre script depuis plus de {wait:g} s ({lock}) : "
+                                   "relancez, ou supprimez ce fichier si aucun script ne tourne") from None
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def save(path: Path, data: str | bytes) -> None:
+    """Écriture atomique (fichier temporaire puis remplacement) : un autre script ou Obsidian ne lit jamais une
+    note à moitié écrite."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(data.encode("utf-8") if isinstance(data, str) else data)
+    for _ in range(10):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:  # Windows : fichier ouvert un instant par un autre programme
+            time.sleep(0.1)
+    os.replace(tmp, path)
+
+
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---(?:\n|\Z)", re.S)
 KEY = re.compile(r"^([A-Za-z_][\w-]*)\s*:\s*(.*)$")
 
@@ -634,9 +686,7 @@ def write_base(onto: dict, vault: Path, folder: str, notes: dict[str, tuple[dict
         return None
     text = base_text(onto, folder, kinds)
     if not path.is_file() or path.read_text(encoding="utf-8") != text:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
+        save(path, text)
     return f"{folder}/{BASE}"
 
 
@@ -705,8 +755,7 @@ def refresh_hubs(onto: dict, vault: Path, written: dict[str, dict], hubs: "Hubs 
             continue
         new = hubs.text(rel, data.get("type"), text)
         if new != text:
-            with open(path, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(new)
+            save(path, new)
             changed += 1
     return changed
 
@@ -769,7 +818,16 @@ class Notes:
 
     def write(self, errors: list[str], cleanup=()) -> dict | None:
         """Vérifie puis écrit toutes les notes ; retire des dossiers cleanup les notes de ce skill non réécrites ;
-        met à jour la section « Revues et analyses » des notes écrites et des notes qu'elles visent."""
+        met à jour la section « Revues et analyses » des notes écrites et des notes qu'elles visent. Le tout sous
+        le verrou du vault : des skills lancés en parallèle ne perdent ni note ni section."""
+        try:
+            with vault_lock(self.vault):
+                return self._write(errors, cleanup)
+        except TimeoutError as error:
+            errors.append(f"vault : {error}")
+            return None
+
+    def _write(self, errors: list[str], cleanup=()) -> dict | None:
         self.build()
         invalid = [f"{rel} : {e}" for rel, m in self.metas.items()
                    for e in check_meta(self.onto, m, generated=True)[0] + check_targets(self.onto, m, self.resolve)[0]]
@@ -795,17 +853,14 @@ class Notes:
             path = self.vault / f"{rel}.md"
             if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
                 continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with open(path, "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(text)
+            save(path, text)
         for rel, source in self.files.items():
             path = self.vault / rel
             data = f"---\ngenere: {self.genere}\nsource: {json.dumps(source.name, ensure_ascii=False)}\n---\n\n" \
                 .encode("utf-8") + source.read_bytes() if source.suffix.lower() == ".md" else source.read_bytes()
             if path.is_file() and path.read_bytes() == data:
                 continue
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+            save(path, data)
         refresh_hubs(self.onto, self.vault, self.metas)
         for folder in sorted({hub_scope(self.vault, rel, m.get("type")) for rel, m in self.metas.items()}):
             write_base(self.onto, self.vault, folder)
