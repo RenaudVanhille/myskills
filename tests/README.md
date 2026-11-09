@@ -65,7 +65,8 @@ uv run --with laya tests/judge.py outputs DOSSIER_DE_TRAVAIL
 uv run tests/judge.py --backend checks outputs DOSSIER_DE_TRAVAIL
 ```
 
-Un cas peut aussi porter des contrôles sans modèle (`checks` : fichier
+Chaque cas porte des contrôles sans modèle (`checks`, exigés par le cas
+`contrats` : fichier
 présent, texte ou motif contenu, valeur ou nombre d'éléments d'un JSON,
 valeur d'un champ de chaque élément d'une liste : `each` + `in`) ;
 `--backend checks` ne fait que ceux-là. La note du cas (`score`, de 0 à 1)

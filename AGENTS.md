@@ -232,7 +232,8 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 2. Au moins un cas dans `tests/cases.json` par script **(vérifiée)** (dont un cas d'entrée invalide
    pour un script qui lit une description), fixtures dans `tests/fixtures/`.
 3. `uv run tests/run.py` sans échec, `regles` et `contrats` compris.
-4. Pour un agent, un cas dans `tests/agent-cases.json` ; mesure du coût avec
+4. Pour un agent, un cas dans `tests/agent-cases.json`, avec des contrôles
+   sans modèle (`checks`) **(vérifiée)** ; mesure du coût avec
    `tests/cost.py` si le comportement change.
 5. README à jour (tableaux des skills et des agents).
 

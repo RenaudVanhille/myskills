@@ -333,6 +333,8 @@ def check_contracts() -> dict:
                  for name, contract in skills.items() for script in contract.get("scripts", [])
                  if f"/scripts/{script['name']}\"" not in cases_text]
     agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
+    failures += [f"agent-cases.json : cas {c['id']} sans contrôle sans modèle (checks), sa note resterait vide"
+                 for c in agent_cases if not c.get("checks")]
     played = {c.get("workflow") for c in agent_cases} | {c["id"].removeprefix(p) for c in agent_cases
                                                          for p in ("workflow-", "bout-en-bout-") if c["id"].startswith(p)}
     workflows_doc = (ROOT / "skills" / "decision-log" / "references" / "workflows.md").read_text(encoding="utf-8")
