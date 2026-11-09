@@ -128,6 +128,10 @@ NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
 pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
 à networkx : ne relisez pas le vault note à note.
 
+Si l'utilisateur demande comment chercher lui-même dans le vault (recherche
+d'Obsidian sur les propriétés et tags, Omnisearch facultatif, outils
+écartés), donnez-lui `references/recherche.md` sans le lire.
+
 Chaque dossier de workflow a aussi son `Tableaux.base` (Obsidian Bases,
 plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 (exigences par priorité, constats et risques ouverts par gravité...),
