@@ -17,7 +17,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Sorties** : Note au format Obsidian, sur place ou dans VAULT/<dossier>/ ; Images dans le dossier de pièces jointes du vault ; Avec --move : rien ne reste dans le dossier de travail ; Avec vault_check.py --graph : graphe typé des notes (JSON node-link NetworkX).
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON (0 succès, 1 erreur).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
-- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style). Rapport JSON (0 succès, 1 erreur).
+- **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style et --templates). Rapport JSON (0 succès, 1 erreur).
 - **`vault_query.py`** : Interroge les notes typées du vault (lecture seule) par type, propriété, mot du texte ou voisinage d'une note (relations typées dans les deux sens) et rend un JSON court : chemin, type, titre, propriétés et relations de chaque note, sans relire les notes une à une. Options vérifiées contre l'ontologie, valeurs proches proposées. Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
@@ -163,6 +163,16 @@ type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
 jamais par défaut. Les constats, risques, lots et rapports d'une revue vont
 dans un sous-dossier court (`Constats/Option A/`) ; l'ancien dossier au
 titre long est vidé de ses notes générées au passage suivant.
+
+Pour que l'utilisateur crée lui-même des notes conformes (une décision, un
+risque, un constat relevé en atelier), `vault_check.py VAULT --templates
+[DOSSIER]`, à sa demande seulement, écrit un modèle par type de l'ontologie
+(`Modèles/` par défaut : propriétés obligatoires et relations à remplir,
+valeurs permises en aide) pour le plugin cœur Modèles, qu'il règle et
+active, et le type Obsidian de chaque propriété (`.obsidian/types.json` :
+date, nombre, liste). Ses propres modèles et réglages sont gardés ; le
+dossier des modèles n'est pas vérifié, la note créée l'est. Une propriété
+laissée vide compte comme absente.
 
 ## 5. Finir à la main
 

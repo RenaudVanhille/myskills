@@ -939,6 +939,25 @@
       ]
     },
     {
+      "id": "vault-modeles",
+      "skill": "markdown-to-obsidian",
+      "_note": "Modèles de notes et types de propriétés tirés de l'ontologie, à la demande : modèle et type réglés par l'utilisateur gardés, plugin Modèles activé, dossier des modèles non vérifié, note saisie depuis un modèle conforme.",
+      "steps": [
+        {"copy": ["{fixtures}/vault-modeles/vault", "{out}/vault"]},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--templates"], "exit": 0, "report": {"templates.folder": "Modèles", "templates.kept": ["Risque.md"], "templates.plugin": true, "notes": 0}},
+        {"copy": ["{fixtures}/vault-modeles/Exigence saisie.md", "{out}/vault/Notes/Exigence saisie.md"]},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault", "--strict"], "exit": 0, "report": {"notes": 1, "types.exigence": 1, "errors": []}},
+        {"copy": ["{out}/vault/Modèles/Constat.md", "{out}/vault/Notes/Constat vide.md"]},
+        {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/vault"], "exit": 1, "report": {"results.0.note": "Notes/Constat vide", "results.0.errors": ["id : propriété obligatoire pour le type constat", "gravite : propriété obligatoire pour le type constat", "statut : propriété obligatoire pour le type constat"]}}
+      ],
+      "contains": {"vault/Modèles/Exigence.md": ["type: \"exigence\"", "priorite: \"\"", "**priorite** : indispensable, importante", "# {{title}}"],
+                   "vault/Modèles/Risque.md": ["À moi."],
+                   "vault/Modèles/Entrée du journal.md": ["date: \"{{date:YYYY-MM-DD}}\""],
+                   "vault/.obsidian/types.json": ["\"priorite\": \"number\"", "\"date\": \"date\"", "\"porte-sur\": \"multitext\""],
+                   "vault/.obsidian/templates.json": ["\"folder\": \"Modèles\""],
+                   "vault/.obsidian/core-plugins.json": ["\"templates\": true", "\"graph\": true"]}
+    },
+    {
       "id": "vault-requete",
       "skill": "markdown-to-obsidian",
       "_note": "Requête compacte dans la mémoire partagée (dossier des modèles ignoré) : par type et propriété, par mot, par voisinage d'une note désignée par son titre ; options inconnues refusées avec les valeurs proches.",
