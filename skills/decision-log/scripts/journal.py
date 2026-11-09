@@ -83,7 +83,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
-from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync  # noqa: E402
+from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -429,8 +429,29 @@ def read_review(note: Path) -> tuple[str | None, str]:
     head = text.split("\n---", 1)[0] if text.startswith("---") else ""
     value = next((line.split(":", 1)[1].strip().strip('"').strip("'").lower() for line in head.splitlines()
                   if line.startswith("revue:")), "")
-    feedback = text.split("## Votre retour", 1)[1].strip() if "## Votre retour" in text else ""
+    feedback = text.split("## Votre retour", 1)[1] if "## Votre retour" in text else ""
+    feedback = feedback.split(vault_ontology.USER_TITLE, 1)[0].split(vault_ontology.HUB, 1)[0].strip()
     return value or None, " ".join(feedback.split())
+
+
+def pick_annotations(state: dict) -> list[dict]:
+    """Callouts [!question] et [!retour] écrits par l'utilisateur sous « Mes notes » dans les notes du
+    workflow : chacun, pas encore tracé, devient une entrée du journal (question ou annotation, via obsidian)
+    de l'étape courante. Rend les entrées ajoutées : [{id, kind, note, text}]."""
+    memory = state.get("memory")
+    if not memory or not Path(memory["vault"]).is_dir():
+        return []
+    seen = {((e.get("refs") or [""])[0], e["text"]) for e in state["entries"] if e.get("via") == "obsidian"}
+    stage = next_action(state)[0] or state["stages"][-1]["id"]
+    added = []
+    for found in vault_ontology.vault_annotations(Path(memory["vault"]), memory["folder"]):
+        if (found["note"], found["text"]) in seen:
+            continue
+        seen.add((found["note"], found["text"]))
+        kind = "question" if found["kind"] == "question" else "annotation"
+        entry = add_entry(state, stage, kind, "utilisateur", found["text"], refs=[found["note"]], via="obsidian")
+        added.append({"id": entry, "kind": kind, "note": found["note"], "text": found["text"]})
+    return added
 
 
 def load_state(folder: Path, errors: list[str]) -> dict | None:
@@ -528,6 +549,8 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
     state = load_state(folder, errors)
     if state is None:
         return None, None
+    # Ce que l'utilisateur a écrit dans Obsidian depuis le dernier passage, tracé avant toute commande.
+    args.annotations = (getattr(args, "annotations", None) or []) + pick_annotations(state)
     for stage in state["stages"]:
         if stage["status"] == "validee":
             changed = changed_files(folder, stage)
@@ -721,7 +744,7 @@ def main() -> int:
         if args.command != "check":
             with locked(args.folder):
                 state, entry = run(args, errors, warnings)
-                if state and not errors and args.command != "status":
+                if state and not errors and (args.command != "status" or getattr(args, "annotations", None)):
                     save(args.folder, state)
                 memory = synchronize(args.folder, state, warnings) if state and not errors else None
         if args.command == "start" and getattr(args, "submit", False) and state and not errors:
@@ -760,7 +783,7 @@ def main() -> int:
               "stage": stage_definition(state, current_stage) if todo else None,
               "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
-              "memory": memory, "checks": checks,
+              "memory": memory, "checks": checks, "annotations": getattr(args, "annotations", None) or None,
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
