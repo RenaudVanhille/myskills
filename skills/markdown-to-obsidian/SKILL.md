@@ -128,6 +128,10 @@ NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
 pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
 à networkx : ne relisez pas le vault note à note.
 
+Si l'utilisateur demande comment chercher lui-même dans le vault (recherche
+d'Obsidian sur les propriétés et tags, Omnisearch facultatif, outils
+écartés), donnez-lui `references/recherche.md` sans le lire.
+
 Chaque dossier de workflow a aussi son `Tableaux.base` (Obsidian Bases,
 plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 (exigences par priorité, constats et risques ouverts par gravité...),
@@ -146,6 +150,12 @@ constats et risques en colonnes (champ `canvas` de l'ontologie), reliés par
 leurs relations typées. Elle est réécrite à chaque passage : pour l'arranger
 à la main, copiez-la ; une carte qui contient un nœud ajouté par l'utilisateur
 n'est plus touchée.
+
+Les scripts qui écrivent dans le vault le font un à la fois (verrou
+`.myskills-vault.lock` à sa racine, `vault_ontology.vault_lock`) et en
+écriture atomique : des étapes menées en parallèle ne perdent ni note ni
+section. Un vault occupé plus de 60 s (`MYSKILLS_VAULT_LOCK_WAIT`) donne une
+erreur sans rien écrire ; un verrou de plus de 2 min est repris.
 
 Si l'utilisateur le demande, `vault_check.py VAULT --style` colore chaque
 type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
