@@ -45,13 +45,25 @@ def close(value: str, choices, what: str) -> str:
     return f"{what} {unknown} « {value} »{hint}"
 
 
+def templates_dir(vault: Path) -> str | None:
+    """Dossier des modèles de notes (plugin cœur Modèles), ignoré : ses notes ne sont pas de la mémoire."""
+    try:
+        folder = json.loads((vault / ".obsidian" / "templates.json").read_text(encoding="utf-8")).get("folder")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return str(folder).strip("/") or None if folder else None
+
+
 def read_vault(vault: Path, folder: str | None) -> dict[str, dict]:
     """Notes typées : chemin sans .md -> {meta, title, body}."""
     root = vault / folder if folder else vault
+    templates = templates_dir(vault)
     notes = {}
     for path in sorted(root.rglob("*.md")) if root.is_dir() else []:
         rel = path.relative_to(vault)
         if any(part in SKIP_DIRS for part in rel.parts[:-1]):
+            continue
+        if templates and (rel.as_posix() + "/").startswith(templates + "/"):
             continue
         data, body, _ = vault_ontology.parse(path.read_text(encoding="utf-8", errors="replace"))
         if data and data.get("type"):

@@ -941,7 +941,7 @@
     {
       "id": "vault-requete",
       "skill": "markdown-to-obsidian",
-      "_note": "Requête compacte dans la mémoire partagée : par type et propriété, par mot, par voisinage d'une note désignée par son titre ; options inconnues refusées avec les valeurs proches.",
+      "_note": "Requête compacte dans la mémoire partagée (dossier des modèles ignoré) : par type et propriété, par mot, par voisinage d'une note désignée par son titre ; options inconnues refusées avec les valeurs proches.",
       "steps": [
         {"copy": ["{fixtures}/workflow/exigences.json", "{out}/w/exigences.json"]},
         {"copy": ["{fixtures}/workflow/options.json", "{out}/w/options.json"]},
@@ -949,6 +949,8 @@
         {"script": "{skills}/decision-log/scripts/journal.py", "args": ["init", "{out}/w", "--title", "Portail sinistres", "--vault", "{out}/vault", "--folder", "Projets/Sinistres"], "exit": 0},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_query.py", "args": ["{out}/vault", "--folder", "Projets/Sinistres", "--type", "exigence", "--where", "priorite=indispensable", "--fields", "id,priorite"], "exit": 0, "report": {"count": 6, "notes.0.props": {"id": "EF-001", "priorite": "indispensable"}}},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_query.py", "args": ["{out}/vault", "--related", "Option B : Extension du progiciel de gestion", "--relation", "ecarts"], "exit": 0, "report": {"count": 2, "related": "Projets/Sinistres/Options/Option B", "notes.1.title": "ENF-004 Authentification forte"}},
+        {"copy": ["{fixtures}/vault-requete/templates.json", "{out}/vault/.obsidian/templates.json"]},
+        {"copy": ["{fixtures}/vault-requete/Exigence.md", "{out}/vault/Modèles/Exigence.md"]},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_query.py", "args": ["{out}/vault", "--type", "exigence", "--text", "authentification", "--limit", "1"], "exit": 0, "report": {"count": 1, "truncated": false, "notes.0.note": "Projets/Sinistres/Exigences/ENF-004"}},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_query.py", "args": ["{out}/vault", "--type", "risqe", "--where", "statu=ouvert", "--relation", "evalu"], "exit": 1, "report": {"errors": ["type inconnu « risqe » : risque ?", "relation inconnue « evalu » : evalue ?", "propriété inconnue « statu » : statut ou constats ?"]}},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_query.py", "args": ["{out}/vault", "--related", "Option Z"], "exit": 1, "report_contains": {"errors": "note introuvable ou ambiguë « Option Z »"}}
