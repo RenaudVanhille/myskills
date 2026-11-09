@@ -495,7 +495,7 @@ def markdown(title: str, findings: list[dict], clouds: set[str], rules: int) -> 
 
 
 def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clouds: set[str], out: Path,
-                option: str | None, errors: list[str]) -> dict | None:
+                option: str | None, errors: list[str], warnings: list[str] | None = None) -> dict | None:
     """Notes typées de la revue : revue-well-architected (évalue l'option), un constat par constat."""
     notes = vault_ontology.Notes(vault, "well-architected-review")
     base = vault_ontology.safe_folder(folder)
@@ -539,7 +539,7 @@ def write_vault(vault: Path, folder: str, spec: dict, findings: list[dict], clou
               {"ouverts": len(open_), "hauts": high,
                "fournisseur": ", ".join(sorted(clouds)) or None},
               {"evalue": [(option_rel, f"Option {option}")] if option_rel else []}, body, ["well-architected"])
-    result = notes.write(errors, cleanup=cleanup)
+    result = notes.write(errors, cleanup=cleanup, warnings=warnings)
     return {**result, "folder": base} if result else None
 
 
@@ -605,7 +605,8 @@ def main() -> int:
                        encoding="utf-8")
         result["output"] = str(out)
         if args.vault:
-            result["vault"] = write_vault(args.vault, args.folder, spec, findings, clouds, out, args.option, errors)
+            result["vault"] = write_vault(args.vault, args.folder, spec, findings, clouds, out, args.option, errors,
+                                          warnings)
     print(json.dumps(result, ensure_ascii=False))
     limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1
     failing = any(SEVERITIES.index(f["severity"]) <= limit for f in open_)

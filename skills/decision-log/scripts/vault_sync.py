@@ -51,14 +51,16 @@ MARK = "genere: decision-log"
 ONTOLOGY = vault_ontology.load()
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
-               "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée"}
+               "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée",
+               "annotation": "Annotation"}
 REVIEW_HELP = ["Pour valider, mettez la propriété **revue** à `validée`.",
                "Pour demander une reprise, mettez `retour` et écrivez votre retour sous « Votre retour ».",
                "L'agent lit cette note (`journal.py review --from-vault`) : seules la propriété revue et cette "
                "section sont gardées."]
 GENERATED = vault_ontology.callout("info", "Note générée", [
-    "Mémoire partagée du workflow, générée depuis `workflow.json` : ne modifiez pas ces notes, elles sont "
-    "réécrites à chaque étape."], folded=True)
+    "Mémoire partagée du workflow, générée depuis `workflow.json` et réécrite à chaque étape, sauf la "
+    "section « Mes notes » de chaque note : écrivez-y, un callout `> [!question]` ou `> [!retour]` est relu "
+    "par l'agent et tracé au journal."], folded=True)
 STATUS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "en revue",
                  "validee": "validée", "a-reprendre": "à reprendre", "sautee": "sautée"}
 
@@ -96,7 +98,7 @@ def user_part(path: Path, submission: str) -> tuple[str, str]:
         return "", ""
     value = next((line.split(":", 1)[1].strip() for line in head.splitlines() if line.startswith("revue:")), "")
     feedback = text.split("## Votre retour", 1)[1].strip("\n") if "## Votre retour" in text else ""
-    return value.strip('"'), feedback
+    return value.strip('"'), feedback.split(vault_ontology.USER_TITLE, 1)[0].rstrip()
 
 
 def normalize(text: str) -> str:
@@ -183,8 +185,19 @@ def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> d
 
     titles: dict[str, str] = {}  # identifiant -> libellé lisible des liens (EF-001 Déclarer un sinistre)
 
+    def note_title(ref: str) -> str | None:
+        """Titre d'une note du vault citée par son chemin (annotation écrite dans Obsidian), sinon None."""
+        path = vault / f"{ref}.md"
+        if "/" not in ref or not path.is_file():
+            return None
+        return vault_ontology.heading(vault_ontology.parse(path.read_text(encoding="utf-8", errors="replace"))[1]) \
+            or path.stem
+
     def link(ref: str) -> str:
-        return f"[[{names[ref]}|{alias(titles.get(ref, ref))}]]" if ref in names else ref
+        if ref in names:
+            return f"[[{names[ref]}|{alias(titles.get(ref, ref))}]]"
+        title = note_title(ref)
+        return f"[[{ref}|{alias(title)}]]" if title else ref
 
     def alias(text: str) -> str:
         return text.replace("|", "-").replace("]", ")").replace("[", "(")
@@ -229,7 +242,8 @@ def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> d
         notes[rel] = note(metas[rel], body)
 
     def linked(ids) -> list[tuple[str, str]]:
-        return [(names[r], r.removeprefix("terme:")) for r in ids if r in names]
+        return [(names[r], r.removeprefix("terme:")) if r in names else (r, note_title(r)) for r in ids
+                if r in names or note_title(r)]
 
     for req in catalog.get("requirements", []):
         rid = req["id"]
@@ -305,7 +319,8 @@ def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> d
         if entry.get("files"):
             body += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"])]
         if entry.get("via") == "obsidian":
-            body += ["", "Décision prise par l'utilisateur dans sa note de revue Obsidian."]
+            body += ["", "Écrite par l'utilisateur sous « Mes notes » dans Obsidian." if entry["kind"] in
+                     ("annotation", "question") else "Décision prise par l'utilisateur dans sa note de revue Obsidian."]
         typed(names[entry["id"]], "decision", {"id": entry["id"], "nature": entry["kind"], "etape": entry["stage"],
                                                "par": entry["by"], "date": entry["date"]}, body,
               {"concerne": linked(entry.get("refs", []))})
@@ -436,7 +451,10 @@ def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> d
     # Une note inchangée n'est pas réécrite : pas de bruit pour Obsidian Sync ou git.
     for rel, text in notes.items():
         path = vault / f"{rel}.md"
-        if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
+        old = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n") if path.is_file() else None
+        # La section « Mes notes » de l'utilisateur est reprise de la note en place.
+        notes[rel] = text = vault_ontology.with_user(text, vault_ontology.user_section(old or ""))
+        if old == text:
             continue
         vault_ontology.save(path, text)
     # Copies des livrables : Fichiers/ est entièrement généré (un Markdown copié porte la marque).
@@ -451,8 +469,13 @@ def _sync(folder: Path, vault: Path, target: str, data: Path | None = None) -> d
     removed = 0
     for path in (vault / base).rglob("*.md"):
         rel = path.relative_to(vault).with_suffix("").as_posix()
-        if rel not in notes and path.relative_to(vault).as_posix() not in copies \
-                and path.read_text(encoding="utf-8", errors="replace").startswith(f"---\n{MARK}\n"):
+        if rel not in notes and path.relative_to(vault).as_posix() not in copies:
+            old = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+            if not old.startswith(f"---\n{MARK}\n"):
+                continue
+            if vault_ontology.user_section(old):
+                warnings.append(f"{rel} n'a plus lieu d'être, gardée pour vos notes : déplacez-les puis supprimez-la")
+                continue
             path.unlink()
             removed += 1
     if (vault / files_dir).is_dir():

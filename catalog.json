@@ -7412,7 +7412,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
+            "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
@@ -7649,6 +7649,45 @@
                       }
                     }
                   ]
+                },
+                "annotations": {
+                  "description": "Callouts [!question] et [!retour] écrits par l'utilisateur sous « Mes notes » dans les notes du vault depuis le dernier passage, tracés au journal (question ou annotation) ; null sinon.",
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "kind",
+                          "note",
+                          "text"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "enum": [
+                              "question",
+                              "annotation"
+                            ]
+                          },
+                          "note": {
+                            "type": "string",
+                            "description": "note du vault, sans .md"
+                          },
+                          "text": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -7777,7 +7816,8 @@
                           "invalidation",
                           "passage",
                           "rapport",
-                          "saut"
+                          "saut",
+                          "annotation"
                         ]
                       },
                       "by": {
@@ -7809,7 +7849,7 @@
                         "enum": [
                           "obsidian"
                         ],
-                        "description": "Décision lue dans la note de revue du vault."
+                        "description": "Décision lue dans la note de revue du vault, ou annotation écrite par l'utilisateur sous « Mes notes »."
                       }
                     }
                   }
