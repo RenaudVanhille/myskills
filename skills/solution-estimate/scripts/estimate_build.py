@@ -1263,7 +1263,7 @@ def verify_csv(path: Path, totals: dict, contingency: float) -> list[str]:
 
 
 def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict, md: Path,
-                errors: list[str]) -> dict | None:
+                errors: list[str], warnings: list[str] | None = None) -> dict | None:
     """Notes typées du chiffrage : chiffrage (évalue l'option), un lot par tâche (porte sur ses exigences)."""
     notes = vault_ontology.Notes(vault, "solution-estimate")
     base = vault_ontology.safe_folder(folder)
@@ -1332,7 +1332,7 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
         props.update({"total": totals["tco"]["total"], "devise": currency, "horizon": totals["tco"]["years"],
                       "budget": budget})
     notes.add(rel, "chiffrage", props, {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
-    result = notes.write(errors, cleanup=cleanup)
+    result = notes.write(errors, cleanup=cleanup, warnings=warnings)
     return {**result, "folder": base} if result else None
 
 
@@ -1442,7 +1442,7 @@ def main() -> int:
     report["outputs"] += [str(charge_md), str(charge_table)]
     if args.vault and not errors:
         report["vault"] = write_vault(args.vault, args.folder, spec, option, found,
-                                      md if report["mode"] == "chiffrage" else charge_md, errors)
+                                      md if report["mode"] == "chiffrage" else charge_md, errors, report["warnings"])
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
 
