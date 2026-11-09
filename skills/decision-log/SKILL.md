@@ -130,8 +130,10 @@ wikilinks. Le frontmatter suit l'ontologie du vault
 `termes`, `ecarts`, `option`...) et tags normalisés (`type/exigence`,
 `priorite/indispensable`) ; une note hors ontologie bloque l'écriture.
 C'est la mémoire commune des agents, des sessions et de
-l'utilisateur : pour reprendre un workflow ou retrouver une décision, lisez
-la note d'index puis les notes liées, pas tout le dossier.
+l'utilisateur : pour reprendre un workflow ou retrouver une décision,
+interrogez-la avec `vault_query.py` (skill `markdown-to-obsidian` : `--type
+decision`, `--related "Option A"`, `--where statut=ouvert`), qui rend un JSON
+court, plutôt que de lire les notes.
 
 Une étape soumise a sa note de revue (`Revues/Revue <étape>`) : l'utilisateur
 y met la propriété `revue` à `validée` ou `retour` et écrit son retour sous

@@ -72,9 +72,9 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    `ask` liste ce qu'il faut demander avant de commencer (vault, POS...) :
    cherche-le d'abord dans les documents et le vault, puis pose en une
    seule question ce qui manque ; note au journal ce qui est retenu, ou
-   l'hypothèse faite sans réponse. Pour retrouver le contexte, lis la note
-   d'index du workflow dans le vault puis les notes liées utiles, plutôt
-   que les livrables.
+   l'hypothèse faite sans réponse. Pour retrouver le contexte, interroge le
+   vault avec `vault_query.py VAULT --folder <dossier>` (`--type`,
+   `--where`, `--related <note>`) plutôt que de lire notes ou livrables.
 2. **Une revue en attente** : avec un vault, `review --from-vault` d'abord
    (l'utilisateur a pu valider dans sa note de revue). Sinon, sa réponse
    donne `review --decision valide|retour --text "<ses mots>"` ; après un
