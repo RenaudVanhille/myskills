@@ -1128,7 +1128,7 @@ VERDICTS = {"favorable": "favorable", "favorable avec réserves": "reserves", "d
 
 
 def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str, out: Path,
-                errors: list[str]) -> dict | None:
+                errors: list[str], warnings: list[str] | None = None) -> dict | None:
     """Notes typées de la revue dans le vault : revue-architecture, constats et risques, liés aux
     notes d'exigence, d'option et d'ADR déjà écrites par decision-log (vault_sync.py)."""
     notes = vault_ontology.Notes(vault, "architecture-review")
@@ -1203,7 +1203,7 @@ def write_vault(vault: Path, folder: str, spec: dict, found: dict, verdict: str,
     notes.add(review_rel, "revue-architecture", {"avis": VERDICTS[verdict], "date": None}, {"evalue": evalue}, body,
               ["architecture"])
     # Constats et risques d'une revue précédente qui ne sont plus relevés : notes générées retirées.
-    result = notes.write(errors, cleanup=cleanup_c + cleanup_r)
+    result = notes.write(errors, cleanup=cleanup_c + cleanup_r, warnings=warnings)
     return {**result, "folder": base} if result else None
 
 
@@ -1413,7 +1413,8 @@ def main() -> int:
             handle.write(markdown(spec, found, verdict))
         result["output"] = str(out)
         if args.vault:
-            result["vault"] = write_vault(args.vault, args.folder, spec, found, verdict, out, errors)
+            result["vault"] = write_vault(args.vault, args.folder, spec, found, verdict, out, errors,
+                                          result["warnings"])
     print(json.dumps(result, ensure_ascii=False))
     limit = SEVERITIES.index(args.fail_on) if args.fail_on in SEVERITIES else -1
     failing = any(SEVERITIES.index(f["severity"]) <= limit for f in open_)

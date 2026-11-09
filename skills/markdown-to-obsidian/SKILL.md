@@ -134,6 +134,12 @@ plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 réécrit par les scripts à chaque passage et lié depuis la note du workflow.
 Un nouveau tableau s'ajoute dans l'ontologie, sans code.
 
+Chaque note générée finit par une section « Mes notes » que les scripts
+gardent à chaque réécriture (`vault_ontology.with_user`) : c'est la place de
+l'utilisateur. Ses callouts `> [!question]` et `> [!retour]` y sont relus
+(`vault_ontology.vault_annotations`), et une note générée obsolète mais
+annotée n'est pas supprimée.
+
 Si l'utilisateur le demande, `vault_check.py VAULT --style` colore chaque
 type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
 `type/<type>` : il écrit dans `.obsidian/` (ses autres réglages gardés),

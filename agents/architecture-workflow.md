@@ -74,7 +74,9 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    seule question ce qui manque ; note au journal ce qui est retenu, ou
    l'hypothèse faite sans réponse. Pour retrouver le contexte, lis la note
    d'index du workflow dans le vault puis les notes liées utiles, plutôt
-   que les livrables.
+   que les livrables. Un champ `annotations` du rapport (écrites par
+   l'utilisateur dans Obsidian) : réponds à chaque question, tiens compte
+   de chaque retour dans l'étape en cours, et trace-le (`log --refs D-xxx`).
 2. **Une revue en attente** : avec un vault, `review --from-vault` d'abord
    (l'utilisateur a pu valider dans sa note de revue). Sinon, sa réponse
    donne `review --decision valide|retour --text "<ses mots>"` ; après un
