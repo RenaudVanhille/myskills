@@ -134,6 +134,13 @@ plugin cœur) : une vue tableau par entrée `views` de l'ontologie
 réécrit par les scripts à chaque passage et lié depuis la note du workflow.
 Un nouveau tableau s'ajoute dans l'ontologie, sans code.
 
+À côté, `Carte.canvas` (Obsidian Canvas, plugin cœur) montre les liens
+d'un coup d'œil : workflow, exigences, options, revues et analyses, puis
+constats et risques en colonnes (champ `canvas` de l'ontologie), reliés par
+leurs relations typées. Elle est réécrite à chaque passage : pour l'arranger
+à la main, copiez-la ; une carte qui contient un nœud ajouté par l'utilisateur
+n'est plus touchée.
+
 Si l'utilisateur le demande, `vault_check.py VAULT --style` colore chaque
 type (champ `color` de l'ontologie) dans la vue graphe et sur son tag
 `type/<type>` : il écrit dans `.obsidian/` (ses autres réglages gardés),
