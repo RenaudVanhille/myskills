@@ -18,7 +18,7 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 
 Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts.
 
-**Skills** : `check-prerequisites`, `mission-workspace`, `architecture-review`, `threat-model`, `well-architected-review`, `data-protection`, `cloud-architecture`, `diagram-export`, `decision-log`, `agent-handoff`
+**Skills** : `check-prerequisites`, `mission-workspace`, `markdown-to-obsidian`, `architecture-review`, `threat-model`, `well-architected-review`, `data-protection`, `cloud-architecture`, `diagram-export`, `decision-log`, `agent-handoff`
 
 Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
@@ -159,7 +159,7 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
 Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : confie le découpage du frontend et du backend à des agents experts en parallèle, fusionne leurs lots, estime le reste à trois points, pose les hypothèses d'infrastructure et de run, fait calculer par script la charge, la fourchette, le réemploi, le coût total et le respect du budget, puis fait challenger le chiffrage (marges cumulées, lots gonflés ou semblables) avant de le rendre. Adapte l'effort de chaque action pour limiter les coûts.
 
-**Skills** : `check-prerequisites`, `solution-estimate`, `cloud-cost`, `api-contract`, `mockup-to-html`, `requirements-catalog`, `architecture-options`, `decision-log`, `agent-handoff`
+**Skills** : `check-prerequisites`, `markdown-to-obsidian`, `solution-estimate`, `cloud-cost`, `api-contract`, `mockup-to-html`, `requirements-catalog`, `architecture-options`, `decision-log`, `agent-handoff`
 
 Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 

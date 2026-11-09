@@ -1,7 +1,7 @@
 ---
 name: solution-estimator
 description: "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : confie le découpage du frontend et du backend à des agents experts en parallèle, fusionne leurs lots, estime le reste à trois points, pose les hypothèses d'infrastructure et de run, fait calculer par script la charge, la fourchette, le réemploi, le coût total et le respect du budget, puis fait challenger le chiffrage (marges cumulées, lots gonflés ou semblables) avant de le rendre. Adapte l'effort de chaque action pour limiter les coûts."
-skills: check-prerequisites, solution-estimate, cloud-cost, api-contract, mockup-to-html, requirements-catalog, architecture-options, decision-log, agent-handoff
+skills: check-prerequisites, markdown-to-obsidian, solution-estimate, cloud-cost, api-contract, mockup-to-html, requirements-catalog, architecture-options, decision-log, agent-handoff
 commands: uv run *, python *, python3 *, py *
 ---
 
@@ -58,7 +58,12 @@ workflow, la commande les trace aussi au journal.
    propose `architecture-workflow` : on ne chiffre pas sans exigences ni
    architecture. Lis `options.md` une fois (option retenue, composants,
    écarts, risques) et les exigences de l'option, pas les documents
-   sources.
+   sources. Avec un vault (mission ou workflow), ce qui
+   manque sur l'existant du client (applications, décisions, termes, notes
+   de son référentiel) se cherche d'abord dans la mémoire partagée :
+   `vault_query.py VAULT --type application|decision|adr|terme` ou `--text
+   "<mots>"` (skill `markdown-to-obsidian`), un JSON court, avant toute
+   hypothèse ou question.
 3. Abaques : s'ils sont donnés (charges backend et frontend, réemploi,
    seuils des points à challenger), ils vont avant le lancement dans
    `~/.myskills/abaques.json` ou dans `references.abaques` de `mission.json`
