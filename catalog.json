@@ -12529,15 +12529,16 @@
         },
         {
           "name": "vault_check.py",
-          "role": "Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style).",
-          "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style] | --ontology [TYPE]",
+          "role": "Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style et --templates).",
+          "usage": "uv run scripts/vault_check.py VAULT [--folder DOSSIER] [--graph graphe.json] [--strict] [--style] [--templates [DOSSIER]] | --ontology [TYPE]",
           "options": {
             "VAULT": "racine du vault",
             "--folder": "ne vérifier que ce dossier du vault (liens résolus dans tout le vault)",
             "--graph": "écrit le graphe des notes au format node-link de NetworkX (nodes ; links avec relation, lien pour un wikilink du corps)",
             "--strict": "code de sortie 1 aussi sur un avertissement",
             "--ontology": "affiche l'ontologie résumée (ou celle d'un type) sur une ligne et s'arrête",
-            "--style": "à la demande de l'utilisateur seulement : écrit les couleurs des types (champ color de l'ontologie) dans .obsidian/graph.json (groupes de couleurs par tag type/<type>, autres réglages gardés) et l'extrait CSS .obsidian/snippets/myskills-types.css, activé dans appearance.json"
+            "--style": "à la demande de l'utilisateur seulement : écrit les couleurs des types (champ color de l'ontologie) dans .obsidian/graph.json (groupes de couleurs par tag type/<type>, autres réglages gardés) et l'extrait CSS .obsidian/snippets/myskills-types.css, activé dans appearance.json",
+            "--templates": "à la demande de l'utilisateur seulement : écrit un modèle de note par type de l'ontologie dans DOSSIER (défaut Modèles, réglé dans .obsidian/templates.json et activé dans core-plugins.json s'il existe ; modèle de l'utilisateur au même nom gardé) et le type Obsidian de chaque propriété dans .obsidian/types.json (types réglés par l'utilisateur gardés) ; le dossier des modèles n'est pas vérifié"
           },
           "report": {
             "format": "json",
@@ -12686,6 +12687,43 @@
                           "type": "string"
                         }
                       }
+                    },
+                    "templates": {
+                      "type": "object",
+                      "description": "avec --templates : modèles écrits et réglages",
+                      "required": [
+                        "folder",
+                        "templates",
+                        "kept",
+                        "properties",
+                        "plugin"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "folder": {
+                          "type": "string"
+                        },
+                        "templates": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "modèles de l'utilisateur au même nom, non écrasés"
+                        },
+                        "properties": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "propriétés typées dans types.json"
+                        },
+                        "plugin": {
+                          "type": "boolean",
+                          "description": "plugin cœur Modèles activé (core-plugins.json présent)"
+                        }
+                      }
                     }
                   }
                 },
@@ -12761,6 +12799,111 @@
           "exit_codes": {
             "0": "notes conformes (ou ontologie affichée)",
             "1": "vault introuvable, type inconnu, ou note hors ontologie (avec --strict : aussi un avertissement)"
+          }
+        },
+        {
+          "name": "vault_query.py",
+          "role": "Interroge les notes typées du vault (lecture seule) par type, propriété, mot du texte ou voisinage d'une note (relations typées dans les deux sens) et rend un JSON court : chemin, type, titre, propriétés et relations de chaque note, sans relire les notes une à une. Options vérifiées contre l'ontologie, valeurs proches proposées.",
+          "usage": "uv run scripts/vault_query.py VAULT [--folder DOSSIER] [--type TYPE] [--where PROP=VALEUR ...] [--text MOTS] [--related NOTE [--depth 1] [--relation NOM]] [--fields a,b] [--limit 50]",
+          "options": {
+            "VAULT": "racine du vault",
+            "--folder": "dossier interrogé (défaut : tout le vault)",
+            "--type": "type de l'ontologie",
+            "--where": "PROP=VALEUR, répétable, toutes vraies (valeur comparée sans casse ni accents)",
+            "--text": "mots cherchés dans le titre et le texte, tous présents",
+            "--related": "note dont on veut les voisines : chemin, nom, titre, alias ou id",
+            "--depth": "sauts depuis --related, 1 à 3 (défaut 1)",
+            "--relation": "seule relation suivie depuis --related",
+            "--fields": "propriétés rendues, séparées par des virgules",
+            "--limit": "notes rendues au plus (défaut 50)"
+          },
+          "report": {
+            "format": "json",
+            "description": "Notes trouvées (count, notes, truncated si --limit coupe) ; erreurs : vault, dossier, type, propriété, relation ou note inconnus, avec les valeurs proches.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "vault",
+                "count",
+                "truncated",
+                "notes",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "vault": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "related": {
+                  "type": "string",
+                  "description": "note de départ de --related"
+                },
+                "notes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "note",
+                      "type",
+                      "title",
+                      "props"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "note": {
+                        "type": "string",
+                        "description": "chemin de la note dans le vault, sans .md"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "props": {
+                        "type": "object",
+                        "description": "propriétés du frontmatter, sans type, tags, alias ni relations"
+                      },
+                      "links": {
+                        "type": "object",
+                        "description": "relation typée -> chemins visés",
+                        "additionalProperties": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "requête faite",
+            "1": "vault, option ou note invalide"
           }
         }
       ],
