@@ -18,6 +18,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`obsidianize.py`** : Met des notes au format Obsidian et les range dans le vault. Rapport JSON (0 succès, 1 erreur).
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
 - **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style et --templates). Rapport JSON (0 succès, 1 erreur).
+- **`vault_query.py`** : Interroge les notes typées du vault (lecture seule) par type, propriété, mot du texte ou voisinage d'une note (relations typées dans les deux sens) et rend un JSON court : chemin, type, titre, propriétés et relations de chaque note, sans relire les notes une à une. Options vérifiées contre l'ontologie, valeurs proches proposées. Rapport JSON (0 succès, 1 erreur).
 - **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
 - **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
@@ -127,6 +128,12 @@ avec `--strict`. `--graph` écrit le graphe au format node-link de
 NetworkX (`nodes` avec type et propriétés, `links` avec `relation`, `lien`
 pour un wikilink du corps), à passer tel quel à une revue d'architecture ou
 à networkx : ne relisez pas le vault note à note.
+
+Pour retrouver une information sans lire les notes, `vault_query.py VAULT
+[--folder DOSSIER]` rend un JSON court (chemin, type, titre, propriétés,
+relations) des notes voulues : `--type risque --where statut=ouvert`,
+`--text paiement`, `--related "Option A" [--relation evalue] [--depth 2]`
+(note désignée par chemin, titre, alias ou id), `--fields`, `--limit`.
 
 Si l'utilisateur demande comment chercher lui-même dans le vault (recherche
 d'Obsidian sur les propriétés et tags, Omnisearch facultatif, outils
