@@ -24,4 +24,5 @@ skills/*/scripts/lib/rules.schema.json linguist-generated=true
 skills/*/scripts/lib/script_report.py linguist-generated=true
 skills/*/scripts/lib/skill_paths.py linguist-generated=true
 skills/*/scripts/lib/spec_schema.py linguist-generated=true
+skills/*/scripts/lib/text_tools.py linguist-generated=true
 skills/*/scripts/lib/workspace.py linguist-generated=true

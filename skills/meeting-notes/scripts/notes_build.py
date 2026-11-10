@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 KINDS = {"atelier": "Atelier", "kick-off": "Réunion de lancement", "comite": "Comité", "point": "Point d'avancement",
          "entretien": "Entretien", "soutenance": "Soutenance"}
@@ -41,10 +42,6 @@ def plain(text: str) -> str:
     """Texte comparable : sans accents, casse, ponctuation ni espaces répétés."""
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     return " ".join(re.findall(r"[a-z0-9]+", text))
-
-
-def cell(text: str) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def markdown(spec: dict) -> str:

@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 KIND_OF = {"performance": "performance", "disponibilite": "exploitation", "securite": "securite",
            "conformite": "securite", "exploitabilite": "exploitation", "utilisabilite": "accessibilite",
@@ -108,10 +109,6 @@ def lots(spec: dict, rules: dict) -> dict:
                      "effort": {profile: [round(v * auto, 2) for v in rules["automation"]]},
                      "note": f"{auto} cas automatisés ; abaque automation"})
     return {"domain": "recette", "profile": profile, "work": work}
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def markdown(spec: dict, reqs: dict, coverage: dict, uncovered: list[str], total: list[float]) -> str:

@@ -32,14 +32,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec  # noqa: E402
+from text_tools import slash_cell as cell  # noqa: E402
 
 STATUS = {"a-traiter": "à traiter", "traitee": "traitée", "acceptee": "acceptée", "ecartee": "écartée"}
 CATEGORIES = {"S": "Usurpation d'identité", "T": "Altération", "R": "Répudiation",
               "I": "Divulgation d'information", "D": "Déni de service", "E": "Élévation de privilèges"}
-
-
-def cell(text: str) -> str:
-    return str(text).replace("|", "/").replace("\n", " ")
 
 
 def matches(rule: dict, item: dict) -> bool:
