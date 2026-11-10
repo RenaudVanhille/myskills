@@ -28,13 +28,13 @@ code 1.
 """
 
 import argparse
-import difflib
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, validate  # noqa: E402
+from text_tools import cell, near  # noqa: E402
 
 SEVERITIES = ("haute", "moyenne", "basse")
 RULES = {
@@ -63,11 +63,6 @@ OPS_CATEGORIES = ("disponibilite", "exploitabilite")
 CRITICAL = "critique"
 
 
-def near(value: str, choices) -> str:
-    found = difflib.get_close_matches(value, list(choices), n=2, cutoff=0.6)
-    return f" ; vouliez-vous « {' » ou « '.join(found)} » ?" if found else ""
-
-
 def number(value: float, digits: int = 1) -> str:
     """Nombre à la française : virgule décimale, espace des milliers, sans zéro inutile."""
     text = f"{value:,.{digits}f}".replace(",", "\u202f").replace(".", ",")
@@ -90,10 +85,6 @@ def budget(service: dict) -> float | None:
     if "availability" not in slo:
         return None
     return (100 - slo["availability"]) / 100 * slo.get("window_days", 30) * 24 * 60
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def check(spec: dict, reqs: dict | None, errors: list[str]) -> list[dict]:
@@ -120,23 +111,23 @@ def check(spec: dict, reqs: dict | None, errors: list[str]) -> list[dict]:
         for index, item in enumerate(spec.get(key, [])):
             if item["service"] not in services:
                 errors.append(f"{key}/{index}/service : service inconnu « {item['service']} »"
-                              f"{near(item['service'], services)}")
+                              f"{near(item['service'], services, n=2)}")
     for index, alert in enumerate(spec.get("monitoring", [])):
         if alert.get("runbook") and alert["runbook"] not in runbooks:
             errors.append(f"monitoring/{index}/runbook : fiche inconnue « {alert['runbook']} »"
-                          f"{near(alert['runbook'], runbooks)}")
+                          f"{near(alert['runbook'], runbooks, n=2)}")
         if alert.get("notify") and levels and alert["notify"] not in levels:
             errors.append(f"monitoring/{index}/notify : niveau d'astreinte inconnu « {alert['notify']} »"
-                          f"{near(alert['notify'], levels)}")
+                          f"{near(alert['notify'], levels, n=2)}")
     for index, runbook in enumerate(spec.get("runbooks", [])):
         if runbook.get("escalation") and levels and runbook["escalation"] not in levels:
             errors.append(f"runbooks/{index}/escalation : niveau d'astreinte inconnu « {runbook['escalation']} »"
-                          f"{near(runbook['escalation'], levels)}")
+                          f"{near(runbook['escalation'], levels, n=2)}")
     for index, service in enumerate(spec["services"]):
         for ref in service.get("refs", []):
             if reqs is not None and ref not in reqs:
                 errors.append(f"services/{index}/refs : exigence « {ref} » absente de {spec['requirements']}"
-                              f"{near(ref, reqs)}")
+                              f"{near(ref, reqs, n=2)}")
     for index, backup in enumerate(spec.get("backups", [])):
         rpo = services.get(backup["service"], {}).get("rpo_hours")
         if rpo is not None and backup["frequency_hours"] > rpo:

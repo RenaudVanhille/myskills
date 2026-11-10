@@ -31,6 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, schema_option  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 FIELDS = {"text": "texte", "priority": "priorité", "metric": "mesure", "category": "catégorie",
           "nature": "nature", "domain": "domaine", "title": "titre"}
@@ -51,10 +52,6 @@ def load(path: Path, label: str, schema: dict, errors: list[str]) -> dict | None
         errors += [f"{label} : {path.name} : {e}" for e in invalid[:10]]
         return None
     return data
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def markdown(report: dict, old: dict, new: dict, title: str) -> str:

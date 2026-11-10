@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module, require_module  # noqa: E402
 from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import slash_cell as cell  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -76,10 +77,6 @@ THREATS = {
 def threat(category: str, nature: str, name: str) -> tuple[str, str]:
     text, measure = THREATS.get((category, nature)) or THREATS[(category, "*")]
     return text.format(x=name), measure.replace("{x}", name)
-
-
-def cell(text: str) -> str:
-    return str(text).replace("|", "/").replace("\n", " ")
 
 
 def encryption(f: dict) -> tuple[bool | None, str]:

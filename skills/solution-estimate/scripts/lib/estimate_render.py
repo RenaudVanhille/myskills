@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
-from estimate_common import COMPLEXITY, PHASES, cell, days, money, pct
+from estimate_common import COMPLEXITY, PHASES, days, money, pct
+from text_tools import cell
 
 
 def render_challenge(found: dict) -> list[str]:

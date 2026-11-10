@@ -160,10 +160,6 @@ OFF_DESCRIPTION = {
 }
 
 
-def cell(text) -> str:
-    return str(text).replace("|", "/").replace("\n", " ")
-
-
 def plain(text: str) -> str:
     text = unicodedata.normalize("NFKD", str(text))
     return "".join(c for c in text if not unicodedata.combining(c)).lower()

@@ -35,7 +35,6 @@ contexte vont dans le vault Obsidian du workflow, selon son ontologie.
 """
 
 import argparse
-import difflib
 import json
 import sys
 from pathlib import Path
@@ -43,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, find_script, require_module, run_script, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import near as hint, slash_cell as cell  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -74,15 +74,6 @@ LABELS = {"devops": "maturité DevOps", "stabilite": "stabilité du domaine", "c
 SIZE = 12          # entités au-delà desquelles un contexte est large
 COUPLED, LOOSE = 0.5, 0.25  # part des relations entre contextes : couplage fort, faible
 MICRO = 4          # score à partir duquel les microservices sont recommandés
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "/").replace("\n", " ")
-
-
-def hint(value: str, pool) -> str:
-    close = difflib.get_close_matches(str(value), [str(p) for p in pool], n=1)
-    return f" ; vouliez-vous « {close[0]} » ?" if close else ""
 
 
 def load_json(path: Path, label: str, errors: list[str]):

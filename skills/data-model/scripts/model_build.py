@@ -28,7 +28,6 @@ la relation de la carte des contextes qui le porte, ou son absence.
 """
 
 import argparse
-import difflib
 import json
 import re
 import sys
@@ -37,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec  # noqa: E402
+from text_tools import cell, near as hint  # noqa: E402
 
 SQL = {"uuid": "uuid", "string": "varchar(255)", "text": "text", "integer": "integer", "number": "double precision",
        "decimal": "numeric(14,2)", "boolean": "boolean", "date": "date", "datetime": "timestamptz", "json": "jsonb",
@@ -148,11 +148,6 @@ def ddl(spec: dict, warnings: list[str]) -> str:
     return "\n\n".join(out + joins) + "\n"
 
 
-def hint(value: str, pool) -> str:
-    close = difflib.get_close_matches(str(value), [str(p) for p in pool], n=1)
-    return f" ; vouliez-vous « {close[0]} » ?" if close else ""
-
-
 def check_contexts(spec: dict, base: Path, report: dict) -> None:
     """Modèle par contexte borné : contextes et propriétaires repris du découpage, liens entre contextes signalés."""
     errors, warnings = report["errors"], report["warnings"]
@@ -214,10 +209,6 @@ def check_contexts(spec: dict, base: Path, report: dict) -> None:
                             "et aucune relation de la carte des contextes ne le porte : déclarer la relation "
                             "(domain-design) ou revoir le propriétaire de l'entité"))
     report["contexts"] = len({e["context"] for e in spec["entities"]})
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def markdown(spec: dict, diagram: str) -> str:

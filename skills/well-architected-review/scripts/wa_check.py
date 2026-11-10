@@ -42,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module, require_file, require_module  # noqa: E402
 from spec_schema import print_schema, read_spec, schema_option, validate  # noqa: E402, F401 - validate appelé par arch_review
+from text_tools import slash_cell as cell  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -457,10 +458,6 @@ def accept(findings: list[dict], accepted: dict, warnings: list[str]) -> None:
                 used.add(key)
                 break
     warnings += [f"acceptation « {k} » sans constat correspondant" for k in accepted if k not in used]
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "/").replace("\n", " ")
 
 
 def markdown(title: str, findings: list[dict], clouds: set[str], rules: int) -> str:

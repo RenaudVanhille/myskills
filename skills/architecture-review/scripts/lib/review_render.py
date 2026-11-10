@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import re
-from review_common import ATTRIBUTES, AXES, DECIDED, OFF_DESCRIPTION, RULES, SEVERITIES, STATUS, cell, count_of, plain
+from review_common import ATTRIBUTES, AXES, DECIDED, OFF_DESCRIPTION, RULES, SEVERITIES, STATUS, count_of, plain
+from text_tools import slash_cell as cell
 
 
 def fits(item: dict, field: str, value) -> bool:

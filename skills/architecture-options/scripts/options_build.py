@@ -60,6 +60,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module, require_file, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 # Position des options dans le POS du SI (skill urbanization-map), déclaré dans requires.
 POS = load_module("urbanization-map", "pos_impact.py")
@@ -77,10 +78,6 @@ def load_wa():
     """wa_check.py du skill well-architected-review (et son cloud_build.py), ou None s'il manque."""
     module = load_module("well-architected-review", "wa_check.py")
     return module if module and not module.MISSING else None
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def nature(req: dict) -> str | None:

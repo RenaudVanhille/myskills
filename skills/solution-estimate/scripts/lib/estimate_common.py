@@ -28,10 +28,6 @@ CHALLENGE = {"max_margin": 35, "realisation_min_share": 0.4, "max_lot_days": 40,
 BUILD_PHASES = ("realisation", "integration")
 
 
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
-
-
 def money(value: float, currency: str) -> str:
     return f"{value:,.0f}".replace(",", " ") + f" {currency}"
 

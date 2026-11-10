@@ -51,6 +51,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import check as check_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -296,10 +297,6 @@ def ask_laya(items: list[dict], cache_path: Path, warnings: list[str]) -> tuple[
                                   encoding="utf-8")
     used = any(item["key"] in answers for item in items)
     return answers, (method or "laya") if used else "regles"
-
-
-def cell(text: str) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None) -> str:

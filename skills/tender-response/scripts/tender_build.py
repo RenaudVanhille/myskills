@@ -39,6 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, schema_option, validate  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 MONTHS = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
           "septembre": 9, "octobre": 10, "novembre": 11, "decembre": 12}
@@ -291,10 +292,6 @@ def draft(path: Path, sources_name: str) -> dict:
     if not any(d["kind"] == "remise" for d in found["dates"]):
         report["warnings"].append("date limite de remise des offres non trouvée : à saisir")
     return report
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def fmt(value) -> str:

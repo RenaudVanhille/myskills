@@ -19,7 +19,6 @@ processus a une erreur.
 """
 
 import argparse
-import difflib
 import json
 import sys
 from pathlib import Path
@@ -28,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from drawio_xml import edge, html, new_file, new_page, vertex, waypoints, write  # noqa: E402
 from skill_paths import export_image, load_module  # noqa: E402
 from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import near  # noqa: E402
 
 FONT = "html=1;whiteSpace=wrap;fontColor=#1f2937;"
 # Petites formes : libellé dessous, coupé par le script (wrap) et non par la largeur de la forme.
@@ -77,11 +77,6 @@ def count(n: int, one: str, many: str | None = None) -> str:
     return f"{n} {one if n < 2 else many or one + 's'}"
 
 
-def near(value: str, choices) -> str:
-    found = difflib.get_close_matches(value, list(choices), n=2, cutoff=0.6)
-    return f" ; vouliez-vous « {' » ou « '.join(found)} » ?" if found else ""
-
-
 def analyse(spec: dict, errors: list[str], warnings: list[str]) -> dict:
     """Contrôle le processus et calcule le rang (colonne) de chaque étape."""
     lanes = {}
@@ -96,7 +91,7 @@ def analyse(spec: dict, errors: list[str], warnings: list[str]) -> dict:
         if step["id"] in lanes:
             errors.append(f"steps/{index}/id : « {step['id']} » est déjà l'identifiant d'un couloir")
         if step["lane"] not in lanes:
-            errors.append(f"steps/{index}/lane : couloir inconnu « {step['lane']} »{near(step['lane'], lanes)}")
+            errors.append(f"steps/{index}/lane : couloir inconnu « {step['lane']} »{near(step['lane'], lanes, n=2)}")
         steps[step["id"]] = step
     after = {sid: [] for sid in steps}
     before = {sid: [] for sid in steps}
@@ -105,7 +100,7 @@ def analyse(spec: dict, errors: list[str], warnings: list[str]) -> dict:
         missing = False
         for end in ("from", "to"):
             if flow[end] not in steps:
-                errors.append(f"flows/{index}/{end} : étape inconnue « {flow[end]} »{near(flow[end], steps)}")
+                errors.append(f"flows/{index}/{end} : étape inconnue « {flow[end]} »{near(flow[end], steps, n=2)}")
                 missing = True
         if missing:
             continue

@@ -41,6 +41,7 @@ from xml.sax.saxutils import escape
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
+from text_tools import cell  # noqa: E402
 
 STATUSES = ["conforme", "partiel", "non-conforme", "sans-objet"]
 FROM_GAP = {"partiel": "partiel", "non": "non-conforme"}
@@ -216,10 +217,6 @@ def read_xlsx(path: Path) -> int:
             ElementTree.fromstring(archive.read(name))
         root = ElementTree.fromstring(archive.read("xl/worksheets/sheet1.xml"))
     return len(root.findall(".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row"))
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ")
 
 
 def main() -> int:
