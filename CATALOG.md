@@ -139,7 +139,7 @@ Généré depuis `src/agents/orientation.contract.json`, qui fait foi.
 
 Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public (technique, métier, commerciaux) et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer.
 
-**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `urbanization-map`, `cloud-architecture`, `well-architected-review`, `diagram-export`, `agent-handoff`
+**Skills** : `check-prerequisites`, `diagram-brief`, `mermaid-diagram`, `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`, `urbanization-map`, `process-diagram`, `cloud-architecture`, `well-architected-review`, `diagram-export`, `agent-handoff`
 
 Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 
@@ -505,6 +505,7 @@ Résumé de [`contract.json`](skills/diagram-brief/contract.json), qui fait foi 
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
 - **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
 - **Passe la main** au skill `urbanization-map` : cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation).
+- **Passe la main** au skill `process-diagram` : processus métier : qui fait quoi, décisions, passages de main (kind processus).
 - **Passe la main** au skill `cloud-architecture` : architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA ou pipeline.
 - **Passe la main** au skill `threat-model` : modèle de menaces STRIDE d'un schéma cloud (type menaces).
 
@@ -737,6 +738,23 @@ Résumé de [`contract.json`](skills/operations-dossier/contract.json), qui fait
 - **Passe la main** au skill `capacity-sizing` : les seuils d'alerte dépendent de la charge attendue : la dimensionner d'abord.
 - **Passe la main** au skill `architecture-dossier` : joindre le dossier d'exploitation au dossier d'architecture technique.
 - **Passe la main** à l'utilisateur : un engagement (disponibilité, RPO, RTO, astreinte) n'est ni dans les exigences ni dans les documents : la question à poser, jamais une valeur inventée.
+
+### `process-diagram`
+
+Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown. À utiliser pour décrire un processus existant ou cible, un parcours de traitement entre services, un logigramme avec acteurs, à partir d'un atelier, d'une procédure ou d'un cahier des charges, pour un public métier ou technique. Pas pour une séquence d'appels entre systèmes (mermaid-diagram) ni pour une cartographie du SI (urbanization-map).
+
+Résumé de [`contract.json`](skills/process-diagram/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : Décision de diagram-brief (kind processus) : public et destination ; Description JSON du processus : title, lanes (acteurs), steps (début, tâches, décisions, attentes, fins), flows (enchaînements et conditions).
+- **Sorties** : <sujet>.drawio : processus en couloirs (notation BPMN), XML clair, à côté de sa description <sujet>.json ; <sujet>.processus.md : fiche du processus (synthèse, acteurs, déroulé numéroté, points de douleur) ; Avec --export : <sujet>.drawio.png ou .svg.
+- **`process_build.py`** : Contrôle un processus métier (étape inaccessible, impasse, boucle sans sortie, décision sans libellé, référence inconnue), le met en page en couloirs (un par acteur, de gauche à droite), écrit le .drawio aux couleurs de la charte et sa fiche Markdown, puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé. Rapport JSON, codes de sortie : 0 processus dessiné sans erreur ; 1 description invalide, processus incohérent ou erreur ; rien n'est écrit si le processus est incohérent.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `drawio-diagram` (`check_drawio.py`, facultatif : sans lui, avertissement) : vérifier le .drawio produit.
+- **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : exporter l'image dans le même appel (--export).
+- **Passe la main** au skill `diagram-export` : exporter en PDF ou relire l'image.
+- **Passe la main** au skill `drawio-diagram` : retoucher le .drawio à la main.
+- **Passe la main** au skill `mermaid-diagram` : le processus va dans un Markdown ou Obsidian sans couloirs : organigramme Mermaid.
 
 ### `requirements-catalog`
 

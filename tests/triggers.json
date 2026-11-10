@@ -21,6 +21,7 @@
     {"prompt": "Fais une vue d'ensemble simple du parcours client pour les commerciaux.", "skill": "excalidraw-diagram"},
     {"prompt": "Modélise l'architecture en C4 : contexte et conteneurs.", "skill": "c4-architecture"},
     {"prompt": "Fais le plan d'occupation des sols de notre SI à partir de l'inventaire des applications.", "skill": "urbanization-map"},
+    {"prompt": "Dessine le processus de traitement d'un sinistre : qui fait quoi entre l'assuré, le gestionnaire et l'expert, avec les décisions.", "skill": "process-diagram"},
     {"prompt": "Dessine la carte d'urbanisation du SI : zones, quartiers et îlots, pour le comité de direction.", "skill": "urbanization-map"},
     {"prompt": "Dessine l'architecture AWS de l'application : VPC, sous-réseaux, ALB, ECS et RDS.", "skill": "cloud-architecture"},
     {"prompt": "Fais le schéma du cluster Kubernetes avec l'ingress, les services et les pods.", "skill": "cloud-architecture"},

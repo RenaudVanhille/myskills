@@ -320,6 +320,41 @@
       "absent": ["invalide/exploitation-invalide.md"]
     },
     {
+      "id": "processus",
+      "skill": "process-diagram",
+      "_note": "Processus métier en couloirs : contrôle, mise en page, fiche Markdown, retour en arrière reconnu ; le brief d'un processus mène à ce skill.",
+      "steps": [
+        {"script": "{skills}/process-diagram/scripts/process_build.py",
+         "args": ["{fixtures}/processus/sinistre.json", "--out", "{out}/sinistre.drawio"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "lanes": 4, "steps": 11, "flows": 12, "decisions": 2,
+                               "handoffs": 7, "pains": 1, "loops": 1}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py",
+         "args": ["{out}/sinistre.drawio"], "exit": 0, "report": {"results.0.errors": []}},
+        {"script": "{skills}/diagram-brief/scripts/brief.py", "args": ["--json", "{\"audience\": \"non technique\", \"destination\": \"confluence\", \"kind\": \"processus\", \"message\": \"Le dossier incomplet revient à l'assuré.\", \"elements\": [\"assuré\", \"gestionnaire\", \"expert\"]}"],
+         "exit": 0, "report": {"errors": [], "decision.skill": "process-diagram"}}
+      ],
+      "files": ["sinistre.drawio", "sinistre.processus.md"],
+      "contains": {"sinistre.drawio": ["Déclaration et indemnisation d'un sinistre", "swimlane", "gwType=exclusive", "Gestionnaire de sinistres", "dashed=1", "fillColor=#fee2e2"],
+                   "sinistre.processus.md": ["6 tâches, 4 acteurs, 2 décisions, 7 passages de main, 1 point de douleur.", "| 4 | Dossier complet ? |", "non : 5. Compléter les pièces", "## Points de douleur"]}
+    },
+    {
+      "id": "processus-erreurs",
+      "skill": "process-diagram",
+      "_note": "Processus invalide ou incohérent : rien n'est écrit, erreurs avec le chemin et le nom proche.",
+      "steps": [
+        {"script": "{skills}/process-diagram/scripts/process_build.py",
+         "args": ["{fixtures}/processus/sinistre-invalide.json", "--out", "{out}/a.drawio"],
+         "exit": 1, "report_contains": {"errors": "steps/2/lane : couloir inconnu « gestionaire » ; vouliez-vous « gestionnaire » ?"}},
+        {"script": "{skills}/process-diagram/scripts/process_build.py",
+         "args": ["{fixtures}/processus/sinistre-impasse.json", "--out", "{out}/b.drawio"],
+         "exit": 1, "report_contains": {"errors": "étape archiver : impasse"}},
+        {"script": "{skills}/process-diagram/scripts/process_build.py",
+         "args": ["{fixtures}/processus/sinistre-schema.json", "--out", "{out}/c.drawio"],
+         "exit": 1, "report_contains": {"errors": "steps/0/type"}}
+      ],
+      "absent": ["a.drawio", "b.drawio", "c.drawio", "a.processus.md"]
+    },
+    {
       "id": "pos-csv",
       "skill": "urbanization-map",
       "steps": [
