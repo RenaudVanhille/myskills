@@ -52,6 +52,71 @@ def scores(predicted: list[bool], expected: list[bool]) -> dict:
             "false_positives": fp, "false_negatives": fn}
 
 
+def fr(value: float) -> str:
+    return str(value).replace(".", ",")
+
+
+def table(title: str, intro: str, header: list[str], rows: list[list[str]]) -> list[str]:
+    if not rows:
+        return []
+    return [f"## {title} ({len(rows)})", "", intro, "", "| " + " | ".join(header) + " |",
+            "| " + " | ".join("---" for _ in header) + " |",
+            *("| " + " | ".join(str(c).replace("|", "/") for c in row) + " |" for row in rows), ""]
+
+
+def markdown(report: dict, min_gain: float | None) -> str:
+    """Le rapport en phrases : verdict, comment lire les chiffres, puis les erreurs par nature."""
+    e, c, mistakes = report["exigence"], report["categorie"], report["mistakes"]
+    seuil, oui_non = fr(e["threshold"]), lambda value: "oui" if value else "non"
+    exigence = [m for m in mistakes if m["question"] == "exigence"]
+    verdict = ("Laya est utile" if e["gain_f1"] > 0 else "Laya n'apporte rien") + (
+        "" if min_gain is None else f", gain minimal demandé {fr(min_gain)} : "
+        + ("atteint" if e["gain_f1"] >= min_gain else "**non atteint**"))
+    lines = [
+        f"# Justesse de Laya sur les exigences ({report['phrases']} phrases, {report['method']})", "",
+        f"**{verdict}.** Pour repérer les exigences, la règle de req_build.py (regex ou Laya) obtient un score F1 "
+        f"de {fr(e['rule']['f1'])}, contre {fr(e['regex']['f1'])} pour la regex seule (gain {fr(e['gain_f1'])}). "
+        f"Laya trouve la bonne catégorie pour {round(c['accuracy'] * 100)} % des {c['labelled']} exigences "
+        "étiquetées.", "",
+        "## Comment lire ce rapport", "",
+        "- Chaque phrase du jeu de test est étiquetée à la main : exigence ou non, et sa catégorie.",
+        f"- Laya donne à chaque phrase une probabilité de 0 à 1 d'être une exigence. À partir de {seuil}, "
+        "la phrase est prise pour une exigence.",
+        "- Précision : parmi les phrases prises pour des exigences, la part qui en sont vraiment. "
+        "Rappel : parmi les vraies exigences, la part retrouvée. F1 : la moyenne des deux (1 = sans faute).", "",
+        "| Exigence ou non | Laya seul | Regex seule | Regex ou Laya (req_build.py) |", "| --- | --- | --- | --- |",
+        *(f"| {label} | {fr(e['laya'][k])} | {fr(e['regex'][k])} | {fr(e['rule'][k])} |"
+          for label, k in (("F1", "f1"), ("Précision", "precision"), ("Rappel", "recall"),
+                           ("Fausses exigences", "false_positives"), ("Exigences manquées", "false_negatives"))), "",
+        f"Le seuil qui donnerait le meilleur F1 à Laya seul est {fr(report['best_threshold']['threshold'])} "
+        f"(F1 {fr(report['best_threshold']['f1'])}).", ""]
+    if report["triage"]:
+        t = report["triage"]
+        lines += [f"Tri par un modèle léger ({t['file']}, {t['sorted']} phrases triées) : F1 {fr(t['f1'])}, "
+                  f"précision {fr(t['precision'])}, rappel {fr(t['recall'])}.", ""]
+    lines += table("Exigences que Laya ne voit pas",
+                   f"Ce sont de vraies exigences, mais Laya leur donne une probabilité sous {seuil}. "
+                   "Si la regex les reconnaît, req_build.py les garde quand même.",
+                   ["Phrase", "Probabilité selon Laya", "Rattrapée par la regex"],
+                   [[m["text"], fr(m["laya"]), oui_non(m["regex"])] for m in exigence if m["expected"]])
+    lines += table("Phrases que Laya prend à tort pour des exigences",
+                   f"Ce ne sont pas des exigences, mais Laya leur donne une probabilité d'au moins {seuil}.",
+                   ["Phrase", "Probabilité selon Laya", "Même erreur de la regex"],
+                   [[m["text"], fr(m["laya"]), oui_non(m["regex"])] for m in exigence if not m["expected"]])
+    lines += table("Catégories mal trouvées par Laya",
+                   f"À partir d'une confiance de {fr(c['confidence_threshold'])}, req_build.py signalerait à tort "
+                   f"un désaccord avec la catégorie déclarée ({c['false_alarms']} cas).",
+                   ["Phrase", "Catégorie attendue", "Catégorie selon Laya", "Confiance", "Fausse alerte"],
+                   [[m["text"], m["expected"], m["laya"] or "aucune", fr(m["confidence"] or 0),
+                     oui_non(m["laya"] and (m["confidence"] or 0) >= c["confidence_threshold"])]
+                    for m in mistakes if m["question"] == "categorie"])
+    lines += table("Erreurs du tri par un modèle léger", "Le tri dit si la phrase est une exigence.",
+                   ["Phrase", "Exigence attendue", "Réponse du tri"],
+                   [[m["text"], oui_non(m["expected"]), "non triée" if m["laya"] is None else oui_non(m["laya"])]
+                    for m in mistakes if m["question"] == "tri"])
+    return "\n".join(lines)
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -125,27 +190,11 @@ def main() -> int:
                                 "laya": s.get("choice"), "confidence": s.get("confidence")}
                                for p, s in zip(labelled, said) if s.get("choice") != p[question]]
 
-    if args.markdown:
-        e = report["exigence"]
-        lines = [f"# Justesse de Laya sur les exigences ({len(phrases)} phrases, {method})", "",
-                 "| Question | Laya | Regex | Regex ou Laya (req_build.py) |", "| --- | --- | --- | --- |",
-                 *(f"| exigence, {label} | {e['laya'][k]} | {e['regex'][k]} | {e['rule'][k]} |"
-                   for label, k in ((f"F1 (seuil {e['threshold']})", "f1"), ("précision", "precision"),
-                                    ("rappel", "recall"))),
-                 f"| catégorie, bonnes réponses | {report['categorie']['accuracy']} | (déclarée) | |", "",
-                 f"Meilleur seuil pour exigence : {best} (F1 {report['best_threshold']['f1']}). "
-                 f"Fausses alertes de req_build.py : catégorie {report['categorie']['false_alarms']}.", "",
-                 *([f"Tri par un modèle léger ({report['triage']['file']}, {report['triage']['sorted']} phrases) : "
-                    f"F1 {report['triage']['f1']}, précision {report['triage']['precision']}, "
-                    f"rappel {report['triage']['recall']}.", ""] if report["triage"] else []),
-                 "## Erreurs de Laya et du tri", "",
-                 "| Question | Phrase | Attendu | Réponse |", "| --- | --- | --- | --- |"]
-        lines += [f"| {m['question']} | {m['text'].replace('|', '/')} | {m['expected']} | {m['laya']} |"
-                  for m in report["mistakes"]]
-        args.markdown.write_text("\n".join(lines) + "\n", encoding="utf-8")
     if args.min_gain is not None and report["exigence"]["gain_f1"] < args.min_gain:
         report["errors"].append(f"F1 de la règle {rule['f1']} : gain {report['exigence']['gain_f1']} sur la regex, "
                                 f"moins que --min-gain {args.min_gain}")
+    if args.markdown:
+        args.markdown.write_text(markdown(report, args.min_gain), encoding="utf-8")
     report["mistakes"] = report["mistakes"][:40]
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
