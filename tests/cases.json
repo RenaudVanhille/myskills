@@ -297,6 +297,29 @@
       "absent": ["pos-7.drawio.png"]
     },
     {
+      "id": "exploitation",
+      "skill": "operations-dossier",
+      "_note": "Dossier d'exploitation : engagements calculés, trous de couverture par règle, --strict refuse un constat haut ; entrée incohérente refusée sans rien écrire.",
+      "steps": [
+        {"script": "{skills}/operations-dossier/scripts/ops_build.py",
+         "args": ["{fixtures}/exploitation/exploitation.json", "--out-dir", "{out}"],
+         "exit": 0, "report": {"errors": [], "warnings": [], "services": 3, "alerts": 3, "runbooks": 2, "backups": 1,
+                               "counts.haute": 2, "counts.moyenne": 4, "counts.basse": 1, "findings.0.rule": "OPS-02"}},
+        {"script": "{skills}/operations-dossier/scripts/ops_build.py",
+         "args": ["{fixtures}/exploitation/exploitation.json", "--out-dir", "{out}/strict", "--strict"],
+         "exit": 1},
+        {"script": "{skills}/operations-dossier/scripts/ops_build.py",
+         "args": ["{fixtures}/exploitation/exploitation-invalide.json", "--out-dir", "{out}/invalide"],
+         "exit": 1, "report_contains": {"errors": "backups/0/service : service inconnu « bases » ; vouliez-vous « base » ?"}},
+        {"script": "{skills}/operations-dossier/scripts/ops_build.py",
+         "args": ["{fixtures}/exploitation/exploitation-invalide.json", "--out-dir", "{out}/invalide"],
+         "exit": 1, "report_contains": {"errors": "une sauvegarde toutes les 24 h ne tient pas le RPO de 1 h du service base"}}
+      ],
+      "files": ["exploitation.md"],
+      "contains": {"exploitation.md": ["OPS-02", "43 min"]},
+      "absent": ["invalide/exploitation-invalide.md"]
+    },
+    {
       "id": "pos-csv",
       "skill": "urbanization-map",
       "steps": [

@@ -631,6 +631,16 @@
    "match": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre) ; la même description donne la page en Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material), le découpage en composants et les lots du chiffrage frontend. À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence, ou pour découper et chiffrer un frontend."
   },
   {
+   "name": "operations-dossier",
+   "level": "moyen",
+   "description": "Écrit et contrôle le dossier d'exploitation d'une solution (DEX, runbook) : services et engagements (disponibilité cible, RPO, RTO, indisponibilité permise calculée), supervision et alertes, sauvegardes et tests de restauration, astreinte et escalade, fiches réflexes d'incident, opérations récurrentes, avec les trous de couverture relevés par des règles (service critique sans alerte ni fiche, sauvegarde incompatible avec le RPO, exigence de disponibilité non tenue).",
+   "inputs": [
+    "L'architecture retenue (options.json, description cloud ou dossier d'architecture) et le catalogue d'exigences (exigences.json), pour les services et leurs engagements",
+    "Description JSON de l'exploitation (ops_build.py --schema) : services et engagements (disponibilité, RPO, RTO), alertes, sauvegardes, astreinte, fiches réflexes, opérations récurrentes"
+   ],
+   "match": "Écrit et contrôle le dossier d'exploitation d'une solution (DEX, runbook) : services et engagements (disponibilité cible, RPO, RTO, indisponibilité permise calculée), supervision et alertes, sauvegardes et tests de restauration, astreinte et escalade, fiches réflexes d'incident, opérations récurrentes, avec les trous de couverture relevés par des règles (service critique sans alerte ni fiche, sauvegarde incompatible avec le RPO, exigence de disponibilité non tenue). À utiliser pour préparer la mise en production ou le passage en exploitation, répondre au volet exploitabilité d'un appel d'offres, ou revoir l'exploitabilité d'une architecture."
+  },
+  {
    "name": "requirements-catalog",
    "level": "moyen",
    "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV.",
