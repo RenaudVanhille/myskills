@@ -1,5 +1,53 @@
 # Journal des versions
 
+## [0.13.0](https://github.com/RenaudVanhille/myskills/compare/v0.12.0...v0.13.0) (2026-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* options --laya et --laya-cache retirées de req_build.py et de route.py.
+
+### Ajouts
+
+* **decision-log:** notes de l'utilisateur gardées dans le vault et relues vers le journal ([#81](https://github.com/RenaudVanhille/myskills/issues/81)) ([d6f5abb](https://github.com/RenaudVanhille/myskills/commit/d6f5abb7f912904eaff29e8addf5c47cbd7de470))
+* **markdown-to-obsidian:** carte Canvas des liens de chaque workflow tirée de l'ontologie ([#86](https://github.com/RenaudVanhille/myskills/issues/86)) ([c3d5755](https://github.com/RenaudVanhille/myskills/commit/c3d57556828403306f48d4f449327add7d0ffb6a))
+* **markdown-to-obsidian:** modèles de notes et types de propriétés tirés de l'ontologie ([#83](https://github.com/RenaudVanhille/myskills/issues/83)) ([f2f4b3a](https://github.com/RenaudVanhille/myskills/commit/f2f4b3aec3a044de71808407ac36a9272db96e57))
+* **markdown-to-obsidian:** requête compacte de la mémoire partagée du vault (vault_query.py) ([#82](https://github.com/RenaudVanhille/myskills/issues/82)) ([f38b2c2](https://github.com/RenaudVanhille/myskills/commit/f38b2c2320a47822eccfe22602c2bd834ccde063))
+* **markdown-to-obsidian:** sous-dossiers courts avec migration et couleurs des types à la demande ([#80](https://github.com/RenaudVanhille/myskills/issues/80)) ([0c61141](https://github.com/RenaudVanhille/myskills/commit/0c611414c76b62e7c9a59682367043b9085f20ce))
+* **mission-workspace:** référentiel du client copié à l'ouverture, mémoire lue par revue et chiffrage ([#89](https://github.com/RenaudVanhille/myskills/issues/89)) ([a0ea13a](https://github.com/RenaudVanhille/myskills/commit/a0ea13a0a7725dfc3e190008b152d6e7debe6ac2))
+* **mission-workspace:** référentiel du client partagé entre ses missions (referentiel.py) ([#87](https://github.com/RenaudVanhille/myskills/issues/87)) ([d8848fa](https://github.com/RenaudVanhille/myskills/commit/d8848fad2d783c889c4e815338b1c80eb983a000))
+* **operations-dossier:** dossier d'exploitation contrôlé (engagements, supervision, sauvegardes, fiches) ([#93](https://github.com/RenaudVanhille/myskills/issues/93)) ([a6af182](https://github.com/RenaudVanhille/myskills/commit/a6af182c3ebed044b37f917c28ec0b11f1badb4c))
+* **process-diagram:** processus métier en couloirs BPMN en draw.io, avec la fiche du déroulé ([#92](https://github.com/RenaudVanhille/myskills/issues/92)) ([25b8178](https://github.com/RenaudVanhille/myskills/commit/25b81783d037c912f67f4a1ac6ac33e0d0c63eb5))
+
+
+### Corrections
+
+* **agent-handoff:** routage des nouveaux workflows testé, un cas d'agent par workflow ([#71](https://github.com/RenaudVanhille/myskills/issues/71)) ([f503efb](https://github.com/RenaudVanhille/myskills/commit/f503efbc1102a3b9186055e7f38e605d3d931c5e))
+* **diagram-export:** export draw.io Desktop 27.0.2 et suivants, pages numérotées à partir de 1 ([#90](https://github.com/RenaudVanhille/myskills/issues/90)) ([cb0f83a](https://github.com/RenaudVanhille/myskills/commit/cb0f83ab1e3f54cd6a6dbfb532d4dc2b9a82f135))
+* **markdown-to-obsidian:** écritures du vault sous verrou et atomiques pour les skills en parallèle ([#84](https://github.com/RenaudVanhille/myskills/issues/84)) ([0b66f57](https://github.com/RenaudVanhille/myskills/commit/0b66f57d6e66f74c607857c0ac529203acb327c0))
+* **solution-estimate:** durée accordée dans le chiffrage (3 ans), rejeu noté de 44 cas d'agent ([#91](https://github.com/RenaudVanhille/myskills/issues/91)) ([5666341](https://github.com/RenaudVanhille/myskills/commit/56663411a540ce18f027b99d0be3db948405bb86))
+
+
+### Coût et performances
+
+* **architecture-workflow:** chiffrage et revue de l'avant-vente au niveau moyen, cas noté ([#77](https://github.com/RenaudVanhille/myskills/issues/77)) ([d328fa8](https://github.com/RenaudVanhille/myskills/commit/d328fa88055ea3f936e8fb1d38f5aacc0a25767f))
+* **decision-log:** étape produite par ses scripts démarrée, contrôlée et soumise en un appel ([#78](https://github.com/RenaudVanhille/myskills/issues/78)) ([0212595](https://github.com/RenaudVanhille/myskills/commit/021259586327098753ab19984cc52540588e1de8))
+* **solution-estimate:** lots transverses du brouillon chiffrés par ratio de la réalisation ([#75](https://github.com/RenaudVanhille/myskills/issues/75)) ([54b2d14](https://github.com/RenaudVanhille/myskills/commit/54b2d1435088ddb77d011fa098154ec8032b7bcc))
+
+
+### Documentation
+
+* **markdown-to-obsidian:** guide de recherche dans la mémoire partagée, Omnisearch facultatif ([#85](https://github.com/RenaudVanhille/myskills/issues/85)) ([f7b96be](https://github.com/RenaudVanhille/myskills/commit/f7b96beeab6495bde39a45e81bc24b3108844e6d))
+
+
+### Remaniements
+
+* **architecture-workflow:** agent allégé, cas particuliers du moteur dans decision-log ([#73](https://github.com/RenaudVanhille/myskills/issues/73)) ([9d98762](https://github.com/RenaudVanhille/myskills/commit/9d987628cbe3dacf500bbfd088f58dc016697145))
+* cell et near regroupés dans le module partagé text_tools ([#96](https://github.com/RenaudVanhille/myskills/issues/96)) ([24a38ea](https://github.com/RenaudVanhille/myskills/commit/24a38eaf31e9c2193f8b360f09daf14b1ae49852))
+* **decision-log:** synchronisation du vault et revue d'architecture découpées en étapes nommées ([#95](https://github.com/RenaudVanhille/myskills/issues/95)) ([1c57b17](https://github.com/RenaudVanhille/myskills/commit/1c57b1788f3139a5d57fbdab23957d9cdf91b1d4))
+* retrait de Laya de l'extraction des exigences et du routage ([#98](https://github.com/RenaudVanhille/myskills/issues/98)) ([c15166b](https://github.com/RenaudVanhille/myskills/commit/c15166b17b90118d4d929cc1464af1f09ae7202e))
+* **solution-estimate:** estimate_build.py et arch_review.py découpés en modules lib ([#94](https://github.com/RenaudVanhille/myskills/issues/94)) ([91381c3](https://github.com/RenaudVanhille/myskills/commit/91381c3dd1e5c4b955cc73d43e197475190b9485))
+
 ## [0.12.0](https://github.com/RenaudVanhille/myskills/compare/v0.11.0...v0.12.0) (2026-11-06)
 
 
