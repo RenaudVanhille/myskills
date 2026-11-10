@@ -493,32 +493,14 @@ def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
     return report
 
 
-def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None,
-           client: list[dict] | None = None) -> dict:
-    errors: list[str] = []
-    warnings: list[str] = []
-    findings: list[dict] = []
-
-    def add(rule, element, message, severity=None):
-        axis, default, title, fix, ref = RULES[rule]
-        severity = severity or default
-        findings.append({"rule": rule, "axis": axis, "severity": severity, "element": element,
-                         "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
-
-    source = load_source(base, spec, errors, warnings)
-    path = base / spec["requirements"] if spec.get("requirements") else (source or {}).get("_catalog")
-    catalog = load_catalog(path, errors, warnings)
-    comps, flows = merge(source, spec)
-    if not comps:
-        errors.append("components : aucun composant, ni dans la description ni dans source")
+def check_refs(spec: dict, comps: list[dict], flows: list[dict], catalog: dict, has_catalog_path: bool,
+               errors: list[str], warnings: list[str]) -> None:
+    """Références croisées de la description : une erreur, pas un constat."""
     byid = {c["id"]: c for c in comps}
-    ids = list(byid)
     scenarios = {s["id"]: s for s in spec.get("scenarios", [])}
     risks = spec.get("risks", [])
     decisions = {d["id"]: d for d in spec.get("decisions", [])}
     layers = spec.get("layers", [])
-
-    # Références croisées : une erreur, pas un constat.
     for name, items in (("scenarios", spec.get("scenarios", [])), ("risks", risks),
                         ("decisions", spec.get("decisions", []))):
         seen = [i["id"] for i in items]
@@ -533,7 +515,7 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
 
     def known_refs(where, refs):
         if not catalog:
-            if refs and path is None:
+            if refs and not has_catalog_path:
                 warnings.append(f"{where} : exigences citées sans catalogue (requirements) : non vérifiées")
             return
         for ref in refs:
@@ -565,11 +547,13 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
     for i, item in enumerate(spec.get("tradeoffs", [])):
         if item.get("decision"):
             known(f"tradeoffs/{i}/decision", [item["decision"]], decisions, "décision")
-    if errors:
-        return {"errors": errors, "warnings": warnings}
 
-    # Structure.
-    role = {c["id"]: c.get("role", "system") for c in comps}
+
+def structure_review(comps: list[dict], flows: list[dict], layers: list[str], scenarios: dict, catalog: dict,
+                     role: dict, add) -> None:
+    """Règles STR : boucles, base partagée, couches, pivots, chaînes synchrones, points uniques."""
+    byid = {c["id"]: c for c in comps}
+    ids = list(byid)
     sync_edges = {(f["from"], f["to"]) for f in flows if f.get("style", "sync") == "sync"}
     all_edges = {(f["from"], f["to"]) for f in flows}
     inner = [i for i in ids if role[i] != "person"]
@@ -590,9 +574,8 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
         if role[cid] in APPLICATIVE and len(neighbours) >= HUB:
             add("STR-04", cid, f"relié à {len(neighbours)} composants")
     sync = {i: sorted({b for a, b in sync_edges if a == i}, key=ids.index) for i in ids}
-    reach: set[str] = set()
-    persons = [i for i in ids if role[i] == "person"]
-    for person in persons:
+    reach: set[str] = set()  # composants atteints en synchrone depuis un utilisateur
+    for person in (i for i in ids if role[i] == "person"):
         todo = [person]
         while todo:
             node = todo.pop()
@@ -600,9 +583,9 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
                 if nxt not in reach:
                     reach.add(nxt)
                     todo.append(nxt)
-        path = longest_sync(person, sync)
-        if len(path) - 1 > CHAIN:
-            add("STR-05", ">".join(path), f"{len(path) - 1} sauts synchrones depuis {person}")
+        chain = longest_sync(person, sync)
+        if len(chain) - 1 > CHAIN:
+            add("STR-05", ">".join(chain), f"{len(chain) - 1} sauts synchrones depuis {person}")
     for a, b in sorted(sync_edges, key=lambda e: (ids.index(e[0]), ids.index(e[1]))):
         if role[b] == "external" and role[a] in APPLICATIVE and a in reach:
             add("STR-06", f"{a}>{b}", f"le parcours de l'utilisateur attend {b}")
@@ -617,43 +600,46 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
             if role[cid] in {"system", "db"} and cid in reach and count_of(byid[cid]) < 2:
                 add("STR-08", cid, "une seule instance sur le parcours de l'utilisateur, disponibilité exigée")
 
-    domains = domain_review(spec, base, comps, flows, role, add, errors, warnings)
 
-    # Traçabilité des exigences.
-    trace = None
-    if catalog:
-        carried: dict[str, dict[str, list[str]]] = {}
-        for kind, items in (("components", comps), ("decisions", decisions.values()),
-                            ("scenarios", scenarios.values())):
-            for item in items:
-                for ref in item.get("refs", []):
-                    carried.setdefault(ref, {}).setdefault(kind, []).append(item["id"])
-        gaps = (source or {}).get("gaps", {})
-        retained = [r for r in catalog.values()
-                    if r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre"]
-        uncarried, without = [], []
-        for req in retained:
-            nature = req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(
-                req["id"].split("-")[0])
-            if req.get("priority") == "indispensable" and (req["id"] not in carried
-                                                           or gaps.get(req["id"], {}).get("level") == "non"):
-                uncarried.append(req["id"])
-                gap = gaps.get(req["id"])
-                add("TRA-01", req["id"], f"{req.get('title', req['id'])}"
-                    + (f" (écart de l'option : {gap['note']})" if gap else " : aucun composant, décision ni scénario"))
-            if nature == "non-fonctionnelle" and req.get("priority") in ("indispensable", "importante") \
-                    and not carried.get(req["id"], {}).get("scenarios"):
-                without.append(req["id"])
-                add("TRA-02", req["id"], f"{req.get('title', req['id'])} ({req.get('priority')})")
-        trace = {"requirements": len(retained), "uncarried": uncarried, "without_scenario": without,
-                 "rows": [(r, carried.get(r["id"], {})) for r in retained]}
+def trace_review(catalog: dict, gaps: dict, comps: list[dict], decisions: dict, scenarios: dict, role: dict,
+                 add) -> dict | None:
+    """Règles TRA : exigences portées par un composant, une décision ou un scénario ; None sans catalogue."""
+    if not catalog:
+        return None
+    carried: dict[str, dict[str, list[str]]] = {}
+    for kind, items in (("components", comps), ("decisions", decisions.values()),
+                        ("scenarios", scenarios.values())):
+        for item in items:
+            for ref in item.get("refs", []):
+                carried.setdefault(ref, {}).setdefault(kind, []).append(item["id"])
+    retained = [r for r in catalog.values()
+                if r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre"]
+    uncarried, without = [], []
+    for req in retained:
+        nature = req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(
+            req["id"].split("-")[0])
+        if req.get("priority") == "indispensable" and (req["id"] not in carried
+                                                       or gaps.get(req["id"], {}).get("level") == "non"):
+            uncarried.append(req["id"])
+            gap = gaps.get(req["id"])
+            add("TRA-01", req["id"], f"{req.get('title', req['id'])}"
+                + (f" (écart de l'option : {gap['note']})" if gap else " : aucun composant, décision ni scénario"))
+        if nature == "non-fonctionnelle" and req.get("priority") in ("indispensable", "importante") \
+                and not carried.get(req["id"], {}).get("scenarios"):
+            without.append(req["id"])
+            add("TRA-02", req["id"], f"{req.get('title', req['id'])} ({req.get('priority')})")
     in_decision = {c for d in decisions.values() for c in d.get("components", [])}
-    if catalog:
-        for comp in comps:
-            if role[comp["id"]] in APPLICATIVE and not comp.get("refs") and comp["id"] not in in_decision:
-                add("TRA-03", comp["id"], comp["label"])
+    for comp in comps:
+        if role[comp["id"]] in APPLICATIVE and not comp.get("refs") and comp["id"] not in in_decision:
+            add("TRA-03", comp["id"], comp["label"])
+    return {"requirements": len(retained), "uncarried": uncarried, "without_scenario": without,
+            "rows": [(r, carried.get(r["id"], {})) for r in retained]}
 
-    # Scénarios, décisions, risques.
+
+def quality_review(spec: dict, comps: list[dict], flows: list[dict], scenarios: dict, decisions: dict,
+                   catalog: dict, rules: list[dict], client: list[dict], add) -> None:
+    """Règles QUA, PRI, DEC et RSK : scénarios, principes du client, décisions, risques."""
+    risks = spec.get("risks", [])
     risked = {s for r in risks for s in r.get("scenarios", [])}
     for sc in scenarios.values():
         if sc["status"] == "non-satisfait" and sc["id"] not in risked:
@@ -667,9 +653,9 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
         if not sc.get("measure"):
             add("QUA-03", sc["id"], sc["response"])
     if catalog:
-        for rule in expected(rules or [], catalog, comps, scenarios.values()):
+        for rule in expected(rules, catalog, comps, scenarios.values()):
             add("QUA-06", rule["id"], f"{rule['label']} ({ATTRIBUTES.get(rule['attribute'], rule['attribute'])})")
-    for element, message, severity in principles(client or [], comps, flows):
+    for element, message, severity in principles(client, comps, flows):
         add("PRI-01", element, message, severity)
     if not decisions:
         add("DEC-01", "architecture", "aucune décision dans decisions")
@@ -688,32 +674,68 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
         if not risk.get("owner"):
             add("RSK-02", risk["id"], risk["text"])
 
+
+def cloud_review(spec: dict, base: Path, findings: list[dict], errors: list[str],
+                 warnings: list[str]) -> tuple[str | None, int]:
+    """Piliers Well-Architected de la description cloud (skill well-architected-review) : fichier revu, règles."""
+    if not spec.get("cloud"):
+        return None, 0
+    wa = load_module("well-architected-review", "wa_check.py")
+    if wa is None or wa.MISSING:
+        warnings.append("cloud : revue Well-Architected non faite : "
+                        + absent("well-architected-review", "wa_check.py") + " (et cloud-architecture)")
+        return None, 0
+    path = base / spec["cloud"]
+    described = load_json(path, "cloud", errors)
+    invalid = wa.validate(described, wa.__file__) if described is not None else []
+    errors += [f"cloud : {path.name} : {e}" for e in invalid]
+    if described is None or invalid:
+        return None, 0
+    wa_findings, wa_errors, _ = wa.check(described)
+    errors += [f"cloud : {e}" for e in wa_errors]
+    for f in wa_findings:
+        if f["pillar"] != "conventions":
+            findings.append({"rule": f["rule"], "axis": "well-architected", "severity": f["severity"],
+                             "element": f["element"], "message": f"{wa.PILLARS[f['pillar']]} : {f['message']}",
+                             "fix": f["fix"], "ref": f["ref"], "accepted": None})
+    return str(path), sum(1 for v in wa.RULES.values() if v[0] != "conventions")
+
+
+def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = None,
+           client: list[dict] | None = None) -> dict:
+    errors: list[str] = []
+    warnings: list[str] = []
+    findings: list[dict] = []
+
+    def add(rule, element, message, severity=None):
+        axis, default, title, fix, ref = RULES[rule]
+        severity = severity or default
+        findings.append({"rule": rule, "axis": axis, "severity": severity, "element": element,
+                         "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
+
+    source = load_source(base, spec, errors, warnings)
+    path = base / spec["requirements"] if spec.get("requirements") else (source or {}).get("_catalog")
+    catalog = load_catalog(path, errors, warnings)
+    comps, flows = merge(source, spec)
+    if not comps:
+        errors.append("components : aucun composant, ni dans la description ni dans source")
+    check_refs(spec, comps, flows, catalog, path is not None, errors, warnings)
+    if errors:
+        return {"errors": errors, "warnings": warnings}
+
+    scenarios = {s["id"]: s for s in spec.get("scenarios", [])}
+    decisions = {d["id"]: d for d in spec.get("decisions", [])}
+    role = {c["id"]: c.get("role", "system") for c in comps}
+    structure_review(comps, flows, spec.get("layers", []), scenarios, catalog, role, add)
+    domains = domain_review(spec, base, comps, flows, role, add, errors, warnings)
+    trace = trace_review(catalog, (source or {}).get("gaps", {}), comps, decisions, scenarios, role, add)
+    quality_review(spec, comps, flows, scenarios, decisions, catalog, rules or [], client or [], add)
+
     rules = len(RULES) - (0 if spec.get("code") is not None else sum(1 for r in RULES.values() if r[0] == "code")) \
         - (0 if client else 1) + len(client or []) \
         - (0 if domains else sum(1 for r in RULES.values() if r[0] == "domaines"))
-    # Piliers Well-Architected de la description cloud (skill well-architected-review).
-    cloud = None
-    if spec.get("cloud"):
-        wa = load_module("well-architected-review", "wa_check.py")
-        if wa is None or wa.MISSING:
-            warnings.append("cloud : revue Well-Architected non faite : "
-                            + absent("well-architected-review", "wa_check.py") + " (et cloud-architecture)")
-        else:
-            path = base / spec["cloud"]
-            described = load_json(path, "cloud", errors)
-            invalid = wa.validate(described, wa.__file__) if described is not None else []
-            errors += [f"cloud : {path.name} : {e}" for e in invalid]
-            if described is not None and not invalid:
-                wa_findings, wa_errors, _ = wa.check(described)
-                errors += [f"cloud : {e}" for e in wa_errors]
-                for f in wa_findings:
-                    if f["pillar"] != "conventions":
-                        findings.append({"rule": f["rule"], "axis": "well-architected", "severity": f["severity"],
-                                         "element": f["element"],
-                                         "message": f"{wa.PILLARS[f['pillar']]} : {f['message']}",
-                                         "fix": f["fix"], "ref": f["ref"], "accepted": None})
-                rules += sum(1 for v in wa.RULES.values() if v[0] != "conventions")
-                cloud = str(path)
+    cloud, cloud_rules = cloud_review(spec, base, findings, errors, warnings)
+    rules += cloud_rules
 
     code = None
     if spec.get("code") is not None and not errors:
