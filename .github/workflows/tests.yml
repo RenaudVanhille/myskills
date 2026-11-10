@@ -6,7 +6,7 @@
 # GitHub. Aucune étape n'utilise la CLI gh (absente des runners privés).
 #   RUNNERS_SCRIPTS : liste des runners de la matrice,
 #     ex. [["self-hosted","linux"],["self-hosted","windows"]]
-#   RUNNER_LINUX : runner Linux des rendus (sudo et apt), ex. ["self-hosted","linux"]
+#   RUNNER_LINUX : runner Linux des rendus (Ubuntu 24.04, sudo et apt), ex. ["self-hosted","linux"]
 name: tests
 
 on:
@@ -54,7 +54,10 @@ jobs:
             | python3 -c 'import json, re, sys; print(next(a["browser_download_url"] for a in json.load(sys.stdin)["assets"] if re.fullmatch(r"drawio-amd64-.*\.deb", a["name"])))')
           curl -fsSL -o "$RUNNER_TEMP/$(basename "$url")" "$url"
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra "$RUNNER_TEMP"/drawio-amd64-*.deb
+          # libasound2t64 (draw.io) et libatomic1 (pilote Node de Playwright) : présents sur les runners
+          # GitHub, absents d'une image minimale de runner auto-hébergé.
+          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra libasound2t64 libatomic1 \
+            "$RUNNER_TEMP"/drawio-amd64-*.deb
           printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox\n' | sudo tee /usr/local/bin/drawio
           sudo chmod +x /usr/local/bin/drawio
       - uses: actions/cache@v4
@@ -64,6 +67,9 @@ jobs:
             ~/.cache/ms-playwright
             ~/.cache/myskills/models
           key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
+      - name: Navigateur de Playwright
+        # Chromium et ses bibliothèques système : un runner auto-hébergé n'a ni Chrome ni Edge.
+        run: uvx playwright install --with-deps chromium
       - name: Sources épinglées des modèles locaux
         run: uv run scripts/pin_model.py --check
       - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
