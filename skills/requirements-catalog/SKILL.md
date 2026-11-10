@@ -16,10 +16,8 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources ; Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes).
 - **Sorties** : <nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; <nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM) ; ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py).
-- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences ; avec --laya, celles du modèle local Laya et ses désaccords sur la catégorie), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
-- **`req_laya.py`** : Pose au modèle local Laya les questions fermées de req_build.py --laya (la phrase est-elle une exigence, quelle catégorie) ; lancé par req_build.py dans son propre environnement. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`req_diff.py`** : Compare le catalogue validé et sa copie de travail d'une évolution : exigences ajoutées, retirées (absentes ou sorties du périmètre retenu) et modifiées champ par champ (texte, priorité, mesure, catégorie, nature, domaine, titre), exigence ajoutée sans source signalée ; avec --domains, contextes bornés qui portent chaque exigence changée et exigence ajoutée sans contexte ; avec --start, copie la référence dans la copie de travail ; les deux catalogues sont validés contre le schéma de req_build.py. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
-- **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Dépend de** `domain-design` (`domain_build.py`, facultatif : sans lui, avertissement) : req_diff.py --domains : valider domaines.json contre son schéma.
 - **Passe la main** au skill `doc-to-markdown` : les documents ne sont pas encore en Markdown.
 - **Passe la main** au skill `architecture-options` : le catalogue est validé : proposer des architectures.
@@ -124,19 +122,8 @@ exigences écrites au présent, « le système envoie un accusé... ») :
    ensuite aux sources repasse par l'étape 1, qui n'écrit que les phrases
    pas encore triées.
 
-Mesuré sur 112 phrases étiquetées (`tests/laya_eval.py`) : F1 0,99 à 1
+Mesuré sur 112 phrases étiquetées (`tests/triage_eval.py`) : F1 0,99 à 1
 pour le tri par un modèle léger, 0,50 pour la regex seule.
-
-**Avec Laya** (`--laya`, facultatif, hors ligne) : le modèle local de
-décision [Laya](https://github.com/NandhaKishorM/laya) (Apache-2.0, CPU,
-rien ne sort du poste) ajoute aux phrases de la regex celles qu'il tient
-pour des exigences, sans en retirer, et contrôle la catégorie de chaque
-exigence retenue (désaccord net : avertissement « Laya y voit plutôt... »,
-jamais une erreur). Il suit surtout les verbes modaux : F1 0,67 au mieux
-sur le même jeu, à préférer seulement sans sous-agent possible ; la nature
-n'est pas contrôlée (pire qu'une réponse fixe). Réponses en cache
-(`.myskills-tmp/<nom>.laya.json`), repli sur la regex sans Laya. Le modèle se prépare avant, une fois :
-`doctor.py extraction --prefetch` (skill `check-prerequisites`).
 
 ## 4. Évolution d'un catalogue validé
 

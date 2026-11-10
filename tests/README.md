@@ -105,22 +105,22 @@ uv run tests/cost.py --label apres --only extraire-docx,schema-drawio --keep
 Avec `--keep`, les dossiers de travail restent, pour `judge.py outputs`.
 Chaque cas coûte quelques centimes avec `sonnet`.
 
-### 4. Justesse de Laya sur les exigences
+### 4. Justesse du tri des phrases d'exigence
 
-`fixtures/laya/phrases.json` étiquette 112 phrases de cahier des charges et de
-compte rendu (exigence ou non, nature, catégorie), avec des pièges voulus :
-exigences sans verbe normatif, verbes normatifs hors exigence. `laya_eval.py`
-pose à Laya les questions de `req_build.py --laya` et compare au repli par
-regex : précision, rappel et F1, meilleur seuil, fausses alertes sur la nature
-et la catégorie. Laya se garde si la règle de `req_build.py` (regex ou
-Laya) a un meilleur F1 que la regex seule.
+`fixtures/tri/phrases.json` étiquette 112 phrases de cahier des charges et de
+compte rendu (exigence ou non), avec des pièges voulus : exigences sans verbe
+normatif, verbes normatifs hors exigence. `triage_eval.py` compare à ces
+étiquettes le tri enregistré d'un modèle léger (`fixtures/tri/tri-haiku.json`,
+fait à partir de `req_build.py --candidates`) et la regex de `req_build.py` :
+précision, rappel et F1. Aucun modèle n'est chargé ; pour mesurer un autre
+modèle, refaire son tri sur les mêmes phrases et le passer par `--triage`.
 
 ```bash
-uv run tests/laya_eval.py --markdown laya-eval.md
+uv run tests/triage_eval.py --markdown tri-eval.md --min-f1 0.9
 ```
 
-Le job `rendus` de la CI le lance à chaque PR (résumé du job et artefact
-`laya-eval`), avec les cas lents de `run.py` et l'export par draw.io Desktop.
+Le job `rendus` de la CI le lance à chaque PR (résumé du job), avec les cas
+lents de `run.py` et l'export par draw.io Desktop.
 
 ### 5. Déclenchement des skills
 

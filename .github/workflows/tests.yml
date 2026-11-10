@@ -74,7 +74,7 @@ jobs:
             ~/.cache/huggingface
             ~/.cache/ms-playwright
             ~/.cache/myskills/models
-          key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
+          key: modeles-${{ hashFiles('skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
       - name: Navigateur de Playwright
         # Chromium et ses bibliothèques système : un runner auto-hébergé n'a ni Chrome ni Edge.
         # Chemin fixé : un cas de test qui déplace XDG_CACHE_HOME retrouve quand même Chromium.
@@ -87,13 +87,8 @@ jobs:
         run: uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
-      - name: Justesse de Laya sur les exigences
+      - name: Justesse du tri des phrases d'exigence
+        # Tri enregistré d'un modèle léger face à la regex, sur le jeu étiqueté : aucun modèle chargé.
         run: |
-          uv run tests/laya_eval.py --markdown laya-eval.md --min-gain 0.01 > laya-eval.json
-          tee -a "$GITHUB_STEP_SUMMARY" < laya-eval.md
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: laya-eval
-          path: laya-eval.*
-          if-no-files-found: ignore
+          uv run tests/triage_eval.py --markdown tri-eval.md --min-f1 0.9
+          cat tri-eval.md >> "$GITHUB_STEP_SUMMARY"
