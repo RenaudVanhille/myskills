@@ -49,7 +49,7 @@
       }
     },
     "laya": {
-      "purpose": "Laya : décisions typées en local (tri des documents, exigences, routage), checkpoints anglais et multilingue, révision relue par le paquet laya",
+      "purpose": "Laya : décisions typées en local (tri des documents), checkpoints anglais et multilingue, révision relue par le paquet laya",
       "license": "Apache-2.0",
       "source": {
         "provider": "huggingface",

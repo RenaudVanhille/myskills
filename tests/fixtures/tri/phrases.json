@@ -1,5 +1,5 @@
 {
-  "_doc": "Jeu étiqueté pour mesurer Laya face à la regex de req_build.py (tests/laya_eval.py). Phrases fictives en français, style cahier des charges et compte rendu. exigence : la phrase exprime-t-elle une exigence ; nature et categorie : réponse attendue pour une exigence (categorie pour une non-fonctionnelle). Les pièges sont voulus : exigences sans verbe normatif, verbes normatifs hors exigence.",
+  "_doc": "Jeu étiqueté pour mesurer le tri des phrases d'exigence face à la regex de req_build.py (tests/triage_eval.py). Phrases fictives en français, style cahier des charges et compte rendu. exigence : la phrase exprime-t-elle une exigence ; nature et categorie : réponse attendue pour une exigence (categorie pour une non-fonctionnelle). Les pièges sont voulus : exigences sans verbe normatif, verbes normatifs hors exigence.",
   "phrases": [
     {"text": "Le portail doit permettre à l'assuré de déclarer un sinistre en ligne.", "exigence": true, "nature": "fonctionnelle"},
     {"text": "L'assuré doit pouvoir joindre jusqu'à dix photos à sa déclaration.", "exigence": true, "nature": "fonctionnelle"},
