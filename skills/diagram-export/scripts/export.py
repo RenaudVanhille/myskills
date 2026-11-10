@@ -97,6 +97,11 @@ def cache_dir() -> Path:
 
 # --- draw.io -----------------------------------------------------------------
 
+# Premier numéro de page de --page-index : 0 avant draw.io Desktop 27.0.2, 1 depuis. Un export en
+# base 0 refusé (« pages are numbered from 1 ») fait passer en base 1 pour le reste du traitement.
+PAGE_BASE = [0]
+
+
 def export_drawio(src: Path, out: Path, fmt: str, scale: float, transparent: bool) -> list[Path]:
     """Une image par page : <nom>.drawio.png pour la première, <nom>-2.drawio.png...
     pour les suivantes ; un seul PDF avec toutes les pages."""
@@ -113,14 +118,22 @@ def export_drawio(src: Path, out: Path, fmt: str, scale: float, transparent: boo
             cmd += ["--scale", str(scale)]
             if transparent:
                 cmd.append("--transparent")
-        cmd += ["--all-pages"] if fmt == "pdf" else ["--page-index", str(index - 1)]
-        if NO_SANDBOX:
-            cmd.append("--no-sandbox")
-        cmd.append(str(src))
+        tail = ["--no-sandbox"] if NO_SANDBOX else []
+        tail.append(str(src))
         if platform.system() == "Linux" and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
             cmd = ["xvfb-run", "-a"] + cmd
         offline = {k: DEAD_PROXY for k in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")}
-        run(cmd, env=offline | {"NO_PROXY": "", "no_proxy": ""})
+        offline |= {"NO_PROXY": "", "no_proxy": ""}
+
+        def page() -> list[str]:
+            return ["--all-pages"] if fmt == "pdf" else ["--page-index", str(index - 1 + PAGE_BASE[0])]
+        try:
+            run(cmd + page() + tail, env=offline)
+        except ExportError as error:
+            if fmt == "pdf" or PAGE_BASE[0] or "numbered from 1" not in str(error):
+                raise
+            PAGE_BASE[0] = 1
+            run(cmd + page() + tail, env=offline)
         if not target.is_file():
             raise ExportError("draw.io n'a rien produit (fichier vide ou XML invalide ?)")
         if fmt == "png":

@@ -648,6 +648,15 @@ def report_warnings(report) -> list[str]:
     return found
 
 
+def tool_ready(tool: str) -> bool:
+    """Outil externe présent : draw.io Desktop là où export.py le cherche, sinon une commande du PATH."""
+    if tool == "drawio":
+        sys.path.insert(0, str(ROOT / "skills" / "diagram-export" / "scripts" / "lib"))
+        import local_tools
+        return bool(local_tools.drawio_binary())
+    return bool(shutil.which(tool))
+
+
 def model_ready(model: str) -> bool:
     """Modèle local complet et vérifié dans le cache (model_store du skill check-prerequisites)."""
     sys.path.insert(0, str(ROOT / "skills" / "check-prerequisites" / "scripts" / "lib"))
@@ -696,6 +705,8 @@ def main() -> int:
         # Modèle local absent du cache vérifié : prérequis de la machine, pas un échec du skill. En CI, le cas
         # tourne quand même (doctor.py --prefetch l'a préparé, sinon il doit échouer).
         absent = [m for m in case.get("models", []) if not os.environ.get("CI") and not model_ready(m)]
+        # Outil externe absent du poste (draw.io Desktop) : même traitement.
+        absent += [f"outil {t}" for t in case.get("tools", []) if not os.environ.get("CI") and not tool_ready(t)]
         if absent:
             missing[case["id"]] = absent
             continue
@@ -720,9 +731,15 @@ def main() -> int:
     else:
         print(f"\n{passed}/{len(results)} cas réussis"
               + (f", {len(skipped)} lents ignorés (--slow) : {', '.join(skipped)}" if skipped else ""))
-        for case_id, models in missing.items():
-            print(f"prérequis manquant, {case_id} non lancé : modèle {', '.join(models)} absent du cache ; "
-                  "préparez la machine avec uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch")
+        for case_id, absent in missing.items():
+            tools = [a for a in absent if a.startswith("outil ")]
+            models = [a for a in absent if a not in tools]
+            if models:
+                print(f"prérequis manquant, {case_id} non lancé : modèle {', '.join(models)} absent du cache ; "
+                      "préparez la machine avec uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch")
+            if tools:
+                print(f"prérequis manquant, {case_id} non lancé : {', '.join(tools)} absent ; "
+                      "voir uv run skills/check-prerequisites/scripts/doctor.py")
     return 0 if passed == len(results) else 1
 
 
