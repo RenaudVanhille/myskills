@@ -696,7 +696,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
         refs(budget.get("refs", []), "budget/refs")
         for key, label, value in (("build", "réalisation", build["cost"]),
                                   ("monthly", "fonctionnement par mois", totals["operate"]["monthly"]),
-                                  ("tco", f"coût total sur {horizon} an(s)", totals["tco"]["total"])):
+                                  ("tco", f"coût total sur {years(horizon)}", totals["tco"]["total"])):
             if key in budget and value > budget[key]:
                 over.append(key)
                 warnings.append(f"budget dépassé, {label} : {value} pour {budget[key]} "
@@ -960,7 +960,7 @@ def render_scenarios(spec: dict, found: dict) -> list[str]:
            row("dont outillage IA (licences, jetons)", lambda i: money(i["build"]["tooling"], cur)),
            row("Run par an", lambda i: money(i["run"]["annual"], cur)),
            row("Fonctionnement par mois", lambda i: money(i["operate"]["monthly"], cur)),
-           row(f"**Coût total sur {horizon} an(s)**", lambda i: f"**{money(i['tco']['total'], cur)}**"),
+           row(f"**Coût total sur {years(horizon)}**", lambda i: f"**{money(i['tco']['total'], cur)}**"),
            row("Écart avec sans IA", lambda i: "référence" if i["id"] == "sans-ia"
                else f"{i['delta']:+.1f} %".replace(".", ","))]
     if spec.get("budget"):
@@ -1005,11 +1005,11 @@ def render_md(spec: dict, option: dict, status: str, found: dict, providers: dic
             f"({money(t['infra']['monthly'], cur)} par mois) |",
             f"| Maintenance et exploitation | {money(t['run']['annual'], cur)} par an |",
             f"| Fonctionnement (infrastructure et run) | {money(t['operate']['monthly'], cur)} par mois |",
-            f"| **Coût total sur {horizon} an(s)** | **{money(t['tco']['total'], cur)}** |", ""]
+            f"| **Coût total sur {years(horizon)}** | **{money(t['tco']['total'], cur)}** |", ""]
     budget = spec.get("budget")
     if budget:
         values = {"build": build["cost"], "monthly": t["operate"]["monthly"], "tco": t["tco"]["total"]}
-        labels = {"build": "Réalisation", "monthly": "Fonctionnement par mois", "tco": f"Coût total sur {horizon} an(s)"}
+        labels = {"build": "Réalisation", "monthly": "Fonctionnement par mois", "tco": f"Coût total sur {years(horizon)}"}
         out += ["### Budget", "", "| Poste | Budget | Chiffré | Écart |", "| --- | --- | --- | --- |"]
         for key in ("build", "monthly", "tco"):
             if key in budget:
@@ -1073,7 +1073,7 @@ def render_md(spec: dict, option: dict, status: str, found: dict, providers: dic
         out.append("")
 
     yearly = t["infra"]["annual"] + t["run"]["annual"]
-    out += [f"## Coût total sur {horizon} an(s)", "", "| Année | Réalisation | Infrastructure | Run | Total |",
+    out += [f"## Coût total sur {years(horizon)}", "", "| Année | Réalisation | Infrastructure | Run | Total |",
             "| --- | --- | --- | --- | --- |",
             f"| 0 | {money(build['cost'], cur)} | {money(t['infra']['one_time'], cur)} |  | "
             f"{money(build['cost'] + t['infra']['one_time'], cur)} |"]
@@ -1334,6 +1334,11 @@ def write_vault(vault: Path, folder: str, spec: dict, option: dict, found: dict,
     notes.add(rel, "chiffrage", props, {"evalue": [(option_rel, f"Option {option['id']}")]}, body)
     result = notes.write(errors, cleanup=cleanup, warnings=warnings)
     return {**result, "folder": base} if result else None
+
+
+def years(horizon) -> str:
+    """Durée accordée : 1 an, 3 ans."""
+    return f"{horizon} an" + ("s" if horizon >= 2 else "")
 
 
 def main() -> int:
