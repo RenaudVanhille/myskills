@@ -6,7 +6,7 @@
 # GitHub. Aucune étape n'utilise la CLI gh (absente des runners privés).
 #   RUNNERS_SCRIPTS : liste des runners de la matrice,
 #     ex. [["self-hosted","linux"],["self-hosted","windows"]]
-#   RUNNER_LINUX : runner Linux des rendus (sudo et apt), ex. ["self-hosted","linux"]
+#   RUNNER_LINUX : runner Linux des rendus (Ubuntu 24.04, sudo et apt), ex. ["self-hosted","linux"]
 name: tests
 
 on:
@@ -54,9 +54,20 @@ jobs:
             | python3 -c 'import json, re, sys; print(next(a["browser_download_url"] for a in json.load(sys.stdin)["assets"] if re.fullmatch(r"drawio-amd64-.*\.deb", a["name"])))')
           curl -fsSL -o "$RUNNER_TEMP/$(basename "$url")" "$url"
           sudo apt-get update -q
-          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra "$RUNNER_TEMP"/drawio-amd64-*.deb
-          printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox\n' | sudo tee /usr/local/bin/drawio
+          # libasound2t64 (draw.io) et libatomic1 (pilote Node de Playwright) : présents sur les runners
+          # GitHub, absents d'une image minimale de runner auto-hébergé.
+          sudo apt-get install -y -q xvfb tesseract-ocr tesseract-ocr-fra libasound2t64 libatomic1 \
+            "$RUNNER_TEMP"/drawio-amd64-*.deb
+          # --disable-gpu et --disable-dev-shm-usage : pas de GPU et un /dev/shm réduit dans un conteneur.
+          printf '#!/bin/sh\nexec xvfb-run -a /opt/drawio/drawio "$@" --no-sandbox --disable-gpu --disable-dev-shm-usage\n' | sudo tee /usr/local/bin/drawio
           sudo chmod +x /usr/local/bin/drawio
+      - name: Contrôle de draw.io
+        # Un export à blanc, sortie complète : le rapport d'export.py n'en garde que la fin.
+        run: |
+          printf '<mxfile><diagram name="t"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/><mxCell id="2" value="ok" style="rounded=1;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="80" height="40" as="geometry"/></mxCell></root></mxGraphModel></diagram></mxfile>' > "$RUNNER_TEMP/t.drawio"
+          drawio --export --format png --output "$RUNNER_TEMP/t.png" "$RUNNER_TEMP/t.drawio" \
+            || echo "::warning::draw.io n'exporte pas sur ce runner (code $?)"
+          ls -l "$RUNNER_TEMP/t.png" || true
       - uses: actions/cache@v4
         with:
           path: |
@@ -64,6 +75,12 @@ jobs:
             ~/.cache/ms-playwright
             ~/.cache/myskills/models
           key: modeles-${{ hashFiles('skills/requirements-catalog/scripts/req_laya.py', 'skills/doc-to-markdown/scripts/*.py', 'shared/model-sources.json') }}
+      - name: Navigateur de Playwright
+        # Chromium et ses bibliothèques système : un runner auto-hébergé n'a ni Chrome ni Edge.
+        # Chemin fixé : un cas de test qui déplace XDG_CACHE_HOME retrouve quand même Chromium.
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright" >> "$GITHUB_ENV"
+          uvx playwright install --with-deps chromium
       - name: Sources épinglées des modèles locaux
         run: uv run scripts/pin_model.py --check
       - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
