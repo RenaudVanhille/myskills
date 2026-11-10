@@ -723,6 +723,22 @@ Résumé de [`contract.json`](skills/mockup-to-html/contract.json), qui fait foi
 - **Passe la main** à l'agent `document-publisher` : les pages doivent être livrées dans un document Word ou un site XWiki.
 - **Passe la main** à l'utilisateur : une maquette est ambiguë (état d'un écran, contenu masqué, interaction) : la question à poser.
 
+### `operations-dossier`
+
+Écrit et contrôle le dossier d'exploitation d'une solution (DEX, runbook) : services et engagements (disponibilité cible, RPO, RTO, indisponibilité permise calculée), supervision et alertes, sauvegardes et tests de restauration, astreinte et escalade, fiches réflexes d'incident, opérations récurrentes, avec les trous de couverture relevés par des règles (service critique sans alerte ni fiche, sauvegarde incompatible avec le RPO, exigence de disponibilité non tenue). À utiliser pour préparer la mise en production ou le passage en exploitation, répondre au volet exploitabilité d'un appel d'offres, ou revoir l'exploitabilité d'une architecture.
+
+Résumé de [`contract.json`](skills/operations-dossier/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : moyen (modèle standard).
+- **Entrées** : L'architecture retenue (options.json, description cloud ou dossier d'architecture) et le catalogue d'exigences (exigences.json), pour les services et leurs engagements ; Description JSON de l'exploitation (ops_build.py --schema) : services et engagements (disponibilité, RPO, RTO), alertes, sauvegardes, astreinte, fiches réflexes, opérations récurrentes.
+- **Sorties** : <nom>.md : dossier d'exploitation (services et engagements avec indisponibilité permise, supervision et alertes, sauvegardes et restauration, astreinte et escalade, fiches réflexes, opérations récurrentes, points ouverts).
+- **`ops_build.py`** : Contrôle la description de l'exploitation (références, sauvegardes confrontées au RPO), calcule l'indisponibilité permise par la disponibilité cible de chaque service, relève les trous de couverture (règles OPS-01 à OPS-10 : service critique sans engagement, sans alerte ou sans fiche, restauration jamais testée, astreinte insuffisante, exigence portée par aucun service) et écrit le dossier d'exploitation en Markdown. Rapport JSON, codes de sortie : 0 dossier écrit (constats éventuels dans findings) ; 1 description invalide ou incohérente (rien n'est écrit), ou constat de gravité haute avec --strict.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Passe la main** au skill `requirements-catalog` : une exigence de disponibilité ou d'exploitation manque ou n'a pas de mesure : la compléter dans le catalogue.
+- **Passe la main** au skill `capacity-sizing` : les seuils d'alerte dépendent de la charge attendue : la dimensionner d'abord.
+- **Passe la main** au skill `architecture-dossier` : joindre le dossier d'exploitation au dossier d'architecture technique.
+- **Passe la main** à l'utilisateur : un engagement (disponibilité, RPO, RTO, astreinte) n'est ni dans les exigences ni dans les documents : la question à poser, jamais une valeur inventée.
+
 ### `process-diagram`
 
 Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown. À utiliser pour décrire un processus existant ou cible, un parcours de traitement entre services, un logigramme avec acteurs, à partir d'un atelier, d'une procédure ou d'un cahier des charges, pour un public métier ou technique. Pas pour une séquence d'appels entre systèmes (mermaid-diagram) ni pour une cartographie du SI (urbanization-map).

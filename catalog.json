@@ -16342,6 +16342,509 @@
       "path": "skills/mockup-to-html"
     },
     {
+      "skill": "operations-dossier",
+      "level": "moyen",
+      "inputs": [
+        "L'architecture retenue (options.json, description cloud ou dossier d'architecture) et le catalogue d'exigences (exigences.json), pour les services et leurs engagements",
+        "Description JSON de l'exploitation (ops_build.py --schema) : services et engagements (disponibilité, RPO, RTO), alertes, sauvegardes, astreinte, fiches réflexes, opérations récurrentes"
+      ],
+      "outputs": [
+        "<nom>.md : dossier d'exploitation (services et engagements avec indisponibilité permise, supervision et alertes, sauvegardes et restauration, astreinte et escalade, fiches réflexes, opérations récurrentes, points ouverts)"
+      ],
+      "scripts": [
+        {
+          "name": "ops_build.py",
+          "role": "Contrôle la description de l'exploitation (références, sauvegardes confrontées au RPO), calcule l'indisponibilité permise par la disponibilité cible de chaque service, relève les trous de couverture (règles OPS-01 à OPS-10 : service critique sans engagement, sans alerte ou sans fiche, restauration jamais testée, astreinte insuffisante, exigence portée par aucun service) et écrit le dossier d'exploitation en Markdown.",
+          "usage": "uv run scripts/ops_build.py EXPLOITATION.json [--out-dir DOSSIER] [--strict] | --schema",
+          "options": {
+            "EXPLOITATION.json": "description de l'exploitation",
+            "--out-dir": "dossier du fichier produit (défaut : celui de la description)",
+            "--strict": "code 1 dès un constat de gravité haute (le dossier est écrit quand même)",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin. Puis références (service, fiche, niveau d'astreinte, exigence, avec le nom proche) et sauvegarde confrontée au RPO.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "title",
+                "services"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "context": {
+                  "type": "string",
+                  "description": "Une ou deux phrases : la solution, son hébergement, qui l'exploite."
+                },
+                "requirements": {
+                  "type": "string",
+                  "description": "Chemin du catalogue d'exigences (exigences.json), relatif à la description : ses exigences de disponibilité et d'exploitabilité doivent être portées par un service."
+                },
+                "services": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*$",
+                        "description": "Identifiant court, cité par les alertes, sauvegardes et fiches."
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "criticality": {
+                        "enum": [
+                          "critique",
+                          "importante",
+                          "standard"
+                        ],
+                        "description": "critique : son arrêt arrête le service rendu (défaut : standard)."
+                      },
+                      "slo": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "availability": {
+                            "type": "number",
+                            "minimum": 90,
+                            "exclusiveMaximum": 100,
+                            "description": "Disponibilité cible en % (99.5)."
+                          },
+                          "window_days": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 366,
+                            "description": "Fenêtre de mesure en jours (défaut : 30)."
+                          },
+                          "latency_ms": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "description": "Temps de réponse cible en millisecondes."
+                          }
+                        }
+                      },
+                      "rpo_hours": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Perte de données maximale admise, en heures."
+                      },
+                      "rto_hours": {
+                        "type": "number",
+                        "minimum": 0,
+                        "description": "Durée maximale de rétablissement, en heures."
+                      },
+                      "owner": {
+                        "type": "string",
+                        "description": "Équipe responsable."
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Exigences que le service tient (ENF-002)."
+                      }
+                    }
+                  }
+                },
+                "monitoring": {
+                  "type": "array",
+                  "description": "Alertes.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "service",
+                      "signal",
+                      "threshold",
+                      "severity"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^A-[0-9]+$",
+                        "description": "A-1, A-2..."
+                      },
+                      "service": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "signal": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Ce qui est mesuré (taux d'erreurs 5xx, file en attente)."
+                      },
+                      "threshold": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Seuil et durée (> 2 % pendant 5 min)."
+                      },
+                      "severity": {
+                        "enum": [
+                          "critique",
+                          "majeure",
+                          "mineure"
+                        ]
+                      },
+                      "notify": {
+                        "type": "string",
+                        "description": "Niveau d'astreinte prévenu (level de oncall.levels)."
+                      },
+                      "runbook": {
+                        "type": "string",
+                        "description": "id de la fiche réflexe à suivre."
+                      }
+                    }
+                  }
+                },
+                "backups": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "service",
+                      "what",
+                      "frequency_hours",
+                      "retention_days"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "service": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "what": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Données sauvegardées."
+                      },
+                      "frequency_hours": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      },
+                      "retention_days": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "offsite": {
+                        "type": "boolean",
+                        "description": "Copie sur un autre site ou une autre région."
+                      },
+                      "restore_test": {
+                        "type": "string",
+                        "description": "Fréquence du test de restauration (trimestriel) ; absent : jamais testée."
+                      }
+                    }
+                  }
+                },
+                "oncall": {
+                  "type": "object",
+                  "required": [
+                    "hours",
+                    "levels"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "hours": {
+                      "enum": [
+                        "24/7",
+                        "heures ouvrées",
+                        "heures étendues"
+                      ]
+                    },
+                    "levels": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "level",
+                          "who",
+                          "delay_minutes"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "level": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "who": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "delay_minutes": {
+                            "type": "integer",
+                            "minimum": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "runbooks": {
+                  "type": "array",
+                  "description": "Fiches réflexes : quoi faire quand l'alerte sonne.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "title",
+                      "service",
+                      "symptoms",
+                      "actions"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^RB-[0-9]+$",
+                        "description": "RB-1, RB-2..."
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "service": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "symptoms": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "diagnosis": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "actions": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Actions dans l'ordre, chacune vérifiable."
+                      },
+                      "rollback": {
+                        "type": "string"
+                      },
+                      "escalation": {
+                        "type": "string",
+                        "description": "Niveau d'astreinte à prévenir si les actions échouent."
+                      }
+                    }
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "description": "Opérations récurrentes (mise en production, purge, renouvellement de certificat).",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "frequency"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "frequency": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "window": {
+                        "type": "string"
+                      },
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Compteurs, constats OPS par gravité, erreurs et avertissements.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "input",
+                "output",
+                "services",
+                "alerts",
+                "runbooks",
+                "backups",
+                "findings",
+                "counts",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Le dossier <nom>.md ; null si la description a une erreur."
+                },
+                "services": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "alerts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "runbooks": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "backups": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "findings": {
+                  "type": "array",
+                  "description": "Trous de couverture, gravité haute d'abord.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "rule",
+                      "severity",
+                      "element",
+                      "text"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "rule": {
+                        "type": "string",
+                        "pattern": "^OPS-[0-9]{2}$"
+                      },
+                      "severity": {
+                        "enum": [
+                          "haute",
+                          "moyenne",
+                          "basse"
+                        ]
+                      },
+                      "element": {
+                        "type": "string"
+                      },
+                      "text": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "counts": {
+                  "type": "object",
+                  "required": [
+                    "haute",
+                    "moyenne",
+                    "basse"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "haute": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "moyenne": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "basse": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "dossier écrit (constats éventuels dans findings)",
+            "1": "description invalide ou incohérente (rien n'est écrit), ou constat de gravité haute avec --strict"
+          }
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "requirements-catalog",
+          "kind": "skill",
+          "when": "une exigence de disponibilité ou d'exploitation manque ou n'a pas de mesure : la compléter dans le catalogue"
+        },
+        {
+          "to": "capacity-sizing",
+          "kind": "skill",
+          "when": "les seuils d'alerte dépendent de la charge attendue : la dimensionner d'abord"
+        },
+        {
+          "to": "architecture-dossier",
+          "kind": "skill",
+          "when": "joindre le dossier d'exploitation au dossier d'architecture technique"
+        },
+        {
+          "to": "utilisateur",
+          "kind": "utilisateur",
+          "when": "un engagement (disponibilité, RPO, RTO, astreinte) n'est ni dans les exigences ni dans les documents : la question à poser, jamais une valeur inventée"
+        }
+      ],
+      "description": "Écrit et contrôle le dossier d'exploitation d'une solution (DEX, runbook) : services et engagements (disponibilité cible, RPO, RTO, indisponibilité permise calculée), supervision et alertes, sauvegardes et tests de restauration, astreinte et escalade, fiches réflexes d'incident, opérations récurrentes, avec les trous de couverture relevés par des règles (service critique sans alerte ni fiche, sauvegarde incompatible avec le RPO, exigence de disponibilité non tenue). À utiliser pour préparer la mise en production ou le passage en exploitation, répondre au volet exploitabilité d'un appel d'offres, ou revoir l'exploitabilité d'une architecture.",
+      "path": "skills/operations-dossier"
+    },
+    {
       "skill": "process-diagram",
       "level": "moyen",
       "inputs": [
