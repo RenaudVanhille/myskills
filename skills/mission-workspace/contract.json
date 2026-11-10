@@ -16,13 +16,14 @@
     {
       "name": "mission.py",
       "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie.",
-      "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | --schema",
+      "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | --schema",
       "options": {
         "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré",
         "--nature": "avant-vente ou revue",
         "--name": "nom court de la mission",
         "--client": "client",
         "--echeance": "date de remise ou de comité",
+        "--referentiel": "init : dossier du référentiel du client (noté dans mission.json), copié dans le vault à l'ouverture",
         "--file": "description complète de la mission en JSON, validée contre son schéma (workflows, dépôts, référentiels, accept)",
         "repo": "ajoute ou met à jour un dépôt (--name, --path défaut code/<name>, --url, --component, --alias)",
         "freeze": "note dans mission.json le commit courant de chaque dépôt (git)",
@@ -221,6 +222,34 @@
                 }
               }
             },
+            "referentiel": {
+              "type": "object",
+              "description": "Référentiel du client partagé entre ses missions (referentiel.py) : dossier de notes typées hors de la mission. Un par client, jamais commun à plusieurs.",
+              "required": [
+                "path"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dossier du référentiel (absolu, ou relatif à la mission)."
+                },
+                "types": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "application",
+                      "terme",
+                      "adr"
+                    ]
+                  },
+                  "description": "Types partagés (défaut : les trois)."
+                }
+              }
+            },
             "analogues": {
               "type": "array",
               "description": "Missions passées désignées pour calibrer le chiffrage par analogie (solution-estimate) : seul leur chiffrage.json est lu, jamais copié. Rien sans ce champ : chaque mission choisit, pour la confidentialité.",
@@ -264,7 +293,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Mission, nature, vault, workflows (étape courante, étapes par statut, livrables présents), dépôts (commit figé et courant), contrôles et leurs compteurs, note du vault, prochaine action.",
+        "description": "Mission, nature, vault, workflows (étape courante, étapes par statut, livrables présents), dépôts (commit figé et courant), contrôles et leurs compteurs, note du vault, prochaine action, référentiel du client (notes copiées ou restant à verser).",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -537,6 +566,28 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            },
+            "referentiel": {
+              "type": "object",
+              "description": "Référentiel du client déclaré et présent : notes copiées à l'ouverture (init), puis notes de la mission qui restent à y verser et conflits (status, check ; push à blanc).",
+              "required": [
+                "path"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "pulled": {
+                  "type": "integer"
+                },
+                "to_share": {
+                  "type": "integer"
+                },
+                "conflicts": {
+                  "type": "integer"
+                }
               }
             }
           }

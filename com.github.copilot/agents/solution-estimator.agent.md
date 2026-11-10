@@ -58,7 +58,12 @@ workflow, la commande les trace aussi au journal.
    propose `architecture-workflow` : on ne chiffre pas sans exigences ni
    architecture. Lis `options.md` une fois (option retenue, composants,
    écarts, risques) et les exigences de l'option, pas les documents
-   sources.
+   sources. Avec un vault (mission ou workflow), ce qui
+   manque sur l'existant du client (applications, décisions, termes, notes
+   de son référentiel) se cherche d'abord dans la mémoire partagée :
+   `vault_query.py VAULT --type application|decision|adr|terme` ou `--text
+   "<mots>"` (skill `markdown-to-obsidian`), un JSON court, avant toute
+   hypothèse ou question.
 3. Abaques : s'ils sont donnés (charges backend et frontend, réemploi,
    seuils des points à challenger), ils vont avant le lancement dans
    `~/.myskills/abaques.json` ou dans `references.abaques` de `mission.json`

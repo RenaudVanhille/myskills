@@ -85,7 +85,12 @@ workflow, la commande les trace aussi au journal.
    Lance `arch_review.py revue.json` et lis le rapport ; dans une mission,
    le vault et le dossier sont trouvés seuls ; ailleurs, dans un workflow à
    vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
-   est demandée, passe à l'étape 8.
+   est demandée, passe à l'étape 8. Avec un vault (mission ou workflow), ce qui
+   manque sur l'existant du client (applications, décisions, termes, notes
+   de son référentiel) se cherche d'abord dans la mémoire partagée :
+   `vault_query.py VAULT --type application|decision|adr|terme` ou `--text
+   "<mots>"` (skill `markdown-to-obsidian`), un JSON court, avant toute
+   hypothèse ou question.
 4. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
    forme). Pour une option d'architecture, c'est
    `schemas/option-<id>.cloud.json` ; pour du code d'infrastructure,

@@ -1,7 +1,7 @@
 ---
 name: architecture-reviewer
 description: "Revoit une architecture logicielle ou solution (revue ATAM : scénarios de qualité, risques, compromis, décisions, traçabilité des exigences, code comparé à l'architecture avec graphify en local) et la sécurité et la qualité d'une architecture cloud décrite en JSON : modèle de menaces STRIDE et revue Well-Architected d'AWS, Azure et Google Cloud (piliers et conventions de schéma), et la protection des données d'une solution : registre des traitements et analyse d'impact RGPD (AIPD). Trie les constats, propose les corrections, rend un avis et fait accepter les écarts par l'utilisateur. Adapte l'effort de chaque action pour limiter les coûts."
-skills: check-prerequisites, mission-workspace, architecture-review, threat-model, well-architected-review, data-protection, cloud-architecture, diagram-export, decision-log, agent-handoff
+skills: check-prerequisites, mission-workspace, markdown-to-obsidian, architecture-review, threat-model, well-architected-review, data-protection, cloud-architecture, diagram-export, decision-log, agent-handoff
 commands: uv run *, python *, python3 *, py *
 ---
 
@@ -85,7 +85,12 @@ workflow, la commande les trace aussi au journal.
    Lance `arch_review.py revue.json` et lis le rapport ; dans une mission,
    le vault et le dossier sont trouvés seuls ; ailleurs, dans un workflow à
    vault, ajoute `--vault` et `--folder` (ceux du workflow). Si seule la revue
-   est demandée, passe à l'étape 8.
+   est demandée, passe à l'étape 8. Avec un vault (mission ou workflow), ce qui
+   manque sur l'existant du client (applications, décisions, termes, notes
+   de son référentiel) se cherche d'abord dans la mémoire partagée :
+   `vault_query.py VAULT --type application|decision|adr|terme` ou `--text
+   "<mots>"` (skill `markdown-to-obsidian`), un JSON court, avant toute
+   hypothèse ou question.
 4. Prends la description JSON reçue (`cloud_build.py --schema` en donne la
    forme). Pour une option d'architecture, c'est
    `schemas/option-<id>.cloud.json` ; pour du code d'infrastructure,

@@ -990,7 +990,7 @@
     {
       "id": "referentiel-client",
       "skill": "mission-workspace",
-      "_note": "Référentiel du client entre missions : push à blanc puis appliqué (note tenue à la main jamais écrasée, conflit signalé), pull dans le vault de la mission conforme à l'ontologie, types non partageables et référentiel absent refusés.",
+      "_note": "Référentiel du client entre missions : push à blanc puis appliqué (note tenue à la main jamais écrasée, conflit signalé), pull dans le vault de la mission conforme à l'ontologie, types non partageables et référentiel absent refusés ; référentiel déclaré à l'ouverture d'une mission (--referentiel) copié d'office, reste à verser compté par status.",
       "steps": [
         {"script": "{skills}/mission-workspace/scripts/mission.py", "args": ["init", "{out}/m", "--nature", "avant-vente", "--name", "Portail", "--client", "Mutuelle"], "exit": 0},
         {"copy": ["{fixtures}/workflow/exigences.json", "{out}/m/exigences.json"]},
@@ -1001,6 +1001,8 @@
         {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["push", "{out}/m", "--ref", "{out}/ref"], "exit": 0, "report": {"applied": false, "notes": 4, "added": ["Glossaire/Assuré", "Glossaire/Déclaration", "Glossaire/Gestionnaire"]}, "report_contains": {"conflicts": "Glossaire/Sinistre : texte différent dans la mission « Portail »", "warnings": "à blanc : 3 notes à verser"}},
         {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["push", "{out}/m", "--ref", "{out}/ref", "--apply"], "exit": 0, "report": {"applied": true, "warnings": []}},
         {"script": "{skills}/mission-workspace/scripts/referentiel.py", "args": ["pull", "{out}/m", "--ref", "{out}/ref"], "exit": 0, "report": {"notes": 5, "removed": 0}, "report_contains": {"added": "Référentiel/Applications/Outil de gestion"}},
+        {"script": "{skills}/mission-workspace/scripts/mission.py", "args": ["init", "{out}/m2", "--nature", "avant-vente", "--name", "Extranet", "--client", "Mutuelle", "--referentiel", "{out}/ref"], "exit": 0, "report": {"referentiel.pulled": 5, "errors": []}},
+        {"script": "{skills}/mission-workspace/scripts/mission.py", "args": ["status", "{out}/m2"], "exit": 0, "report": {"referentiel.to_share": 0, "referentiel.conflicts": 0, "warnings": []}},
         {"script": "{skills}/markdown-to-obsidian/scripts/vault_check.py", "args": ["{out}/m/vault", "--strict"], "exit": 0, "report": {"errors": [], "types.application": 1}}
       ],
       "contains": {"ref/Glossaire/Assuré.md": ["genere: referentiel", "source: \"Portail\"", "Titulaire d'un contrat de la mutuelle"],

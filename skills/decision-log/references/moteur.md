@@ -34,10 +34,14 @@ gardant les identifiants.
 
 - Nouvelle avant-vente ou revue hors mission : `mission.py init DOSSIER
   --nature avant-vente|revue --name "<projet>"` (skill `mission-workspace`)
-  démarre le workflow de sa nature, vault compris.
+  démarre le workflow de sa nature, vault compris ; si l'utilisateur cite
+  le référentiel de son client, ajoute `--referentiel DOSSIER` (ses notes
+  sont copiées dans le vault).
 - Hors mission, avec un vault : le dossier du vault est choisi par
   `vault_profile.py` (skill `markdown-to-obsidian`) avant `journal.py init
   --vault VAULT --folder <dossier>`.
 - Avant de livrer un dossier ou une offre d'une mission : `mission.py check
   DOSSIER` (cohérence entre livrables, à corriger ou à faire accepter avec
-  la raison de l'utilisateur).
+  la raison de l'utilisateur). Un `next` qui propose de verser des notes au
+  référentiel du client : montre le `referentiel.py push` à blanc, `--apply`
+  seulement avec son accord.

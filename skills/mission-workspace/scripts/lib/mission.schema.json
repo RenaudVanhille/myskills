@@ -61,6 +61,16 @@
         "regles": {"type": "string", "minLength": 1, "description": "Règles de complétude de la mission (shared/schemas/rules.schema.json) : postes attendus du chiffrage, scénarios attendus de la revue ; écrites par lessons.py --apply (decision-log)."}
       }
     },
+    "referentiel": {
+      "type": "object",
+      "description": "Référentiel du client partagé entre ses missions (referentiel.py) : dossier de notes typées hors de la mission. Un par client, jamais commun à plusieurs.",
+      "required": ["path"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "description": "Dossier du référentiel (absolu, ou relatif à la mission)."},
+        "types": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["application", "terme", "adr"]}, "description": "Types partagés (défaut : les trois)."}
+      }
+    },
     "analogues": {
       "type": "array",
       "description": "Missions passées désignées pour calibrer le chiffrage par analogie (solution-estimate) : seul leur chiffrage.json est lu, jamais copié. Rien sans ce champ : chaque mission choisit, pour la confidentialité.",

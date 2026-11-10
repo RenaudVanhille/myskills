@@ -11,7 +11,7 @@ ses dépôts et ses référentiels ; les scripts des autres skills le trouvent e
 remontant depuis leurs fichiers et prennent alors le vault de la mission sans
 qu'on le leur donne.
 
-    uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--file MISSION.json]
+    uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json]
     uv run scripts/mission.py repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...]
     uv run scripts/mission.py freeze [DOSSIER]
     uv run scripts/mission.py status [DOSSIER]
@@ -21,7 +21,10 @@ qu'on le leur donne.
 - init crée mission.json, documents/, le vault (et code/ pour une revue),
   puis lance le workflow de la nature (journal.py init du skill decision-log,
   vault compris) ; refusé dans une mission existante (pas de mission dans une
-  mission).
+  mission). Avec un référentiel du client (`--referentiel`, ou
+  `referentiel.path` de la description), ses notes sont copiées dans le
+  vault (referentiel.py pull) ; status et check disent ensuite combien de
+  notes de la mission restent à y verser (push à blanc, rien n'est écrit).
 - repo ajoute ou met à jour un dépôt ; freeze note le commit courant de
   chaque dépôt (git) : la revue porte sur un commit connu.
 - status fait le point (workflows, étape courante, dépôts, référentiels,
@@ -117,6 +120,8 @@ def init(args, errors: list[str], warnings: list[str]) -> dict:
                        ("echeance", args.echeance)):
         if value:
             mission[key] = value
+    if args.referentiel:
+        mission["referentiel"] = {**(mission.get("referentiel") or {}), "path": args.referentiel}
     mission.setdefault("statut", "en-cours")
     invalid = check_schema(mission, workspace.schema())
     if invalid:
@@ -345,6 +350,27 @@ def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], 
     return f"{NOTE}.md" if written is not None else None
 
 
+def shared(root: Path, mission: dict, command: str, warnings: list[str]) -> dict | None:
+    """Référentiel du client : copié dans le vault à l'ouverture (pull), ce qui reste à y verser ensuite (push à blanc)."""
+    path = (mission.get("referentiel") or {}).get("path")
+    if not path or not (Path(path) if Path(path).is_absolute() else root / path).is_dir():
+        return None
+    action = "pull" if command == "init" else "push"
+    done = subprocess.run([sys.executable, str(Path(__file__).with_name("referentiel.py")), action, str(root)],
+                          capture_output=True, text=True, encoding="utf-8")
+    try:
+        found = json.loads(done.stdout)
+    except ValueError:
+        warnings.append(f"référentiel : referentiel.py {action} sans rapport lisible")
+        return None
+    warnings += [f"référentiel : {text}" for text in found.get("errors", []) + found.get("warnings", [])
+                 if not text.startswith("à blanc")]
+    if action == "pull":
+        return {"path": path, "pulled": found.get("notes", 0)}
+    return {"path": path, "to_share": len(found.get("added", [])) + len(found.get("updated", [])),
+            "conflicts": len(found.get("conflicts", []))}
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -359,6 +385,7 @@ def main() -> int:
     start.add_argument("--name", help="nom court de la mission")
     start.add_argument("--client")
     start.add_argument("--echeance", help="date de remise ou de comité, AAAA-MM-JJ")
+    start.add_argument("--referentiel", help="dossier du référentiel du client, copié dans le vault (referentiel.py pull)")
     start.add_argument("--file", type=Path, help="description complète (mission.json), validée contre son schéma")
     add_repo = sub.add_parser("repo", help="ajoute ou met à jour un dépôt de code")
     add_repo.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
@@ -418,6 +445,13 @@ def main() -> int:
             report["next"] = f"workflow {current['definition']} : étape {current['current']} (journal.py status {current['folder']})"
         else:
             report["next"] = "rien à faire"
+        if args.command in ("init", "status", "check"):
+            memory = shared(root, mission, args.command, warnings)
+            if memory:
+                report["referentiel"] = memory
+                if memory.get("to_share") and not current and not open_:
+                    report["next"] = (f"proposer à l'utilisateur de verser {memory['to_share']} note(s) au référentiel du "
+                                      "client : referentiel.py push (à blanc, à lui montrer), puis --apply avec son accord")
         if mission["nature"] == "revue" and not mission.get("repos"):
             warnings.append("revue sans dépôt : ajoutez le code avec mission.py repo (un par service)")
     failing = False

@@ -90,7 +90,8 @@ hors de la mission (`"referentiel": {"path": "..."}` dans `mission.json`,
 absolu ou relatif). Jamais un référentiel commun à plusieurs clients.
 
 ```bash
-uv run scripts/referentiel.py pull DOSSIER          # au début : copie dans <vault>/Référentiel/
+uv run scripts/mission.py init DOSSIER ... --referentiel REF  # ouverture : pull fait d'office
+uv run scripts/referentiel.py pull DOSSIER          # plus tard : rafraîchit <vault>/Référentiel/
 uv run scripts/referentiel.py push DOSSIER          # à la fin : ce qui serait versé (à blanc)
 uv run scripts/referentiel.py push DOSSIER --apply  # après accord de l'utilisateur
 ```
@@ -100,4 +101,6 @@ réduits au titre, aux propriétés et au texte d'introduction ; une note déjà
 présente n'est jamais écrasée (alias complétés, différence signalée dans
 `conflicts`). Montrez `added` et `conflicts` à l'utilisateur avant
 `--apply` : c'est lui qui décide de ce qui sort de la mission. Un référentiel
-introuvable donne MIS-08 au `check`.
+introuvable donne MIS-08 au `check`. `status` et `check` font ce `push` à
+blanc et le résument dans `referentiel` (`to_share`, `conflicts`) ; workflow
+terminé et contrôles traités, `next` demande de proposer le versement.
