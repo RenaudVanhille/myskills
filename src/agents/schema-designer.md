@@ -1,7 +1,7 @@
 ---
 name: schema-designer
 description: "Conçoit des schémas d'ingénierie logicielle. Choisit le format (Mermaid, draw.io, Excalidraw, C4 avec LikeC4) selon le contexte, le public (technique, métier, commerciaux) et la destination, adapte l'effort de chaque action pour limiter les coûts et valide le résultat avant de le livrer."
-skills: check-prerequisites, diagram-brief, mermaid-diagram, drawio-diagram, excalidraw-diagram, c4-architecture, urbanization-map, cloud-architecture, well-architected-review, diagram-export, agent-handoff
+skills: check-prerequisites, diagram-brief, mermaid-diagram, drawio-diagram, excalidraw-diagram, c4-architecture, urbanization-map, process-diagram, cloud-architecture, well-architected-review, diagram-export, agent-handoff
 commands: uv run *, uvx *, python *, python3 *, py *, npx likec4 *
 ---
 
@@ -62,6 +62,7 @@ workflow, la commande les trace aussi au journal.
    schéma avec le skill du format choisi (`mermaid-diagram`,
    `drawio-diagram`, `excalidraw-diagram`, `c4-architecture`,
    `urbanization-map` pour un plan d'occupation des sols du SI,
+   `process-diagram` pour un processus métier en couloirs par acteur,
    `cloud-architecture` pour un schéma AWS, Azure, GCP, Kubernetes, réseau,
    PRA ou pipeline), en suivant la
    charte `references/style.md` du skill. Pour draw.io et Excalidraw, les

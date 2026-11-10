@@ -431,6 +431,7 @@
         "excalidraw-diagram",
         "c4-architecture",
         "urbanization-map",
+        "process-diagram",
         "cloud-architecture",
         "well-architected-review",
         "diagram-export",
@@ -9497,7 +9498,7 @@
                     "reseau",
                     "vue-ensemble"
                   ],
-                  "description": "Ce que montre le schéma : architecture (plusieurs vues C4), vue-c4 (une seule vue), urbanisation ou capacites (POS du SI), cloud, cloud-reseau, kubernetes, pra, pipeline, menaces (schémas cloud), sequence, etats, classes, donnees, gantt (Mermaid), flux, processus, deploiement, reseau, vue-ensemble."
+                  "description": "Ce que montre le schéma : architecture (plusieurs vues C4), vue-c4 (une seule vue), urbanisation ou capacites (POS du SI), cloud, cloud-reseau, kubernetes, pra, pipeline, menaces (schémas cloud), processus (processus métier en couloirs par acteur), sequence, etats, classes, donnees, gantt (Mermaid), flux, deploiement, reseau, vue-ensemble."
                 },
                 "message": {
                   "type": "string",
@@ -9574,6 +9575,7 @@
                         "drawio-diagram",
                         "excalidraw-diagram",
                         "urbanization-map",
+                        "process-diagram",
                         "cloud-architecture"
                       ]
                     },
@@ -9643,6 +9645,11 @@
           "to": "urbanization-map",
           "kind": "skill",
           "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
+        },
+        {
+          "to": "process-diagram",
+          "kind": "skill",
+          "when": "processus métier : qui fait quoi, décisions, passages de main (kind processus)"
         },
         {
           "to": "cloud-architecture",
@@ -16333,6 +16340,358 @@
       ],
       "description": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre) ; la même description donne la page en Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material), le découpage en composants et les lots du chiffrage frontend. À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence, ou pour découper et chiffrer un frontend.",
       "path": "skills/mockup-to-html"
+    },
+    {
+      "skill": "process-diagram",
+      "level": "moyen",
+      "inputs": [
+        "Décision de diagram-brief (kind processus) : public et destination",
+        "Description JSON du processus : title, lanes (acteurs), steps (début, tâches, décisions, attentes, fins), flows (enchaînements et conditions)"
+      ],
+      "outputs": [
+        "<sujet>.drawio : processus en couloirs (notation BPMN), XML clair, à côté de sa description <sujet>.json",
+        "<sujet>.processus.md : fiche du processus (synthèse, acteurs, déroulé numéroté, points de douleur)",
+        "Avec --export : <sujet>.drawio.png ou .svg"
+      ],
+      "scripts": [
+        {
+          "name": "process_build.py",
+          "role": "Contrôle un processus métier (étape inaccessible, impasse, boucle sans sortie, décision sans libellé, référence inconnue), le met en page en couloirs (un par acteur, de gauche à droite), écrit le .drawio aux couleurs de la charte et sa fiche Markdown, puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+          "usage": "uv run scripts/process_build.py PROCESSUS.json [--out PROCESSUS.drawio] [--export png|svg] | --schema",
+          "options": {
+            "PROCESSUS.json": "description du processus",
+            "--out": "fichier .drawio (défaut : même nom) ; la fiche .processus.md est écrite à côté",
+            "--export": "png ou svg : exporte aussi l'image avec diagram-export, dans le même appel",
+            "--schema": "affiche le schéma JSON de la description sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Validée avant tout traitement : clé inconnue, type, valeur hors liste ou champ manquant donnent une erreur avec son chemin ; les clés qui commencent par _ sont des commentaires. Puis contrôle du processus : identifiants uniques, couloirs et étapes cités connus (proches proposés), un début et une fin, pas d'impasse ni de boucle sans sortie, libellé sur chaque sortie de décision.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "title",
+                "lanes",
+                "steps",
+                "flows"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Nom du processus, affiché en titre."
+                },
+                "audience": {
+                  "enum": [
+                    "technique",
+                    "non technique"
+                  ],
+                  "description": "Public : non technique limite le processus à 15 étapes (avertissement)."
+                },
+                "legend": {
+                  "type": "boolean",
+                  "description": "Légende sous le schéma (défaut : true)."
+                },
+                "lanes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Couloirs, de haut en bas : un par acteur, service, système ou partenaire.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*$",
+                        "description": "Identifiant court en minuscules, chiffres et tirets."
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "kind": {
+                        "enum": [
+                          "acteur",
+                          "systeme",
+                          "externe"
+                        ],
+                        "description": "acteur (défaut), systeme (application qui agit seule) ou externe (client, partenaire)."
+                      }
+                    }
+                  }
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 2,
+                  "description": "Étapes du processus.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "type",
+                      "lane"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]*$",
+                        "description": "Identifiant court en minuscules, chiffres et tirets."
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Tâche : verbe à l'infinitif et objet ; décision : question ; début et fin : état."
+                      },
+                      "type": {
+                        "enum": [
+                          "start",
+                          "task",
+                          "gateway",
+                          "parallel",
+                          "event",
+                          "end"
+                        ],
+                        "description": "start (début), task (tâche), gateway (décision, un seul chemin), parallel (tous les chemins, puis leur réunion), event (attente, délai, message reçu), end (fin)."
+                      },
+                      "lane": {
+                        "type": "string",
+                        "description": "id du couloir qui fait l'étape."
+                      },
+                      "system": {
+                        "type": "string",
+                        "description": "Outil ou application utilisé pour la tâche."
+                      },
+                      "pain": {
+                        "type": "string",
+                        "description": "Point de douleur constaté à cette étape (ressaisie, attente, erreur) : étape en rouge, reprise dans la fiche."
+                      },
+                      "note": {
+                        "type": "string",
+                        "description": "Précision reprise dans la fiche seulement."
+                      }
+                    }
+                  }
+                },
+                "flows": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Enchaînements, d'une étape à la suivante.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "from": {
+                        "type": "string"
+                      },
+                      "to": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string",
+                        "description": "Condition, obligatoire en sortie d'une décision (oui, non, montant > 5 000 €)."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet ; si la description est illisible ou invalide, seulement input, errors et warnings.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "anyOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "output",
+                    "markdown",
+                    "lanes",
+                    "steps",
+                    "flows",
+                    "decisions",
+                    "handoffs",
+                    "pains",
+                    "loops",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Le .drawio, null si le processus a une erreur."
+                    },
+                    "markdown": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "La fiche <sujet>.processus.md."
+                    },
+                    "lanes": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "steps": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "flows": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "decisions": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Étapes gateway ou parallel à plusieurs suites."
+                    },
+                    "handoffs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Flux qui changent de couloir (passages de main)."
+                    },
+                    "pains": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Étapes avec un point de douleur."
+                    },
+                    "loops": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Retours en arrière."
+                    },
+                    "review_image": {
+                      "type": "boolean",
+                      "description": "true : lisibilité douteuse, ouvrir l'image exportée."
+                    },
+                    "export": {
+                      "type": "object",
+                      "required": [
+                        "outputs",
+                        "warnings"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "outputs": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "input",
+                    "errors",
+                    "warnings"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "input": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "exit_codes": {
+            "0": "processus dessiné sans erreur",
+            "1": "description invalide, processus incohérent ou erreur ; rien n'est écrit si le processus est incohérent"
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "drawio-diagram",
+          "script": "check_drawio.py",
+          "why": "vérifier le .drawio produit",
+          "optional": true
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "exporter l'image dans le même appel (--export)",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "diagram-export",
+          "kind": "skill",
+          "when": "exporter en PDF ou relire l'image"
+        },
+        {
+          "to": "drawio-diagram",
+          "kind": "skill",
+          "when": "retoucher le .drawio à la main"
+        },
+        {
+          "to": "mermaid-diagram",
+          "kind": "skill",
+          "when": "le processus va dans un Markdown ou Obsidian sans couloirs : organigramme Mermaid"
+        }
+      ],
+      "description": "Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown. À utiliser pour décrire un processus existant ou cible, un parcours de traitement entre services, un logigramme avec acteurs, à partir d'un atelier, d'une procédure ou d'un cahier des charges, pour un public métier ou technique. Pas pour une séquence d'appels entre systèmes (mermaid-diagram) ni pour une cartographie du SI (urbanization-map).",
+      "path": "skills/process-diagram"
     },
     {
       "skill": "requirements-catalog",

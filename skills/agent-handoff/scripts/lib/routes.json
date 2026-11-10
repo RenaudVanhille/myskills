@@ -631,6 +631,16 @@
    "match": "Reproduit en HTML/CSS des maquettes d'écrans fournies en image (appel d'offres, cahier des charges, capture d'une application) : la page est décrite en JSON court (composants, textes, tokens du design system), le script écrit un HTML sémantique, accessible et responsive, découpe logos et photos dans la maquette, rend la page dans un navigateur local et la compare à la maquette (similarité, zones à reprendre) ; la même description donne la page en Bootstrap, React (MUI, Ant Design), Vue (Vuetify) ou Angular (Angular Material), le découpage en composants et les lots du chiffrage frontend. À utiliser pour transformer une maquette, un wireframe ou une capture d'écran en page HTML, en prototype ou en intégration de référence, ou pour découper et chiffrer un frontend."
   },
   {
+   "name": "process-diagram",
+   "level": "moyen",
+   "description": "Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown.",
+   "inputs": [
+    "Décision de diagram-brief (kind processus) : public et destination",
+    "Description JSON du processus : title, lanes (acteurs), steps (début, tâches, décisions, attentes, fins), flows (enchaînements et conditions)"
+   ],
+   "match": "Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown. À utiliser pour décrire un processus existant ou cible, un parcours de traitement entre services, un logigramme avec acteurs, à partir d'un atelier, d'une procédure ou d'un cahier des charges, pour un public métier ou technique. Pas pour une séquence d'appels entre systèmes (mermaid-diagram) ni pour une cartographie du SI (urbanization-map)."
+  },
+  {
    "name": "requirements-catalog",
    "level": "moyen",
    "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV.",

@@ -1,0 +1,160 @@
+{
+  "title": "Déclaration et indemnisation d'un sinistre",
+  "audience": "non technique",
+  "lanes": [
+    {
+      "id": "assure",
+      "name": "Assuré",
+      "kind": "externe"
+    },
+    {
+      "id": "gestionnaire",
+      "name": "Gestionnaire de sinistres"
+    },
+    {
+      "id": "expert",
+      "name": "Expert",
+      "kind": "externe"
+    },
+    {
+      "id": "outil",
+      "name": "Outil de gestion",
+      "kind": "systeme"
+    }
+  ],
+  "steps": [
+    {
+      "id": "survenu",
+      "name": "Sinistre survenu",
+      "type": "start",
+      "lane": "assure"
+    },
+    {
+      "id": "declarer",
+      "name": "Déclarer le sinistre",
+      "type": "task",
+      "lane": "assure",
+      "system": "Portail"
+    },
+    {
+      "id": "controler",
+      "name": "Contrôler le dossier",
+      "type": "task",
+      "lane": "gestionaire",
+      "system": "Outil de gestion",
+      "pain": "pièces ressaisies à la main depuis les courriels"
+    },
+    {
+      "id": "complet",
+      "name": "Dossier complet ?",
+      "type": "gateway",
+      "lane": "gestionnaire"
+    },
+    {
+      "id": "completer",
+      "name": "Compléter les pièces",
+      "type": "task",
+      "lane": "assure"
+    },
+    {
+      "id": "montant",
+      "name": "Montant > 5 000 € ?",
+      "type": "gateway",
+      "lane": "gestionnaire"
+    },
+    {
+      "id": "expertiser",
+      "name": "Expertiser le dommage",
+      "type": "task",
+      "lane": "expert",
+      "note": "délai contractuel de 10 jours"
+    },
+    {
+      "id": "rapport",
+      "name": "Rapport d'expertise reçu",
+      "type": "event",
+      "lane": "gestionnaire"
+    },
+    {
+      "id": "decider",
+      "name": "Décider de l'indemnisation",
+      "type": "task",
+      "lane": "gestionnaire"
+    },
+    {
+      "id": "payer",
+      "name": "Verser l'indemnité",
+      "type": "task",
+      "lane": "outil"
+    },
+    {
+      "id": "indemnise",
+      "name": "Assuré indemnisé",
+      "type": "end",
+      "lane": "assure"
+    },
+    {
+      "id": "archiver",
+      "name": "Archiver",
+      "type": "task",
+      "lane": "outil"
+    }
+  ],
+  "flows": [
+    {
+      "from": "survenu",
+      "to": "declarer"
+    },
+    {
+      "from": "declarer",
+      "to": "controler"
+    },
+    {
+      "from": "controler",
+      "to": "complet"
+    },
+    {
+      "from": "complet",
+      "to": "completer"
+    },
+    {
+      "from": "completer",
+      "to": "controler"
+    },
+    {
+      "from": "complet",
+      "to": "montant",
+      "label": "oui"
+    },
+    {
+      "from": "montant",
+      "to": "expertiser",
+      "label": "oui"
+    },
+    {
+      "from": "expertiser",
+      "to": "rapport"
+    },
+    {
+      "from": "rapport",
+      "to": "decider"
+    },
+    {
+      "from": "montant",
+      "to": "decider",
+      "label": "non"
+    },
+    {
+      "from": "decider",
+      "to": "payer"
+    },
+    {
+      "from": "payer",
+      "to": "indemnise"
+    },
+    {
+      "from": "payer",
+      "to": "indemnisee"
+    }
+  ]
+}
