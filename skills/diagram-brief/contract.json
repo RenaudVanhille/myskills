@@ -84,7 +84,7 @@
                 "reseau",
                 "vue-ensemble"
               ],
-              "description": "Ce que montre le schéma : architecture (plusieurs vues C4), vue-c4 (une seule vue), urbanisation ou capacites (POS du SI), cloud, cloud-reseau, kubernetes, pra, pipeline, menaces (schémas cloud), sequence, etats, classes, donnees, gantt (Mermaid), flux, processus, deploiement, reseau, vue-ensemble."
+              "description": "Ce que montre le schéma : architecture (plusieurs vues C4), vue-c4 (une seule vue), urbanisation ou capacites (POS du SI), cloud, cloud-reseau, kubernetes, pra, pipeline, menaces (schémas cloud), processus (processus métier en couloirs par acteur), sequence, etats, classes, donnees, gantt (Mermaid), flux, deploiement, reseau, vue-ensemble."
             },
             "message": {
               "type": "string",
@@ -161,6 +161,7 @@
                     "drawio-diagram",
                     "excalidraw-diagram",
                     "urbanization-map",
+                    "process-diagram",
                     "cloud-architecture"
                   ]
                 },
@@ -230,6 +231,11 @@
       "to": "urbanization-map",
       "kind": "skill",
       "when": "cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation)"
+    },
+    {
+      "to": "process-diagram",
+      "kind": "skill",
+      "when": "processus métier : qui fait quoi, décisions, passages de main (kind processus)"
     },
     {
       "to": "cloud-architecture",

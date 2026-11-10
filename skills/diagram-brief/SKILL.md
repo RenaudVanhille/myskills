@@ -22,6 +22,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Passe la main** au skill `excalidraw-diagram` : public non technique, atelier, vue d'ensemble.
 - **Passe la main** au skill `c4-architecture` : architecture logicielle à plusieurs vues ou niveaux.
 - **Passe la main** au skill `urbanization-map` : cartographie fonctionnelle du SI, plan d'occupation des sols (urbanisation).
+- **Passe la main** au skill `process-diagram` : processus métier : qui fait quoi, décisions, passages de main (kind processus).
 - **Passe la main** au skill `cloud-architecture` : architecture cloud (AWS, Azure, GCP, Kubernetes), réseau, PRA ou pipeline.
 - **Passe la main** au skill `threat-model` : modèle de menaces STRIDE d'un schéma cloud (type menaces).
 
@@ -41,7 +42,8 @@ seulement si la réponse change le format.
 `kind` : `architecture` (plusieurs vues C4), `vue-c4`, `urbanisation` ou
 `capacites` (POS du SI), `cloud`, `cloud-reseau`, `kubernetes`, `pra`,
 `pipeline`, `menaces`, `sequence`, `etats`, `classes`, `donnees`, `gantt`,
-`flux`, `processus`, `deploiement`, `reseau`, `vue-ensemble`. `editable` :
+`flux`, `processus` (processus métier en couloirs par acteur, skill
+`process-diagram`), `deploiement`, `reseau`, `vue-ensemble`. `editable` :
 l'utilisateur veut retoucher le schéma lui-même. Le schéma complet :
 `uv run scripts/brief.py --schema`.
 

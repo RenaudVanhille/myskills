@@ -34,6 +34,8 @@ def decide(brief: dict) -> tuple[str, str, str]:
     in_repo = dest in ("markdown", "obsidian")
     if kind in ("urbanisation", "capacites"):
         return "drawio", "urbanization-map", "cartographie du SI : draw.io généré par script, technique ou non"
+    if kind == "processus":
+        return "drawio", "process-diagram", "processus métier : couloirs par acteur (BPMN) en draw.io, généré par script"
     if kind in CLOUD_VIEWS:
         return "drawio", "cloud-architecture", "architecture cloud : draw.io aux icônes officielles, généré par script"
     if kind == "architecture":

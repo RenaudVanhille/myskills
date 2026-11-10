@@ -23,7 +23,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
                                   "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
-             "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map"]}
+             "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map", "process-diagram"]}
 # Modules et données partagés à source unique : une seule copie, dans le skill porteur ; les autres skills
 # les chargent par skill_paths (require_module, require_file) et les déclarent dans requires.
 # Fichier de scripts/lib/ -> (skill porteur, source dans shared/ ou None si elle vit dans le skill).
