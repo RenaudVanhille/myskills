@@ -512,7 +512,7 @@
     {
       "id": "cloud-iac",
       "skill": "cloud-architecture",
-      "_note": "Terraform, docker-compose et Kubernetes vers la description de cloud_build.py ; un gabarit Helm et un fichier sans ressource.",
+      "_note": "Terraform, docker-compose et Kubernetes vers la description de cloud_build.py ; un gabarit Helm et un fichier sans ressource. ; groupes et services dans l'ordre des fichiers, quel que soit le hachage de Python.",
       "steps": [
         {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
          "args": ["{fixtures}/iac/terraform", "--out", "{out}/tf.json", "--title", "Boutique"],
@@ -522,6 +522,9 @@
         {"script": "{skills}/cloud-architecture/scripts/cloud_build.py",
          "args": ["{out}/tf.json", "--out", "{out}/tf.drawio"],
          "exit": 0, "report": {"errors": [], "warnings": [], "services": 6}},
+        {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
+         "args": ["{fixtures}/iac/terraform", "--out", "{out}/tf-ordre.json", "--title", "Boutique"],
+         "env": {"PYTHONHASHSEED": "2"}, "exit": 0, "report": {"errors": [], "groups": 5}},
         {"script": "{skills}/cloud-architecture/scripts/iac_import.py",
          "args": ["{fixtures}/iac/docker-compose.yml", "{fixtures}/iac/k8s", "--out", "{out}/mixte.json"],
          "exit": 0, "report": {"errors": [], "provider": "k8s", "services": 13, "flows": 11,
@@ -535,6 +538,7 @@
       "absent": ["vide.json"],
       "contains": {"tf.json": ["\"type\": \"aws:public-subnet\"", "\"label\": \"facturation\"",
                                "\"from\": \"sqs-queue-orders\"", "\"from\": \"web\",\n      \"to\": \"ecs-service-api\""],
+                   "tf-ordre.json": ["\"count\": 3\n                }\n              ]\n            },\n            {\n              \"id\": \"subnet-data\""],
                    "tf.drawio": ["grIcon=mxgraph.aws4.group_vpc2", "api-commandes"],
                    "mixte.json": ["\"type\": \"k8s:hpa\"", "\"type\": \"queue\""]}
     },
