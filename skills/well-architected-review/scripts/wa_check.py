@@ -263,23 +263,19 @@ def replicated(node: dict) -> bool:
     return bool(count) and str(count).strip() not in ("1", "0")
 
 
-def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
-    _, pages, errors, _ = CLOUD.build(spec, None)
-    findings, seen = [], set()
-    clouds = {spec.get("provider")} | {p.get("provider") for p in spec.get("pages", [])}
-    types_all: set[str] = set()
-    groups_all: set[str] = set()
-    for _, b, _ in pages:
-        types_all |= {n["type"] for n in b.nodes.values()}
-        groups_all |= {g["type"] for g in b.groups.values()}
-    clouds |= {provider(t) for t in types_all | groups_all}
-    clouds = {c for c in clouds if c}
+class _Findings:
+    """Constats d'une revue, un par règle et par élément, avec le repère du cadre de chaque fournisseur."""
 
-    def add(rule, element, message, where=None):
+    def __init__(self, clouds: set[str]):
+        self.items: list[dict] = []
+        self.seen: set[tuple] = set()
+        self.clouds = clouds
+
+    def add(self, rule, element, message, where=None):
         key = (rule, element)
-        if key in seen:
+        if key in self.seen:
             return
-        seen.add(key)
+        self.seen.add(key)
         pillar, severity, title, fix, refs = RULES[rule]
         # Conventions : le guide d'icônes du fournisseur ; piliers : le cadre Well-Architected et la question.
         plain = pillar == "conventions" or rule == "SEC-08"
@@ -289,129 +285,148 @@ def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
         else:
             # Sans fournisseur connu : les repères des trois grands cadres.
             ref = " ; ".join(named(c) for c in CLOUDS if c in refs and (
-                c in clouds or (not clouds & set(CLOUDS) and c in ("aws", "azure", "gcp"))))
-        findings.append({"rule": rule, "pillar": pillar, "severity": severity, "element": element,
-                         "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
+                c in self.clouds or (not self.clouds & set(CLOUDS) and c in ("aws", "azure", "gcp"))))
+        self.items.append({"rule": rule, "pillar": pillar, "severity": severity, "element": element,
+                           "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
 
-    multi = len(pages) > 1
-    for name, b, flows in pages:
-        def ancestors(cid):
-            chain, cur = [], b.parent_of.get(cid, "1")
-            while cur != "1":
-                chain.append(cur)
-                cur = b.parent_of.get(cur, "1")
-            return chain
 
-        def gtypes(cid):
-            return [b.groups[g]["type"] for g in ancestors(cid)]
+class _Page:
+    """Une page de la description : ses groupes, ses services, ses flux, et où chaque élément se trouve."""
 
-        def where(cid):
-            node = b.nodes.get(cid)
-            own = provider(node["type"]) if node else provider(b.groups[cid]["type"])
-            if own:
-                return own
-            near = next((provider(t) for t in gtypes(cid) if provider(t)), None)
-            return near or (spec.get("provider") if spec.get("provider") in FRAMEWORKS else None)
-
-        def generic_zone(gid):
-            # « zone » chez Azure ou GCP qui contient des régions ou un réseau : simple regroupement, pas une AZ.
-            return any(b.groups[g]["type"] in REGIONS | NETWORKS for g in b.groups if gid in ancestors(g))
-
-        def at(element):
-            return f"{name}/{element}" if multi else element
-
-        label = {**{k: v["label"] for k, v in b.nodes.items()}, **{k: v["label"] for k, v in b.groups.items()}}
-        types = {n["type"] for n in b.nodes.values()}
-        view = b.view
+    def __init__(self, spec: dict, name: str, built, flows: list[dict], multi: bool, types_all: set[str]):
+        self.spec, self.name, self.b, self.flows, self.multi, self.types_all = spec, name, built, flows, multi, types_all
+        self.label = {**{k: v["label"] for k, v in built.nodes.items()},
+                      **{k: v["label"] for k, v in built.groups.items()}}
+        self.types = {n["type"] for n in built.nodes.values()}
         # Vue pipeline (CI/CD, data) : chaîne d'outils, pas un déploiement ; seuls les flux sont contrôlés.
-        layout = view != "pipeline"
-        # Doublons même type et même libellé (une instance par zone) : comptent comme redondance.
-        twins: dict[tuple, int] = {}
-        for node in b.nodes.values():
-            base = node["label"].split(" ×")[0]
-            twins[(node["type"], base)] = twins.get((node["type"], base), 0) + 1
-        repl = {f["from"] for f in flows if f["style"] == "replication"} | \
-               {f["to"] for f in flows if f["style"] == "replication"}
+        self.layout = built.view != "pipeline"
 
-        for gid, group in b.groups.items() if layout else ():
-            gt, chain = group["type"], gtypes(gid)
-            if gt in ZONES and generic_zone(gid):
-                continue
-            for parent in chain:
-                if gt in RANK and parent in RANK and provider(gt) == provider(parent) and RANK[parent] > RANK[gt]:
-                    add("CONV-01", at(gid), f"{group['label']} ({gt}) est dans {parent}", provider(gt))
-                    break
-            if gt in REQUIRED and not REQUIRED[gt] & set(chain):
-                add("CONV-02", at(gid), f"{group['label']} ({gt}) hors de {' ou '.join(sorted(REQUIRED[gt]))}",
+    def ancestors(self, cid):
+        chain, cur = [], self.b.parent_of.get(cid, "1")
+        while cur != "1":
+            chain.append(cur)
+            cur = self.b.parent_of.get(cur, "1")
+        return chain
+
+    def gtypes(self, cid):
+        return [self.b.groups[g]["type"] for g in self.ancestors(cid)]
+
+    def where(self, cid):
+        node = self.b.nodes.get(cid)
+        own = provider(node["type"]) if node else provider(self.b.groups[cid]["type"])
+        if own:
+            return own
+        near = next((provider(t) for t in self.gtypes(cid) if provider(t)), None)
+        return near or (self.spec.get("provider") if self.spec.get("provider") in FRAMEWORKS else None)
+
+    def generic_zone(self, gid):
+        # « zone » chez Azure ou GCP qui contient des régions ou un réseau : simple regroupement, pas une AZ.
+        return any(self.b.groups[g]["type"] in REGIONS | NETWORKS for g in self.b.groups if gid in self.ancestors(g))
+
+    def at(self, element):
+        return f"{self.name}/{element}" if self.multi else element
+
+
+def group_rules(page: _Page, add) -> None:
+    """Emboîtement des groupes, zones de disponibilité et NAT par zone."""
+    b, at, ancestors = page.b, page.at, page.ancestors
+    for gid, group in b.groups.items():
+        gt, chain = group["type"], page.gtypes(gid)
+        if gt in ZONES and page.generic_zone(gid):
+            continue
+        for parent in chain:
+            if gt in RANK and parent in RANK and provider(gt) == provider(parent) and RANK[parent] > RANK[gt]:
+                add("CONV-01", at(gid), f"{group['label']} ({gt}) est dans {parent}", provider(gt))
+                break
+        if gt in REQUIRED and not REQUIRED[gt] & set(chain):
+            add("CONV-02", at(gid), f"{group['label']} ({gt}) hors de {' ou '.join(sorted(REQUIRED[gt]))}",
+                provider(gt))
+        regional = any(t in REGIONS for t in chain) or \
+            any(b.groups[g]["type"] in REGIONS for g in b.groups if gid in ancestors(g))
+        if gt in REGIONS or (gt in NETWORKS and not regional):
+            inside = [n for n in b.nodes if gid in ancestors(n)]
+            heavy = [n for n in inside if b.nodes[n]["type"] in VM | DATABASES]
+            zones = [g for g in b.groups if gid in ancestors(g) and b.groups[g]["type"] in ZONES
+                     and not page.generic_zone(g)]
+            if heavy and len(zones) < 2 and b.view in ("deployment", "network", "dr"):
+                add("REL-01", at(gid),
+                    f"{group['label']} : {len(zones)} zone pour {', '.join(page.label[n] for n in heavy[:3])}",
                     provider(gt))
-            regional = any(t in REGIONS for t in chain) or \
-                any(b.groups[g]["type"] in REGIONS for g in b.groups if gid in ancestors(g))
-            if gt in REGIONS or (gt in NETWORKS and not regional):
-                inside = [n for n in b.nodes if gid in ancestors(n)]
-                heavy = [n for n in inside if b.nodes[n]["type"] in VM | DATABASES]
-                zones = [g for g in b.groups if gid in ancestors(g) and b.groups[g]["type"] in ZONES
-                         and not generic_zone(g)]
-                if heavy and len(zones) < 2 and view in ("deployment", "network", "dr"):
-                    add("REL-01", at(gid),
-                        f"{group['label']} : {len(zones)} zone pour {', '.join(label[n] for n in heavy[:3])}",
-                        provider(gt))
-                nats = [n for n in inside if b.nodes[n]["type"] == "aws:nat-gateway"]
-                capacity = sum(int(b.nodes[n]["count"]) if isinstance(b.nodes[n]["count"], int) else 1 for n in nats)
-                if nats and len(zones) > capacity:
-                    add("REL-04", at(gid), f"{capacity} NAT pour {len(zones)} zones", "aws")
+            nats = [n for n in inside if b.nodes[n]["type"] == "aws:nat-gateway"]
+            capacity = sum(int(b.nodes[n]["count"]) if isinstance(b.nodes[n]["count"], int) else 1 for n in nats)
+            if nats and len(zones) > capacity:
+                add("REL-04", at(gid), f"{capacity} NAT pour {len(zones)} zones", "aws")
 
-        for nid, node in b.nodes.items() if layout else ():
-            nt, chain = node["type"], gtypes(nid)
-            if node["kind"] is None:
-                continue
-            base = node["label"].split(" ×")[0]
-            scaled = bool(set(chain) & SCALING_GROUPS) or bool(types & SCALING_NODES)
-            spread = replicated(node) or twins[(nt, base)] > 1
-            if nt in VM and not spread and not scaled:
-                add("REL-02", at(nid), node["label"], where(nid))
-            if nt in VM and spread and not scaled and not nt.startswith("k8s:"):
-                add("COST-01", at(nid), node["label"], where(nid))
-            if nt in DATABASES and not spread and nid not in repl and \
-                    not any(types_all & roles for roles in ROLES["backup"].values()):
-                add("REL-03", at(nid), node["label"], where(nid))
-            if node["kind"] == "store" and "aws:public-subnet" in chain:
-                add("SEC-01", at(nid), node["label"], "aws")
-            direct = b.parent_of.get(nid)
-            if direct in b.groups and b.groups[direct]["type"] in NETWORKS and nt in VM | DATABASES:
-                add("CONV-03", at(nid), f"{node['label']} dans {b.groups[direct]['label']}", where(nid))
-            if nt in OUTSIDE_SUBNET and set(chain) & SUBNETS:
-                add("CONV-04", at(nid), node["label"], where(nid))
-            own = provider(nt)
-            near = next((provider(t) for t in chain if provider(t) in CLOUDS), None)
-            if own in CLOUDS and near and near != own:
-                add("CONV-05", at(nid), f"{node['label']} ({own}) dans un groupe {near}", own)
-            if nt in ("server", "db", "queue") and any(provider(t) in CLOUDS for t in chain):
-                add("CONV-06", at(nid), f"{node['label']} ({nt})", where(nid))
 
-        for f in flows:
-            src, dst = b.nodes.get(f["from"]), b.nodes.get(f["to"])
-            if not src or not dst:
-                continue
-            tag = at(f"F{f['n']}")
-            text = f"F{f['n']} {label[f['from']]} → {label[f['to']]}"
-            if layout and src["kind"] == "external" and dst["kind"] == "store":
-                add("SEC-02", tag, text, where(f["to"]))
-            if layout and src["kind"] == "external" and dst["type"] in VM:
-                add("SEC-04", tag, text, where(f["to"]))
-            proto = f"{f['protocol']} {f['port']}".upper()
-            # Appel d'un service managé (S3, SQS, Key Vault...) : API HTTPS du fournisseur, chiffrée par défaut.
-            managed = src["type"] in OUTSIDE_SUBNET or dst["type"] in OUTSIDE_SUBNET
-            encrypted = f["encrypted"] if f["encrypted"] is not None else (
-                True if managed or any(t in proto for t in TLS) else None)
-            if f["crosses"] and encrypted is not True and f["style"] != "replication":
-                add("SEC-03", tag, f"{text} ({', '.join(f['crosses'])})", where(f["to"]))
-            if layout and src["kind"] == "external" and dst["type"] in ENTRY:
-                cloud = where(f["to"])
-                if cloud in CLOUDS and not types_all & ROLES["waf"][cloud]:
-                    add("SEC-05", tag, text, cloud)
-                if src["type"] == "user" and cloud in CLOUDS and not types_all & ROLES["cdn"][cloud]:
-                    add("PERF-01", tag, text, cloud)
+def node_rules(page: _Page, add) -> None:
+    """Redondance, exposition et placement de chaque service."""
+    b, at, where, types = page.b, page.at, page.where, page.types
+    # Doublons même type et même libellé (une instance par zone) : comptent comme redondance.
+    twins: dict[tuple, int] = {}
+    for node in b.nodes.values():
+        base = node["label"].split(" ×")[0]
+        twins[(node["type"], base)] = twins.get((node["type"], base), 0) + 1
+    repl = {f["from"] for f in page.flows if f["style"] == "replication"} | \
+           {f["to"] for f in page.flows if f["style"] == "replication"}
+    for nid, node in b.nodes.items():
+        nt, chain = node["type"], page.gtypes(nid)
+        if node["kind"] is None:
+            continue
+        base = node["label"].split(" ×")[0]
+        scaled = bool(set(chain) & SCALING_GROUPS) or bool(types & SCALING_NODES)
+        spread = replicated(node) or twins[(nt, base)] > 1
+        if nt in VM and not spread and not scaled:
+            add("REL-02", at(nid), node["label"], where(nid))
+        if nt in VM and spread and not scaled and not nt.startswith("k8s:"):
+            add("COST-01", at(nid), node["label"], where(nid))
+        if nt in DATABASES and not spread and nid not in repl and \
+                not any(page.types_all & roles for roles in ROLES["backup"].values()):
+            add("REL-03", at(nid), node["label"], where(nid))
+        if node["kind"] == "store" and "aws:public-subnet" in chain:
+            add("SEC-01", at(nid), node["label"], "aws")
+        direct = b.parent_of.get(nid)
+        if direct in b.groups and b.groups[direct]["type"] in NETWORKS and nt in VM | DATABASES:
+            add("CONV-03", at(nid), f"{node['label']} dans {b.groups[direct]['label']}", where(nid))
+        if nt in OUTSIDE_SUBNET and set(chain) & SUBNETS:
+            add("CONV-04", at(nid), node["label"], where(nid))
+        own = provider(nt)
+        near = next((provider(t) for t in chain if provider(t) in CLOUDS), None)
+        if own in CLOUDS and near and near != own:
+            add("CONV-05", at(nid), f"{node['label']} ({own}) dans un groupe {near}", own)
+        if nt in ("server", "db", "queue") and any(provider(t) in CLOUDS for t in chain):
+            add("CONV-06", at(nid), f"{node['label']} ({nt})", where(nid))
 
+
+def flow_rules(page: _Page, add) -> None:
+    """Exposition directe, chiffrement des flux qui changent de zone, pare-feu applicatif et CDN en entrée."""
+    b, where, layout = page.b, page.where, page.layout
+    for f in page.flows:
+        src, dst = b.nodes.get(f["from"]), b.nodes.get(f["to"])
+        if not src or not dst:
+            continue
+        tag = page.at(f"F{f['n']}")
+        text = f"F{f['n']} {page.label[f['from']]} → {page.label[f['to']]}"
+        if layout and src["kind"] == "external" and dst["kind"] == "store":
+            add("SEC-02", tag, text, where(f["to"]))
+        if layout and src["kind"] == "external" and dst["type"] in VM:
+            add("SEC-04", tag, text, where(f["to"]))
+        proto = f"{f['protocol']} {f['port']}".upper()
+        # Appel d'un service managé (S3, SQS, Key Vault...) : API HTTPS du fournisseur, chiffrée par défaut.
+        managed = src["type"] in OUTSIDE_SUBNET or dst["type"] in OUTSIDE_SUBNET
+        encrypted = f["encrypted"] if f["encrypted"] is not None else (
+            True if managed or any(t in proto for t in TLS) else None)
+        if f["crosses"] and encrypted is not True and f["style"] != "replication":
+            add("SEC-03", tag, f"{text} ({', '.join(f['crosses'])})", where(f["to"]))
+        if layout and src["kind"] == "external" and dst["type"] in ENTRY:
+            cloud = where(f["to"])
+            if cloud in CLOUDS and not page.types_all & ROLES["waf"][cloud]:
+                add("SEC-05", tag, text, cloud)
+            if src["type"] == "user" and cloud in CLOUDS and not page.types_all & ROLES["cdn"][cloud]:
+                add("PERF-01", tag, text, cloud)
+
+
+def provider_rules(spec: dict, pages: list, types_all: set[str], clouds: set[str], add) -> None:
+    """Services transverses présents chez chaque fournisseur, et qualifications exigées de chaque hébergeur."""
     # Présence des services transverses, sur l'ensemble de la description, pour chaque fournisseur.
     workload = {v for _, b, _ in pages if b.view in ("deployment", "network", "dr", "threats")
                 for v in (provider(n["type"]) for n in b.nodes.values()) if v in CLOUDS}
@@ -432,7 +447,27 @@ def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
             pending = [q for q in missing if q in info.get("pending", [])]
             add("SEC-08", cloud, f"{info['name']} sans {', '.join(missing)}"
                 + (f" (qualification en cours : {', '.join(pending)})" if pending else ""), cloud)
-    return findings, errors, clouds
+
+
+def check(spec: dict) -> tuple[list[dict], list[str], set[str]]:
+    _, pages, errors, _ = CLOUD.build(spec, None)
+    clouds = {spec.get("provider")} | {p.get("provider") for p in spec.get("pages", [])}
+    types_all: set[str] = set()
+    groups_all: set[str] = set()
+    for _, b, _ in pages:
+        types_all |= {n["type"] for n in b.nodes.values()}
+        groups_all |= {g["type"] for g in b.groups.values()}
+    clouds |= {provider(t) for t in types_all | groups_all}
+    clouds = {c for c in clouds if c}
+    found = _Findings(clouds)
+    for name, b, flows in pages:
+        page = _Page(spec, name, b, flows, len(pages) > 1, types_all)
+        if page.layout:
+            group_rules(page, found.add)
+            node_rules(page, found.add)
+        flow_rules(page, found.add)
+    provider_rules(spec, pages, types_all, clouds, found.add)
+    return found.items, errors, clouds
 
 
 def hosting_notes(spec: dict, clouds: set[str]) -> list[str]:

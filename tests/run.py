@@ -226,85 +226,105 @@ def check_outputs(case: dict, out: Path, failures: list[str]) -> None:
                             f"(minimum {MIN_RATIO:.0%})")
 
 
-def check_contracts() -> dict:
-    """Contrats valides, cohérents entre eux, et fichiers générés à jour."""
+def _schema_problem(schema: dict) -> str | None:
+    try:
+        Draft202012Validator.check_schema(schema)
+    except Exception as error:  # noqa: BLE001 - message du validateur
+        return str(error)
+    return None
+
+
+def _external_failures(externals: dict, skills: dict, schema: dict) -> list[str]:
+    """Contrats des skills tiers appelés par leur seule interface."""
     failures = []
-    schemas = {name: contracts_lib.schema(name)
-               for name in ("skill-contract", "agent-contract", "handoff", "agent-report", "external-skill")}
-    registry = Registry().with_resources(
-        (f"{name}.schema.json", Resource.from_contents(value)) for name, value in schemas.items())
-    skills, agents = contracts_lib.skill_contracts(), contracts_lib.agent_contracts()
-    externals = contracts_lib.external_contracts()
     for name, contract in externals.items():
-        failures += [f"external/{name}.contract.json : {e}" for e in schema_errors(contract, schemas["external-skill"])]
+        failures += [f"external/{name}.contract.json : {e}" for e in schema_errors(contract, schema)]
         if contract.get("skill") != name:
             failures.append(f"external/{name}.contract.json : skill = {contract.get('skill')!r}")
         if name in skills:
             failures.append(f"external/{name} : un skill du dépôt porte déjà ce nom")
         for key in ("plan", "output_schema"):
-            try:
-                Draft202012Validator.check_schema(contract.get(key, {}))
-            except Exception as error:  # noqa: BLE001 - message du validateur
-                failures.append(f"external/{name} : schéma {key} invalide ({error})")
+            problem = _schema_problem(contract.get(key, {}))
+            if problem:
+                failures.append(f"external/{name} : schéma {key} invalide ({problem})")
+    return failures
 
-    for folder in sorted((ROOT / "skills").glob("*/")):
-        if folder.name not in skills:
-            failures.append(f"{folder.name} : pas de contract.json")
+
+def _script_failures(name: str, contract: dict) -> list[str]:
+    """Scripts présents et déclarés, schémas d'entrée et de rapport valides."""
+    declared = {script["name"] for script in contract.get("scripts", [])}
+    present = {p.name for p in (ROOT / "skills" / name / "scripts").glob("*.py")}
+    failures = [f"{name} : script {s} absent du contrat" for s in sorted(present - declared)]
+    failures += [f"{name} : script {s} du contrat introuvable" for s in sorted(declared - present)]
+    for script in contract.get("scripts", []):
+        problem = _schema_problem(script["input"]["schema"]) if script.get("input") else None
+        if problem:
+            failures.append(f"{name}/{script['name']} : schéma d'entrée invalide ({problem})")
+        problem = _schema_problem(script["report"].get("schema", {})) if script["report"]["format"] == "json" else None
+        if problem:
+            failures.append(f"{name}/{script['name']} : schéma de rapport invalide ({problem})")
+    return failures
+
+
+def _requires_failures(name: str, contract: dict, skills: dict) -> list[str]:
+    """Dépendances déclarées (requires) et schéma d'entrée repris d'un autre skill (same_as)."""
+    failures, required = [], set()
+    for need in contract.get("requires", []):
+        target = skills.get(need["skill"])
+        required.add((need["skill"], need["script"]))
+        if need["skill"] == name or target is None:
+            failures.append(f"{name} : requires vise un skill inconnu ou lui-même « {need['skill']} »")
+        elif need["script"].startswith("lib/"):
+            if not (ROOT / "skills" / need["skill"] / "scripts" / need["script"]).is_file():
+                failures.append(f"{name} : requires vise le module {need['skill']}/scripts/{need['script']}, introuvable")
+        elif need["script"] not in {s["name"] for s in target.get("scripts", [])}:
+            failures.append(f"{name} : requires vise {need['skill']}/{need['script']}, absent de son contrat")
+    for script in contract.get("scripts", []):
+        source = (script.get("input") or {}).get("same_as")
+        if source and source.startswith("shared/schemas/"):
+            if not (ROOT / source).is_file():
+                failures.append(f"{name}/{script['name']} : input.same_as « {source} » introuvable")
+        elif source and source.split("/", 1)[0] != name and tuple(source.split("/", 1)) not in required:
+            failures.append(f"{name}/{script['name']} : input.same_as « {source} » absent de requires")
+    return failures
+
+
+def _handoff_failures(name: str, contract: dict, skills: dict, agents: dict, externals: dict) -> list[str]:
+    """Passages de main vers un skill, un agent ou un skill externe qui existe."""
+    failures = []
+    for handoff in contract.get("handoffs", []):
+        known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
+                 "externe": externals}[handoff["kind"]]
+        if handoff["to"] not in known:
+            failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
+        elif handoff["kind"] == "externe":
+            # Le skill externe se lance avec l'interpréteur de l'appelant : ses dépendances
+            # doivent figurer dans l'en-tête PEP 723 d'un script du skill.
+            headers = " ".join(p.read_text(encoding="utf-8").split("# ///")[1]
+                               for p in (ROOT / "skills" / name / "scripts").glob("*.py")
+                               if p.read_text(encoding="utf-8").startswith("# /// script"))
+            failures += [f"{name} : dépendance {d} du skill externe {handoff['to']} absente des en-têtes PEP 723"
+                         for d in externals[handoff["to"]].get("dependencies", []) if f'"{d}"' not in headers]
+    return failures
+
+
+def _skill_failures(skills: dict, agents: dict, externals: dict, schema: dict) -> list[str]:
+    failures = [f"{folder.name} : pas de contract.json"
+                for folder in sorted((ROOT / "skills").glob("*/")) if folder.name not in skills]
     for name, contract in skills.items():
-        failures += [f"{name}/contract.json : {e}" for e in schema_errors(contract, schemas["skill-contract"])]
+        failures += [f"{name}/contract.json : {e}" for e in schema_errors(contract, schema)]
         if contract.get("skill") != name:
             failures.append(f"{name}/contract.json : skill = {contract.get('skill')!r}")
-        declared = {script["name"] for script in contract.get("scripts", [])}
-        present = {p.name for p in (ROOT / "skills" / name / "scripts").glob("*.py")}
-        failures += [f"{name} : script {s} absent du contrat" for s in sorted(present - declared)]
-        failures += [f"{name} : script {s} du contrat introuvable" for s in sorted(declared - present)]
-        for script in contract.get("scripts", []):
-            if script.get("input"):
-                try:
-                    Draft202012Validator.check_schema(script["input"]["schema"])
-                except Exception as error:  # noqa: BLE001 - message du validateur
-                    failures.append(f"{name}/{script['name']} : schéma d'entrée invalide ({error})")
-            if script["report"]["format"] == "json":
-                try:
-                    Draft202012Validator.check_schema(script["report"].get("schema", {}))
-                except Exception as error:  # noqa: BLE001 - message du validateur
-                    failures.append(f"{name}/{script['name']} : schéma de rapport invalide ({error})")
-        # Dépendances déclarées (requires) et schéma d'entrée repris d'un autre skill (same_as).
-        required = set()
-        for need in contract.get("requires", []):
-            target = skills.get(need["skill"])
-            required.add((need["skill"], need["script"]))
-            if need["skill"] == name or target is None:
-                failures.append(f"{name} : requires vise un skill inconnu ou lui-même « {need['skill']} »")
-            elif need["script"].startswith("lib/"):
-                if not (ROOT / "skills" / need["skill"] / "scripts" / need["script"]).is_file():
-                    failures.append(f"{name} : requires vise le module {need['skill']}/scripts/{need['script']}, introuvable")
-            elif need["script"] not in {s["name"] for s in target.get("scripts", [])}:
-                failures.append(f"{name} : requires vise {need['skill']}/{need['script']}, absent de son contrat")
-        for script in contract.get("scripts", []):
-            source = (script.get("input") or {}).get("same_as")
-            if source and source.startswith("shared/schemas/"):
-                if not (ROOT / source).is_file():
-                    failures.append(f"{name}/{script['name']} : input.same_as « {source} » introuvable")
-            elif source and source.split("/", 1)[0] != name and tuple(source.split("/", 1)) not in required:
-                failures.append(f"{name}/{script['name']} : input.same_as « {source} » absent de requires")
-        for handoff in contract.get("handoffs", []):
-            known = {"skill": skills, "agent": agents, "utilisateur": {"utilisateur"},
-                     "externe": externals}[handoff["kind"]]
-            if handoff["to"] not in known:
-                failures.append(f"{name} : passe la main à {handoff['kind']} inconnu « {handoff['to']} »")
-            elif handoff["kind"] == "externe":
-                # Le skill externe se lance avec l'interpréteur de l'appelant : ses dépendances
-                # doivent figurer dans l'en-tête PEP 723 d'un script du skill.
-                headers = " ".join(p.read_text(encoding="utf-8").split("# ///")[1]
-                                   for p in (ROOT / "skills" / name / "scripts").glob("*.py")
-                                   if p.read_text(encoding="utf-8").startswith("# /// script"))
-                failures += [f"{name} : dépendance {d} du skill externe {handoff['to']} absente des en-têtes PEP 723"
-                             for d in externals[handoff["to"]].get("dependencies", []) if f'"{d}"' not in headers]
+        failures += _script_failures(name, contract)
+        failures += _requires_failures(name, contract, skills)
+        failures += _handoff_failures(name, contract, skills, agents, externals)
+    return failures
 
-    # Ontologie du vault : conforme à son schéma et cohérente ; types écrits déclarés (vault.writes) existants.
+
+def _ontology_failures(skills: dict) -> list[str]:
+    """Ontologie du vault : conforme à son schéma et cohérente ; types écrits déclarés (vault.writes) existants."""
     ontology = json.loads(contracts_lib.VAULT_ONTOLOGY.read_text(encoding="utf-8"))
-    failures += [f"vault-ontology.json : {e}" for e in schema_errors(ontology, contracts_lib.schema("vault-ontology"))]
+    failures = [f"vault-ontology.json : {e}" for e in schema_errors(ontology, contracts_lib.schema("vault-ontology"))]
     kinds = set(ontology.get("types", {}))
     for kind, spec in ontology.get("types", {}).items():
         known = {*ontology["common"], *spec["properties"]}
@@ -318,72 +338,81 @@ def check_contracts() -> dict:
     for name, contract in skills.items():
         failures += [f"{name} : vault.writes vise le type « {k} », absent de l'ontologie du vault"
                      for k in contract.get("vault", {}).get("writes", []) if k not in kinds]
+    return failures
 
-    # Workflows livrés : conformes au schéma de définition, skills et agents existants.
-    journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
-    definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
+
+def _case_failures(skills: dict, agent_cases: list[dict]) -> list[str]:
+    """Chaque script déclaré est lancé par au moins un cas de cases.json (lent compris), chaque cas d'agent se note."""
+    cases_text = (TESTS / "cases.json").read_text(encoding="utf-8")
+    failures = [f"{name} : {script['name']} lancé par aucun cas de tests/cases.json"
+                for name, contract in skills.items() for script in contract.get("scripts", [])
+                if f"/scripts/{script['name']}\"" not in cases_text]
+    failures += [f"agent-cases.json : cas {c['id']} sans contrôle sans modèle (checks), sa note resterait vide"
+                 for c in agent_cases if not c.get("checks")]
+    return failures
+
+
+def _stage_failures(where: str, definition: dict, skills: dict, agents: dict) -> list[str]:
+    """Étapes d'un workflow : after vers des étapes placées avant, skills, agent et scripts de run existants."""
+    failures, seen = [], []
+    for stage in definition.get("stages", []):
+        # after : des étapes placées avant (pas de cycle possible).
+        failures += [f"{where} : étape {stage.get('id')}, after vise « {a} », pas une étape "
+                     "placée avant" for a in stage.get("after", []) if a not in seen]
+        seen.append(stage.get("id"))
+        failures += [f"{where} : étape {stage.get('id')}, skill inconnu « {s} »"
+                     for s in stage.get("skills", []) if s not in skills]
+        if stage.get("agent") and stage["agent"] not in agents:
+            failures.append(f"{where} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
+        # run : contrôles lancés par journal.py check, scripts déclarés dans le contrat d'un skill de l'étape.
+        for entry in stage.get("run", []):
+            declared = {s["name"] for s in skills.get(entry.get("skill"), {}).get("scripts", [])}
+            if entry.get("skill") not in stage.get("skills", []):
+                failures.append(f"{where} : étape {stage.get('id')}, run vise « {entry.get('skill')} », "
+                                "absent des skills de l'étape")
+            elif entry.get("script") not in declared:
+                failures.append(f"{where} : étape {stage.get('id')}, run vise {entry.get('skill')}/"
+                                f"{entry.get('script')}, absent de son contrat")
+    return failures
+
+
+def _workflow_failures(skills: dict, agents: dict, agent_cases: list[dict]) -> list[str]:
+    """Workflows livrés : conformes au schéma de définition, documentés, joués par un cas d'agent."""
     from agents_lib import parse_agent as parse, split_list as split
 
+    failures = []
+    journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
+    definition_schema = {**journal_input["$defs"]["definition"], "$defs": journal_input["$defs"]}
     engine = set(split(parse(ROOT / "src" / "agents" / "architecture-workflow.md")[0].get("skills", "")))
     # Chaque workflow a au moins un cas d'agent (id workflow-<nom> ou bout-en-bout-<nom>, ou champ workflow) :
     # sa définition seule ne dit pas si un vrai agent sait la suivre.
-    # Chaque script déclaré est lancé par au moins un cas de cases.json (lent compris).
-    cases_text = (TESTS / "cases.json").read_text(encoding="utf-8")
-    failures += [f"{name} : {script['name']} lancé par aucun cas de tests/cases.json"
-                 for name, contract in skills.items() for script in contract.get("scripts", [])
-                 if f"/scripts/{script['name']}\"" not in cases_text]
-    agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
-    failures += [f"agent-cases.json : cas {c['id']} sans contrôle sans modèle (checks), sa note resterait vide"
-                 for c in agent_cases if not c.get("checks")]
     played = {c.get("workflow") for c in agent_cases} | {c["id"].removeprefix(p) for c in agent_cases
                                                          for p in ("workflow-", "bout-en-bout-") if c["id"].startswith(p)}
     workflows_doc = (ROOT / "skills" / "decision-log" / "references" / "workflows.md").read_text(encoding="utf-8")
     for path in sorted((ROOT / "skills" / "decision-log" / "workflows").glob("*.json")):
-        definition = json.loads(path.read_text(encoding="utf-8"))
+        definition, where = json.loads(path.read_text(encoding="utf-8")), f"workflows/{path.name}"
         if f"| `{path.stem}` |" not in workflows_doc:
-            failures.append(f"workflows/{path.name} : absent du tableau de decision-log/references/workflows.md")
+            failures.append(f"{where} : absent du tableau de decision-log/references/workflows.md")
         if path.stem not in played:
-            failures.append(f"workflows/{path.name} : aucun cas d'agent dans tests/agent-cases.json "
+            failures.append(f"{where} : aucun cas d'agent dans tests/agent-cases.json "
                             f"(id workflow-{path.stem}, ou champ workflow)")
         for stage in definition.get("stages", []):
             if not stage.get("level"):
-                failures.append(f"workflows/{path.name} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
-            failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill « {s} » absent des skills "
+                failures.append(f"{where} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
+            failures += [f"{where} : étape {stage.get('id')}, skill « {s} » absent des skills "
                          "de l'agent architecture-workflow" for s in stage.get("skills", [])
                          if s in skills and s not in engine]
-        failures += [f"workflows/{path.name} : {e}" for e in schema_errors(definition, definition_schema)]
+        failures += [f"{where} : {e}" for e in schema_errors(definition, definition_schema)]
         if definition.get("name") != path.stem:
-            failures.append(f"workflows/{path.name} : name = {definition.get('name')!r}, attendu {path.stem!r}")
-        seen: list = []
-        for stage in definition.get("stages", []):
-            # after : des étapes placées avant (pas de cycle possible).
-            failures += [f"workflows/{path.name} : étape {stage.get('id')}, after vise « {a} », pas une étape "
-                         "placée avant" for a in stage.get("after", []) if a not in seen]
-            seen.append(stage.get("id"))
-            failures += [f"workflows/{path.name} : étape {stage.get('id')}, skill inconnu « {s} »"
-                         for s in stage.get("skills", []) if s not in skills]
-            if stage.get("agent") and stage["agent"] not in agents:
-                failures.append(f"workflows/{path.name} : étape {stage.get('id')}, agent inconnu « {stage['agent']} »")
-            # run : contrôles lancés par journal.py check, scripts déclarés dans le contrat d'un skill de l'étape.
-            for entry in stage.get("run", []):
-                declared = {s["name"] for s in skills.get(entry.get("skill"), {}).get("scripts", [])}
-                if entry.get("skill") not in stage.get("skills", []):
-                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise « {entry.get('skill')} », "
-                                    "absent des skills de l'étape")
-                elif entry.get("script") not in declared:
-                    failures.append(f"workflows/{path.name} : étape {stage.get('id')}, run vise {entry.get('skill')}/"
-                                    f"{entry.get('script')}, absent de son contrat")
+            failures.append(f"{where} : name = {definition.get('name')!r}, attendu {path.stem!r}")
+        failures += _stage_failures(where, definition, skills, agents)
+    return failures
 
-    for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md"):
-        if path.stem not in agents:
-            failures.append(f"agent {path.stem} : pas de {path.stem}.contract.json")
-    for name, contract in agents.items():
-        failures += [f"agent {name} : {e}" for e in schema_errors(contract, schemas["agent-contract"])]
 
-    failures += [f"exemple de message de passage : {e}"
-                 for e in schema_errors(contracts_lib.HANDOFF_EXAMPLE, schemas["handoff"])]
-    failures += [f"exemple de rapport final : {e}"
-                 for e in schema_errors(contracts_lib.REPORT_EXAMPLE, schemas["agent-report"], registry)]
+def _stale_files(skills: dict, agents: dict) -> list[str]:
+    """Fichiers générés par build.py qui ne sont plus à jour."""
+    from agents_lib import parse_agent, source_agents
+    from workflow_docs import DOCS, workflow_docs
 
     stale = []
     for name, contract in skills.items():
@@ -396,8 +425,6 @@ def check_contracts() -> dict:
                        **contracts_lib.plugin_manifests(), **contracts_lib.gitattributes()}.items():
         if not copy.exists() or copy.read_text(encoding="utf-8") != text:
             stale.append(copy.relative_to(ROOT).as_posix())
-    from agents_lib import parse_agent, source_agents
-
     meta = {parse_agent(src)[0]["name"]: parse_agent(src)[0] for src in source_agents()}
     for file, expected in (("CATALOG.md", contracts_lib.build_catalog_md(meta)),
                            ("catalog.json", contracts_lib.build_catalog_json(meta)),
@@ -405,19 +432,19 @@ def check_contracts() -> dict:
         target = ROOT / file
         if not target.exists() or target.read_text(encoding="utf-8") != expected:
             stale.append(file)
-    from workflow_docs import DOCS, workflow_docs
-
     docs = workflow_docs()
     for path, expected in docs.items():
         if not path.exists() or path.read_text(encoding="utf-8") != expected:
             stale.append(path.relative_to(ROOT).as_posix())
-    stale += [p.relative_to(ROOT).as_posix() for p in DOCS.glob("*.md") if p not in docs]
-    if stale:
-        failures.append(f"pas à jour, lancez uv run scripts/build.py : {', '.join(stale)}")
-    # Fournisseurs des descriptions cloud : les quatre à icônes officielles et les hébergeurs dessinables du
-    # catalogue commun (shared/providers.json), partout les mêmes.
+    return stale + [p.relative_to(ROOT).as_posix() for p in DOCS.glob("*.md") if p not in docs]
+
+
+def _provider_failures(skills: dict) -> list[str]:
+    """Fournisseurs des descriptions cloud : les quatre à icônes officielles et les hébergeurs dessinables du
+    catalogue commun (shared/providers.json), partout les mêmes."""
     catalog = json.loads((ROOT / "shared" / "providers.json").read_text(encoding="utf-8"))
     expected = ["aws", "azure", "gcp", "k8s"] + [k for k, v in catalog["providers"].items() if "diagram" in v]
+    failures = []
 
     def provider_enums(node, where):
         if isinstance(node, dict):
@@ -431,6 +458,36 @@ def check_contracts() -> dict:
                 provider_enums(value, where)
     for name, contract in skills.items():
         provider_enums(contract, f"skills/{name}/contract.json")
+    return failures
+
+
+def check_contracts() -> dict:
+    """Contrats valides, cohérents entre eux, et fichiers générés à jour."""
+    schemas = {name: contracts_lib.schema(name)
+               for name in ("skill-contract", "agent-contract", "handoff", "agent-report", "external-skill")}
+    registry = Registry().with_resources(
+        (f"{name}.schema.json", Resource.from_contents(value)) for name, value in schemas.items())
+    skills, agents = contracts_lib.skill_contracts(), contracts_lib.agent_contracts()
+    externals = contracts_lib.external_contracts()
+    agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
+
+    failures = _external_failures(externals, skills, schemas["external-skill"])
+    failures += _skill_failures(skills, agents, externals, schemas["skill-contract"])
+    failures += _ontology_failures(skills)
+    failures += _case_failures(skills, agent_cases)
+    failures += _workflow_failures(skills, agents, agent_cases)
+    failures += [f"agent {path.stem} : pas de {path.stem}.contract.json"
+                 for path in contracts_lib.REPO.joinpath("src", "agents").glob("*.md") if path.stem not in agents]
+    for name, contract in agents.items():
+        failures += [f"agent {name} : {e}" for e in schema_errors(contract, schemas["agent-contract"])]
+    failures += [f"exemple de message de passage : {e}"
+                 for e in schema_errors(contracts_lib.HANDOFF_EXAMPLE, schemas["handoff"])]
+    failures += [f"exemple de rapport final : {e}"
+                 for e in schema_errors(contracts_lib.REPORT_EXAMPLE, schemas["agent-report"], registry)]
+    stale = _stale_files(skills, agents)
+    if stale:
+        failures.append(f"pas à jour, lancez uv run scripts/build.py : {', '.join(stale)}")
+    failures += _provider_failures(skills)
     return {"id": "contrats", "skill": "tous", "ok": not failures, "failures": failures, "out": None}
 
 
@@ -444,11 +501,8 @@ VAULT_IMPORT = (r"^\s*(import\s+(lib\.)?vault_ontology\b|from\s+(lib\.)?vault_on
                 r'|vault_ontology\s*=\s*require_module\("markdown-to-obsidian",\s*"lib/vault_ontology\.py"\))')
 
 
-def check_rules() -> dict:
-    """Règles mécaniques d'AGENTS.md, celles marquées « vérifiée »."""
-    from agents_lib import parse_agent, render_agent, source_agents, split_list
-
-    failures, notices = [], []
+def _skill_md_rules(failures: list, notices: list) -> None:
+    """SKILL.md au format Agent Skills, dans son budget, et scripts à en-tête PEP 723."""
     for folder in sorted((ROOT / "skills").glob("*/")):
         name, skill_md = folder.name, folder / "SKILL.md"
         if not NAME.match(name):
@@ -474,8 +528,11 @@ def check_rules() -> dict:
         for script in sorted((folder / "scripts").glob("*.py")):
             if not script.read_text(encoding="utf-8").startswith("# /// script"):
                 failures.append(f"{name}/scripts/{script.name} : en-tête PEP 723 (# /// script) manquant")
-    # Un script n'atteint un autre skill que par skill_paths, et seulement si requires le déclare.
-    contracts, generated = contracts_lib.skill_contracts(), set(contracts_lib.generated_libs())
+
+
+def _skill_path_rules(failures: list, contracts: dict) -> None:
+    """Un script n'atteint un autre skill que par skill_paths, et seulement si requires le déclare."""
+    generated = set(contracts_lib.generated_libs())
     for name, contract in contracts.items():
         declared = {(need["skill"], need["script"]) for need in contract.get("requires", [])}
         for path in sorted((ROOT / "skills" / name / "scripts").rglob("*.py")):
@@ -493,6 +550,10 @@ def check_rules() -> dict:
                          if (skill, script) not in declared]
             if re.search(r"\bexport_image\(", code) and ("diagram-export", "export.py") not in declared:
                 failures.append(f"{where} : export_image (diagram-export/export.py) absent de requires dans contract.json")
+
+
+def _single_source_rules(failures: list) -> None:
+    """Modules et données à source unique : une seule copie, dans le skill porteur."""
     # Modules et données à source unique (ontologie du vault, espace de travail, modèles locaux, hébergeurs) :
     # une seule copie, dans le skill porteur ; les autres skills la chargent par skill_paths et requires.
     for file, (owner, _) in contracts_lib.SINGLE_SOURCES.items():
@@ -501,6 +562,10 @@ def check_rules() -> dict:
                 call = "require_module" if file.endswith(".py") else "require_file"
                 failures.append(f"{copy.relative_to(ROOT).as_posix()} : copie d'une source unique, chargez-la par "
                                 f"{call}(\"{owner}\", \"lib/{file}\") et requires")
+
+
+def _vault_rules(failures: list, contracts: dict) -> None:
+    """Un script qui touche au vault passe par l'ontologie et prend le vault de la mission."""
     # Un script qui touche au vault passe par l'ontologie : import de vault_ontology et champ vault du contrat.
     for name, contract in contracts.items():
         for path in sorted((ROOT / "skills" / name / "scripts").glob("*.py")):
@@ -519,6 +584,10 @@ def check_rules() -> dict:
                         and "def sync(" not in code:
                     failures.append(f"{name}/scripts/{path.name} : option --vault sans workspace.vault_target "
                                     "(vault de la mission par défaut)")
+
+
+def _report_rules(failures: list, contracts: dict) -> None:
+    """Rapport JSON à schéma, errors et warnings ; description JSON à schéma d'entrée et --schema."""
     for name, contract in contracts.items():
         for script in contract.get("scripts", []):
             if script["report"]["format"] == "json" and not script["report"].get("schema"):
@@ -537,6 +606,9 @@ def check_rules() -> dict:
             if script.get("input") and "--schema" not in script["usage"]:
                 failures.append(f"{name}/{script['name']} : option --schema absente du usage")
 
+
+def _neighbour_rules(failures: list, contracts: dict) -> None:
+    """Commande d'un SKILL.md vers le script d'un skill voisin : script existant, skill déclaré."""
     # Commande d'un SKILL.md vers le script d'un skill voisin (../<skill>/scripts/<script>) : le script existe et
     # le skill est déclaré dans le contrat (requires ou passage de main).
     for name, contract in contracts.items():
@@ -549,6 +621,11 @@ def check_rules() -> dict:
             elif other not in linked:
                 failures.append(f"{name}/SKILL.md : appelle ../{other}/scripts/{script} sans déclarer {other} "
                                 "dans requires ou handoffs du contrat")
+
+
+def _agent_rules(failures: list, notices: list) -> None:
+    """Agents : nom, import et export séparés, pas de web, budget, niveaux, commandes."""
+    from agents_lib import parse_agent, render_agent, source_agents, split_list
 
     for src in source_agents():
         meta = parse_agent(src)[0]
@@ -574,7 +651,9 @@ def check_rules() -> dict:
         failures += [f"agent {name} : commande réseau autorisée « {c} »"
                      for c in ("curl", "wget", "invoke-webrequest") if c in commands]
 
-    # Versions : release-please les monte toutes ensemble, depuis son manifeste.
+
+def _version_rules(failures: list) -> None:
+    """Versions : release-please les monte toutes ensemble, depuis son manifeste."""
     plugin_version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
     released = json.loads((ROOT / ".release-please-manifest.json").read_text(encoding="utf-8")).get(".")
     if released != plugin_version:
@@ -589,6 +668,9 @@ def check_rules() -> dict:
         failures.append("CHANGELOG.md : section « Non publié » ; le journal est écrit par release-please "
                         "depuis les titres de PR (Conventional Commits)")
 
+
+def _network_rules(failures: list) -> None:
+    """Playwright seulement, aucun envoi ni téléchargement non maîtrisé, et guard_network() tient."""
     for path in sorted([*(ROOT / "skills").rglob("*"), *(ROOT / "src").rglob("*")]):
         if path.is_file() and path.suffix in {".md", ".py", ".json"}:
             if "puppeteer" in path.read_text(encoding="utf-8", errors="replace").lower():
@@ -621,6 +703,21 @@ def check_rules() -> dict:
                            env={**os.environ, "HTTPS_PROXY": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9"})
     if probe.stdout.strip() != "ok":
         failures.append(f"model_store.guard_network() ne filtre pas les flux : {(probe.stdout + probe.stderr).strip()[-300:]}")
+
+
+def check_rules() -> dict:
+    """Règles mécaniques d'AGENTS.md, celles marquées « vérifiée »."""
+    failures, notices = [], []
+    contracts = contracts_lib.skill_contracts()
+    _skill_md_rules(failures, notices)
+    _skill_path_rules(failures, contracts)
+    _single_source_rules(failures)
+    _vault_rules(failures, contracts)
+    _report_rules(failures, contracts)
+    _neighbour_rules(failures, contracts)
+    _agent_rules(failures, notices)
+    _version_rules(failures)
+    _network_rules(failures)
     return {"id": "regles", "skill": "tous", "ok": not failures, "failures": failures, "out": None,
             "notices": notices}
 

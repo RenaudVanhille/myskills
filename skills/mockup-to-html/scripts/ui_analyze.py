@@ -845,20 +845,29 @@ def short(text: str, size: int = 32) -> str:
     return text if len(text) <= size else text[:size - 1] + "…"
 
 
-def structure(mockup: dict, render: dict, dom: dict, scale: float, theme: dict | None = None) -> dict:
-    """Compare l'analyse de la maquette à celle du rendu ; écarts rattachés aux nœuds de la description.
+class _Views:
+    """Le rendu ramené aux pixels de la maquette, et les écarts relevés au fil de la comparaison."""
 
-    Coordonnées en pixels de la maquette ; les messages les donnent en px CSS (divisés par scale).
-    """
-    css = lambda v: round(v / scale)  # noqa: E731
-    dom_nodes = [{**n, **{k: n[k] * scale for k in ("x", "y", "width", "height")}} for n in dom.get("nodes", [])]
-    dom_words = [{**w, **{k: w[k] * scale for k in ("x", "y", "width", "height")}} for w in dom.get("words", [])]
-    tops = [n for n in dom_nodes if n["node"].count("/") == 1]
-    issues: list[dict] = []
-    parts: dict = {"texts": None, "positions": None, "bands": None, "frames": None}
+    def __init__(self, dom: dict, scale: float):
+        self.scale = scale
+        self.css = lambda v: round(v / scale)
+        self.nodes = [{**n, **{k: n[k] * scale for k in ("x", "y", "width", "height")}} for n in dom.get("nodes", [])]
+        self.words = [{**w, **{k: w[k] * scale for k in ("x", "y", "width", "height")}} for w in dom.get("words", [])]
+        self.tops = [n for n in self.nodes if n["node"].count("/") == 1]
+        self.issues: list[dict] = []
+        self.shifts: list[tuple[float, float]] = []  # (y de la bande dans la maquette, décalage du rendu)
 
-    # Bandes : appariées dans l'ordre par couleur de fond ; décalage vertical propagé aux contenus.
-    shifts: list[tuple[float, float]] = []  # (y de la bande dans la maquette, décalage du rendu)
+    def shift_at(self, y: float) -> float:
+        best = 0.0
+        for top, value in self.shifts:
+            if top <= y:
+                best = value
+        return best
+
+
+def compare_bands(mockup: dict, render: dict, view: _Views) -> float | None:
+    """Bandes : appariées dans l'ordre par couleur de fond ; décalage vertical propagé aux contenus."""
+    css, scale, tops, issues, shifts = view.css, view.scale, view.tops, view.issues, view.shifts
     j, weight, got = 0, 0.0, 0.0
     for band in mockup["bands"]:
         if band["height"] < MIN_BAND:
@@ -889,16 +898,13 @@ def structure(mockup: dict, render: dict, dom: dict, scale: float, theme: dict |
             issues.append({"node": node, "kind": "band",
                            "message": f"{node or 'bande'} : hauteur {css(other['height'])} px au lieu de "
                                       f"{css(band['height'])} ({hint})"})
-    parts["bands"] = round(got / weight, 3) if weight else None
+    return round(got / weight, 3) if weight else None
 
-    def shift_at(y: float) -> float:
-        best = 0.0
-        for top, value in shifts:
-            if top <= y:
-                best = value
-        return best
 
-    # Cadres : meilleur recouvrement, une fois le décalage de la bande retiré.
+def compare_frames(mockup: dict, render: dict, view: _Views) -> float | None:
+    """Cadres : meilleur recouvrement, une fois le décalage de la bande retiré."""
+    css, scale, dom_nodes, issues = view.css, view.scale, view.nodes, view.issues
+    shift_at = view.shift_at
     area, score = 0.0, 0.0
     for frame in mockup["frames"]:
         size = frame["width"] * frame["height"]
@@ -933,80 +939,104 @@ def structure(mockup: dict, render: dict, dom: dict, scale: float, theme: dict |
                            "message": f"{node or label} : {css(other['width'])}×{css(other['height'])} px au lieu de "
                                       f"{css(frame['width'])}×{css(frame['height'])}"
                                       + (f", décalé de ({css(dx)}, {css(dy)})" if abs(dx) + abs(dy) > 6 * scale else "")})
-    parts["frames"] = round(score / area, 3) if area else None
+    return round(score / area, 3) if area else None
 
-    # Textes : présents dans le DOM (texte exact) ; position et taille comparées encre contre encre (OCR des deux).
+
+def compare_words(mockup: dict, view: _Views) -> float | None:
+    """Textes de la maquette présents dans le DOM (texte exact), et textes du rendu absents de la maquette."""
+    css, dom_nodes, dom_words, issues = view.css, view.nodes, view.words, view.issues
+    shift_at = view.shift_at
+    dom_norms = [norm(w["text"]) for w in dom_words]
+    dom_set = set(dom_norms)
+    total, present = 0, 0
+    for line in mockup["texts"]:
+        missing = []
+        for word in line["words"]:
+            key = norm(word["text"])
+            if len(key) < 2:
+                continue
+            total += 1
+            if key in dom_set or difflib.get_close_matches(key, dom_set, n=1, cutoff=0.8):
+                present += 1
+            else:
+                missing.append(word["text"])
+        if missing and len(missing) >= max(1, len(line["words"]) // 2):
+            node = node_at(dom_nodes, {**line, "y": line["y"] + shift_at(line["y"])})
+            issues.append({"node": node, "kind": "text-missing",
+                           "message": f"texte « {short(line['text'])} » (y {css(line['y'])}, {css(line['font_px'])} px) "
+                                      f"absent du rendu" + (f", près de {node}" if node else "")})
+    found = round(present / total, 3) if total else None
+    mockup_norms = {norm(w["text"]) for line in mockup["texts"] for w in line["words"]}
+    extra: dict[str, list[str]] = {}
+    for word, key in zip(dom_words, dom_norms):
+        if len(key) >= 3 and key not in mockup_norms and not difflib.get_close_matches(key, mockup_norms, n=1, cutoff=0.8):
+            extra.setdefault(word.get("node") or "?", []).append(word["text"])
+    for node, words in list(extra.items())[:4]:
+        issues.append({"node": None if node == "?" else node, "kind": "text-extra",
+                       "message": f"{node} : texte « {short(' '.join(words))} » absent de la maquette (inventé ou mal lu)"})
+    return found
+
+
+def compare_positions(mockup: dict, render: dict, view: _Views, theme: dict | None) -> float | None:
+    """Position et taille des textes, encre contre encre (OCR de la maquette et du rendu)."""
+    css, scale, dom_nodes, dom_words, issues = view.css, view.scale, view.nodes, view.words, view.issues
+    shift_at = view.shift_at
+    checked, good = 0, 0
+    seen_nodes: set[str] = set()
+    for line in mockup["texts"]:
+        options = [(difflib.SequenceMatcher(None, line["text"].casefold(), r["text"].casefold()).ratio(), r)
+                   for r in render["texts"]]
+        options = [o for o in options if o[0] >= 0.8]
+        if not options:
+            continue
+        ratio, other = min(options, key=lambda o: abs(o[1]["y"] - line["y"]) + abs(o[1]["x"] - line["x"]) - 100 * o[0])
+        checked += 1
+        dx = other["x"] - line["x"]
+        dy = other["y"] - line["y"] - shift_at(line["y"])
+        size = other["font_px"] / line["font_px"] if line["font_px"] else 1.0
+        word = other["words"][0] if other.get("words") else other
+        hit = next((w for w in dom_words if inside(word, w, 2)), None)
+        node = hit["node"] if hit else node_at(dom_nodes, other)
+        notes = []
+        if abs(dy) > max(8 * scale, 0.5 * line["font_px"]):
+            notes.append(f"{css(abs(dy))} px trop {'bas' if dy > 0 else 'haut'}")
+        if abs(dx) > max(8 * scale, 0.5 * line["font_px"]):
+            notes.append(f"{css(abs(dx))} px trop à {'droite' if dx > 0 else 'gauche'}")
+        kind = "text-offset"
+        if not 0.87 <= size <= 1.15:
+            kind = "text-size"
+            want = line["font_px"] / scale
+            token = ""
+            if theme:
+                sizes = theme["font_sizes"]
+                token = min(sizes, key=lambda n: abs(sizes[n] - want))
+                token = f", token {token}"
+            notes.append(f"police {'trop grande' if size > 1 else 'trop petite'} ({round(want)} px attendus{token})")
+        good += max(0.0, 1 - (abs(dx) + abs(dy)) / (3 * line["font_px"])) * max(0.0, 1 - 2 * abs(size - 1))
+        if not notes:
+            continue
+        if node in seen_nodes:
+            continue
+        seen_nodes.add(node or "")
+        issues.append({"node": node, "kind": kind,
+                       "message": f"{node or 'texte'} « {short(line['text'], 24)} » : " + ", ".join(notes)})
+    return round(good / checked, 3) if checked else None
+
+
+def structure(mockup: dict, render: dict, dom: dict, scale: float, theme: dict | None = None) -> dict:
+    """Compare l'analyse de la maquette à celle du rendu ; écarts rattachés aux nœuds de la description.
+
+    Coordonnées en pixels de la maquette ; les messages les donnent en px CSS (divisés par scale).
+    """
+    view = _Views(dom, scale)
+    parts: dict = {"texts": None, "positions": None, "bands": None, "frames": None}
+    parts["bands"] = compare_bands(mockup, render, view)
+    parts["frames"] = compare_frames(mockup, render, view)
     if mockup.get("ocr") and mockup["texts"]:
-        dom_norms = [norm(w["text"]) for w in dom_words]
-        dom_set = set(dom_norms)
-        total, present = 0, 0
-        for line in mockup["texts"]:
-            missing = []
-            for word in line["words"]:
-                key = norm(word["text"])
-                if len(key) < 2:
-                    continue
-                total += 1
-                if key in dom_set or difflib.get_close_matches(key, dom_set, n=1, cutoff=0.8):
-                    present += 1
-                else:
-                    missing.append(word["text"])
-            if missing and len(missing) >= max(1, len(line["words"]) // 2):
-                node = node_at(dom_nodes, {**line, "y": line["y"] + shift_at(line["y"])})
-                issues.append({"node": node, "kind": "text-missing",
-                               "message": f"texte « {short(line['text'])} » (y {css(line['y'])}, {css(line['font_px'])} px) "
-                                          f"absent du rendu" + (f", près de {node}" if node else "")})
-        parts["texts"] = round(present / total, 3) if total else None
-        mockup_norms = {norm(w["text"]) for line in mockup["texts"] for w in line["words"]}
-        extra: dict[str, list[str]] = {}
-        for word, key in zip(dom_words, dom_norms):
-            if len(key) >= 3 and key not in mockup_norms and not difflib.get_close_matches(key, mockup_norms, n=1, cutoff=0.8):
-                extra.setdefault(word.get("node") or "?", []).append(word["text"])
-        for node, words in list(extra.items())[:4]:
-            issues.append({"node": None if node == "?" else node, "kind": "text-extra",
-                           "message": f"{node} : texte « {short(' '.join(words))} » absent de la maquette (inventé ou mal lu)"})
-        checked, good = 0, 0
-        seen_nodes: set[str] = set()
-        for line in mockup["texts"]:
-            options = [(difflib.SequenceMatcher(None, line["text"].casefold(), r["text"].casefold()).ratio(), r)
-                       for r in render["texts"]]
-            options = [o for o in options if o[0] >= 0.8]
-            if not options:
-                continue
-            ratio, other = min(options, key=lambda o: abs(o[1]["y"] - line["y"]) + abs(o[1]["x"] - line["x"]) - 100 * o[0])
-            checked += 1
-            dx = other["x"] - line["x"]
-            dy = other["y"] - line["y"] - shift_at(line["y"])
-            size = other["font_px"] / line["font_px"] if line["font_px"] else 1.0
-            word = other["words"][0] if other.get("words") else other
-            hit = next((w for w in dom_words if inside(word, w, 2)), None)
-            node = hit["node"] if hit else node_at(dom_nodes, other)
-            notes = []
-            if abs(dy) > max(8 * scale, 0.5 * line["font_px"]):
-                notes.append(f"{css(abs(dy))} px trop {'bas' if dy > 0 else 'haut'}")
-            if abs(dx) > max(8 * scale, 0.5 * line["font_px"]):
-                notes.append(f"{css(abs(dx))} px trop à {'droite' if dx > 0 else 'gauche'}")
-            kind = "text-offset"
-            if not 0.87 <= size <= 1.15:
-                kind = "text-size"
-                want = line["font_px"] / scale
-                token = ""
-                if theme:
-                    sizes = theme["font_sizes"]
-                    token = min(sizes, key=lambda n: abs(sizes[n] - want))
-                    token = f", token {token}"
-                notes.append(f"police {'trop grande' if size > 1 else 'trop petite'} ({round(want)} px attendus{token})")
-            good += max(0.0, 1 - (abs(dx) + abs(dy)) / (3 * line["font_px"])) * max(0.0, 1 - 2 * abs(size - 1))
-            if not notes:
-                continue
-            if node in seen_nodes:
-                continue
-            seen_nodes.add(node or "")
-            issues.append({"node": node, "kind": kind,
-                           "message": f"{node or 'texte'} « {short(line['text'], 24)} » : " + ", ".join(notes)})
-        parts["positions"] = round(good / checked, 3) if checked else None
-    issues.sort(key=lambda i: SEVERITY[i["kind"]])
-    return {"parts": parts, "issues": issues}
+        parts["texts"] = compare_words(mockup, view)
+        parts["positions"] = compare_positions(mockup, render, view, theme)
+    view.issues.sort(key=lambda i: SEVERITY[i["kind"]])
+    return {"parts": parts, "issues": view.issues}
 
 
 def from_hex(value: str) -> tuple[int, int, int]:
