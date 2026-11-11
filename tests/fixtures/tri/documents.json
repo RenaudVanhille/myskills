@@ -1,0 +1,185 @@
+{
+ "_doc": "Jeu étiqueté pour mesurer le tri des documents (tests/classify_eval.py) : type et domaine attendus de classify.py (skill doc-to-markdown), sur le début de documents fictifs, en français et quelques-uns en anglais. domaine null : aucun domaine attendu (toute réponse retenue est comptée fausse seulement pour le type). Les pièges sont voulus : un compte rendu qui parle de sécurité, un contrat technique, un support en diapositives sur l'architecture.",
+ "documents": [
+  {
+   "name": "cahier-des-charges-portail.md",
+   "type": "specification",
+   "domaine": "metier",
+   "text": "# Cahier des charges : portail de déclaration de sinistres L'assuré doit pouvoir déclarer un sinistre en moins de dix minutes depuis son espace personnel. Le portail doit proposer le dépôt de photos et de factures. Le gestionnaire doit être averti de chaque nouvelle déclaration. Les besoins des agences ont été recueillis lors de trois ateliers avec les conseillers ; les parcours prioritaires sont la déclaration, le suivi du dossier et la prise de rendez-vous avec un expert."
+  },
+  {
+   "name": "specification-api-paiement.md",
+   "type": "specification",
+   "domaine": "developpement",
+   "text": "# Spécification de l'API de paiement, version 2 L'API expose les ressources /payments et /refunds en REST. Chaque requête POST doit porter un en-tête Idempotency-Key. Le service doit répondre en moins de 300 ms au 95e centile. Les erreurs suivent le format RFC 7807. Les tests de contrat sont fournis sous forme de collection ; le SDK Java et le SDK TypeScript sont générés à partir du fichier OpenAPI."
+  },
+  {
+   "name": "exigences-securite.md",
+   "type": "specification",
+   "domaine": "securite",
+   "text": "# Exigences de sécurité applicables au projet EXG-SEC-01 : l'authentification des agents doit reposer sur une double authentification. EXG-SEC-02 : les données de santé doivent être chiffrées au repos et en transit. EXG-SEC-03 : les journaux d'accès sont conservés un an. EXG-SEC-04 : un test d'intrusion est exigé avant chaque mise en production majeure. Toute dérogation est soumise au RSSI."
+  },
+  {
+   "name": "dat-plateforme-donnees.md",
+   "type": "architecture",
+   "domaine": "donnees",
+   "text": "# Dossier d'architecture technique : plateforme de données La plateforme retient une architecture en médaillon : zone brute, zone raffinée, zone d'exposition. Les flux sont ingérés par lots chaque nuit et en continu pour les événements de contrat. Le choix d'un entrepôt en colonnes plutôt qu'un lac seul est justifié par les usages de reporting réglementaire. Le schéma des composants figure en annexe, avec le modèle en étoile des ventes."
+  },
+  {
+   "name": "adr-012-bus-evenements.md",
+   "type": "architecture",
+   "domaine": "architecture",
+   "text": "# ADR 012 : bus d'événements entre les domaines Contexte : les domaines Contrats et Sinistres s'appellent en synchrone, ce qui couple leurs disponibilités. Décision : introduire un bus d'événements et le patron outbox. Options écartées : appels REST avec file de reprise, base partagée. Conséquences : cohérence à terme entre les domaines, nouvelle compétence d'exploitation, schémas d'événements versionnés."
+  },
+  {
+   "name": "architecture-reseau-cloud.md",
+   "type": "architecture",
+   "domaine": "infrastructure",
+   "text": "# Architecture réseau de la zone d'atterrissage La zone d'atterrissage repose sur un réseau en étoile : un VPC de transit, trois VPC applicatifs et une liaison privée vers le datacenter. Les sous-réseaux publics n'hébergent que les répartiteurs de charge. Le choix de deux zones de disponibilité plutôt que trois est motivé par le coût. Les composants et leurs flux sont décrits dans le schéma de déploiement."
+  },
+  {
+   "name": "guide-deploiement.md",
+   "type": "procedure",
+   "domaine": "infrastructure",
+   "text": "# Guide de déploiement en production 1. Vérifier que la fenêtre de changement est ouverte. 2. Lancer le pipeline « release » avec le numéro de version. 3. Attendre la fin des tests de fumée. 4. Basculer 10 % du trafic, surveiller le taux d'erreurs pendant quinze minutes. 5. En cas d'anomalie, exécuter la procédure de retour arrière décrite à la section 6. Les accès au cluster sont demandés la veille."
+  },
+  {
+   "name": "mode-operatoire-sauvegarde.md",
+   "type": "procedure",
+   "domaine": "infrastructure",
+   "text": "# Mode opératoire : restauration d'une sauvegarde de base Ce mode opératoire s'adresse à l'astreinte. Étape 1 : identifier l'instantané à restaurer dans la console. Étape 2 : restaurer sur une instance temporaire. Étape 3 : contrôler le nombre de lignes des tables principales. Étape 4 : basculer l'application. Durée attendue : quarante minutes. Un essai est réalisé chaque trimestre."
+  },
+  {
+   "name": "guide-utilisateur-notes-de-frais.md",
+   "type": "procedure",
+   "domaine": "metier",
+   "text": "# Guide utilisateur : saisir une note de frais Pour saisir une note de frais, ouvrez l'application puis cliquez sur « Nouvelle note ». Photographiez le justificatif : le montant et la date sont reconnus automatiquement. Choisissez la catégorie de dépense, puis envoyez la note à votre responsable. Vous êtes remboursé à la paie suivante si la note est validée avant le 20 du mois."
+  },
+  {
+   "name": "tutoriel-tests-unitaires.md",
+   "type": "procedure",
+   "domaine": "developpement",
+   "text": "# Tutoriel : écrire son premier test unitaire Créez un fichier test_panier.py à côté du module. Importez la fonction à tester, puis écrivez une fonction test_total_vide qui vérifie que le total d'un panier vide vaut zéro. Lancez pytest : le test passe au vert. Ajoutez ensuite un cas avec remise. Astuce : un test par comportement, et un nom qui dit ce qui est attendu."
+  },
+  {
+   "name": "cr-comite-pilotage-mars.md",
+   "type": "compte-rendu",
+   "domaine": "gestion-projet",
+   "text": "# Compte rendu du comité de pilotage du 12 mars Présents : direction métier, DSI, chef de projet, intégrateur. Le planning glisse de trois semaines à cause de la recette. Décision : le lot 2 est reporté après l'été. Le budget consommé atteint 62 %. Actions : le chef de projet présente un planning révisé le 26 mars ; l'intégrateur chiffre le lot 2 bis. Prochain comité le 9 avril."
+  },
+  {
+   "name": "cr-atelier-parcours-souscription.md",
+   "type": "compte-rendu",
+   "domaine": "metier",
+   "text": "# Compte rendu de l'atelier « parcours de souscription » Participants : huit conseillers d'agence et l'équipe produit. Les conseillers ressaisissent aujourd'hui l'adresse du client dans trois écrans. Décision : le devis sera prérempli depuis la fiche client. Question ouverte : faut-il signer en agence ou à distance ? Action : l'équipe produit interroge le service juridique avant le prochain atelier."
+  },
+  {
+   "name": "notes-reunion-incident-securite.md",
+   "type": "compte-rendu",
+   "domaine": "securite",
+   "text": "# Notes de la réunion de crise du 3 février Un compte de service a été utilisé depuis une adresse inconnue dimanche soir. Décisions prises en séance : rotation immédiate des secrets, blocage de l'adresse, revue des journaux sur trente jours. Actions : l'équipe sécurité rédige la notification à l'autorité de contrôle sous 72 heures ; l'exploitation vérifie les sauvegardes. Point de suivi demain à 9 h."
+  },
+  {
+   "name": "cr-revue-de-code.md",
+   "type": "compte-rendu",
+   "domaine": "developpement",
+   "text": "# Compte rendu de la revue de code du sprint 14 Étaient présents les cinq développeurs de l'équipe. Constats : trois fonctions dépassent cent lignes, la couverture de tests du module de tarification est tombée à 54 %. Décisions : pas de fusion sans test sur le calcul de prime ; la bibliothèque de dates est remplacée. Actions : Paul découpe le module, Inès ajoute les tests manquants avant vendredi."
+  },
+  {
+   "name": "presentation-feuille-de-route.md",
+   "type": "presentation",
+   "domaine": "gestion-projet",
+   "text": "# Feuille de route 2027 du programme --- Diapositive 1 : Où en sommes-nous ? Trois jalons tenus sur quatre. --- Diapositive 2 : Les quatre chantiers de 2027, avec leurs budgets. --- Diapositive 3 : Planning par trimestre. --- Diapositive 4 : Risques et arbitrages demandés au comité. --- Diapositive 5 : Prochaines étapes. Merci de votre attention, questions ?"
+  },
+  {
+   "name": "support-formation-rgpd.md",
+   "type": "presentation",
+   "domaine": "securite",
+   "text": "# Sensibilisation au RGPD : support de formation Diapositive 1 : Pourquoi ce module ? Diapositive 2 : Qu'est-ce qu'une donnée personnelle ? Exemples. Diapositive 3 : Les six principes. Diapositive 4 : Que faire en cas de fuite ? Qui prévenir. Diapositive 5 : Quiz. Diapositive 6 : À retenir : verrouillez votre poste, ne transférez pas de fichiers clients sur une messagerie personnelle."
+  },
+  {
+   "name": "slides-architecture-cible.md",
+   "type": "presentation",
+   "domaine": "architecture",
+   "text": "# Architecture cible : présentation au comité d'architecture Slide 1 : le système actuel en un schéma. Slide 2 : les trois limites du monolithe. Slide 3 : la cible, un monolithe modulaire et deux services extraits. Slide 4 : comparaison des options A, B et C. Slide 5 : trajectoire en trois étapes. Slide 6 : décision attendue du comité aujourd'hui."
+  },
+  {
+   "name": "contrat-infogerance.md",
+   "type": "contrat",
+   "domaine": "infrastructure",
+   "text": "# Contrat d'infogérance Entre la société cliente, ci-après « le Client », et le prestataire, ci-après « l'Infogérant », il est convenu ce qui suit. Article 1 : objet. L'Infogérant assure l'hébergement et l'exploitation des serveurs du Client. Article 4 : niveaux de service, disponibilité de 99,9 % mesurée par mois. Article 7 : pénalités. Article 12 : réversibilité. Article 15 : loi applicable et juridiction."
+  },
+  {
+   "name": "devis-developpement-mobile.md",
+   "type": "contrat",
+   "domaine": "developpement",
+   "text": "# Devis n° 2026-118 : application mobile Désignation : conception et développement d'une application mobile iOS et Android, 85 jours à 620 € HT, soit 52 700 € HT. Maintenance corrective la première année : incluse. Conditions : acompte de 30 % à la commande, solde à la recette. Devis valable trois mois. Bon pour accord, date et signature du client."
+  },
+  {
+   "name": "accord-traitement-donnees.md",
+   "type": "contrat",
+   "domaine": "securite",
+   "text": "# Accord de sous-traitance de données personnelles Le présent accord est conclu en application de l'article 28 du RGPD entre le responsable de traitement et le sous-traitant. Article 2 : le sous-traitant ne traite les données que sur instruction documentée. Article 5 : mesures de sécurité, chiffrement et contrôle des accès. Article 8 : notification des violations sous 48 heures. Article 11 : audit. Fait en deux exemplaires."
+  },
+  {
+   "name": "rapport-audit-securite.md",
+   "type": "rapport",
+   "domaine": "securite",
+   "text": "# Rapport d'audit de sécurité du système de facturation L'audit a été mené du 2 au 13 juin par entretiens et tests techniques. Constats : douze vulnérabilités dont deux critiques (injection SQL sur l'export, mots de passe par défaut sur deux serveurs). Le niveau de maturité est jugé insuffisant sur la gestion des correctifs. Recommandations classées par priorité en section 5. Synthèse à l'attention de la direction en page 2."
+  },
+  {
+   "name": "etude-qualite-donnees.md",
+   "type": "rapport",
+   "domaine": "donnees",
+   "text": "# Étude de la qualité des données du référentiel client L'analyse porte sur 1,2 million de fiches. 8 % des adresses électroniques sont invalides, 3 % des fiches sont en double, la date de naissance manque dans 14 % des cas. Les doublons viennent surtout de la reprise de 2019. Nous recommandons une règle de dédoublonnage à la saisie et un tableau de bord mensuel de complétude."
+  },
+  {
+   "name": "bilan-projet-migration.md",
+   "type": "rapport",
+   "domaine": "gestion-projet",
+   "text": "# Bilan du projet de migration de la messagerie Le projet s'est terminé avec six semaines de retard et un dépassement de budget de 9 %. Ce qui a fonctionné : le pilotage par vagues, la communication aux utilisateurs. Ce qui a moins bien marché : l'estimation de la charge de reprise des archives. Enseignements pour les prochains projets : chiffrer la reprise à part, prévoir une vague pilote plus longue."
+  },
+  {
+   "name": "analyse-performance-application.md",
+   "type": "rapport",
+   "domaine": "developpement",
+   "text": "# Analyse des performances de l'application de commande Les mesures ont été prises sur une semaine de production. Le temps de réponse médian est de 420 ms, mais la page panier atteint 3,8 s au 99e centile. Le profilage montre 140 requêtes SQL par affichage, dues à un chargement paresseux dans la boucle des articles. Nous concluons qu'une jointure et un cache de prix ramèneraient la page sous la seconde."
+  },
+  {
+   "name": "rapport-capacite-stockage.md",
+   "type": "rapport",
+   "domaine": "infrastructure",
+   "text": "# Rapport trimestriel de capacité Le stockage objet a crû de 11 % sur le trimestre, à 84 To. Au rythme actuel, la baie du site de secours sera pleine en mars. La charge processeur des nœuds du cluster reste sous 55 % en pointe. Analyse : la croissance vient des journaux applicatifs conservés sans limite. Préconisations : politique de rétention à 90 jours, commande de deux tiroirs."
+  },
+  {
+   "name": "menu-cantine.md",
+   "type": "autre",
+   "domaine": null,
+   "text": "# Menu de la semaine du 16 au 20 novembre Lundi : velouté de potiron, poulet rôti, gratin dauphinois, yaourt. Mardi : carottes râpées, lasagnes végétariennes, compote. Mercredi : salade de lentilles, poisson du jour, riz pilaf, fruit. Jeudi : repas à thème, couscous. Vendredi : œufs mimosa, steak haché, frites, tarte aux pommes. Bon appétit à tous."
+  },
+  {
+   "name": "organigramme-dsi.md",
+   "type": "autre",
+   "domaine": "gestion-projet",
+   "text": "# Organigramme de la direction des systèmes d'information Directeur des systèmes d'information : M. Lambert. Pôle études : 24 personnes, responsable Mme Diallo. Pôle production : 17 personnes, responsable M. Petit. Pôle sécurité : 4 personnes, rattaché au directeur. Bureau des projets : 6 chefs de projet. Mise à jour : septembre."
+  },
+  {
+   "name": "functional-spec-search.md",
+   "type": "specification",
+   "domaine": "developpement",
+   "text": "# Functional specification: product search The search service shall return results within 200 ms for 95 % of queries. The system must support typo tolerance and filtering by category, price and brand. The API shall expose a GET /search endpoint with pagination. Synonyms must be configurable by the merchandising team without a deployment. Out of scope: personalised ranking."
+  },
+  {
+   "name": "meeting-minutes-data-governance.md",
+   "type": "compte-rendu",
+   "domaine": "donnees",
+   "text": "# Minutes of the data governance board, 4 May Attendees: chief data officer, data stewards, IT. The board reviewed the customer master data issues. Decision: the CRM becomes the single source of truth for addresses. Action items: stewards to list the reports that read the legacy table by 18 May; IT to schedule the cut-over. Next meeting on 1 June."
+  },
+  {
+   "name": "runbook-certificate-renewal.md",
+   "type": "procedure",
+   "domaine": "securite",
+   "text": "# Runbook: renewing the TLS certificates Step 1: check the expiry dates with the inventory script. Step 2: generate a new key and a signing request on the bastion host. Step 3: submit the request to the internal certificate authority. Step 4: deploy the certificate to the load balancers and reload. Step 5: verify the chain with openssl. Never copy a private key to a workstation."
+  }
+ ]
+}

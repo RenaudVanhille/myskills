@@ -85,6 +85,11 @@ jobs:
         run: uv run scripts/pin_model.py --check
       - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
         run: uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch
+      - name: Justesse du tri des documents
+        # Tri enregistré d'un modèle léger et tri de Laya (cache préparé ci-dessus), sur le jeu étiqueté.
+        run: |
+          uv run tests/classify_eval.py --laya --markdown doc-eval.md --min-accuracy 0.9
+          cat doc-eval.md | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
       - name: Justesse du tri des phrases d'exigence
