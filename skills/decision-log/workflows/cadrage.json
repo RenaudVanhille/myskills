@@ -1,7 +1,7 @@
 {
   "name": "cadrage",
-  "title": "Cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette",
-  "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+  "title": "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette",
+  "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)"
   ],
@@ -62,6 +62,49 @@
         }
       ],
       "instructions": "Étape facultative, à faire dès qu'il y a des notes ou transcriptions d'ateliers dans reunions/ (sinon skip, avec les mots de l'utilisateur) ; elle ne dépend pas des documents et se mène en parallèle. Un compte rendu par réunion : décisions, actions avec porteur et échéance, questions ouvertes, exigences exprimées citées mot pour mot. Une action sans porteur ou une décision déduite se note au journal."
+    },
+    {
+      "id": "processus",
+      "label": "Processus métier",
+      "level": "moyen",
+      "facultative": true,
+      "after": [
+        "documents",
+        "comptes-rendus"
+      ],
+      "skills": [
+        "process-diagram",
+        "diagram-export"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "sources/*.md",
+        "comptes-rendus/*.md"
+      ],
+      "deliverables": [
+        "processus/*.json",
+        "processus/*.drawio",
+        "processus/*.processus.md"
+      ],
+      "optional": [
+        "processus/*.drawio.png"
+      ],
+      "checks": [
+        "process-diagram : process_build.py processus/<processus>.json --export png pour chaque processus (zéro erreur : ni impasse ni décision sans libellé ; fiche du déroulé écrite), puis relire l'image une fois"
+      ],
+      "run": [
+        {
+          "skill": "process-diagram",
+          "script": "process_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "processus/*.json"
+        }
+      ],
+      "instructions": "Étape facultative, à faire quand les documents ou les ateliers décrivent un parcours métier à plusieurs acteurs (sinon skip, avec les mots de l'utilisateur) ; elle se mène en parallèle des exigences. Un processus par parcours, trois au plus : acteurs en couloirs, tâches, décisions avec le libellé de chaque branche, points de douleur cités des sources. Une étape ou un acteur déduit se note au journal comme hypothèse."
     },
     {
       "id": "exigences",

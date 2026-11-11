@@ -739,6 +739,37 @@
       ]
     },
     {
+      "id": "schema-processus",
+      "agent": "schema-designer",
+      "prompt": "Dessine le processus métier décrit dans sinistre.md, en couloirs par acteur, pour Confluence : schemas/sinistre.drawio.",
+      "inputs": [
+        {
+          "from": "fixtures/processus/sinistre.md",
+          "to": "sinistre.md"
+        }
+      ],
+      "output": "schemas/sinistre.drawio",
+      "checks": [
+        {
+          "file": "schemas/sinistre.drawio",
+          "contains": [
+            "swimlane",
+            "mxgraph.bpmn"
+          ]
+        },
+        {
+          "file": "schemas/sinistre.processus.md",
+          "matches": "[Ee]xpert"
+        }
+      ],
+      "rubric": [
+        "Le schéma est un processus en couloirs (un couloir par acteur : assuré, gestionnaire, expert, comptabilité), produit par process_build.py et non écrit à la main.",
+        "Les deux décisions (dossier complet, montant au-dessus de 5 000 €) ont un libellé sur chaque branche, et le retour à l'assuré apparaît.",
+        "L'aller-retour du dossier incomplet est marqué comme point de douleur.",
+        "La fiche du déroulé (.processus.md) est livrée à côté du .drawio."
+      ]
+    },
+    {
       "id": "publier-word",
       "agent": "document-publisher",
       "prompt": "Publie expected/architecture.md en document Word dans publication/.",
@@ -1175,6 +1206,179 @@
         "La feuille de route reprend les vagues de migration.waves.json et ajoute des chantiers transverses (socle, sécurité, décommissionnement).",
         "Le chemin critique est donné, et chaque durée prise sans source est notée au journal comme hypothèse.",
         "L'étape cible n'est pas démarrée : seule la feuille de route est soumise à la revue."
+      ]
+    },
+    {
+      "id": "migration-exploitation",
+      "workflow": "migration-cloud",
+      "agent": "architecture-workflow",
+      "prompt": "Je valide l'architecture cible. Fais maintenant le dossier d'exploitation de la cible ; pas de chiffrage pour l'instant.",
+      "inputs": [
+        {
+          "from": "fixtures/migration/inventaire.csv",
+          "to": "documents/inventaire.csv"
+        },
+        {
+          "from": "fixtures/workflow/exigences.json",
+          "to": "exigences.json"
+        },
+        {
+          "from": "fixtures/migration/migration-workflow.json",
+          "to": "migration.json"
+        },
+        {
+          "from": "fixtures/workflow/sources/cahier-des-charges.md",
+          "to": "sources/cahier-des-charges.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/compte-rendu-atelier.md",
+          "to": "sources/compte-rendu-atelier.md"
+        },
+        {
+          "from": "fixtures/workflow/sources/exigences-securite.md",
+          "to": "sources/exigences-securite.md"
+        },
+        {
+          "from": "fixtures/diagrams/cloud-aws-wa.json",
+          "to": "schemas/cible.json"
+        },
+        {
+          "from": "fixtures/samples/schema-flux.png",
+          "to": "schemas/cible.png"
+        }
+      ],
+      "setup": [
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "init",
+            "{work}",
+            "--definition",
+            "migration-cloud",
+            "--title",
+            "Sortie du datacenter"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "requirements-catalog/scripts/req_build.py",
+          "args": [
+            "{work}/exigences.json",
+            "--out-dir",
+            "{work}"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "exigences",
+            "--decision",
+            "valide",
+            "--text",
+            "ok pour les exigences"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "evaluation"
+          ]
+        },
+        {
+          "script": "migration-assessment/scripts/assess_build.py",
+          "args": [
+            "{work}/migration.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "evaluation"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "review",
+            "{work}",
+            "evaluation",
+            "--decision",
+            "valide",
+            "--text",
+            "ok pour l'évaluation"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "start",
+            "{work}",
+            "cible"
+          ]
+        },
+        {
+          "script": "cloud-architecture/scripts/cloud_build.py",
+          "args": [
+            "{work}/schemas/cible.json"
+          ]
+        },
+        {
+          "script": "well-architected-review/scripts/wa_check.py",
+          "args": [
+            "{work}/schemas/cible.json"
+          ]
+        },
+        {
+          "script": "decision-log/scripts/journal.py",
+          "args": [
+            "submit",
+            "{work}",
+            "cible"
+          ]
+        }
+      ],
+      "output": "exploitation.md",
+      "checks": [
+        {
+          "file": "exploitation.json"
+        },
+        {
+          "file": "exploitation.md",
+          "matches": "[Ss]auvegarde"
+        },
+        {
+          "file": "workflow.json",
+          "contains": [
+            "\"exploitation\""
+          ]
+        }
+      ],
+      "rubric": [
+        "La validation de la cible est notée au journal avec les mots de l'utilisateur.",
+        "Le dossier d'exploitation est écrit par ops_build.py : services de la cible avec leurs engagements, alertes, sauvegardes et fiches réflexes.",
+        "Les engagements (disponibilité, RPO, RTO) viennent des exigences ; ceux pris sans source sont notés au journal comme hypothèses.",
+        "L'étape exploitation est soumise à la revue sans être validée, et le chiffrage n'est pas démarré."
       ]
     },
     {

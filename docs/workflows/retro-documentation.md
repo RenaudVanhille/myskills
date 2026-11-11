@@ -2,11 +2,11 @@
 
 # Rétro-documentation et modernisation d'une application existante
 
-Workflow `retro-documentation` : 8 étapes, dont 5 facultatives. Point de départ : code de l'application. [Tous les workflows](README.md).
+Workflow `retro-documentation` : 9 étapes, dont 6 facultatives. Point de départ : code de l'application. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
-Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.
+Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources et ses processus métier en couloirs, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.
 
 ## Ce que le moteur demande au départ
 
@@ -24,13 +24,15 @@ flowchart LR
   s_constat["2. Architecture constatée<br/><small>schema-designer</small>"]
   s_infrastructure["3. Hébergement tiré de son code<br/><small>architecture-workflow</small>"]
   s_donnees["4. Modèle de données actuel<br/><small>architecture-workflow</small>"]
-  s_domaines["5. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_revue["6. Revue de l'existant<br/><small>architecture-reviewer</small>"]
-  s_trajectoire["7. Trajectoire de modernisation<br/><small>architecture-workflow</small>"]
-  s_dossier["8. Dossier de l'existant<br/><small>architecture-workflow</small>"]
+  s_processus["5. Processus métier<br/><small>schema-designer</small>"]
+  s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+  s_revue["7. Revue de l'existant<br/><small>architecture-reviewer</small>"]
+  s_trajectoire["8. Trajectoire de modernisation<br/><small>architecture-workflow</small>"]
+  s_dossier["9. Dossier de l'existant<br/><small>architecture-workflow</small>"]
   s_code --> s_constat
   s_code --> s_infrastructure
   s_code --> s_donnees
+  s_constat --> s_processus
   s_constat --> s_domaines
   s_donnees --> s_domaines
   s_constat --> s_revue
@@ -40,18 +42,20 @@ flowchart LR
   s_revue --> s_dossier
   s_trajectoire --> s_dossier
   s_donnees --> s_dossier
+  s_processus --> s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
   class s_code,s_infrastructure,s_donnees,s_domaines,s_trajectoire,s_dossier moteur
-  class s_constat,s_revue agent
-  class s_infrastructure,s_donnees,s_domaines,s_trajectoire,s_dossier facultative
+  class s_constat,s_processus,s_revue agent
+  class s_infrastructure,s_donnees,s_processus,s_domaines,s_trajectoire,s_dossier facultative
 ```
 
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Architecture constatée, 3. Hébergement tiré de son code, 4. Modèle de données actuel
+- 5. Processus métier, 6. Domaines et style d'architecture
 
 ## Étapes
 
@@ -61,10 +65,11 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 2. Architecture constatée | moyen | `schema-designer` | `c4-architecture` | `c4.json`, `c4/**/*.png` | 1 |
 | 3. Hébergement tiré de son code (facultative) | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/infrastructure.json` | 1 |
 | 4. Modèle de données actuel (facultative) | moyen | `architecture-workflow` | `data-model` | `modele.json`, `modele.md` | 1 |
-| 5. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `domaines.json`, `domaines.md`, `domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
-| 6. Revue de l'existant | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 2, 3, 5 |
-| 7. Trajectoire de modernisation (facultative) | moyen | `architecture-workflow` | `transition-roadmap` | `feuille-de-route.json`, `feuille-de-route.md` | 6 |
-| 8. Dossier de l'existant (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-existant.md` | 6, 7, 4 |
+| 5. Processus métier (facultative) | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 2 |
+| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `domaines.json`, `domaines.md`, `domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
+| 7. Revue de l'existant | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 2, 3, 6 |
+| 8. Trajectoire de modernisation (facultative) | moyen | `architecture-workflow` | `transition-roadmap` | `feuille-de-route.json`, `feuille-de-route.md` | 7 |
+| 9. Dossier de l'existant (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-existant.md` | 7, 8, 4, 5 |
 
 ### 1. Graphe du code
 
@@ -100,7 +105,16 @@ Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, reg
 
 Étape facultative, proposée si le schéma SQL de la base est fourni : l'utilisateur dit s'il la veut (start) ou non (skip). Ne pas réécrire le modèle : relire le brouillon (libellés, données personnelles devinées, clés composées ou absentes, références vers des tables hors du fichier) et noter chaque correction au journal.
 
-### 5. Domaines et style d'architecture
+### 5. Processus métier
+
+- **Entrées** : `c4.json`, `graphify-out/graph.json`, `code/**/*`
+- **Livrables** : `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md`
+- **Livrables possibles** : `processus/*.drawio.png`
+- **Contrôle** : process-diagram : process_build.py processus/<processus>.json --export png pour chaque processus (zéro erreur : ni impasse ni décision sans libellé ; fiche du déroulé écrite), puis relire l'image une fois
+
+Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip). Reconstituer les parcours métier principaux que le code met en œuvre, trois au plus, à partir de l'architecture constatée et des points d'entrée du graphe (contrôleurs, traitements planifiés, files), sans relire tout le code : acteurs et systèmes en couloirs, tâches, décisions avec le libellé de chaque branche. Chaque étape sans trace dans le code se note au journal comme hypothèse.
+
+### 6. Domaines et style d'architecture
 
 - **Entrées** : `c4.json`, `modele.json`, `exigences.json`
 - **Livrables** : `domaines.json`, `domaines.md`, `domaines.styles.json`, `domaines.carte.drawio`
@@ -110,7 +124,7 @@ Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, reg
 
 Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de domaines.json et se note au journal.
 
-### 6. Revue de l'existant
+### 7. Revue de l'existant
 
 - **Entrées** : `c4.json`, `graphify-out/graph.json`, `schemas/infrastructure.json`, `modele.json`, `domaines.json`
 - **Livrables** : `revue.json`, `revue.md`
@@ -120,7 +134,7 @@ Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, reg
 
 revue.json reprend les conteneurs et relations de c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal.
 
-### 7. Trajectoire de modernisation
+### 8. Trajectoire de modernisation
 
 - **Entrées** : `revue.md`, `domaines.json`, `domaines.styles.json`
 - **Livrables** : `feuille-de-route.json`, `feuille-de-route.md`
@@ -129,9 +143,9 @@ revue.json reprend les conteneurs et relations de c4.json en components et flows
 
 Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse.
 
-### 8. Dossier de l'existant
+### 9. Dossier de l'existant
 
-- **Entrées** : `c4/**/*.png`, `modele.md`, `revue.md`, `domaines.md`, `feuille-de-route.md`, `journal.md`
+- **Entrées** : `c4/**/*.png`, `processus/*.processus.md`, `modele.md`, `revue.md`, `domaines.md`, `feuille-de-route.md`, `journal.md`
 - **Livrables** : `synthese.md`, `dossier-existant.md`
 - **Livrables possibles** : `plan-actions.md`, `plan-actions.csv`
 - **Contrôle** : architecture-dossier : actions.py . (plan d'actions tiré de la revue)

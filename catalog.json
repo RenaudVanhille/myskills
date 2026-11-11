@@ -178,7 +178,9 @@
         "mermaid-diagram",
         "diagram-brief",
         "excalidraw-diagram",
-        "c4-architecture"
+        "c4-architecture",
+        "process-diagram",
+        "operations-dossier"
       ]
     },
     {

@@ -1,7 +1,7 @@
 {
   "name": "retro-documentation",
   "title": "Rétro-documentation et modernisation d'une application existante",
-  "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
+  "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources et ses processus métier en couloirs, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "le ou les dépôts de code (dossier code/, ou dépôts de la mission), le dossier du code d'infrastructure s'il n'est pas dans infra/, et le schéma SQL de la base s'il n'est pas dans base/ ; sans réponse : code/ seul, étapes infrastructure et donnees sautées"
@@ -145,6 +145,49 @@
         }
       ],
       "instructions": "Étape facultative, proposée si le schéma SQL de la base est fourni : l'utilisateur dit s'il la veut (start) ou non (skip). Ne pas réécrire le modèle : relire le brouillon (libellés, données personnelles devinées, clés composées ou absentes, références vers des tables hors du fichier) et noter chaque correction au journal."
+    },
+    {
+      "id": "processus",
+      "label": "Processus métier",
+      "level": "moyen",
+      "facultative": true,
+      "after": [
+        "constat"
+      ],
+      "skills": [
+        "process-diagram",
+        "diagram-export"
+      ],
+      "agent": "schema-designer",
+      "inputs": [
+        "c4.json",
+        "graphify-out/graph.json",
+        "code/**/*"
+      ],
+      "deliverables": [
+        "processus/*.json",
+        "processus/*.drawio",
+        "processus/*.processus.md"
+      ],
+      "optional": [
+        "processus/*.drawio.png"
+      ],
+      "checks": [
+        "process-diagram : process_build.py processus/<processus>.json --export png pour chaque processus (zéro erreur : ni impasse ni décision sans libellé ; fiche du déroulé écrite), puis relire l'image une fois"
+      ],
+      "run": [
+        {
+          "skill": "process-diagram",
+          "script": "process_build.py",
+          "args": [
+            "{file}",
+            "--export",
+            "png"
+          ],
+          "foreach": "processus/*.json"
+        }
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip). Reconstituer les parcours métier principaux que le code met en œuvre, trois au plus, à partir de l'architecture constatée et des points d'entrée du graphe (contrôleurs, traitements planifiés, files), sans relire tout le code : acteurs et systèmes en couloirs, tâches, décisions avec le libellé de chaque branche. Chaque étape sans trace dans le code se note au journal comme hypothèse."
     },
     {
       "id": "domaines",
@@ -294,13 +337,15 @@
       "after": [
         "revue",
         "trajectoire",
-        "donnees"
+        "donnees",
+        "processus"
       ],
       "skills": [
         "architecture-dossier"
       ],
       "inputs": [
         "c4/**/*.png",
+        "processus/*.processus.md",
         "modele.md",
         "revue.md",
         "domaines.md",

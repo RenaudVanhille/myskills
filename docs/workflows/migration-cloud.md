@@ -2,11 +2,11 @@
 
 # Migration d'un portefeuille d'applications vers le cloud
 
-Workflow `migration-cloud` : 6 étapes, dont 2 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
+Workflow `migration-cloud` : 7 étapes, dont 3 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
-D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.
+D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage et le dossier d'exploitation, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.
 
 ## Ce que le moteur demande au départ
 
@@ -25,26 +25,30 @@ flowchart LR
   s_evaluation["2. Évaluation 6R et vagues<br/><small>architecture-workflow</small>"]
   s_cible["3. Architecture cible<br/><small>schema-designer</small>"]
   s_chiffrage["4. Chiffrage de la migration<br/><small>solution-estimator</small>"]
-  s_feuille_de_route["5. Feuille de route de transition<br/><small>architecture-workflow</small>"]
-  s_dossier["6. Dossier de migration<br/><small>architecture-workflow</small>"]
+  s_exploitation["5. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
+  s_feuille_de_route["6. Feuille de route de transition<br/><small>architecture-workflow</small>"]
+  s_dossier["7. Dossier de migration<br/><small>architecture-workflow</small>"]
   s_exigences --> s_evaluation
   s_evaluation --> s_cible
   s_cible --> s_chiffrage
+  s_cible --> s_exploitation
   s_evaluation --> s_feuille_de_route
   s_chiffrage --> s_dossier
   s_feuille_de_route --> s_dossier
+  s_exploitation --> s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_exigences,s_evaluation,s_feuille_de_route,s_dossier moteur
+  class s_exigences,s_evaluation,s_exploitation,s_feuille_de_route,s_dossier moteur
   class s_cible,s_chiffrage agent
-  class s_chiffrage,s_dossier facultative
+  class s_chiffrage,s_exploitation,s_dossier facultative
 ```
 
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
-- 3. Architecture cible, 5. Feuille de route de transition
+- 3. Architecture cible, 6. Feuille de route de transition
+- 4. Chiffrage de la migration, 5. Dossier d'exploitation
 
 ## Étapes
 
@@ -54,8 +58,9 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 2. Évaluation 6R et vagues | complexe | `architecture-workflow` | `migration-assessment`, `urbanization-map` | `migration.json`, `migration.md`, `migration.waves.json` | 1 |
 | 3. Architecture cible | complexe | `schema-designer` | `cloud-architecture`, `well-architected-review`, `diagram-export` | `schemas/cible.json`, `schemas/cible.drawio`, `schemas/*.png`, `schemas/cible.wa.md` | 2 |
 | 4. Chiffrage de la migration (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `chiffrage.json`, `chiffrage.md` | 3 |
-| 5. Feuille de route de transition | moyen | `architecture-workflow` | `transition-roadmap`, `diagram-export` | `feuille-de-route.json`, `feuille-de-route.md` | 2 |
-| 6. Dossier de migration (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-migration.md` | 4, 5 |
+| 5. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `exploitation.json`, `exploitation.md` | 3 |
+| 6. Feuille de route de transition | moyen | `architecture-workflow` | `transition-roadmap`, `diagram-export` | `feuille-de-route.json`, `feuille-de-route.md` | 2 |
+| 7. Dossier de migration (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-migration.md` | 4, 6, 5 |
 
 ### 1. Catalogue des exigences
 
@@ -95,7 +100,15 @@ Décrire la cible des applications migrées avec l'hébergeur de migration.json 
 
 Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un lot par vague ; les efforts S à XL de migration.json servent de base aux estimations à trois points.
 
-### 5. Feuille de route de transition
+### 5. Dossier d'exploitation
+
+- **Entrées** : `schemas/cible.json`, `migration.json`, `exigences.json`
+- **Livrables** : `exploitation.json`, `exploitation.md`
+- **Contrôle** : operations-dossier : ops_build.py exploitation.json (zéro erreur ; indisponibilité permise calculée, sauvegardes confrontées au RPO, trous de couverture OPS-01 à OPS-10)
+
+Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un service par composant de la cible qui porte un engagement ; disponibilité, RPO et RTO repris des exigences (requirements : exigences.json), jamais inventés : un engagement sans source se note au journal comme hypothèse. Un constat de gravité haute se corrige ou s'accepte avec la raison de l'utilisateur.
+
+### 6. Feuille de route de transition
 
 - **Entrées** : `migration.waves.json`, `exigences.json`
 - **Livrables** : `feuille-de-route.json`, `feuille-de-route.md`
@@ -105,9 +118,9 @@ Décrire la cible des applications migrées avec l'hébergeur de migration.json 
 
 Reprendre les vagues (waves.file : migration.waves.json) et ajouter les chantiers transverses : cadrage, socle, sécurité et AIPD, formation, décommissionnement, jalons. Échéance d'une exigence dans deadline. Une échéance dépassée se présente à la revue avec le chemin critique ; chaque durée prise sans source se note au journal comme hypothèse.
 
-### 6. Dossier de migration
+### 7. Dossier de migration
 
-- **Entrées** : `migration.md`, `feuille-de-route.md`, `schemas/*.png`, `schemas/cible.wa.md`, `chiffrage.md`, `journal.md`
+- **Entrées** : `migration.md`, `feuille-de-route.md`, `schemas/*.png`, `schemas/cible.wa.md`, `chiffrage.md`, `exploitation.md`, `journal.md`
 - **Livrables** : `synthese.md`, `dossier-migration.md`
 - **Livrables possibles** : `plan-actions.md`, `plan-actions.csv`
 - **Contrôle** : architecture-dossier : actions.py . si une revue, des menaces ou une AIPD ont été faites (plan d'actions repris par le dossier)

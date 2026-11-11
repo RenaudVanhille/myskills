@@ -585,6 +585,41 @@
       "instructions": "Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, lancé au niveau de l'étape (moyen) sur le brouillon arch_review.py revue.json --draft (scénarios tirés des exigences de qualité), qui rend revue.json ; il ne remonte au niveau complexe que s'il bute. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes)."
     },
     {
+      "id": "exploitation",
+      "label": "Dossier d'exploitation",
+      "level": "moyen",
+      "after": [
+        "schemas"
+      ],
+      "facultative": true,
+      "skills": [
+        "operations-dossier"
+      ],
+      "inputs": [
+        "options.json",
+        "decision.json",
+        "ao.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "exploitation.json",
+        "exploitation.md"
+      ],
+      "checks": [
+        "operations-dossier : ops_build.py exploitation.json (zéro erreur ; indisponibilité permise calculée, sauvegardes confrontées au RPO, trous de couverture OPS-01 à OPS-10)"
+      ],
+      "run": [
+        {
+          "skill": "operations-dossier",
+          "script": "ops_build.py",
+          "args": [
+            "exploitation.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, proposée dans la même question que la revue, quand l'appel d'offres demande des engagements de service, une infogérance ou une maintenance : sinon skip. Un service par composant de l'option retenue ; disponibilité, RPO, RTO et astreinte repris de l'appel d'offres et des exigences (requirements : exigences.json), jamais inventés : un engagement sans source se note au journal comme hypothèse et va au registre. Le mémoire reprend ses engagements dans memoire/maintenance.md."
+    },
+    {
       "id": "registre",
       "label": "Hypothèses, exclusions et questions",
       "level": "moyen",
@@ -630,7 +665,8 @@
       "label": "Mémoire technique",
       "level": "moyen",
       "after": [
-        "registre"
+        "registre",
+        "exploitation"
       ],
       "facultative": true,
       "skills": [
@@ -645,7 +681,8 @@
         "conformite.md",
         "registre.md",
         "chiffrage.md",
-        "revue.md"
+        "revue.md",
+        "exploitation.md"
       ],
       "deliverables": [
         "memoire/comprehension.md",
