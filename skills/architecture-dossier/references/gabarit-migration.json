@@ -11,6 +11,8 @@
     {"id": "well-architected", "title": "Revue Well-Architected de la cible", "sources": ["schemas/*.wa.md", "*.wa.md"]},
     {"id": "exigences", "title": "Exigences", "sources": ["exigences.md"]},
     {"id": "chiffrage", "title": "Chiffrage", "sources": ["chiffrage.md"]},
+    {"id": "exploitation", "title": "Exploitation de la cible", "sources": ["exploitation.md"],
+     "help": "operations-dossier : ops_build.py exploitation.json"},
     {"id": "plan", "title": "Plan d'actions", "sources": ["plan-actions.md"],
      "help": "architecture-dossier : actions.py . (points ouverts des revues, dédoublonnés et priorisés)"},
     {"id": "donnees", "title": "Annexe : données", "kind": "files", "sources": ["migration.csv", "feuille-de-route.csv"]},

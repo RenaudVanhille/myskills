@@ -131,6 +131,7 @@
     "backend (facultative)",
     "chiffrage (facultative)",
     "revue (facultative)",
+    "exploitation (facultative)",
     "registre",
     "memoire (facultative)",
     "soutenance (facultative)"
@@ -138,16 +139,17 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Dossier d'exploitation operations-dossier Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",
    "agent": "architecture-workflow",
-   "title": "Cadrage d'un projet : ateliers, exigences, données, dimensionnement, interfaces et recette",
-   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+   "title": "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette",
+   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
    "stages": [
     "documents",
     "comptes-rendus (facultative)",
+    "processus (facultative)",
     "exigences",
     "domaines (facultative)",
     "modele-donnees",
@@ -159,7 +161,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
+   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
   },
   {
    "name": "cloud-existant",
@@ -251,12 +253,13 @@
    "name": "migration-cloud",
    "agent": "architecture-workflow",
    "title": "Migration d'un portefeuille d'applications vers le cloud",
-   "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
+   "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage et le dossier d'exploitation, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
    "stages": [
     "exigences",
     "evaluation",
     "cible",
     "chiffrage (facultative)",
+    "exploitation (facultative)",
     "feuille-de-route",
     "dossier (facultative)"
    ],
@@ -264,7 +267,7 @@
     "documents/*",
     "sources/*.md"
    ],
-   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible Chiffrage de la migration Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
+   "match": "Catalogue des exigences doc-to-markdown requirements-catalog Évaluation 6R et vagues migration-assessment urbanization-map Architecture cible Chiffrage de la migration Dossier d'exploitation operations-dossier Feuille de route de transition transition-roadmap diagram-export Dossier de migration architecture-dossier"
   },
   {
    "name": "restitution",
@@ -291,12 +294,13 @@
    "name": "retro-documentation",
    "agent": "architecture-workflow",
    "title": "Rétro-documentation et modernisation d'une application existante",
-   "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
+   "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources et ses processus métier en couloirs, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
    "stages": [
     "code",
     "constat",
     "infrastructure (facultative)",
     "donnees (facultative)",
+    "processus (facultative)",
     "domaines (facultative)",
     "revue",
     "trajectoire (facultative)",
@@ -305,7 +309,7 @@
    "inputs": [
     "code/**/*"
    ],
-   "match": "Graphe du code  Architecture constatée Hébergement tiré de son code cloud-architecture Modèle de données actuel data-model Domaines et style d'architecture domain-design data-model Revue de l'existant Trajectoire de modernisation transition-roadmap Dossier de l'existant architecture-dossier legacy vieux monolithe application ancienne code source documenter le code moderniser microservices reprise de l'existant"
+   "match": "Graphe du code  Architecture constatée Hébergement tiré de son code cloud-architecture Modèle de données actuel data-model Processus métier Domaines et style d'architecture domain-design data-model Revue de l'existant Trajectoire de modernisation transition-roadmap Dossier de l'existant architecture-dossier legacy vieux monolithe application ancienne code source documenter le code moderniser microservices reprise de l'existant"
   },
   {
    "name": "revue-dossier",

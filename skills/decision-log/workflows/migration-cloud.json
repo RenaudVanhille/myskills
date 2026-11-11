@@ -1,7 +1,7 @@
 {
   "name": "migration-cloud",
   "title": "Migration d'un portefeuille d'applications vers le cloud",
-  "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
+  "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage et le dossier d'exploitation, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)",
     "l'inventaire des applications (CSV, POS d'urbanization-map ou documents), s'il n'est pas dans documents/",
@@ -181,6 +181,40 @@
       "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un lot par vague ; les efforts S à XL de migration.json servent de base aux estimations à trois points."
     },
     {
+      "id": "exploitation",
+      "label": "Dossier d'exploitation",
+      "level": "moyen",
+      "after": [
+        "cible"
+      ],
+      "facultative": true,
+      "skills": [
+        "operations-dossier"
+      ],
+      "inputs": [
+        "schemas/cible.json",
+        "migration.json",
+        "exigences.json"
+      ],
+      "deliverables": [
+        "exploitation.json",
+        "exploitation.md"
+      ],
+      "checks": [
+        "operations-dossier : ops_build.py exploitation.json (zéro erreur ; indisponibilité permise calculée, sauvegardes confrontées au RPO, trous de couverture OPS-01 à OPS-10)"
+      ],
+      "run": [
+        {
+          "skill": "operations-dossier",
+          "script": "ops_build.py",
+          "args": [
+            "exploitation.json"
+          ]
+        }
+      ],
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Un service par composant de la cible qui porte un engagement ; disponibilité, RPO et RTO repris des exigences (requirements : exigences.json), jamais inventés : un engagement sans source se note au journal comme hypothèse. Un constat de gravité haute se corrige ou s'accepte avec la raison de l'utilisateur."
+    },
+    {
       "id": "feuille-de-route",
       "label": "Feuille de route de transition",
       "level": "moyen",
@@ -224,7 +258,8 @@
       "level": "simple",
       "after": [
         "chiffrage",
-        "feuille-de-route"
+        "feuille-de-route",
+        "exploitation"
       ],
       "facultative": true,
       "skills": [
@@ -236,6 +271,7 @@
         "schemas/*.png",
         "schemas/cible.wa.md",
         "chiffrage.md",
+        "exploitation.md",
         "journal.md"
       ],
       "deliverables": [

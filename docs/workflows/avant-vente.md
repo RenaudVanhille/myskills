@@ -2,7 +2,7 @@
 
 # Réponse à un appel d'offres, des documents reçus à l'offre
 
-Workflow `avant-vente` : 15 étapes, dont 10 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
+Workflow `avant-vente` : 16 étapes, dont 11 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
@@ -32,9 +32,10 @@ flowchart TD
   s_backend["10. Découpage et lots backend<br/><small>backend-estimator</small>"]
   s_chiffrage["11. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
   s_revue["12. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_registre["13. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
-  s_memoire["14. Mémoire technique<br/><small>architecture-workflow</small>"]
-  s_soutenance["15. Support de soutenance<br/><small>architecture-workflow</small>"]
+  s_exploitation["13. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
+  s_registre["14. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
+  s_memoire["15. Mémoire technique<br/><small>architecture-workflow</small>"]
+  s_soutenance["16. Support de soutenance<br/><small>architecture-workflow</small>"]
   s_documents --> s_depouillement
   s_depouillement --> s_qualification
   s_documents --> s_exigences
@@ -50,17 +51,19 @@ flowchart TD
   s_maquettes --> s_chiffrage
   s_backend --> s_chiffrage
   s_schemas --> s_revue
+  s_schemas --> s_exploitation
   s_conformite --> s_registre
   s_chiffrage --> s_registre
   s_revue --> s_registre
   s_registre --> s_memoire
+  s_exploitation --> s_memoire
   s_memoire --> s_soutenance
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_depouillement,s_qualification,s_exigences,s_domaines,s_architectures,s_conformite,s_registre,s_memoire,s_soutenance moteur
+  class s_depouillement,s_qualification,s_exigences,s_domaines,s_architectures,s_conformite,s_exploitation,s_registre,s_memoire,s_soutenance moteur
   class s_documents,s_schemas,s_maquettes,s_backend,s_chiffrage,s_revue agent
-  class s_depouillement,s_qualification,s_domaines,s_conformite,s_maquettes,s_backend,s_chiffrage,s_revue,s_memoire,s_soutenance facultative
+  class s_depouillement,s_qualification,s_domaines,s_conformite,s_maquettes,s_backend,s_chiffrage,s_revue,s_exploitation,s_memoire,s_soutenance facultative
 ```
 
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
@@ -68,7 +71,7 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Dépouillement de l'appel d'offres, 4. Catalogue des exigences, 9. Maquettes d'écrans, revue UX et lots frontend
 - 3. Qualification go / no-go, 5. Domaines et style d'architecture
-- 8. Matrice de conformité, 10. Découpage et lots backend, 12. Revue d'architecture
+- 8. Matrice de conformité, 10. Découpage et lots backend, 12. Revue d'architecture, 13. Dossier d'exploitation
 
 ## Étapes
 
@@ -86,9 +89,10 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 10. Découpage et lots backend (facultative) | moyen | `backend-estimator` | `api-contract` | `decoupage-back.lots.json`, `decoupage-back.md` | 7 |
 | 11. Chiffrage de l'option retenue (facultative) | moyen | `solution-estimator` | `solution-estimate`, `cloud-cost` | `chiffrage.json`, `chiffrage.md` | 7, 9, 10 |
 | 12. Revue d'architecture (facultative) | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 7 |
-| 13. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `registre.json`, `registre.md`, `questions-client.md` | 8, 11, 12 |
-| 14. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 13 |
-| 15. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 14 |
+| 13. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `exploitation.json`, `exploitation.md` | 7 |
+| 14. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `registre.json`, `registre.md`, `questions-client.md` | 8, 11, 12 |
+| 15. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 14, 13 |
+| 16. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 15 |
 
 ### 1. Documents en Markdown
 
@@ -204,7 +208,15 @@ decision.json reprend le choix fait par l'utilisateur à la revue précédente :
 
 Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). revue.json reprend l'option retenue (source vers options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, lancé au niveau de l'étape (moyen) sur le brouillon arch_review.py revue.json --draft (scénarios tirés des exigences de qualité), qui rend revue.json ; il ne remonte au niveau complexe que s'il bute. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes).
 
-### 13. Hypothèses, exclusions et questions
+### 13. Dossier d'exploitation
+
+- **Entrées** : `options.json`, `decision.json`, `ao.json`, `exigences.json`
+- **Livrables** : `exploitation.json`, `exploitation.md`
+- **Contrôle** : operations-dossier : ops_build.py exploitation.json (zéro erreur ; indisponibilité permise calculée, sauvegardes confrontées au RPO, trous de couverture OPS-01 à OPS-10)
+
+Étape facultative, proposée dans la même question que la revue, quand l'appel d'offres demande des engagements de service, une infogérance ou une maintenance : sinon skip. Un service par composant de l'option retenue ; disponibilité, RPO, RTO et astreinte repris de l'appel d'offres et des exigences (requirements : exigences.json), jamais inventés : un engagement sans source se note au journal comme hypothèse et va au registre. Le mémoire reprend ses engagements dans memoire/maintenance.md.
+
+### 14. Hypothèses, exclusions et questions
 
 - **Entrées** : `exigences.json`, `chiffrage.json`, `ao.json`, `workflow.json`
 - **Livrables** : `registre.json`, `registre.md`, `questions-client.md`
@@ -213,9 +225,9 @@ decision.json reprend le choix fait par l'utilisateur à la revue précédente :
 
 Le brouillon reprend les questions des exigences, les hypothèses et exclusions du chiffrage et du journal. Reformuler chaque question pour le client, ajouter les prérequis et les questions sur les clauses à risque du dépouillement. Les questions partent avant la date limite des questions (rapport : deadline) ; après elle, une question sans réponse devient une hypothèse de l'offre.
 
-### 14. Mémoire technique
+### 15. Mémoire technique
 
-- **Entrées** : `ao.json`, `options.md`, `adr-architecture.md`, `schemas/*.png`, `conformite.md`, `registre.md`, `chiffrage.md`, `revue.md`
+- **Entrées** : `ao.json`, `options.md`, `adr-architecture.md`, `schemas/*.png`, `conformite.md`, `registre.md`, `chiffrage.md`, `revue.md`, `exploitation.md`
 - **Livrables** : `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md`
 - **Livrables possibles** : `memoire/*.md`
 - **Contrôle** : architecture-dossier : dossier_build.py . --template memoire --tender ao.json --out memoire-technique.md --strict (chaque critère noté a sa section, budget de pages du règlement tenu)
@@ -223,7 +235,7 @@ Le brouillon reprend les questions des exigences, les hypothèses et exclusions 
 
 Étape facultative, quand l'appel d'offres demande un mémoire technique. Écrire dans memoire/ une section par thème des critères (comprehension, solution, securite, methodologie, maintenance, equipe, environnement), pour l'acheteur, en reprenant les rapports des étapes validées sans relire les livrables ; le script range les sections dans l'ordre des critères, rappelle chaque critère et son poids, et contrôle la couverture et le budget de pages.
 
-### 15. Support de soutenance
+### 16. Support de soutenance
 
 - **Entrées** : `options.md`, `adr-architecture.md`, `schemas/*.png`
 - **Livrables** : `presentation.md`
