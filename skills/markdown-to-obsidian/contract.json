@@ -15,7 +15,7 @@
     {
       "name": "obsidianize.py",
       "role": "Met des notes au format Obsidian et les range dans le vault.",
-      "usage": "uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER] [--attachments attachments] [--source NOM] [--tags a,b] [--move] [--classify [--domains a,b]]",
+      "usage": "uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER] [--attachments attachments] [--source NOM] [--tags a,b] [--move] [--triage TRI.json [--domains a,b]]",
       "options": {
         "NOTE.md": "notes à transformer",
         "--vault": "vault de destination",
@@ -24,8 +24,8 @@
         "--source": "document d'origine, pour le frontmatter",
         "--tags": "tags séparés par des virgules",
         "--move": "avec --vault : supprime la note et les images d'origine",
-        "--classify": "ajoute nature et domaine au frontmatter (Laya)",
-        "--domains": "avec --classify : domaines possibles"
+        "--triage": "tri des documents (classify.py --candidates, skill doc-to-markdown) : ajoute nature et domaine au frontmatter",
+        "--domains": "avec --triage : domaines permis"
       },
       "report": {
         "format": "json",
@@ -710,7 +710,7 @@
     {
       "skill": "doc-to-markdown",
       "script": "classify.py",
-      "why": "classer les documents avant la conversion (--classify)",
+      "why": "appliquer le tri des documents (--triage)",
       "optional": true
     },
     {

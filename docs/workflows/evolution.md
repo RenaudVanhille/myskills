@@ -67,7 +67,7 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 - **Entrées** : `documents/*`
 - **Livrables** : `sources/*.md`
-- **Contrôle** : doc-to-markdown : convert.py <documents> --out sources (--classify si l'utilisateur veut le tri), puis validate.py sources
+- **Contrôle** : doc-to-markdown : convert.py <documents> --out sources (--triage TRI.json si l'utilisateur veut le tri, voir classify.py --candidates), puis validate.py sources
 
 Documents de la demande de changement (évolution, nouvelle réglementation, retour d'usage) nommés par l'utilisateur, sinon ceux de documents/ du sous-dossier, convertis en une commande ; un document déjà en Markdown est copié tel quel dans sources/. Une demande dite oralement s'écrit dans sources/demande.md avec les mots de l'utilisateur. Un document écarté se note au journal avec sa raison.
 

@@ -175,25 +175,57 @@
     {
       "id": "classify-regles",
       "skill": "doc-to-markdown",
-      "slow": true,
-      "_note": "Installe PyTorch et Laya au premier lancement, d'où --slow.",
+      "_note": "Sans tri : règles seules, et fichier des candidats pour le sous-agent de niveau simple.",
       "steps": [
         {"script": "{skills}/doc-to-markdown/scripts/classify.py",
-         "args": ["{samples}/presentation.pptx", "{samples}/rapport-scanne.pdf", "--rules-only"],
+         "args": ["{samples}/presentation.pptx", "{samples}/rapport-scanne.pdf", "{samples}/rapport-texte.pdf", "--candidates", "{out}/tri.candidats.json"],
          "exit": 0,
-         "report": {"results.0.type": "presentation", "results.0.method": "regles", "results.1.engine": "docling"}}
-      ]
+         "report": {"errors": [], "results.0.type": "presentation", "results.0.method": "regles", "results.1.engine": "docling", "results.2.engine": "markitdown"},
+         "report_contains": {"warnings": "à trier dans tri.candidats.json"}}
+      ],
+      "files": ["tri.candidats.json"],
+      "contains": {"tri.candidats.json": ["\"output\": \"tri.tri.json\"", "\"name\": \"rapport-texte.pdf\"", "\"compte-rendu\""]}
     },
     {
-      "id": "classify-sans-modele",
+      "id": "classify-tri",
       "skill": "doc-to-markdown",
-      "slow": true,
-      "_note": "Modèle Laya absent du cache (MYSKILLS_MODELS vide) : rien n'est téléchargé, tri par règles et commande qui prépare la machine. Installe PyTorch au premier lancement, d'où --slow.",
+      "_note": "Tri rendu par un modèle léger : appliqué par classify.py, puis par convert.py (Docling non lancé : le PDF n'a pas de tableaux) et par obsidianize.py (clé retrouvée par le nom sans extension).",
       "steps": [
-        {"script": "{skills}/doc-to-markdown/scripts/classify.py", "args": ["{samples}/presentation.pptx"],
-         "env": {"MYSKILLS_MODELS": "{out}/modeles"}, "exit": 0,
-         "report": {"results.0.method": "regles"},
-         "report_contains": {"results.0.warnings": "doctor.py extraction --prefetch"}}
+        {"script": "{skills}/doc-to-markdown/scripts/classify.py",
+         "args": ["{samples}/presentation.pptx", "{samples}/rapport-texte.pdf", "{samples}/architecture.docx", "--triage", "{fixtures}/tri/lot.tri.json"],
+         "exit": 0,
+         "report": {"errors": [], "results.0.type": "presentation", "results.0.domaine": "metier", "results.0.method": "tri", "results.0.tables": null,
+                    "results.1.type": "rapport", "results.1.tables": false, "results.1.engine": "markitdown", "results.2.method": "regles"},
+         "report_contains": {"results.2.warnings": "Absent du tri", "warnings": "sans document dans le lot"}},
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/rapport-texte.pdf", "--out", "{out}", "--triage", "{fixtures}/tri/lot.tri.json"],
+         "exit": 0,
+         "report": {"errors": [], "results.0.classification.type": "rapport", "results.0.classification.domaine": "gestion-projet", "results.0.classification.method": "tri", "results.0.engine": "markitdown"}},
+        {"script": "{skills}/markdown-to-obsidian/scripts/obsidianize.py",
+         "args": ["{out}/rapport-texte.md", "--triage", "{fixtures}/tri/lot.tri.json"],
+         "exit": 0,
+         "report": {"errors": [], "results.0.classification.type": "rapport", "results.0.classification.method": "tri"}}
+      ],
+      "contains": {"rapport-texte.md": ["nature: \"rapport\"", "domaine/gestion-projet"]}
+    },
+    {
+      "id": "classify-tri-invalide",
+      "skill": "doc-to-markdown",
+      "_note": "Tri invalide : type et domaine hors liste, clé inconnue ; toutes les erreurs d'un coup, rien de classé. convert.py le signale et convertit quand même.",
+      "steps": [
+        {"script": "{skills}/doc-to-markdown/scripts/classify.py",
+         "args": ["{samples}/presentation.pptx", "--triage", "{fixtures}/tri/lot-invalide.tri.json"],
+         "exit": 1,
+         "report": {"results": []},
+         "report_contains": {"errors": "presentation.pptx/type", "errors.1": "confiance"}},
+        {"script": "{skills}/doc-to-markdown/scripts/classify.py",
+         "args": ["{samples}/presentation.pptx", "--triage", "{fixtures}/tri/lot-domaine.tri.json"],
+         "exit": 1,
+         "report_contains": {"errors": "securite ?"}},
+        {"script": "{skills}/doc-to-markdown/scripts/convert.py",
+         "args": ["{samples}/presentation.pptx", "--out", "{out}", "--triage", "{fixtures}/tri/lot-invalide.tri.json"],
+         "exit": 0,
+         "report_contains": {"warnings": "Tri non appliqué"}}
       ]
     },
     {

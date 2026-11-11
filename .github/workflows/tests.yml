@@ -34,7 +34,7 @@ jobs:
       - name: Tests des scripts
         run: uv run tests/run.py
 
-  # Cas lents de run.py (navigateur, Pandoc, Docling, Laya) et export réel par
+  # Cas lents de run.py (navigateur, Pandoc, Docling) et export réel par
   # draw.io Desktop, sous Linux : ce que le conteneur de développement ne peut
   # pas télécharger.
   rendus:
@@ -86,10 +86,10 @@ jobs:
       - name: Modèles locaux préparés avant les runs (aucun téléchargement pendant un traitement)
         run: uv run skills/check-prerequisites/scripts/doctor.py extraction --prefetch
       - name: Justesse du tri des documents
-        # Tri enregistré d'un modèle léger et tri de Laya (cache préparé ci-dessus), sur le jeu étiqueté.
+        # Tri enregistré d'un modèle léger, sur le jeu étiqueté : aucun modèle chargé.
         run: |
-          uv run tests/classify_eval.py --laya --markdown doc-eval.md --min-accuracy 0.9
-          cat doc-eval.md | tee -a "$GITHUB_STEP_SUMMARY"
+          uv run tests/classify_eval.py --markdown doc-eval.md --min-accuracy 0.9
+          cat doc-eval.md >> "$GITHUB_STEP_SUMMARY"
       - name: Tests lents et exports draw.io
         run: uv run tests/run.py --slow
       - name: Justesse du tri des phrases d'exigence

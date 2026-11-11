@@ -182,8 +182,7 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   autorisé, révision épinglée, empreintes SHA-256 vérifiées, entrée ajoutée
   par `scripts/pin_model.py` et relue en PR), par
   `model_store.py` (skill `check-prerequisites`). Un script qui lit un document avec une
-  bibliothèque de modèle ou de conversion (faster-whisper, Laya, MarkItDown,
-  Docling) appelle d'abord `model_store.guard_network()` : seuls les hôtes
+  bibliothèque de modèle ou de conversion (faster-whisper, MarkItDown, Docling) appelle d'abord `model_store.guard_network()` : seuls les hôtes
   identifiés (`model-sources.json`, `MYSKILLS_ALLOWED_HOSTS`), le proxy et
   la machine restent joignables, tout autre flux est refusé et signalé dans
   le rapport **(vérifiée)**. Jamais de
@@ -193,7 +192,7 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
 - Aucun téléchargement de modèle pendant un run : chaque modèle local
   s'installe avant, une fois, par `doctor.py GROUPE --prefetch` (ou
   `--models-from`, skill `check-prerequisites`). Un script le lit dans le
-  cache vérifié (`model_store.require`, `laya_models`, Docling en version
+  cache vérifié (`model_store.require`, Docling en version
   épinglée avec `--artifacts-path`, `HF_HUB_OFFLINE`) ; s'il manque, il
   s'arrête ou se replie en donnant cette commande **(vérifiée)**.
 - Rendus de navigateur avec Playwright, jamais Puppeteer **(vérifiée)**, et

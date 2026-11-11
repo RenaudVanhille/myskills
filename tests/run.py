@@ -605,12 +605,10 @@ def check_rules() -> dict:
                      for dep in FORBIDDEN_DEPS if re.search(rf'"{re.escape(dep)}[\[<>=~!"]', deps)]
         failures += [f"{where} : extra markitdown[{extra}] interdit (contenu envoyé à un service)"
                      for extra in FORBIDDEN_EXTRAS if re.search(rf"markitdown\[[^\]]*\b{extra}\b", deps)]
-        if re.search(r'"(faster-whisper|ctranslate2|laya|markitdown|docling)', deps) \
+        if re.search(r'"(faster-whisper|ctranslate2|markitdown|docling)', deps) \
                 and "model_store.guard_network(" not in code:
             failures.append(f"{where} : bibliothèque de modèle ou de conversion sans model_store.guard_network()")
-        # Aucun modèle téléchargé pendant un run : Laya et Docling lisent le cache vérifié.
-        if re.search(r'"laya[\[<>=~!"]', deps) and "model_store.laya_models()" not in code:
-            failures.append(f"{where} : Laya sans model_store.laya_models() (modèle téléchargé pendant le run)")
+        # Aucun modèle téléchargé pendant un run : Docling lit le cache vérifié.
         if re.search(r'\["docling"\]|"--from", f?"docling', code) and ("--artifacts-path" not in code or "docling==" not in code):
             failures.append(f"{where} : Docling sans version épinglée ni --artifacts-path "
                             "(modèles téléchargés pendant le run)")

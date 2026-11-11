@@ -17,13 +17,13 @@
     {
       "name": "convert.py",
       "role": "Convertit les documents en Markdown, en local.",
-      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]",
+      "usage": "uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling] [--triage TRI.json [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]",
       "options": {
         "FICHIER|DOSSIER": "documents à convertir ; un dossier donne ses documents convertibles, sous-dossiers compris ; deux documents de même nom donnent <nom>-<extension>.md ; une vidéo ou un audio passe par video.py",
         "--out": "dossier de sortie (défaut : dossier courant)",
         "--engine": "moteur ; auto choisit Docling pour un PDF scanné (version épinglée, modèles lus dans le cache vérifié : doctor.py extraction --prefetch ; sans eux, repli sur MarkItDown)",
-        "--classify": "classe d'abord avec classify.py (Laya)",
-        "--domains": "avec --classify : domaines possibles",
+        "--triage": "tri des documents rendu par un sous-agent de niveau simple (classify.py --candidates) : type et domaine dans le rapport, Docling pour un PDF à tableaux",
+        "--domains": "avec --triage : domaines permis",
         "--no-clean": "ne pas nettoyer le texte des PDF",
         "--skip-existing": "ne pas reconvertir un document dont le Markdown est plus récent (garde les corrections)",
         "--jobs": "documents convertis en même temps (défaut : jusqu'à 4 ; Docling, un à la fois)",
@@ -139,7 +139,7 @@
                           },
                           "tables": {
                             "type": [
-                              "number",
+                              "boolean",
                               "null"
                             ]
                           },
@@ -616,17 +616,59 @@
     },
     {
       "name": "classify.py",
-      "role": "Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles.",
-      "usage": "uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b] [--min-confidence 0.5] [--rules-only]",
+      "role": "Classe des documents (type, domaine, moteur conseillé) sans charger de modèle : par règles, puis avec le tri d'un sous-agent de niveau simple (--candidates écrit les débuts de documents et la consigne, --triage valide et applique le tri rendu).",
+      "usage": "uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b] [--candidates FICHIER] [--triage FICHIER] | --schema",
       "options": {
         "FICHIER|DOSSIER": "documents ou dossiers",
         "--domains": "domaines possibles : a,b ou a:description,b:description",
-        "--min-confidence": "confiance minimale pour retenir type et domaine (défaut 0.5)",
-        "--rules-only": "ne pas charger Laya"
+        "--candidates": "écrit le début des documents non triés, les types et domaines permis et la consigne, pour un sous-agent de niveau simple",
+        "--triage": "tri rendu par ce sous-agent, validé avant tout travail ; clé : nom du document (ou son nom sans extension)",
+        "--schema": "affiche le schéma JSON du tri sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "Fichier de tri (--triage), validé avant tout traitement : type hors liste, clé inconnue ou domaine non permis donnent une erreur avec son chemin.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "enum": [
+                  "specification",
+                  "architecture",
+                  "procedure",
+                  "compte-rendu",
+                  "presentation",
+                  "contrat",
+                  "rapport",
+                  "autre"
+                ]
+              },
+              "domaine": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tableaux": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
       },
       "report": {
         "format": "json",
-        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier ; type et domaine valent null sous le seuil de confiance.",
+        "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. method vaut tri pour un document classé par le fichier de tri, regles sinon (domaine alors vide).",
         "schema": {
           "type": "object",
           "required": [
@@ -646,9 +688,7 @@
                     "required": [
                       "input",
                       "type",
-                      "type_confidence",
                       "domaine",
-                      "domaine_confidence",
                       "tables",
                       "engine",
                       "method",
@@ -672,31 +712,18 @@
                           null
                         ]
                       },
-                      "type_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
                       "domaine": {
                         "type": [
                           "string",
                           "null"
                         ]
                       },
-                      "domaine_confidence": {
-                        "type": [
-                          "number",
-                          "null"
-                        ]
-                      },
                       "tables": {
                         "type": [
-                          "number",
+                          "boolean",
                           "null"
                         ],
-                        "minimum": 0,
-                        "maximum": 1
+                        "description": "PDF à tableaux ou colonnes, d'après le tri."
                       },
                       "engine": {
                         "enum": [
@@ -705,8 +732,10 @@
                         ]
                       },
                       "method": {
-                        "type": "string",
-                        "pattern": "^(regles|laya \\(.*\\))$"
+                        "enum": [
+                          "regles",
+                          "tri"
+                        ]
                       },
                       "warnings": {
                         "type": "array",
@@ -754,7 +783,7 @@
       },
       "exit_codes": {
         "0": "tous les fichiers sont classés",
-        "1": "au moins un fichier a échoué"
+        "1": "tri invalide ou au moins un fichier en échec"
       }
     }
   ],

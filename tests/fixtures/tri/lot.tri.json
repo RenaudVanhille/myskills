@@ -1,0 +1,15 @@
+{
+ "presentation.pptx": {
+  "type": "presentation",
+  "domaine": "metier"
+ },
+ "rapport-texte.pdf": {
+  "type": "rapport",
+  "domaine": "gestion-projet",
+  "tableaux": false
+ },
+ "absent.docx": {
+  "type": "autre",
+  "domaine": null
+ }
+}

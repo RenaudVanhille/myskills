@@ -12,7 +12,7 @@ Affiche un rapport JSON sur la sortie standard.
 
 Usage :
     uv run scripts/convert.py FICHIER|DOSSIER [...] [--out DOSSIER] [--engine auto|markitdown|docling]
-        [--classify [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]
+        [--triage TRI.json [--domains a,b]] [--no-clean] [--skip-existing] [--jobs N] [--language fr]
 
 Moteurs :
     markitdown  rapide, bon sur Office et les PDF simples (défaut en auto)
@@ -34,9 +34,9 @@ identifiés (model_store.guard_network : model-sources.json,
 MYSKILLS_ALLOWED_HOSTS, proxy, machine locale) ; un autre flux, par exemple
 vers ModelScope, est refusé et listé dans `warnings`.
 
-Avec --classify, chaque document passe d'abord par classify.py (modèle local
-Laya) : type et domaine sont ajoutés au rapport, et un PDF riche en tableaux
-ou en colonnes part sur Docling en mode auto.
+Avec --triage, classify.py applique le tri rendu par un sous-agent de niveau
+simple (classify.py --candidates) : type et domaine sont ajoutés au rapport,
+et un PDF riche en tableaux ou en colonnes part sur Docling en mode auto.
 
 Un PDF converti par MarkItDown est nettoyé (lignes d'un même paragraphe
 réunies, césures recollées, en-têtes et pieds de page répétés retirés à
@@ -352,18 +352,20 @@ def run_docling(path: Path, attachments: Path, stem: str, warnings: list[str]) -
     return markdown, count
 
 
-def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
-    """Lance classify.py dans son propre environnement (dépendances lourdes)."""
+def run_classifier(files: list[Path], triage: Path, domains: str | None) -> tuple[dict, str | None]:
+    """Lance classify.py dans son propre environnement ; un tri invalide est rendu en avertissement."""
     command = (["uv", "run", "--quiet", str(CLASSIFY)] if shutil.which("uv")
                else [sys.executable, str(CLASSIFY)])
-    command += [str(f) for f in files] + (["--domains", domains] if domains else [])
+    command += [str(f) for f in files] + ["--triage", str(triage)] + (["--domains", domains] if domains else [])
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
     try:
-        reports = json.loads(result.stdout)["results"]
+        report = json.loads(result.stdout)
+        reports = report["results"]
     except (json.JSONDecodeError, KeyError, TypeError):
         lines = (result.stderr or "sortie vide").strip().splitlines()
         return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
-    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
+    problem = "Tri non appliqué : " + " ; ".join(report["errors"])[:400] if not reports and report.get("errors") else None
+    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, problem
 
 
 def unique_stems(files: list[Path]) -> dict[Path, str]:
@@ -461,7 +463,7 @@ def convert(path: Path, out: Path, engine: str, classification: dict | None = No
                     report["needs_vision"] = True
             if engine == "auto" and classification and classification["engine"] == "docling":
                 report["warnings"].append(
-                    f"Tableaux ou colonnes probables ({classification['tables']}) : Docling")
+                    "Tableaux ou colonnes d'après le tri : Docling")
                 engine = "docling"
         elif suffix in OFFICE:
             report["type"] = "office"
@@ -508,9 +510,9 @@ def main() -> int:
     parser.add_argument("files", nargs="+", type=Path, help="documents ou dossiers")
     parser.add_argument("--out", type=Path, default=Path("."))
     parser.add_argument("--engine", choices=["auto", "markitdown", "docling"], default="auto")
-    parser.add_argument("--classify", action="store_true",
-                        help="classer d'abord les documents avec le modèle local Laya")
-    parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
+    parser.add_argument("--triage", type=Path,
+                        help="tri des documents rendu par un sous-agent (classify.py --candidates)")
+    parser.add_argument("--domains", help="avec --triage : domaines permis, séparés par des virgules")
     parser.add_argument("--skip-existing", action="store_true",
                         help="ne pas reconvertir un document dont le Markdown est plus récent")
     parser.add_argument("--no-clean", action="store_true",
@@ -526,11 +528,11 @@ def main() -> int:
     files = expand(args.files, args.out.resolve())
     stems = unique_stems(files)
     classifications, classify_warning = {}, None
-    if args.classify:
+    if args.triage:
         existing = [path.resolve() for path in files
                     if path.is_file() and path.suffix.lower() not in IMAGES | MEDIA]
         if existing:
-            classifications, classify_warning = run_classifier(existing, args.domains)
+            classifications, classify_warning = run_classifier(existing, args.triage, args.domains)
     def one(path: Path) -> tuple[dict, bool]:
         """Rapport d'un document et s'il a échoué."""
         if not path.is_file():

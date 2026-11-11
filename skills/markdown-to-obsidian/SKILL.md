@@ -19,7 +19,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`vault_profile.py`** : Lit le vault (lecture seule) : tags, dossiers, dossier des pièces jointes. Rapport JSON (0 succès, 1 erreur).
 - **`vault_check.py`** : Vérifie les notes typées du vault contre l'ontologie (scripts/lib/vault-ontology.json), relit la lisibilité des notes générées et exporte leur graphe typé (lecture seule, sauf --style et --templates). Rapport JSON (0 succès, 1 erreur).
 - **`vault_query.py`** : Interroge les notes typées du vault (lecture seule) par type, propriété, mot du texte ou voisinage d'une note (relations typées dans les deux sens) et rend un JSON court : chemin, type, titre, propriétés et relations de chaque note, sans relire les notes une à une. Options vérifiées contre l'ontologie, valeurs proches proposées. Rapport JSON (0 succès, 1 erreur).
-- **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : classer les documents avant la conversion (--classify).
+- **Dépend de** `doc-to-markdown` (`classify.py`, facultatif : sans lui, avertissement) : appliquer le tri des documents (--triage).
 - **Dépend de** `doc-to-markdown` (`validate.py`, facultatif : sans lui, avertissement) : valider les notes produites.
 - **Dépend de** `mission-workspace` (`lib/workspace.py`, obligatoire) : espace de travail de la mission (mission.json, vault et dossiers par défaut).
 - **Vault Obsidian** : écrit les notes de type `document` ; lit les notes typées, selon l'ontologie du vault (`vault_ontology.py` du skill markdown-to-obsidian).
@@ -46,11 +46,11 @@ jointes réglé dans Obsidian (`attachments`).
   tag existant ne couvre le sujet.
 - **Pièces jointes** : si `attachments` est renseigné, passez-le à
   `--attachments`.
-- **Nature et domaine** (optionnel) : `--classify` ajoute au frontmatter les
-  propriétés `nature` (type de document) et `domaine`, devinées en local par le modèle Laya (voir
+- **Nature et domaine** (optionnel) : `--triage TRI.json` ajoute au frontmatter les
+  propriétés `nature` (type de document) et `domaine`, prises du tri des documents (voir
   `classify.py` dans `doc-to-markdown`). Passez les tags principaux du vault
-  à `--domains` pour que `domaine` reprenne son vocabulaire. Une valeur
-  incertaine n'est pas écrite.
+  à `--domains`, ici et à `classify.py --candidates`, pour que `domaine`
+  reprenne son vocabulaire.
 - Les tags et le dossier donnés par l'utilisateur passent toujours avant.
 - Indiquez dans le rapport final le dossier et les tags choisis.
 
@@ -59,7 +59,7 @@ jointes réglé dans Obsidian (`attachments`).
 ```bash
 uv run scripts/obsidianize.py NOTE.md [...] --vault VAULT [--folder SOUS-DOSSIER] \
     [--attachments attachments] [--source document.pdf] [--tags tag1,tag2] [--move] \
-    [--classify --domains tag1,tag2,tag3]
+    [--triage TRI.json --domains tag1,tag2,tag3]
 ```
 
 Pour importer un document, convertissez-le d'abord dans un dossier de travail
@@ -68,7 +68,7 @@ quittent le dossier de travail pour le vault, sans laisser de copie.
 
 | Transformation | Avant | Après |
 | --- | --- | --- |
-| Frontmatter (si absent) | | `type: document`, `title`, `source`, `created`, `tags` normalisés (+ `nature`, `domaine` avec `--classify`) |
+| Frontmatter (si absent) | | `type: document`, `title`, `source`, `created`, `tags` normalisés (+ `nature`, `domaine` avec `--triage`) |
 | Image locale | `![alt](attachments/a.png)` | `![[a.png\|alt]]` |
 | Lien vers une note | `[texte](autre.md)` | `[[autre\|texte]]` |
 | Citation avec mot-clé | `> Attention : ...` | `> [!warning]` puis le texte |

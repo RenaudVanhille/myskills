@@ -20,7 +20,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`convert.py`** : Convertit les documents en Markdown, en local. Rapport JSON (0 succès, 1 erreur).
 - **`video.py`** : Convertit une vidéo ou un audio en Markdown, en local, flux réseau limités aux hôtes identifiés : images clés pour la vision, transcription faster-whisper avec un modèle épinglé du cache. Rapport JSON (0 succès, 1 erreur).
 - **`validate.py`** : Vérifie un Markdown converti, ou une note Obsidian avec --obsidian. Rapport JSON (0 succès, 1 erreur).
-- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) avec le modèle local Laya lu dans le cache vérifié (doctor.py extraction --prefetch, aucun téléchargement pendant le run), ou par règles. Rapport JSON (0 succès, 1 erreur).
+- **`classify.py`** : Classe des documents (type, domaine, moteur conseillé) sans charger de modèle : par règles, puis avec le tri d'un sous-agent de niveau simple (--candidates écrit les débuts de documents et la consigne, --triage valide et applique le tri rendu). Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Dépend de** `check-prerequisites` (`lib/model_store.py`, obligatoire) : modèles locaux : cache vérifié et flux réseau filtrés (guard_network).
 - **Passe la main** au skill `markdown-to-obsidian` : la cible est un vault Obsidian.
 - **Passe la main** à l'agent `schema-designer` : un schéma en image doit devenir modifiable.
@@ -28,26 +28,24 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 ## 0. Trier un lot (optionnel)
 
 Pour un lot de documents, ou quand l'utilisateur veut connaître le type et le
-domaine de chacun, classez-les d'abord en local avec le petit modèle de
-décision [Laya](https://github.com/NandhaKishorM/laya) (Apache-2.0, CPU) :
+domaine de chacun, le tri se fait en trois temps, sans modèle à installer :
 
 ```bash
-uv run scripts/classify.py DOSSIER|DOCUMENT [...] [--domains a,b,c]
+uv run scripts/classify.py DOSSIER|DOCUMENT [...] [--domains a,b,c] --candidates tri.candidats.json
+# un sous-agent de niveau simple lit tri.candidats.json et écrit tri.tri.json
+uv run scripts/convert.py DOSSIER|DOCUMENT [...] --out DOSSIER --triage tri.tri.json [--domains a,b,c]
 ```
 
-Le rapport JSON donne, par fichier, `type` (specification, architecture,
-procedure, compte-rendu, presentation, contrat, rapport, autre), `domaine`
-(liste par défaut ou `--domains`), `tables` (probabilité de tableaux ou de
-colonnes, PDF seulement) et `engine` conseillé. Un type ou un domaine dont la
-confiance est sous 0,5 reste vide et le rapport le signale : décidez alors en
-lisant le document. Le modèle (~1,5 Go, révision et empreintes épinglées)
-se prépare avant, une fois : `doctor.py extraction --prefetch` (skill
-`check-prerequisites`) ; rien ne se télécharge pendant le run. Sans modèle
-dans le cache, le script se replie sur des règles simples (`method: regles`)
-et l'avertissement donne cette commande.
-
-Pour ne lancer qu'une commande, passez plutôt `--classify` à `convert.py` :
-le classement est ajouté au rapport de conversion et oriente le moteur.
+`tri.candidats.json` contient le début de chaque document, les types et les
+domaines permis et la consigne : le sous-agent n'a besoin de rien d'autre et
+rend `{"<nom>": {"type": ..., "domaine": ..., "tableaux": true|false}}`
+(`classify.py --schema`). Le tri est validé avant d'être appliqué : un type
+ou un domaine hors liste donne une erreur avec la valeur proche. Le rapport
+donne, par fichier, `type` (specification, architecture, procedure,
+compte-rendu, presentation, contrat, rapport, autre), `domaine` (liste par
+défaut ou `--domains`), `tables` (PDF à tableaux ou colonnes), `engine`
+conseillé et `method` (`tri`, ou `regles` pour un document absent du tri).
+`classify.py ... --triage tri.tri.json` seul donne ce rapport sans convertir.
 
 ## 1. Convertir
 
@@ -64,7 +62,7 @@ Le script choisit le moteur (`--engine auto`, par défaut) :
 | PDF scanné (pages sans texte) | Docling avec Tesseract | OCR local ; sans Tesseract ou si Docling échoue, MarkItDown et vision |
 | Image | Copie dans `attachments/` | Contenu à transcrire par vision (étape 3) |
 
-Avec `--classify`, un PDF que Laya juge riche en tableaux ou en colonnes part
+Avec `--triage`, un PDF que le tri dit riche en tableaux ou en colonnes part
 aussi sur Docling. Forcez Docling avec `--engine docling` pour un PDF riche en tableaux ou en
 colonnes que MarkItDown a mal rendu. Docling (version épinglée) lit ses
 modèles de mise en page et de tableaux dans le cache vérifié, préparé une

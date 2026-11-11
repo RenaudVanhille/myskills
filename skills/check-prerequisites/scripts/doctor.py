@@ -16,7 +16,7 @@ Code de sortie : 0 si tous les outils obligatoires sont présents, 1 sinon
 --prefetch télécharge dans le cache les bibliothèques JavaScript des rendus
 (Mermaid, Excalidraw), à version fixée, et vérifie leur empreinte : la
 machine peut ensuite travailler hors ligne (MYSKILLS_OFFLINE=1). Avec le
-groupe extraction (Docling : mise en page et tableaux ; Laya), video
+groupe extraction (Docling : mise en page et tableaux), video
 (Whisper) ou tout, il télécharge aussi les modèles locaux du groupe,
 seulement depuis leur source épinglée dans model-sources.json, et vérifie
 l'empreinte SHA-256 de chaque fichier. --models-from DOSSIER les copie
@@ -37,10 +37,10 @@ import model_store  # noqa: E402
 
 # Modèles locaux préchargés par groupe (identifiants de model-sources.json) : un
 # run n'en télécharge aucun, il les lit dans le cache vérifié.
-GROUP_MODELS = {"extraction": ["docling-layout-heron", "docling-tableformer", "laya"],
+GROUP_MODELS = {"extraction": ["docling-layout-heron", "docling-tableformer"],
                 "video": ["whisper-small"]}
 MODEL_USES = {"docling-layout-heron": "Docling, mise en page des PDF", "docling-tableformer": "Docling, tableaux",
-              "laya": "tri des documents par Laya, --classify", "whisper-small": "transcription locale"}
+              "whisper-small": "transcription locale"}
 
 
 def model_row(model: str, need: str, group: str) -> tuple:
