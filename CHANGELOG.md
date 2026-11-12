@@ -1,5 +1,27 @@
 # Journal des versions
 
+## [0.14.0](https://github.com/RenaudVanhille/myskills/compare/v0.13.0...v0.14.0) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **doc-to-markdown:** --classify (convert.py, obsidianize.py) devient --triage TRI.json ; classify.py perd --min-confidence, --rules-only et les champs type_confidence et domaine_confidence ; tables devient un booléen ; le modèle Laya sort de model-sources.json et du groupe extraction de doctor.py.
+
+### Ajouts
+
+* **decision-log:** dossier d'exploitation et processus métier branchés dans quatre workflows ([#99](https://github.com/RenaudVanhille/myskills/issues/99)) ([9a1748a](https://github.com/RenaudVanhille/myskills/commit/9a1748a3f397605be8ba8f34b41a309333981ff8))
+
+
+### Corrections
+
+* **cloud-architecture:** import de code d'infrastructure dans le même ordre à chaque exécution ([#102](https://github.com/RenaudVanhille/myskills/issues/102)) ([0c3c431](https://github.com/RenaudVanhille/myskills/commit/0c3c4311089ca529462f05739713d11f6cab9fae))
+
+
+### Remaniements
+
+* **doc-to-markdown:** tri des documents par un modèle léger, Laya retiré ([#100](https://github.com/RenaudVanhille/myskills/issues/100)) ([0b95acd](https://github.com/RenaudVanhille/myskills/commit/0b95acd4926a3b851495f89bd98dbbb804eb3f93))
+* sept fonctions de plus de 150 lignes découpées en étapes nommées ([#101](https://github.com/RenaudVanhille/myskills/issues/101)) ([f6327ad](https://github.com/RenaudVanhille/myskills/commit/f6327ad88edae049c49b86e9063061bc5688b6b0))
+
 ## [0.13.0](https://github.com/RenaudVanhille/myskills/compare/v0.12.0...v0.13.0) (2026-11-10)
 
 
