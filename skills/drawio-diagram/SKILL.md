@@ -19,6 +19,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **`drawio_build.py`** : Construit le .drawio aux styles de la charte à partir de la description JSON, puis le vérifie comme check_drawio.py. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`check_drawio.py`** : Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image). Rapport JSON (0 succès, 1 erreur).
 - **`drawio_read.py`** : Tire d'un .drawio existant (XML clair ou compressé) la description JSON courte de drawio_build.py : rôle de chaque forme déduit de son style, identifiants, libellés sans HTML et positions (ou grille approchée), flèches avec libellé et style ; vérifie la description contre le schéma de drawio_build.py avant de l'écrire. Le modèle édite cette description au lieu du XML. Rapport JSON (0 succès, 1 erreur).
+- **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube.
 - **Dépend de** `diagram-export` (`export.py`, facultatif : sans lui, avertissement) : --export : rendre l'image dans le même appel que la construction.
 - **Passe la main** au skill `diagram-export` : exporter et relire l'image.
 
