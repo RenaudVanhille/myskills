@@ -83,6 +83,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from lib.workflow_chart import progress_chart  # noqa: E402
 from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -392,6 +393,12 @@ def next_action(state: dict) -> tuple[str | None, str]:
     return None, "workflow terminé : toutes les étapes sont validées"
 
 
+def chart(state: dict) -> list[str]:
+    """Schéma Mermaid des étapes : obligatoire ou facultative, statut, dépendances."""
+    stages = [stage_definition(state, s["id"]) or {"id": s["id"]} for s in state["stages"]]
+    return progress_chart(stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"])
+
+
 def render(state: dict) -> str:
     lines = [f"# Journal : {state['title']}", "",
              "Fichier généré par `journal.py` depuis `workflow.json`, qui fait foi.", "",
@@ -399,6 +406,7 @@ def render(state: dict) -> str:
     for stage in state["stages"]:
         files = ", ".join(f"`{f}`" for f in stage.get("files", {})) or "-"
         lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
+    lines += ["", "## Avancement", ""] + chart(state)
     lines += ["", "## Décisions et revues", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]

@@ -7,9 +7,14 @@ build.py, contrôlée à jour par tests/run.py : la définition reste la seule s
 """
 
 import json
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO / "shared" / "scripts"))
+import workflow_chart  # noqa: E402
+from workflow_chart import node, requires, text  # noqa: E402,F401
+
 WORKFLOWS = REPO / "skills" / "decision-log" / "workflows"
 DOCS = REPO / "docs" / "workflows"
 ENGINE = "architecture-workflow"
@@ -20,7 +25,7 @@ STARTS = {"documents": "Documents du projet", "infra": "Code d'infrastructure", 
 # Charte commune (shared/references/style.md) : système, externe, à créer, point de vigilance.
 CLASSES = ["classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937",
            "classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937",
-           "classDef facultative stroke-dasharray:5 5",
+           workflow_chart.OPTIONAL,
            "classDef depart fill:#f3f4f6,stroke:#6b7280,color:#1f2937"]
 HEADER = ("<!-- Fichier généré par scripts/build.py depuis skills/decision-log/workflows/{name}.json :"
           " ne pas le modifier à la main. -->")
@@ -30,27 +35,10 @@ def definitions() -> list[dict]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(WORKFLOWS.glob("*.json"))]
 
 
-def node(stage_id: str) -> str:
-    return "s_" + stage_id.replace("-", "_")
-
-
-def text(value: str) -> str:
-    """Libellé Mermaid entre guillemets."""
-    return value.replace('"', "#quot;")
-
-
 def cell(value) -> str:
     if isinstance(value, list):
         value = ", ".join(f"`{v}`" for v in value) if value else "aucun"
     return str(value).replace("|", "\\|").replace("\n", " ")
-
-
-def requires(stages: list[dict], index: int) -> list[str]:
-    """Étapes dont dépend une étape : son champ `after`, sinon la précédente (comme journal.py)."""
-    stage = stages[index]
-    if "after" in stage:
-        return list(stage["after"])
-    return [stages[index - 1]["id"]] if index else []
 
 
 def waves(stages: list[dict]) -> list[list[str]]:
@@ -82,22 +70,10 @@ def makes_dossier(definition: dict) -> bool:
 
 def flowchart(definition: dict) -> str:
     stages = definition["stages"]
-    # Au-delà de 10 étapes, de haut en bas : un schéma trop large devient illisible une fois réduit.
-    lines = ["```mermaid", "---", "title: " + json.dumps(definition["title"], ensure_ascii=False), "---",
-             "flowchart " + ("TD" if len(stages) > 10 else "LR")]
-    for i, stage in enumerate(stages, 1):
-        who = stage.get("agent", ENGINE)
-        lines.append(f'  {node(stage["id"])}["{i}. {text(stage["label"])}<br/><small>{who}</small>"]')
-    for i, stage in enumerate(stages):
-        for need in requires(stages, i):
-            lines.append(f"  {node(need)} --> {node(stage['id'])}")
-    lines += [f"  {c}" for c in CLASSES[:3]]
-    for kind, test in (("moteur", lambda s: "agent" not in s), ("agent", lambda s: "agent" in s),
-                       ("facultative", lambda s: s.get("facultative"))):
-        ids = [node(s["id"]) for s in stages if test(s)]
-        if ids:
-            lines.append(f"  class {','.join(ids)} {kind}")
-    return "\n".join(lines + ["```"])
+    classes = [(c.split(" ", 2)[1], c.split(" ", 2)[2], [s["id"] for s in stages if test(s)])
+               for c, test in zip(CLASSES, (lambda s: "agent" not in s, lambda s: "agent" in s,
+                                            lambda s: s.get("facultative")))]
+    return workflow_chart.flowchart(stages, definition["title"], lambda s: s.get("agent", ENGINE), classes)
 
 
 def stage_label(stages: list[dict], stage_id: str) -> str:
