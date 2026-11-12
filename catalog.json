@@ -7260,7 +7260,7 @@
       ],
       "outputs": [
         "workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json, avant-vente.json, maquettes.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
-        "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande",
+        "journal.md : version lisible (étapes, décisions et revues, questions), réécrite à chaque commande ; fichiers soumis, entrées, exigences et options y sont des liens Markdown vers le fichier ou la note du vault",
         "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md... liées à leur document source, Documents/<document>.md (chaque document des sources), Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables intégrés (copies dans Fichiers/)",
         "lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur"
       ],
@@ -17102,7 +17102,7 @@
         "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
       ],
       "outputs": [
-        "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme)",
+        "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
         "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)",
         "ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py)"
       ],

@@ -78,6 +78,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -392,20 +393,52 @@ def next_action(state: dict) -> tuple[str | None, str]:
     return None, "workflow terminé : toutes les étapes sont validées"
 
 
-def render(state: dict) -> str:
+def md_link(text: str, target: Path, folder: Path) -> str:
+    """Lien Markdown standard vers un fichier, relatif au dossier du journal (lisible dans Obsidian ouvert à la
+    racine du projet comme à l'export) ; le texte seul si le fichier n'est pas joignable par un chemin relatif."""
+    try:
+        relative = Path(os.path.relpath(target, folder)).as_posix()
+    except ValueError:  # autre lecteur sous Windows
+        return text
+    return f"[{text}]({urllib.parse.quote(relative)})"
+
+
+def linker(folder: Path, state: dict):
+    """Fonction qui lie une référence du journal : un fichier du dossier vers lui-même, une entrée, une exigence
+    ou une option vers sa note du vault quand le workflow en a un."""
+    memory = state.get("memory") or {}
+    base = Path(memory["vault"]) / safe_folder(memory["folder"]) if memory.get("vault") else None
+    entries = {e["id"] for e in state["entries"]}
+
+    def link(ref: str, code: bool = False) -> str:
+        shown = f"`{ref}`" if code else ref.replace("|", "\\|")
+        if (folder / ref).is_file():
+            return md_link(shown, folder / ref, folder)
+        if not base or ref != safe_name(ref):
+            return shown
+        notes = [base / "Décisions" / f"{ref}.md"] if ref in entries else \
+            [n for n in (base / "Exigences" / f"{ref}.md", base / "Options" / f"Option {ref}.md") if n.is_file()]
+        return md_link(shown, notes[0], folder) if notes else shown
+    return link
+
+
+def render(state: dict, folder: Path | None = None) -> str:
+    link = linker(folder, state) if folder else (lambda ref, code=False: f"`{ref}`" if code else ref)
     lines = [f"# Journal : {state['title']}", "",
              "Fichier généré par `journal.py` depuis `workflow.json`, qui fait foi.", "",
              "## Étapes", "", "| Étape | Statut | Fichiers soumis |", "| --- | --- | --- |"]
     for stage in state["stages"]:
-        files = ", ".join(f"`{f}`" for f in stage.get("files", {})) or "-"
+        files = ", ".join(link(f, code=True) for f in stage.get("files", {})) or "-"
         lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
     lines += ["", "## Décisions et revues", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for entry in state["entries"]:
-        cells = [entry["id"], entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
-                 entry["by"], entry["text"], entry.get("why", ""), ", ".join(entry.get("refs", []))]
-        lines.append("| " + " | ".join(c.replace("|", "\\|").replace("\n", " ") for c in cells) + " |")
+        cells = [entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
+                 entry["by"], entry["text"], entry.get("why", "")]
+        cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
+            + [", ".join(link(ref) for ref in entry.get("refs", [])).replace("\n", " ")]
+        lines.append("| " + " | ".join(cells) + " |")
     questions = [e for e in state["entries"] if e["kind"] == "question"]
     if questions:
         lines += ["", "## Questions posées", ""]
@@ -418,7 +451,7 @@ def save(folder: Path, state: dict) -> None:
         json.dump(state, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     with open(folder / JOURNAL, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render(state))
+        handle.write(render(state, folder))
 
 
 def read_review(note: Path) -> tuple[str | None, str]:

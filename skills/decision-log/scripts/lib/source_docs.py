@@ -83,7 +83,7 @@ def linker(ids: dict[str, str], docs: dict[str, tuple[str, list[str]]], folder: 
     """Fonction qui pose les wikilinks dans un texte Markdown, sans en changer les mots : un identifiant
     connu (EF-001, D-012) mène à sa note, un renvoi à un document source (« doc.md », « doc.md:30 »,
     `sources/doc.md`) à la note du document, à la section de la ligne citée. Blocs de code, code en ligne,
-    titres et liens déjà écrits sont laissés tels quels ; dans un tableau, la barre du lien est échappée.
+    titres et autres liens déjà écrits sont laissés tels quels ; dans un tableau, la barre du lien est échappée.
     ids : identifiant -> note ; docs : document -> (note, lignes) ; folder : nom du dossier des sources."""
     parts = [r"(?P<skip>!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)|<[^>\n]+>)"]
     if docs:
@@ -111,7 +111,10 @@ def linker(ids: dict[str, str], docs: dict[str, tuple[str, list[str]]], folder: 
                 if groups.get("id"):
                     return f"[[{ids[groups['id']]}{bar}{groups['id']}]]"
                 if not groups.get("doc"):
-                    return match.group(0)
+                    # Lien Markdown déjà posé sur un identifiant ou un document (journal.md) : repris en wikilink.
+                    inner = re.fullmatch(r"\[([^\]\n]*)\]\([^)\n]*\)", groups.get("skip") or "")
+                    text = pattern.sub(link, inner.group(1)) if inner else None
+                    return text if text and text != inner.group(1) else match.group(0)
                 target, lines = docs[groups["doc"]]
                 section = section_at(lines, int(groups["line"])) if groups.get("line") else None
                 shown = match.group(0).strip("`")

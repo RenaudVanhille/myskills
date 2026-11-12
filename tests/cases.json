@@ -720,7 +720,7 @@
         {"script": "{skills}/requirements-catalog/scripts/req_build.py", "args": ["{fixtures}/workflow/exigences.json", "--out-dir", "{out}"], "exit": 0, "report": {"functional": 3, "non_functional": 7, "ignored": 1, "questions": 2, "uncovered": 0, "errors": [], "warnings": []}}
       ],
       "files": ["exigences.md", "exigences.csv"],
-      "contains": {"exigences.md": ["EF-003", "| SEC-01 |", "exigences-securite.md:5", "cahier-des-charges.md:14", "compte-rendu-atelier.md:5", "## Questions ouvertes", "traité dans un autre projet"],
+      "contains": {"exigences.md": ["EF-003", "| SEC-01 |", "[exigences-securite.md:5](", "/sources/cahier-des-charges.md#Besoins%20fonctionnels)", "exigences-securite.md:5", "cahier-des-charges.md:14", "compte-rendu-atelier.md:5", "## Questions ouvertes", "traité dans un autre projet"],
                    "exigences.csv": ["ENF-004;non fonctionnelle", "SEC-02;non fonctionnelle"]}
     },
     {
@@ -1142,6 +1142,7 @@
                    "vault/Projets/Sinistres/Documents/cahier-des-charges.md": ["type: \"document\"", "source: \"cahier-des-charges.md\"", "## Besoins fonctionnels", "- [[Projets/Sinistres/Exigences/EF-001|EF-001 Déclarer un sinistre en ligne]]"],
                    "vault/Projets/Sinistres/Glossaire/Sinistre.md": ["extrait-de:"],
                    "vault/Projets/Sinistres/Portail sinistres.md": ["## Documents", "- [[Projets/Sinistres/Documents/compte-rendu-atelier|Compte rendu de l'atelier du 12 septembre]] : 2 exigences", "[[Projets/Sinistres/Fichiers/journal.md|Journal complet]]"],
+                   "w/journal.md": ["| [D-001](../vault/Projets/Sinistres/D%C3%A9cisions/D-001.md) |"],
                    "vault/Projets/Sinistres/Fichiers/journal.md": ["| [[Projets/Sinistres/Décisions/D-001\\|D-001]] |", "[[Projets/Sinistres/Exigences/ENF-004\\|ENF-004]]"],
                    "vault/Projets/Sinistres/Exigences/ENF-004.md": ["priorite: \"indispensable\"", "[[Projets/Sinistres/Options/Option B|Option B : Extension du progiciel de gestion]] : non couverte",
                                                                       "aliases:\n  - \"ENF-004 Authentification forte\"",
