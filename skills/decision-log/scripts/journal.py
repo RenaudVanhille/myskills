@@ -511,40 +511,179 @@ def _trace(folder: Path, kind: str, message: dict, errors: list[str], warnings: 
     return {"entry": entry, "errors": errors, "warnings": warnings}
 
 
+class Refused(Exception):
+    """La commande s'arrête là : l'erreur est déjà dans errors, l'état n'est pas enregistré."""
+
+
+def init_workflow(args, folder: Path, errors: list[str]) -> dict:
+    if (folder / STATE).exists():
+        errors.append(f"{folder / STATE} existe déjà : utilisez status pour reprendre le workflow")
+        raise Refused
+    definition = None
+    if args.definition:
+        definition = load_definition(args.definition, errors)
+        if not definition:
+            raise Refused
+        stages = [s["id"] for s in definition["stages"]]
+    else:
+        stages = split(args.stages) or STAGES
+    if len(set(stages)) != len(stages):
+        errors.append("étapes en double dans --stages")
+        raise Refused
+    folder.mkdir(parents=True, exist_ok=True)
+    state = {"title": args.title or (definition or {}).get("title") or folder.resolve().name, "created": now(),
+             "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
+    if definition:
+        state["definition"] = definition
+    # Dans une mission (mission.json au-dessus du dossier), son vault par défaut, et aucun autre.
+    args.vault, _, scoped = workspace.vault_target(args.vault, None, [folder], default_folder=None)
+    if scoped:
+        errors += scoped
+        raise Refused
+    if args.vault:
+        if not args.vault.is_dir():
+            errors.append(f"vault introuvable : {args.vault}")
+            raise Refused
+        state["memory"] = {"vault": str(args.vault.resolve()),
+                           "folder": safe_folder(args.folder_in_vault or f"Workflows/{safe_name(state['title'])}")}
+    return state
+
+
+def start_or_skip(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> str | None:
+    """Démarre ou saute une étape dont les étapes amont sont validées et inchangées."""
+    before = [s for s in state["stages"] if s["id"] in ancestors(state, stage["id"])]
+    blocking = [s["id"] for s in before if s["status"] not in DONE]
+    stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in before
+             if s["status"] == "validee" and changed_files(folder, s)]
+    if blocking:
+        errors.append(f"{stage['id']} ne peut pas démarrer : étape(s) dont elle dépend non validée(s) : "
+                      f"{', '.join(blocking)}")
+    elif stale:
+        errors.append(f"{stage['id']} ne peut pas démarrer : livrable(s) validé(s) modifié(s) depuis : "
+                      f"{'; '.join(stale)} ; faites-les revoir (review --decision retour)")
+    elif args.command == "skip" and not (stage_definition(state, stage["id"]) or {}).get("facultative"):
+        errors.append(f"{stage['id']} n'est pas facultative dans la définition du workflow : elle ne se saute pas")
+    elif args.command == "skip" and not args.text:
+        errors.append("skip : --text (les mots de l'utilisateur qui renonce à l'étape)")
+    elif stage["status"] not in ("a-faire", "a-reprendre") + (("sautee",) if args.command == "start" else ()):
+        errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]}, pas à "
+                      + ("démarrer" if args.command == "start" else "sauter"))
+    elif args.command == "skip":
+        stage["status"] = "sautee"
+        return add_entry(state, stage["id"], "saut", "utilisateur", args.text)
+    else:
+        stage["status"] = "en-cours"
+    return None
+
+
+def submit(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> str | None:
+    """Soumet les livrables de l'étape à la revue, avec leurs empreintes et l'écart à la version relue."""
+    if stage["status"] not in ("en-cours", "en-revue"):
+        errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en cours "
+                      "ou en revue se soumet")
+    expected = stage_definition(state, stage["id"])
+    if not args.files and not expected:
+        errors.append("submit : --files (pas de définition de workflow qui donne les livrables)")
+        raise Refused
+    if args.files:
+        missing = [f for f in args.files if not (folder / f).is_file()]
+        errors += [f"fichier introuvable : {f} (chemin relatif au dossier du workflow)" for f in missing]
+        submitted = [Path(f).as_posix() for f in args.files]
+        if expected:
+            errors += [f"livrable attendu non soumis : {p} (étape {stage['id']})"
+                       for p in uncovered(submitted, expected)]
+    else:
+        submitted = deliverables(folder, expected, errors)
+    if errors:
+        return None
+    files = sorted(dict.fromkeys(submitted))
+    hashes = {f: digest(folder / f) for f in files}
+    items = {f: found for f in files if (found := items_of(folder / f))}
+    changes = differences(stage, hashes, items)
+    stage["files"], stage["status"] = hashes, "en-revue"
+    if items:
+        stage["items"] = items
+    else:
+        stage.pop("items", None)
+    text = f"{len(files)} fichier{'s soumis' if len(files) > 1 else ' soumis'} à la revue"
+    if changes is not None:
+        text += f" ; depuis la version relue : {describe(changes)}"
+        args.changes = changes
+    return add_entry(state, stage["id"], "soumission", "agent", text, files=files,
+                     refs=(changes["added"] + changes["modified"]) if changes else None)
+
+
+def review_from_vault(args, state: dict, stage: dict, errors: list[str]) -> None:
+    """Lit la revue écrite dans la note Obsidian de l'étape : décision et texte passent dans args."""
+    memory = state.get("memory")
+    if not memory:
+        errors.append("pas de vault pour ce workflow : review --decision ... --text ...")
+        raise Refused
+    if stage["status"] != "en-revue":
+        errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : pas de revue en attente")
+        raise Refused
+    note = Path(memory["vault"]) / f"{review_note(memory['folder'], stage['id'])}.md"
+    value, text = read_review(note)
+    if value is None:
+        errors.append(f"pas encore de revue dans {note} : propriété revue à « validée » ou « retour »")
+        raise Refused
+    args.decision = VAULT_DECISIONS.get(value)
+    if not args.decision:
+        errors.append(f"{note.name} : revue « {value} » non permise (validée, retour)")
+        raise Refused
+    args.text = text or ("validé dans Obsidian" if args.decision == "valide" else "")
+    if not args.text:
+        errors.append(f"{note.name} : retour sans texte sous « Votre retour »")
+        raise Refused
+
+
+def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> str | None:
+    """Validation ou retour de l'utilisateur ; un retour remet à reprendre les étapes qui en dépendent."""
+    via = None
+    if not args.from_vault and not (args.decision and args.text):
+        errors.append("review : --decision et --text (les mots de l'utilisateur), ou --from-vault")
+        raise Refused
+    if args.from_vault:
+        review_from_vault(args, state, stage, errors)
+        via = "obsidian"
+    if args.decision == "valide":
+        if stage["status"] != "en-revue":
+            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en revue "
+                          "se valide")
+            return None
+        changed = changed_files(folder, stage)
+        if changed:
+            errors.append(f"fichiers modifiés depuis la soumission : {', '.join(changed)} ; "
+                          "soumettez-les à nouveau")
+            return None
+        stage["status"] = "validee"
+        return add_entry(state, stage["id"], "validation", "utilisateur", args.text,
+                         refs=split(args.refs), files=list(stage["files"]), via=via)
+    if stage["status"] not in ("en-revue", "validee", "en-cours"):
+        errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : rien à reprendre")
+        return None
+    stage["status"] = "a-reprendre"
+    entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs), via=via)
+    for later in (s for s in state["stages"] if s["id"] in dependents(state, stage["id"])):
+        # Une étape sautée le reste : l'utilisateur y a renoncé, le retour n'y change rien.
+        if later["status"] not in ("a-faire", "sautee"):
+            later["status"] = "a-reprendre"
+            add_entry(state, later["id"], "invalidation", "agent",
+                      f"à reprendre après le retour {entry} sur {stage['id']}", refs=[entry])
+    return entry
+
+
 def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
+    try:
+        return _run(args, errors, warnings)
+    except Refused:
+        return None, None
+
+
+def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
     folder: Path = args.folder
     if args.command == "init":
-        if (folder / STATE).exists():
-            errors.append(f"{folder / STATE} existe déjà : utilisez status pour reprendre le workflow")
-            return None, None
-        definition = None
-        if args.definition:
-            definition = load_definition(args.definition, errors)
-            if not definition:
-                return None, None
-            stages = [s["id"] for s in definition["stages"]]
-        else:
-            stages = split(args.stages) or STAGES
-        if len(set(stages)) != len(stages):
-            errors.append("étapes en double dans --stages")
-            return None, None
-        folder.mkdir(parents=True, exist_ok=True)
-        state = {"title": args.title or (definition or {}).get("title") or folder.resolve().name, "created": now(),
-                 "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
-        if definition:
-            state["definition"] = definition
-        # Dans une mission (mission.json au-dessus du dossier), son vault par défaut, et aucun autre.
-        args.vault, _, scoped = workspace.vault_target(args.vault, None, [folder], default_folder=None)
-        if scoped:
-            errors += scoped
-            return None, None
-        if args.vault:
-            if not args.vault.is_dir():
-                errors.append(f"vault introuvable : {args.vault}")
-                return None, None
-            state["memory"] = {"vault": str(args.vault.resolve()),
-                               "folder": safe_folder(args.folder_in_vault or f"Workflows/{safe_name(state['title'])}")}
-        return state, None
+        return init_workflow(args, folder, errors), None
 
     state = load_state(folder, errors)
     if state is None:
@@ -563,30 +702,9 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
     stage = stage_of(state, args.stage, errors)
     if not stage:
         return None, None
-    before = [s for s in state["stages"] if s["id"] in ancestors(state, stage["id"])]
     entry = None
     if args.command in ("start", "skip"):
-        blocking = [s["id"] for s in before if s["status"] not in DONE]
-        stale = [f"{s['id']} ({', '.join(changed_files(folder, s))})" for s in before
-                 if s["status"] == "validee" and changed_files(folder, s)]
-        if blocking:
-            errors.append(f"{stage['id']} ne peut pas démarrer : étape(s) dont elle dépend non validée(s) : "
-                          f"{', '.join(blocking)}")
-        elif stale:
-            errors.append(f"{stage['id']} ne peut pas démarrer : livrable(s) validé(s) modifié(s) depuis : "
-                          f"{'; '.join(stale)} ; faites-les revoir (review --decision retour)")
-        elif args.command == "skip" and not (stage_definition(state, stage["id"]) or {}).get("facultative"):
-            errors.append(f"{stage['id']} n'est pas facultative dans la définition du workflow : elle ne se saute pas")
-        elif args.command == "skip" and not args.text:
-            errors.append("skip : --text (les mots de l'utilisateur qui renonce à l'étape)")
-        elif stage["status"] not in ("a-faire", "a-reprendre") + (("sautee",) if args.command == "start" else ()):
-            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]}, pas à "
-                          + ("démarrer" if args.command == "start" else "sauter"))
-        elif args.command == "skip":
-            stage["status"] = "sautee"
-            entry = add_entry(state, stage["id"], "saut", "utilisateur", args.text)
-        else:
-            stage["status"] = "en-cours"
+        entry = start_or_skip(args, folder, state, stage, errors)
     elif args.command == "log":
         if args.kind != "question" and stage["status"] != "en-cours":
             errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : un {args.kind} se note "
@@ -594,91 +712,9 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         else:
             entry = add_entry(state, stage["id"], args.kind, args.by, args.text, args.why or "", split(args.refs))
     elif args.command == "submit":
-        if stage["status"] not in ("en-cours", "en-revue"):
-            errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en cours "
-                          "ou en revue se soumet")
-        expected = stage_definition(state, stage["id"])
-        if not args.files and not expected:
-            errors.append("submit : --files (pas de définition de workflow qui donne les livrables)")
-            return None, None
-        if args.files:
-            missing = [f for f in args.files if not (folder / f).is_file()]
-            errors += [f"fichier introuvable : {f} (chemin relatif au dossier du workflow)" for f in missing]
-            submitted = [Path(f).as_posix() for f in args.files]
-            if expected:
-                errors += [f"livrable attendu non soumis : {p} (étape {stage['id']})"
-                           for p in uncovered(submitted, expected)]
-        else:
-            submitted = deliverables(folder, expected, errors)
-        if not errors:
-            files = sorted(dict.fromkeys(submitted))
-            hashes = {f: digest(folder / f) for f in files}
-            items = {f: found for f in files if (found := items_of(folder / f))}
-            changes = differences(stage, hashes, items)
-            stage["files"], stage["status"] = hashes, "en-revue"
-            if items:
-                stage["items"] = items
-            else:
-                stage.pop("items", None)
-            text = f"{len(files)} fichier{'s soumis' if len(files) > 1 else ' soumis'} à la revue"
-            if changes is not None:
-                text += f" ; depuis la version relue : {describe(changes)}"
-                args.changes = changes
-            entry = add_entry(state, stage["id"], "soumission", "agent", text, files=files,
-                              refs=(changes["added"] + changes["modified"]) if changes else None)
+        entry = submit(args, folder, state, stage, errors)
     elif args.command == "review":
-        via = None
-        if not args.from_vault and not (args.decision and args.text):
-            errors.append("review : --decision et --text (les mots de l'utilisateur), ou --from-vault")
-            return None, None
-        if args.from_vault:
-            memory = state.get("memory")
-            if not memory:
-                errors.append("pas de vault pour ce workflow : review --decision ... --text ...")
-                return None, None
-            if stage["status"] != "en-revue":
-                errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : pas de revue en attente")
-                return None, None
-            note = Path(memory["vault"]) / f"{review_note(memory['folder'], stage['id'])}.md"
-            value, text = read_review(note)
-            if value is None:
-                errors.append(f"pas encore de revue dans {note} : propriété revue à « validée » ou « retour »")
-                return None, None
-            args.decision = VAULT_DECISIONS.get(value)
-            if not args.decision:
-                errors.append(f"{note.name} : revue « {value} » non permise (validée, retour)")
-                return None, None
-            args.text = text or ("validé dans Obsidian" if args.decision == "valide" else "")
-            if not args.text:
-                errors.append(f"{note.name} : retour sans texte sous « Votre retour »")
-                return None, None
-            via = "obsidian"
-        if args.decision == "valide":
-            if stage["status"] != "en-revue":
-                errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : seule une étape en revue "
-                              "se valide")
-            else:
-                changed = changed_files(folder, stage)
-                if changed:
-                    errors.append(f"fichiers modifiés depuis la soumission : {', '.join(changed)} ; "
-                                  "soumettez-les à nouveau")
-                else:
-                    stage["status"] = "validee"
-                    entry = add_entry(state, stage["id"], "validation", "utilisateur", args.text,
-                                      refs=split(args.refs), files=list(stage["files"]), via=via)
-        else:
-            if stage["status"] not in ("en-revue", "validee", "en-cours"):
-                errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : rien à reprendre")
-            else:
-                stage["status"] = "a-reprendre"
-                entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs),
-                                  via=via)
-                for later in (s for s in state["stages"] if s["id"] in dependents(state, stage["id"])):
-                    # Une étape sautée le reste : l'utilisateur y a renoncé, le retour n'y change rien.
-                    if later["status"] not in ("a-faire", "sautee"):
-                        later["status"] = "a-reprendre"
-                        add_entry(state, later["id"], "invalidation", "agent",
-                                  f"à reprendre après le retour {entry} sur {stage['id']}", refs=[entry])
+        entry = review(args, folder, state, stage, errors)
     return state, entry
 
 

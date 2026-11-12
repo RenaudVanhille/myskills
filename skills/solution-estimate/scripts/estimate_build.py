@@ -360,131 +360,143 @@ def analogy(spec_path: Path, spec: dict, errors: list[str], warnings: list[str])
     return {"missions": list(past), "phases": phases, "deviations": deviations}
 
 
-def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
-            errors: list[str], warnings: list[str], rules: list[dict]) -> dict:
-    """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
-    rates = spec.get("rates")  # sans taux : mode charges, jours et heures seulement
-    if rates is not None and not rates:
-        errors.append("rates : au moins un profil attendu, ou pas de champ rates pour les charges seules")
-    comps = {c["id"]: c for c in option["components"]}
-    ids: dict[str, str] = {}
+class _Refs:
+    """Références croisées d'un chiffrage : identifiants uniques, profils, composants et exigences connus."""
 
-    def unique(item_id: str, where: str) -> None:
-        if item_id in ids:
-            errors.append(f"{where} : identifiant « {item_id} » déjà pris ({ids[item_id]})")
-        ids[item_id] = where
+    def __init__(self, spec: dict, catalog: dict, option: dict, errors: list[str]):
+        self.rates = spec.get("rates")  # sans taux : mode charges, jours et heures seulement
+        self.catalog, self.option, self.errors = catalog, option, errors
+        self.comps = {c["id"]: c for c in option["components"]}
+        self.ids: dict[str, str] = {}
 
-    def profile(name: str, where: str) -> float:
-        if rates is None:
+    def unique(self, item_id: str, where: str) -> None:
+        if item_id in self.ids:
+            self.errors.append(f"{where} : identifiant « {item_id} » déjà pris ({self.ids[item_id]})")
+        self.ids[item_id] = where
+
+    def profile(self, name: str, where: str) -> float:
+        if self.rates is None:
             return 0.0
-        if name not in rates:
-            errors.append(f"{where} : profil inconnu « {name} »{hint(name, rates)}")
+        if name not in self.rates:
+            self.errors.append(f"{where} : profil inconnu « {name} »{hint(name, self.rates)}")
             return 0.0
-        return rates[name]
+        return self.rates[name]
 
-    def component(name: str | None, where: str) -> None:
-        if name and name not in comps:
-            errors.append(f"{where} : composant inconnu « {name} » dans l'option {option['id']}{hint(name, comps)}")
+    def component(self, name: str | None, where: str) -> None:
+        if name and name not in self.comps:
+            self.errors.append(f"{where} : composant inconnu « {name} » dans l'option {self.option['id']}"
+                               f"{hint(name, self.comps)}")
 
-    def refs(values, where: str) -> None:
+    def refs(self, values, where: str) -> None:
         for ref in values:
-            if catalog and ref not in catalog:
-                errors.append(f"{where} : exigence inconnue {ref}")
-            elif catalog.get(ref, {}).get("status") == "retiree":
-                errors.append(f"{where} : {ref} est retirée du catalogue")
+            if self.catalog and ref not in self.catalog:
+                self.errors.append(f"{where} : exigence inconnue {ref}")
+            elif self.catalog.get(ref, {}).get("status") == "retiree":
+                self.errors.append(f"{where} : {ref} est retirée du catalogue")
 
+
+def work_lines(spec: dict, known: _Refs) -> tuple[list[dict], list[str], dict]:
+    """Une ligne par lot et par profil, les lots très incertains, et les sommes (jours, coût, variances)."""
     lines, uncertain = [], []
-    work_days = work_var = work_cost = cost_var = 0.0
+    sums = {"days": 0.0, "var": 0.0, "cost": 0.0, "cost_var": 0.0}
     for index, task in enumerate(spec["work"]):
         where = f"work/{index} ({task['id']})"
-        unique(task["id"], where)
-        component(task.get("component"), where)
-        refs(task.get("refs", []), f"{where}/refs")
+        known.unique(task["id"], where)
+        known.component(task.get("component"), where)
+        known.refs(task.get("refs", []), f"{where}/refs")
         if not task["effort"]:
-            errors.append(f"{where}/effort : charge à estimer, en jours par profil (au moins un)")
+            known.errors.append(f"{where}/effort : charge à estimer, en jours par profil (au moins un)")
         for name, value in task["effort"].items():
-            rate = profile(name, f"{where}/effort/{name}")
+            rate = known.profile(name, f"{where}/effort/{name}")
             low, likely, high, expected, sd = three_points(value)
             if not low <= likely <= high:
-                errors.append(f"{where}/effort/{name} : [mini, probable, maxi] attendu dans l'ordre croissant, reçu {value}")
+                known.errors.append(f"{where}/effort/{name} : [mini, probable, maxi] attendu dans l'ordre croissant, "
+                                    f"reçu {value}")
                 continue
             if likely and (high - low) / likely > UNCERTAIN and task["id"] not in uncertain:
                 uncertain.append(task["id"])
-            work_days += expected
-            work_var += sd ** 2
-            work_cost += expected * rate
-            cost_var += (sd * rate) ** 2
+            sums["days"] += expected
+            sums["var"] += sd ** 2
+            sums["cost"] += expected * rate
+            sums["cost_var"] += (sd * rate) ** 2
             lines.append({"type": "lot", "id": task["id"], "name": task["name"], "phase": task["phase"],
                           "component": task.get("component", ""), "profile": name, "low": low, "likely": likely,
                           "high": high, "days": expected, "rate": rate, "cost": expected * rate,
                           "refs": task.get("refs", []), "sd": sd, "ai": task.get("ai", {}),
                           "complexity": task.get("complexity")})
+    return lines, uncertain, sums
 
-    over_days = over_cost = 0.0
+
+def overhead_lines(spec: dict, known: _Refs, work_days: float) -> tuple[list[dict], float, float]:
+    """Lignes de pilotage, en pourcentage des jours des lots ; leurs jours et leur coût."""
+    lines, days, cost = [], 0.0, 0.0
     for index, item in enumerate(spec.get("overheads", [])):
         where = f"overheads/{index} ({item['id']})"
-        unique(item["id"], where)
-        rate = profile(item["profile"], f"{where}/profile")
+        known.unique(item["id"], where)
+        rate = known.profile(item["profile"], f"{where}/profile")
         amount = work_days * item["percent"] / 100
-        over_days += amount
-        over_cost += amount * rate
+        days += amount
+        cost += amount * rate
         lines.append({"type": "pilotage", "id": item["id"], "name": item["name"], "phase": "pilotage",
                       "component": "", "profile": item["profile"], "low": "", "likely": "", "high": "",
                       "days": amount, "rate": rate, "cost": amount * rate, "refs": [],
                       "percent": item["percent"]})
+    return lines, days, cost
 
+
+def infra_lines(spec: dict, known: _Refs) -> list[dict]:
     infra = []
     for index, item in enumerate(spec.get("infra", [])):
         where = f"infra/{index} ({item['id']})"
-        unique(item["id"], where)
-        component(item.get("component"), where)
+        known.unique(item["id"], where)
+        known.component(item.get("component"), where)
         amount = item.get("quantity", 1) * item["unit_cost"]
         infra.append({**item, "annual": amount * PERIODS[item["period"]],
                       "one_time": amount if item["period"] == "unique" else 0.0})
-    hosting = check_hosting(spec, option, infra, providers, checked, errors, warnings)
-    refs(spec.get("hosting", {}).get("refs", []), "hosting/refs")
+    return infra
 
+
+def build_totals(spec: dict, sums: dict, over_days: float, over_cost: float) -> dict:
+    """Réalisation : jours et coût attendus, fourchette à 90 % et provision."""
+    work_days, work_cost = sums["days"], sums["cost"]
     contingency = spec.get("contingency", 0) / 100
-    sd_days, sd_cost = math.sqrt(work_var), math.sqrt(cost_var)
+    sd_days, sd_cost = math.sqrt(sums["var"]), math.sqrt(sums["cost_var"])
     f_days = over_days / work_days if work_days else 0.0
     f_cost = over_cost / work_cost if work_cost else 0.0
     base_cost = work_cost + over_cost
-    build = {"days": round(work_days + over_days, 1),
-             "days_low": round(max(work_days - Z90 * sd_days, 0) * (1 + f_days), 1),
-             "days_high": round((work_days + Z90 * sd_days) * (1 + f_days), 1),
-             "cost": round(base_cost * (1 + contingency)),
-             "cost_low": round(max(work_cost - Z90 * sd_cost, 0) * (1 + f_cost) * (1 + contingency)),
-             "cost_high": round((work_cost + Z90 * sd_cost) * (1 + f_cost) * (1 + contingency)),
-             "contingency": round(base_cost * contingency)}
+    return {"days": round(work_days + over_days, 1),
+            "days_low": round(max(work_days - Z90 * sd_days, 0) * (1 + f_days), 1),
+            "days_high": round((work_days + Z90 * sd_days) * (1 + f_days), 1),
+            "cost": round(base_cost * (1 + contingency)),
+            "cost_low": round(max(work_cost - Z90 * sd_cost, 0) * (1 + f_cost) * (1 + contingency)),
+            "cost_high": round((work_cost + Z90 * sd_cost) * (1 + f_cost) * (1 + contingency)),
+            "contingency": round(base_cost * contingency)}
 
+
+def run_lines(spec: dict, known: _Refs, base_cost: float) -> list[dict]:
+    """Lignes de fonctionnement : jours par an d'un profil, ou pourcentage du coût de réalisation."""
     run = []
     for index, item in enumerate(spec.get("run", [])):
         where = f"run/{index} ({item['id']})"
-        unique(item["id"], where)
+        known.unique(item["id"], where)
         if ("days_per_year" in item) == ("percent_of_build" in item):
-            errors.append(f"{where} : donnez soit days_per_year (avec profile), soit percent_of_build")
+            known.errors.append(f"{where} : donnez soit days_per_year (avec profile), soit percent_of_build")
             continue
         if "days_per_year" in item:
             if "profile" not in item:
-                errors.append(f"{where} : champ « profile » manquant avec days_per_year")
+                known.errors.append(f"{where} : champ « profile » manquant avec days_per_year")
                 continue
-            rate = profile(item["profile"], f"{where}/profile")
+            rate = known.profile(item["profile"], f"{where}/profile")
             run.append({**item, "rate": rate, "annual": item["days_per_year"] * rate})
         else:
             run.append({**item, "annual": base_cost * item["percent_of_build"] / 100})
+    return run
 
-    infra_annual = sum(i["annual"] for i in infra)
-    infra_once = sum(i["one_time"] for i in infra)
-    run_annual = sum(r["annual"] for r in run)
-    horizon = spec.get("horizon", 3)
-    totals = {"build": build,
-              "infra": {"one_time": round(infra_once), "monthly": round(infra_annual / 12),
-                        "annual": round(infra_annual)},
-              "run": {"annual": round(run_annual)},
-              "operate": {"monthly": round((infra_annual + run_annual) / 12)},
-              "tco": {"years": horizon,
-                      "total": round(build["cost"] + infra_once + horizon * (infra_annual + run_annual))}}
 
+def coverage(spec: dict, known: _Refs, infra: list[dict], uncertain: list[str], rules: list[dict],
+             warnings: list[str]) -> tuple[list[str], list[str], list[str], list[dict]]:
+    """Exigences sans lot, composants sans ligne, lots incertains et postes oubliés, chacun signalé."""
+    catalog, option, comps, errors = known.catalog, known.option, known.comps, known.errors
     # Couverture : exigences portées par un lot (refs) ou par un composant chiffré de l'option.
     priced = {t.get("component") for t in spec["work"]} | {i.get("component") for i in spec.get("infra", [])}
     covered = {r for t in spec["work"] for r in t.get("refs", [])}
@@ -505,7 +517,7 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
     if uncertain:
         warnings.append(f"estimation(s) très incertaine(s) (écart mini-maxi supérieur au probable) : "
                         f"{', '.join(uncertain)} ; découper le lot ou lever l'hypothèse")
-    if rates is not None and option.get("provider") and not any(i["kind"] == "cloud" for i in infra):
+    if known.rates is not None and option.get("provider") and not any(i["kind"] == "cloud" for i in infra):
         warnings.append(f"option {option['id']} hébergée chez {option['provider']} sans ligne d'infrastructure cloud")
     if not spec.get("assumptions"):
         warnings.append("aucune hypothèse notée (assumptions)")
@@ -513,24 +525,59 @@ def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: s
     if missing:
         warnings.append(f"poste(s) souvent oublié(s), absent(s) : {'; '.join(r['label'] for r in missing)} ; "
                         "ajouter un lot ou une ligne, ou le noter dans assumptions ou exclusions")
+    return unestimated, uncovered, uncertain, missing
 
+
+def budget_check(spec: dict, known: _Refs, totals: dict, warnings: list[str]) -> dict | None:
+    """Plafonds du budget dépassés (réalisation, fonctionnement, coût total), signalés avec leur exigence."""
     budget = spec.get("budget")
-    over = []
-    if budget:
-        refs(budget.get("refs", []), "budget/refs")
-        for key, label, value in (("build", "réalisation", build["cost"]),
-                                  ("monthly", "fonctionnement par mois", totals["operate"]["monthly"]),
-                                  ("tco", f"coût total sur {years(horizon)}", totals["tco"]["total"])):
-            if key in budget and value > budget[key]:
-                over.append(key)
-                warnings.append(f"budget dépassé, {label} : {value} pour {budget[key]} "
-                                f"({', '.join(budget.get('refs', [])) or 'sans exigence citée'})")
-    totals["budget"] = None if not budget else {"over": over}
+    if not budget:
+        return None
+    over, horizon = [], totals["tco"]["years"]
+    known.refs(budget.get("refs", []), "budget/refs")
+    for key, label, value in (("build", "réalisation", totals["build"]["cost"]),
+                              ("monthly", "fonctionnement par mois", totals["operate"]["monthly"]),
+                              ("tco", f"coût total sur {years(horizon)}", totals["tco"]["total"])):
+        if key in budget and value > budget[key]:
+            over.append(key)
+            warnings.append(f"budget dépassé, {label} : {value} pour {budget[key]} "
+                            f"({', '.join(budget.get('refs', [])) or 'sans exigence citée'})")
+    return {"over": over}
+
+
+def analyse(spec: dict, catalog: dict, option: dict, providers: dict, checked: str | None,
+            errors: list[str], warnings: list[str], rules: list[dict]) -> dict:
+    """Contrôles croisés et calculs ; les montants ne sont valables que sans erreur."""
+    known = _Refs(spec, catalog, option, errors)
+    if known.rates is not None and not known.rates:
+        errors.append("rates : au moins un profil attendu, ou pas de champ rates pour les charges seules")
+    lines, uncertain, sums = work_lines(spec, known)
+    overheads, over_days, over_cost = overhead_lines(spec, known, sums["days"])
+    lines += overheads
+    infra = infra_lines(spec, known)
+    hosting = check_hosting(spec, option, infra, providers, checked, errors, warnings)
+    known.refs(spec.get("hosting", {}).get("refs", []), "hosting/refs")
+    build = build_totals(spec, sums, over_days, over_cost)
+    run = run_lines(spec, known, sums["cost"] + over_cost)
+
+    infra_annual = sum(i["annual"] for i in infra)
+    infra_once = sum(i["one_time"] for i in infra)
+    run_annual = sum(r["annual"] for r in run)
+    horizon = spec.get("horizon", 3)
+    totals = {"build": build,
+              "infra": {"one_time": round(infra_once), "monthly": round(infra_annual / 12),
+                        "annual": round(infra_annual)},
+              "run": {"annual": round(run_annual)},
+              "operate": {"monthly": round((infra_annual + run_annual) / 12)},
+              "tco": {"years": horizon,
+                      "total": round(build["cost"] + infra_once + horizon * (infra_annual + run_annual))}}
+    unestimated, uncovered, uncertain, missing = coverage(spec, known, infra, uncertain, rules, warnings)
+    totals["budget"] = budget_check(spec, known, totals, warnings)
     totals["hosting"] = hosting
     found = {"lines": lines, "infra": infra, "run": run, "totals": totals, "unestimated": unestimated,
              "uncovered": uncovered, "uncertain": uncertain, "missing": [r["id"] for r in missing]}
-    found["scenarios"] = scenarios(spec, found, profile, errors, warnings)
-    if rates is None and spec.get("infra"):
+    found["scenarios"] = scenarios(spec, found, known.profile, errors, warnings)
+    if known.rates is None and spec.get("infra"):
         warnings.append("infra ignorée : sans rates, seules les charges (jours, heures) sont produites")
     found["charges"] = charges(spec, found, warnings)
     return found

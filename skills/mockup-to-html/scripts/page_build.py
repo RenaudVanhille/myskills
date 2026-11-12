@@ -390,232 +390,284 @@ class Page:
         self.count += 1
         if not self.check(node, where):
             return ""
-        kind, e = node["type"], html.escape
         bg, fg = self.contrast(node, where, bg or self.theme["colors"]["background"],
                                fg or self.theme["colors"]["text"])
         sub = lambda: "".join(self.node(c, f"{where}/children/{i}", bg, fg)  # noqa: E731
                               for i, c in enumerate(node.get("children", [])))
-        if kind == "section":
-            full = node.get("width") == "full"
-            inner = sub()
-            body = inner if full else f'<div class="container">{inner}</div>'
-            return f'<section{self.attrs(node, where, "c-section", "c-section--full" if full else "")}>{body}</section>'
-        if kind == "row":
-            cols = " ".join(f"{c:g}fr" for c in node.get("columns") or [1] * len(node.get("children", [])))
-            extra = {"grid-template-columns": cols}
-            if node.get("gap"):
-                extra["gap"] = self.token(f"{where}/gap", "space", node["gap"])
-            if node.get("valign"):
-                extra["align-items"] = {"start": "start", "center": "center", "end": "end", "stretch": "stretch"}.get(
-                    node["valign"], "stretch")
-            return f'<div{self.attrs(node, where, "c-row", extra=extra)}>{sub()}</div>'
-        if kind == "grid":
-            extra = {"grid-template-columns": f"repeat({node.get('columns', 3)},minmax(0,1fr))"}
-            if node.get("gap"):
-                extra["gap"] = self.token(f"{where}/gap", "space", node["gap"])
-            return f'<div{self.attrs(node, where, "c-grid", extra=extra)}>{sub()}</div>'
-        if kind == "stack":
-            extra = {"gap": self.token(f"{where}/gap", "space", node["gap"])} if node.get("gap") else {}
-            return f'<div{self.attrs(node, where, "c-stack", extra=extra)}>{sub()}</div>'
-        if kind == "header":
-            logo = ""
-            if "crop" in node or "src" in node:
-                logo = self.image(node, where, "c-header__mark", node.get("text", "Logo"))
-            logo = f'<a class="c-header__logo" href="#">{logo}{e(node.get("text", ""))}</a>'
-            nav = f'<nav class="c-nav" aria-label="Navigation principale"><ul>{self.nav_list(node["items"])}</ul></nav>' \
-                if node.get("items") else '<div class="c-nav"></div>'
-            actions = f'<div class="c-header__actions">{self.buttons(node["actions"], where + "/actions", "primary", "ghost")}</div>' \
-                if node.get("actions") else ""
-            return f'<header{self.attrs(node, where, "c-header")}><div class="container">{logo}{nav}{actions}</div></header>'
-        if kind == "nav":
-            variant = node.get("variant", "horizontal")
-            return (f'<nav{self.attrs(node, where, "c-nav", f"c-nav--{variant}")} aria-label="Navigation">'
-                    f'<ul>{self.nav_list(node["items"])}</ul></nav>')
-        if kind == "breadcrumb":
-            items = [self.item(i) for i in node["items"]]
-            lis = "".join(f'<li><a href="{self.link(i)}">{e(i["text"])}</a></li>' for i in items[:-1])
-            lis += f'<li aria-current="page">{e(items[-1]["text"])}</li>' if items else ""
-            return f'<nav{self.attrs(node, where, "c-breadcrumb")} aria-label="Fil d\'Ariane"><ol>{lis}</ol></nav>'
-        if kind == "heading":
-            level = node.get("level", 2)
+        render = getattr(self, f"_render_{node['type']}", None)
+        return render(node, where, sub) if render else ""
+
+    def _render_section(self, node: dict, where: str, sub) -> str:
+        full = node.get("width") == "full"
+        inner = sub()
+        body = inner if full else f'<div class="container">{inner}</div>'
+        return f'<section{self.attrs(node, where, "c-section", "c-section--full" if full else "")}>{body}</section>'
+
+    def _render_row(self, node: dict, where: str, sub) -> str:
+        cols = " ".join(f"{c:g}fr" for c in node.get("columns") or [1] * len(node.get("children", [])))
+        extra = {"grid-template-columns": cols}
+        if node.get("gap"):
+            extra["gap"] = self.token(f"{where}/gap", "space", node["gap"])
+        if node.get("valign"):
+            extra["align-items"] = {"start": "start", "center": "center", "end": "end", "stretch": "stretch"}.get(
+                node["valign"], "stretch")
+        return f'<div{self.attrs(node, where, "c-row", extra=extra)}>{sub()}</div>'
+
+    def _render_grid(self, node: dict, where: str, sub) -> str:
+        extra = {"grid-template-columns": f"repeat({node.get('columns', 3)},minmax(0,1fr))"}
+        if node.get("gap"):
+            extra["gap"] = self.token(f"{where}/gap", "space", node["gap"])
+        return f'<div{self.attrs(node, where, "c-grid", extra=extra)}>{sub()}</div>'
+
+    def _render_stack(self, node: dict, where: str, sub) -> str:
+        extra = {"gap": self.token(f"{where}/gap", "space", node["gap"])} if node.get("gap") else {}
+        return f'<div{self.attrs(node, where, "c-stack", extra=extra)}>{sub()}</div>'
+
+    def _render_header(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        logo = ""
+        if "crop" in node or "src" in node:
+            logo = self.image(node, where, "c-header__mark", node.get("text", "Logo"))
+        logo = f'<a class="c-header__logo" href="#">{logo}{e(node.get("text", ""))}</a>'
+        nav = f'<nav class="c-nav" aria-label="Navigation principale"><ul>{self.nav_list(node["items"])}</ul></nav>' \
+            if node.get("items") else '<div class="c-nav"></div>'
+        actions = f'<div class="c-header__actions">{self.buttons(node["actions"], where + "/actions", "primary", "ghost")}</div>' \
+            if node.get("actions") else ""
+        return f'<header{self.attrs(node, where, "c-header")}><div class="container">{logo}{nav}{actions}</div></header>'
+
+    def _render_nav(self, node: dict, where: str, sub) -> str:
+        variant = node.get("variant", "horizontal")
+        return (f'<nav{self.attrs(node, where, "c-nav", f"c-nav--{variant}")} aria-label="Navigation">'
+                f'<ul>{self.nav_list(node["items"])}</ul></nav>')
+
+    def _render_breadcrumb(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        items = [self.item(i) for i in node["items"]]
+        lis = "".join(f'<li><a href="{self.link(i)}">{e(i["text"])}</a></li>' for i in items[:-1])
+        lis += f'<li aria-current="page">{e(items[-1]["text"])}</li>' if items else ""
+        return f'<nav{self.attrs(node, where, "c-breadcrumb")} aria-label="Fil d\'Ariane"><ol>{lis}</ol></nav>'
+
+    def _render_heading(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        level = node.get("level", 2)
+        self.headings.append((level, where))
+        extra = {"font-size": self.token(f"{where}/size", "text", node["size"])} if node.get("size") else {}
+        return f'<h{level}{self.attrs(node, where, "c-heading", extra=extra)}>{e(node["text"])}</h{level}>'
+
+    def _render_text(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        extra = {"font-size": self.token(f"{where}/size", "text", node["size"])} if node.get("size") else {}
+        names = ["c-text", "c-text--muted" if node.get("muted") else "", "c-text--bold" if node.get("bold") else ""]
+        return f'<p{self.attrs(node, where, *names, extra=extra)}>{e(node["text"])}</p>'
+
+    def _render_link(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        return f'<a{self.attrs(node, where, "c-link")} href="{self.link(node)}">{e(node["text"])}</a>'
+
+    def _render_button(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        names = ["c-button", f"c-button--{node.get('variant', 'primary')}",
+                 f"c-button--{node['size']}" if node.get("size") in ("sm", "lg") else ""]
+        if node.get("size") not in (None, "sm", "md", "lg"):
+            self.errors.append(f"{where}/size : « {node['size']} » non permis pour button (sm, md, lg)")
+        if isinstance(node.get("width"), str):
+            self.errors.append(f"{where}/width : largeur en pixels (entier) attendue pour button")
+        extra = {"width": f"{node['width']}px", "align-self": "flex-start"} \
+            if isinstance(node.get("width"), int) else {}
+        return f'<a{self.attrs(node, where, *names, extra=extra)} href="{self.link(node)}">{e(node["text"])}</a>'
+
+    def _render_buttons(self, node: dict, where: str, sub) -> str:
+        return f'<div{self.attrs(node, where, "c-buttons")}>{self.buttons(node["items"], where + "/items")}</div>'
+
+    def _render_image(self, node: dict, where: str, sub) -> str:
+        return self.image(node, where)
+
+    def _render_box(self, node: dict, where: str, sub) -> str:
+        extra = {"height": f"{node.get('height', 16)}px"}
+        if node.get("width"):
+            extra["width"] = f"{node['width']}px"
+        if node.get("radius"):
+            extra["border-radius"] = self.token(f"{where}/radius", "radius", node["radius"])
+        if node.get("shadow"):
+            extra["box-shadow"] = self.token(f"{where}/shadow", "shadow", node["shadow"])
+        return f'<div{self.attrs(node, where, "c-box", extra=extra)} aria-hidden="true"></div>'
+
+    def _render_card(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        extra = {}
+        if node.get("radius"):
+            extra["border-radius"] = self.token(f"{where}/radius", "radius", node["radius"])
+        if node.get("shadow"):
+            extra["box-shadow"] = self.token(f"{where}/shadow", "shadow", node["shadow"])
+        if node.get("height"):
+            extra["min-height"] = f"{node['height']}px"
+        media = self.image(node, where) if ("crop" in node or "src" in node) else ""
+        level = min(6, max(2, self.headings[-1][0] + 1 if self.headings else 2))
+        title = f'<h{level} class="c-card__title">{e(node["title"])}</h{level}>' if node.get("title") else ""
+        if title:
             self.headings.append((level, where))
-            extra = {"font-size": self.token(f"{where}/size", "text", node["size"])} if node.get("size") else {}
-            return f'<h{level}{self.attrs(node, where, "c-heading", extra=extra)}>{e(node["text"])}</h{level}>'
-        if kind == "text":
-            extra = {"font-size": self.token(f"{where}/size", "text", node["size"])} if node.get("size") else {}
-            names = ["c-text", "c-text--muted" if node.get("muted") else "", "c-text--bold" if node.get("bold") else ""]
-            return f'<p{self.attrs(node, where, *names, extra=extra)}>{e(node["text"])}</p>'
-        if kind == "link":
-            return f'<a{self.attrs(node, where, "c-link")} href="{self.link(node)}">{e(node["text"])}</a>'
-        if kind == "button":
-            names = ["c-button", f"c-button--{node.get('variant', 'primary')}",
-                     f"c-button--{node['size']}" if node.get("size") in ("sm", "lg") else ""]
-            if node.get("size") not in (None, "sm", "md", "lg"):
-                self.errors.append(f"{where}/size : « {node['size']} » non permis pour button (sm, md, lg)")
-            if isinstance(node.get("width"), str):
-                self.errors.append(f"{where}/width : largeur en pixels (entier) attendue pour button")
-            extra = {"width": f"{node['width']}px", "align-self": "flex-start"} \
-                if isinstance(node.get("width"), int) else {}
-            return f'<a{self.attrs(node, where, *names, extra=extra)} href="{self.link(node)}">{e(node["text"])}</a>'
-        if kind == "buttons":
-            return f'<div{self.attrs(node, where, "c-buttons")}>{self.buttons(node["items"], where + "/items")}</div>'
-        if kind == "image":
-            return self.image(node, where)
-        if kind == "box":
-            extra = {"height": f"{node.get('height', 16)}px"}
-            if node.get("width"):
-                extra["width"] = f"{node['width']}px"
-            if node.get("radius"):
-                extra["border-radius"] = self.token(f"{where}/radius", "radius", node["radius"])
-            if node.get("shadow"):
-                extra["box-shadow"] = self.token(f"{where}/shadow", "shadow", node["shadow"])
-            return f'<div{self.attrs(node, where, "c-box", extra=extra)} aria-hidden="true"></div>'
-        if kind == "card":
-            extra = {}
-            if node.get("radius"):
-                extra["border-radius"] = self.token(f"{where}/radius", "radius", node["radius"])
-            if node.get("shadow"):
-                extra["box-shadow"] = self.token(f"{where}/shadow", "shadow", node["shadow"])
-            if node.get("height"):
-                extra["min-height"] = f"{node['height']}px"
-            media = self.image(node, where) if ("crop" in node or "src" in node) else ""
-            level = min(6, max(2, self.headings[-1][0] + 1 if self.headings else 2))
-            title = f'<h{level} class="c-card__title">{e(node["title"])}</h{level}>' if node.get("title") else ""
-            if title:
-                self.headings.append((level, where))
-            text = f'<p>{e(node["text"])}</p>' if node.get("text") else ""
-            actions = f'<div class="c-buttons">{self.buttons(node["actions"], where + "/actions", "outline", "ghost")}</div>' \
-                if node.get("actions") else ""
-            return (f'<article{self.attrs(node, where, "c-card", extra=extra)}>{media}<div class="c-card__body">'
-                    f'{title}{text}{sub()}{actions}</div></article>')
-        if kind == "form":
-            cols = node.get("columns", 1)
-            title = f'<h2>{e(node["title"])}</h2>' if node.get("title") else ""
-            if title:
-                self.headings.append((2, where))
-            fields = "".join(self.field(f, f"{where}/fields/{i}") for i, f in enumerate(node["fields"]))
-            submit = f'<div class="c-buttons"><button class="c-button c-button--primary" type="submit">' \
-                     f'{e(node.get("submit", "Valider"))}</button></div>'
-            return f'<form{self.attrs(node, where, "c-form", "c-form--2" if cols == 2 else "")}>{title}{fields}{submit}</form>'
-        if kind == "table":
-            head = "".join(f'<th scope="col">{e(h)}</th>' for h in node.get("headers", []))
-            rows = "".join("<tr>" + "".join(f"<td>{e(str(c))}</td>" for c in row) + "</tr>" for row in node["rows"])
-            width = len(node.get("headers", [])) or None
-            if width and any(len(r) != width for r in node["rows"]):
-                self.warnings.append(f"{where} : lignes de longueur différente de l'en-tête ({width} colonnes)")
-            return (f'<table{self.attrs(node, where, "c-table", "c-table--" + node.get("variant", "plain"))}>'
-                    f'{"<thead><tr>" + head + "</tr></thead>" if head else ""}<tbody>{rows}</tbody></table>')
-        if kind == "list":
-            variant = node.get("variant", "bullet")
-            tag = "ol" if variant == "ordered" else "ul"
-            lis = "".join(f"<li>{e(self.item(i)['text'])}</li>" for i in node["items"])
-            return f'<{tag}{self.attrs(node, where, "c-list", "c-list--" + variant)}>{lis}</{tag}>'
-        if kind == "badge":
-            variant = node.get("variant", "neutral")
-            extra = {} if variant == "neutral" else {
-                "color": f"var(--color-{variant})", "border-color": f"var(--color-{variant})",
-                "background": f"color-mix(in srgb,var(--color-{variant}) 12%,var(--color-background))"}
-            return f'<span{self.attrs(node, where, "c-badge", f"c-badge--{variant}", extra=extra)}>{e(node["text"])}</span>'
-        if kind == "alert":
-            variant = node.get("variant", "info")
-            title = f"<strong>{e(node['title'])}</strong>" if node.get("title") else ""
-            role = "alert" if variant in ("danger", "warning") else "status"
-            return (f'<div{self.attrs(node, where, "c-alert", f"c-alert--{variant}", extra={"--tone": f"var(--color-{variant})"})} role="{role}">'
-                    f'{title}{"<p>" + e(node["text"]) + "</p>" if node.get("text") else ""}</div>')
-        if kind == "tabs":
-            return (f'<div{self.attrs(node, where, "c-tabs")}><ul role="tablist">'
-                    f'{self.nav_list(node["items"], SELECTED, node.get("current", 1))}</ul></div>')
-        if kind == "stepper":
-            current = node.get("current", 1)
-            lis = "".join(f'<li class="{"is-done" if i + 1 < current else "is-current" if i + 1 == current else ""}"'
-                          f'{STEP if i + 1 == current else ""}>{e(self.item(s)["text"])}</li>'
-                          for i, s in enumerate(node["items"]))
-            return f'<nav{self.attrs(node, where, "c-stepper")} aria-label="Étapes"><ol>{lis}</ol></nav>'
-        if kind == "stat":
-            delta = f'<span class="c-text--muted">{e(node["text"])}</span>' if node.get("text") else ""
-            return (f'<div{self.attrs(node, where, "c-stat")}><span class="c-stat__label">{e(node["label"])}</span>'
-                    f'<span class="c-stat__value">{e(node["value"])}</span>{delta}</div>')
-        if kind == "search":
-            label = e(node.get("placeholder", "Rechercher"))
-            return (f'<form{self.attrs(node, where, "c-search")} role="search"><input class="c-input" type="search" '
-                    f'aria-label="{label}" placeholder="{label}"><button class="c-button c-button--primary" '
-                    f'type="submit">{e(node.get("text", "Rechercher"))}</button></form>')
-        if kind == "divider":
-            return f'<hr{self.attrs(node, where, "c-divider")}>'
-        if kind == "spacer":
-            extra = {"height": self.token(f"{where}/size", "space", node.get("size", "lg"))}
-            return f'<div{self.attrs(node, where, "c-spacer", extra=extra)} aria-hidden="true"></div>'
-        if kind == "sidebar":
-            return self.sidebar(node, where, sub())
-        if kind == "icon":
-            if "crop" in node or "src" in node:
-                return self.image(node, where, "c-icon", node.get("label", ""))
-            if "name" not in node:
-                self.errors.append(f"{where} : name (icône du jeu intégré) ou crop attendu pour icon")
+        text = f'<p>{e(node["text"])}</p>' if node.get("text") else ""
+        actions = f'<div class="c-buttons">{self.buttons(node["actions"], where + "/actions", "outline", "ghost")}</div>' \
+            if node.get("actions") else ""
+        return (f'<article{self.attrs(node, where, "c-card", extra=extra)}>{media}<div class="c-card__body">'
+                f'{title}{text}{sub()}{actions}</div></article>')
+
+    def _render_form(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        cols = node.get("columns", 1)
+        title = f'<h2>{e(node["title"])}</h2>' if node.get("title") else ""
+        if title:
+            self.headings.append((2, where))
+        fields = "".join(self.field(f, f"{where}/fields/{i}") for i, f in enumerate(node["fields"]))
+        submit = f'<div class="c-buttons"><button class="c-button c-button--primary" type="submit">' \
+                 f'{e(node.get("submit", "Valider"))}</button></div>'
+        return f'<form{self.attrs(node, where, "c-form", "c-form--2" if cols == 2 else "")}>{title}{fields}{submit}</form>'
+
+    def _render_table(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        head = "".join(f'<th scope="col">{e(h)}</th>' for h in node.get("headers", []))
+        rows = "".join("<tr>" + "".join(f"<td>{e(str(c))}</td>" for c in row) + "</tr>" for row in node["rows"])
+        width = len(node.get("headers", [])) or None
+        if width and any(len(r) != width for r in node["rows"]):
+            self.warnings.append(f"{where} : lignes de longueur différente de l'en-tête ({width} colonnes)")
+        return (f'<table{self.attrs(node, where, "c-table", "c-table--" + node.get("variant", "plain"))}>'
+                f'{"<thead><tr>" + head + "</tr></thead>" if head else ""}<tbody>{rows}</tbody></table>')
+
+    def _render_list(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        variant = node.get("variant", "bullet")
+        tag = "ol" if variant == "ordered" else "ul"
+        lis = "".join(f"<li>{e(self.item(i)['text'])}</li>" for i in node["items"])
+        return f'<{tag}{self.attrs(node, where, "c-list", "c-list--" + variant)}>{lis}</{tag}>'
+
+    def _render_badge(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        variant = node.get("variant", "neutral")
+        extra = {} if variant == "neutral" else {
+            "color": f"var(--color-{variant})", "border-color": f"var(--color-{variant})",
+            "background": f"color-mix(in srgb,var(--color-{variant}) 12%,var(--color-background))"}
+        return f'<span{self.attrs(node, where, "c-badge", f"c-badge--{variant}", extra=extra)}>{e(node["text"])}</span>'
+
+    def _render_alert(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        variant = node.get("variant", "info")
+        title = f"<strong>{e(node['title'])}</strong>" if node.get("title") else ""
+        role = "alert" if variant in ("danger", "warning") else "status"
+        return (f'<div{self.attrs(node, where, "c-alert", f"c-alert--{variant}", extra={"--tone": f"var(--color-{variant})"})} role="{role}">'
+                f'{title}{"<p>" + e(node["text"]) + "</p>" if node.get("text") else ""}</div>')
+
+    def _render_tabs(self, node: dict, where: str, sub) -> str:
+        return (f'<div{self.attrs(node, where, "c-tabs")}><ul role="tablist">'
+                f'{self.nav_list(node["items"], SELECTED, node.get("current", 1))}</ul></div>')
+
+    def _render_stepper(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        current = node.get("current", 1)
+        lis = "".join(f'<li class="{"is-done" if i + 1 < current else "is-current" if i + 1 == current else ""}"'
+                      f'{STEP if i + 1 == current else ""}>{e(self.item(s)["text"])}</li>'
+                      for i, s in enumerate(node["items"]))
+        return f'<nav{self.attrs(node, where, "c-stepper")} aria-label="Étapes"><ol>{lis}</ol></nav>'
+
+    def _render_stat(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        delta = f'<span class="c-text--muted">{e(node["text"])}</span>' if node.get("text") else ""
+        return (f'<div{self.attrs(node, where, "c-stat")}><span class="c-stat__label">{e(node["label"])}</span>'
+                f'<span class="c-stat__value">{e(node["value"])}</span>{delta}</div>')
+
+    def _render_search(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        label = e(node.get("placeholder", "Rechercher"))
+        return (f'<form{self.attrs(node, where, "c-search")} role="search"><input class="c-input" type="search" '
+                f'aria-label="{label}" placeholder="{label}"><button class="c-button c-button--primary" '
+                f'type="submit">{e(node.get("text", "Rechercher"))}</button></form>')
+
+    def _render_divider(self, node: dict, where: str, sub) -> str:
+        return f'<hr{self.attrs(node, where, "c-divider")}>'
+
+    def _render_spacer(self, node: dict, where: str, sub) -> str:
+        extra = {"height": self.token(f"{where}/size", "space", node.get("size", "lg"))}
+        return f'<div{self.attrs(node, where, "c-spacer", extra=extra)} aria-hidden="true"></div>'
+
+    def _render_sidebar(self, node: dict, where: str, sub) -> str:
+        return self.sidebar(node, where, sub())
+
+    def _render_icon(self, node: dict, where: str, sub) -> str:
+        if "crop" in node or "src" in node:
+            return self.image(node, where, "c-icon", node.get("label", ""))
+        if "name" not in node:
+            self.errors.append(f"{where} : name (icône du jeu intégré) ou crop attendu pour icon")
+            return ""
+        size = self.theme["font_sizes"].get(node.get("size", "lg"))
+        if size is None:
+            self.token(f"{where}/size", "text", node["size"])
+            size = 20
+        svg = graphics.write(graphics.icon(node["name"], size, node.get("label")))
+        return f'<span{self.attrs(node, where, "c-icon")}>{svg}</span>'
+
+    def _render_avatar(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        size = node.get("size", "md")
+        if size not in ("sm", "md", "lg"):
+            self.errors.append(f"{where}/size : « {size} » non permis pour avatar (sm, md, lg)")
+        if "crop" in node or "src" in node:
+            return self.image(node, where, f"c-avatar c-avatar--{size}", node.get("text", ""))
+        label = node.get("text", "")
+        return (f'<span{self.attrs(node, where, "c-avatar", f"c-avatar--{size}")} role="img" aria-label="{e(label)}">'
+                f'{e(graphics.initials(label))}</span>')
+
+    def _render_pagination(self, node: dict, where: str, sub) -> str:
+        pages, current = node["pages"], node.get("current", 1)
+        if current > pages:
+            self.errors.append(f"{where}/current : page {current} au-delà de pages ({pages})")
+        shown = sorted({1, pages, current - 1, current, current + 1} & set(range(1, pages + 1)))
+        lis, last = [], 0
+        for n in shown:
+            if n - last > 1:
+                lis.append('<li aria-hidden="true">…</li>')
+            attr = ' aria-current="page"' if n == current else ""
+            lis.append(f'<li><a href="#"{attr}>{n}</a></li>')
+            last = n
+        prev = f'<li><a href="#" aria-label="Page précédente">{graphics.write(graphics.icon("chevron-left", 16))}</a></li>'
+        nxt = f'<li><a href="#" aria-label="Page suivante">{graphics.write(graphics.icon("chevron-right", 16))}</a></li>'
+        return (f'<nav{self.attrs(node, where, "c-pagination")} aria-label="Pagination"><ul>{prev}{"".join(lis)}{nxt}'
+                f'</ul></nav>')
+
+    def _render_modal(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        level = 2
+        self.headings.append((level, where))
+        ident = f"modal-{len(self.headings)}"
+        text = f'<p>{e(node["text"])}</p>' if node.get("text") else ""
+        actions = f'<div class="c-buttons c-modal__actions">{self.buttons(node["actions"], where + "/actions", "primary", "ghost")}</div>' \
+            if node.get("actions") else ""
+        close = f'<a class="c-modal__close" href="#" aria-label="Fermer">{graphics.write(graphics.icon("close", 18))}</a>'
+        return (f'<div class="c-modal__backdrop"><div{self.attrs(node, where, "c-modal")} role="dialog" aria-modal="true" '
+                f'aria-labelledby="{ident}"><div class="c-modal__head"><h2 id="{ident}">{e(node["title"])}</h2>{close}</div>'
+                f'{text}{sub()}{actions}</div></div>')
+
+    def _render_graph(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        variant = node.get("variant", "bar")
+        items = [self.item(i) for i in node["items"]]
+        for i, item in enumerate(items):
+            if not isinstance(item.get("value"), (int, float)):
+                self.errors.append(f"{where}/items/{i} : value (nombre) attendue pour graph")
                 return ""
-            size = self.theme["font_sizes"].get(node.get("size", "lg"))
-            if size is None:
-                self.token(f"{where}/size", "text", node["size"])
-                size = 20
-            svg = graphics.write(graphics.icon(node["name"], size, node.get("label")))
-            return f'<span{self.attrs(node, where, "c-icon")}>{svg}</span>'
-        if kind == "avatar":
-            size = node.get("size", "md")
-            if size not in ("sm", "md", "lg"):
-                self.errors.append(f"{where}/size : « {size} » non permis pour avatar (sm, md, lg)")
-            if "crop" in node or "src" in node:
-                return self.image(node, where, f"c-avatar c-avatar--{size}", node.get("text", ""))
-            label = node.get("text", "")
-            return (f'<span{self.attrs(node, where, "c-avatar", f"c-avatar--{size}")} role="img" aria-label="{e(label)}">'
-                    f'{e(graphics.initials(label))}</span>')
-        if kind == "pagination":
-            pages, current = node["pages"], node.get("current", 1)
-            if current > pages:
-                self.errors.append(f"{where}/current : page {current} au-delà de pages ({pages})")
-            shown = sorted({1, pages, current - 1, current, current + 1} & set(range(1, pages + 1)))
-            lis, last = [], 0
-            for n in shown:
-                if n - last > 1:
-                    lis.append('<li aria-hidden="true">…</li>')
-                attr = ' aria-current="page"' if n == current else ""
-                lis.append(f'<li><a href="#"{attr}>{n}</a></li>')
-                last = n
-            prev = f'<li><a href="#" aria-label="Page précédente">{graphics.write(graphics.icon("chevron-left", 16))}</a></li>'
-            nxt = f'<li><a href="#" aria-label="Page suivante">{graphics.write(graphics.icon("chevron-right", 16))}</a></li>'
-            return (f'<nav{self.attrs(node, where, "c-pagination")} aria-label="Pagination"><ul>{prev}{"".join(lis)}{nxt}'
-                    f'</ul></nav>')
-        if kind == "modal":
-            level = 2
-            self.headings.append((level, where))
-            ident = f"modal-{len(self.headings)}"
-            text = f'<p>{e(node["text"])}</p>' if node.get("text") else ""
-            actions = f'<div class="c-buttons c-modal__actions">{self.buttons(node["actions"], where + "/actions", "primary", "ghost")}</div>' \
-                if node.get("actions") else ""
-            close = f'<a class="c-modal__close" href="#" aria-label="Fermer">{graphics.write(graphics.icon("close", 18))}</a>'
-            return (f'<div class="c-modal__backdrop"><div{self.attrs(node, where, "c-modal")} role="dialog" aria-modal="true" '
-                    f'aria-labelledby="{ident}"><div class="c-modal__head"><h2 id="{ident}">{e(node["title"])}</h2>{close}</div>'
-                    f'{text}{sub()}{actions}</div></div>')
-        if kind == "graph":
-            variant = node.get("variant", "bar")
-            items = [self.item(i) for i in node["items"]]
-            for i, item in enumerate(items):
-                if not isinstance(item.get("value"), (int, float)):
-                    self.errors.append(f"{where}/items/{i} : value (nombre) attendue pour graph")
-                    return ""
-            title = f'<figcaption>{e(node["title"])}</figcaption>' if node.get("title") else ""
-            svg = graphics.write(graphics.chart(variant, items, graphics.css_colors(), node.get("height", 240),
-                                                node.get("title", "")))
-            return f'<figure{self.attrs(node, where, "c-chart")}>{title}{svg}</figure>'
-        if kind == "footer":
-            groups = ""
-            for i, group in enumerate(node.get("groups", [])):
-                links = "".join(f'<li><a href="{self.link(self.item(x))}">{e(self.item(x)["text"])}</a></li>'
-                                for x in group.get("items", []))
-                groups += f'<div><h2>{e(group.get("title", ""))}</h2><ul>{links}</ul></div>'
-            groups = f'<div class="c-footer__groups">{groups}</div>' if groups else ""
-            text = f'<p class="c-text--muted">{e(node["text"])}</p>' if node.get("text") else ""
-            return f'<footer{self.attrs(node, where, "c-footer")}><div class="container">{groups}{text}</div></footer>'
-        return ""
+        title = f'<figcaption>{e(node["title"])}</figcaption>' if node.get("title") else ""
+        svg = graphics.write(graphics.chart(variant, items, graphics.css_colors(), node.get("height", 240),
+                                            node.get("title", "")))
+        return f'<figure{self.attrs(node, where, "c-chart")}>{title}{svg}</figure>'
+
+    def _render_footer(self, node: dict, where: str, sub) -> str:
+        e = html.escape
+        groups = ""
+        for i, group in enumerate(node.get("groups", [])):
+            links = "".join(f'<li><a href="{self.link(self.item(x))}">{e(self.item(x)["text"])}</a></li>'
+                            for x in group.get("items", []))
+            groups += f'<div><h2>{e(group.get("title", ""))}</h2><ul>{links}</ul></div>'
+        groups = f'<div class="c-footer__groups">{groups}</div>' if groups else ""
+        text = f'<p class="c-text--muted">{e(node["text"])}</p>' if node.get("text") else ""
+        return f'<footer{self.attrs(node, where, "c-footer")}><div class="container">{groups}{text}</div></footer>'
 
     def sidebar(self, node: dict, where: str, inner: str) -> str:
         """Coque d'application : barre latérale de navigation et zone principale (enfants)."""
