@@ -197,8 +197,9 @@ def build_terraform(resources: dict, model: Model) -> None:
     for key, res in resources.items():
         if taken[ids[key]] > 1:  # même nom pour deux types : on préfixe par le type court
             ids[key] = slug(res["kind"].split("_", 1)[1] + "-" + res["name"])
-    groups = {key for key, res in resources.items() if res["kind"] in TF_GROUPS}
-    nodes = {key for key, res in resources.items() if res["kind"] in TF_NODES}
+    # Dans l'ordre des fichiers (un ensemble changerait l'ordre des groupes et des services d'une exécution à l'autre).
+    groups = [key for key, res in resources.items() if res["kind"] in TF_GROUPS]
+    nodes = [key for key, res in resources.items() if res["kind"] in TF_NODES]
     for key in sorted(groups, key=lambda k: resources[k]["kind"] not in ("aws_vpc", "azurerm_resource_group")):
         res = resources[key]
         kind = TF_GROUPS[res["kind"]]
