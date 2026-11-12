@@ -166,6 +166,14 @@ def check_meta(onto: dict, data: dict, generated: bool | None = None) -> tuple[l
     for name in spec.get("required", []):
         if data.get(name) in (None, ""):
             errors.append(f"{name} : propriété obligatoire pour le type {kind}")
+    # Traçabilité : l'une des propriétés ou relations du groupe (une exigence sans lien vers son document
+    # source ni raison de sa déduction). Erreur pour une note générée, avertissement pour une note saisie.
+    for group in spec.get("required_any", []):
+        if all(data.get(name) in (None, "", []) for name in group):
+            (errors if generated else warnings).append(
+                f"{group[0]} : {' ou '.join(group)} obligatoire pour le type {kind}"
+                + (f" ({onto['relations'][group[0]]['label']} : lien vers la note visée)"
+                   if group[0] in onto["relations"] else ""))
     for name, value in data.items():
         # Propriété vide (laissée vide dans Obsidian ou par un modèle) : comme absente.
         if name == "type" or value is None or value == "" or value == []:
@@ -457,12 +465,16 @@ def template_text(onto: dict, kind: str) -> str:
         value = '"{{date:YYYY-MM-DD}}"' if property_kind(schema) == "date" else \
             ("[]" if schema.get("type") == "array" else '""')
         lines.append(f"{name}: {value}")
+    lines += [f'{name}: ""' for group in spec.get("required_any", []) for name in group
+              if name not in onto["relations"] and name not in spec.get("required", [])]
     lines += [f"{name}: []" if onto["relations"][name].get("many") else f'{name}: ""' for name in relations]
     lines += [f"ontologie: {onto['version']}", "tags:", f"  - {type_tag(onto, kind)}", "---", "", "# {{title}}", ""]
     help_ = [spec.get("description", "")]
     allowed = [f"**{n}** : {', '.join(map(str, props[n]['enum']))}" for n in spec.get("required", []) + [
         n for n in spec.get("properties", {}) if n not in spec.get("required", [])] if "enum" in props.get(n, {})]
     help_ += ["Valeurs permises : " + " ; ".join(dict.fromkeys(allowed)) + "."] if allowed else []
+    help_ += [f"À remplir, l'une ou l'autre : {' ou '.join(f'**{n}**' for n in group)}."
+              for group in spec.get("required_any", [])]
     if relations:
         help_.append("Relations en wikilinks entre guillemets (\"[[Note]]\") : " + ", ".join(
             f"**{n}** vers {', '.join(onto['relations'][n]['to'])}" for n in relations) + ".")

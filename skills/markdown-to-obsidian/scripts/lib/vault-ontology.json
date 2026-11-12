@@ -70,8 +70,10 @@
       "description": "Exigence fonctionnelle ou non fonctionnelle du catalogue (requirements-catalog).",
       "folder": "Exigences", "color": "#16a34a",
       "required": ["id", "nature", "priorite", "statut"],
+      "required_any": [["extrait-de", "deduite"]],
       "properties": {
         "nature": {"enum": ["fonctionnelle", "non-fonctionnelle"]},
+        "deduite": {"type": "string", "minLength": 1, "description": "Raison de la déduction, pour une exigence qu'aucun document n'énonce (à la place de extrait-de)."},
         "priorite": {"enum": ["indispensable", "importante", "souhaitable", "hors-perimetre"]},
         "categorie": {"enum": ["performance", "disponibilite", "securite", "conformite", "exploitabilite", "maintenabilite", "evolutivite", "interoperabilite", "utilisabilite", "portabilite", "cout", "autre"]},
         "domaine": {"type": "string"},

@@ -41,6 +41,7 @@
             "folder": {"type": "string", "description": "Sous-dossier conseillé, relatif au dossier du workflow ou du référentiel ; vide : à sa racine."},
             "color": {"type": "string", "pattern": "^#[0-9a-f]{6}$", "description": "Couleur du type dans la vue graphe et sur son tag type/<type>, écrite seulement par vault_check.py --style (opt-in)."},
             "required": {"type": "array", "items": {"type": "string"}},
+            "required_any": {"type": "array", "description": "Groupes de propriétés ou de relations dont l'une au moins est obligatoire (traçabilité : extrait-de ou deduite) ; erreur pour une note générée, avertissement pour une note saisie.", "items": {"type": "array", "items": {"type": "string"}, "minItems": 1}},
             "properties": {"$ref": "#/$defs/properties"},
             "facets": {"type": "array", "items": {"type": "string"}, "description": "Propriétés recopiées en tags <propriété>/<valeur>."},
             "views": {"type": "array", "description": "Tableaux Obsidian Bases du type, dans Tableaux.base du workflow.", "items": {"type": "object", "required": ["name", "columns"], "additionalProperties": false, "properties": {"name": {"type": "string", "minLength": 1}, "columns": {"type": "array", "items": {"type": "string"}, "minItems": 1}, "filter": {"type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "sort": {"type": "array", "items": {"type": "string"}}}}}

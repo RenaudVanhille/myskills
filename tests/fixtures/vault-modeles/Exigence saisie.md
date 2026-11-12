@@ -4,6 +4,7 @@ id: "EX-1"
 nature: "fonctionnelle"
 priorite: "importante"
 statut: "retenue"
+deduite: "déduite du besoin exprimé en atelier"
 workflow: ""
 termes: []
 extrait-de: []
