@@ -202,19 +202,6 @@ def linked_tree(name: str, layout: dict[str, str]) -> Path:
     return root
 
 
-# Checkpoints Laya utilisés par Router : anglais (racine du dépôt) et multilingue.
-LAYA_MODEL = "laya"
-LAYA_CHECKPOINTS = {"english": None, "multilingual": "multilingual"}
-
-
-def laya_models() -> dict:
-    """Argument `models` de laya.Router : les checkpoints du cache vérifié, sans
-    téléchargement (ModelError s'il manque)."""
-    folder = str(require(LAYA_MODEL))
-    hub_offline()
-    return {name: (folder, sub) for name, sub in LAYA_CHECKPOINTS.items()}
-
-
 # Flux refusés depuis guard_network(), pour le rapport du script.
 BLOCKED: list[str] = []
 

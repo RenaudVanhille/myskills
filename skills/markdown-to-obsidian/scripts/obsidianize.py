@@ -5,9 +5,9 @@
 
 - ajoute un frontmatter s'il n'y en a pas, selon l'ontologie du vault
   (type document, title, source, created, tags normalisés) ; avec
-  --classify, y ajoute aussi la nature du document (`nature`) et son
-  `domaine`, devinés en local par le modèle Laya (script classify.py du
-  skill doc-to-markdown) ;
+  --triage, y ajoute aussi la nature du document (`nature`) et son
+  `domaine`, pris du tri des documents (script classify.py du skill
+  doc-to-markdown) ;
 - transforme les images locales en embeds `![[nom.png]]` ;
 - transforme les liens vers d'autres .md en wikilinks `[[note|texte]]` ;
 - transforme les citations « Note : », « Attention : »... en callouts ;
@@ -20,7 +20,7 @@
 Affiche un rapport JSON. Usage :
     uv run scripts/obsidianize.py NOTE.md [...] [--vault DOSSIER] [--folder SOUS-DOSSIER]
         [--attachments attachments] [--source NOM] [--tags a,b] [--move]
-        [--classify [--domains a,b]]
+        [--triage TRI.json [--domains a,b]]
 """
 
 import argparse
@@ -54,20 +54,22 @@ CALLOUTS = {
 QUOTE_KEYWORD = re.compile(r"^>\s*\**(" + "|".join(CALLOUTS) + r")\**\s*:\s*(.*)$", re.I)
 
 
-def run_classifier(files: list[Path], domains: str | None) -> tuple[dict, str | None]:
-    """Lance classify.py dans son propre environnement (dépendances lourdes)."""
+def run_classifier(files: list[Path], triage: Path, domains: str | None) -> tuple[dict, str | None]:
+    """Lance classify.py dans son propre environnement ; un tri invalide est rendu en avertissement."""
     if CLASSIFY is None:
         return {}, "Classification impossible : " + absent("doc-to-markdown", "classify.py")
     command = (["uv", "run", "--quiet", str(CLASSIFY)] if shutil.which("uv")
                else [sys.executable, str(CLASSIFY)])
-    command += [str(f) for f in files] + (["--domains", domains] if domains else [])
+    command += [str(f) for f in files] + ["--triage", str(triage)] + (["--domains", domains] if domains else [])
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8")
     try:
-        reports = json.loads(result.stdout)
-    except json.JSONDecodeError:
+        report = json.loads(result.stdout)
+        reports = report["results"]
+    except (json.JSONDecodeError, KeyError, TypeError):
         lines = (result.stderr or "sortie vide").strip().splitlines()
         return {}, f"Classification impossible : {lines[-1][:300] if lines else '?'}"
-    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, None
+    problem = "Tri non appliqué : " + " ; ".join(report["errors"])[:400] if not reports and report.get("errors") else None
+    return {Path(r["input"]).resolve(): r for r in reports if "error" not in r}, problem
 
 
 def load_check():
@@ -201,9 +203,9 @@ def main() -> int:
     parser.add_argument("--tags", help="tags séparés par des virgules")
     parser.add_argument("--move", action="store_true",
                         help="avec --vault : supprimer la note et les images d'origine")
-    parser.add_argument("--classify", action="store_true",
-                        help="ajouter nature et domaine au frontmatter (modèle local Laya)")
-    parser.add_argument("--domains", help="avec --classify : domaines possibles, séparés par des virgules")
+    parser.add_argument("--triage", type=Path,
+                        help="tri des documents (classify.py --candidates) : nature et domaine au frontmatter")
+    parser.add_argument("--domains", help="avec --triage : domaines permis, séparés par des virgules")
     args = parser.parse_args()
     # Dans une mission (mission.json au-dessus des notes) : son vault par défaut, dossier Documents.
     args.vault, args.folder, scoped = workspace.vault_target(args.vault, args.folder, args.files,
@@ -216,10 +218,10 @@ def main() -> int:
 
     reports, failed = [], False
     classifications, classify_warning = {}, None
-    if args.classify:
+    if args.triage:
         existing = [path.resolve() for path in args.files if path.is_file()]
         if existing:
-            classifications, classify_warning = run_classifier(existing, args.domains)
+            classifications, classify_warning = run_classifier(existing, args.triage, args.domains)
     for path in args.files:
         if not path.is_file():
             reports.append({"input": str(path), "error": "Fichier introuvable"})

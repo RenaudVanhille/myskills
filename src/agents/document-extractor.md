@@ -56,8 +56,9 @@ workflow, la commande les trace aussi au journal.
    skill `doc-to-markdown`, puis lis son rapport JSON : il contient déjà la
    validation de chaque Markdown (`validation`). Pour un lot de plus de
    5 fichiers, ou si l'utilisateur veut le type et le domaine des documents,
-   ajoute `--classify` : le modèle local Laya trie les documents sans
-   dépenser tes tokens. Pour reprendre un lot déjà en partie converti,
+   lance d'abord `classify.py <documents> --candidates tri.candidats.json`,
+   confie ce fichier à un sous-agent de niveau simple, qui écrit
+   `tri.tri.json`, puis ajoute `--triage tri.tri.json`. Pour reprendre un lot déjà en partie converti,
    ajoute `--skip-existing`, qui garde les Markdown déjà corrigés.
    N'appelle jamais `docling` ni `markitdown` directement : `convert.py`
    impose l'OCR local (Tesseract), sans téléchargement de modèles depuis
@@ -79,8 +80,8 @@ workflow, la commande les trace aussi au journal.
 5. Si la cible est Obsidian, convertis d'abord dans `.myskills-tmp/`, lis le
    profil du vault (`vault_profile.py`) pour choisir dossier et tags comme le
    décrit `markdown-to-obsidian`, puis applique `obsidianize.py --vault ...
-   --folder ... --tags ... --move` (avec `--classify --domains <tags
-   principaux du vault>` si tu as classé à l'étape 3) : son rapport contient
+   --folder ... --tags ... --move` (avec `--triage tri.tri.json --domains <tags
+   principaux du vault>` si tu as trié à l'étape 3) : son rapport contient
    la validation Obsidian de chaque note. Ne laisse aucun fichier de travail.
 6. Si un document contient un schéma en image et que l'utilisateur veut une
    version modifiable, passe la main à l'agent `schema-designer` avec le

@@ -1,0 +1,10 @@
+{
+ "presentation.pptx": {
+  "type": "presentaton",
+  "domaine": "metier"
+ },
+ "rapport-texte.pdf": {
+  "type": "rapport",
+  "confiance": 0.9
+ }
+}

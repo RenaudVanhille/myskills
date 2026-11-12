@@ -1,39 +1,32 @@
 # /// script
-# requires-python = ">=3.10,<3.15"
-# dependencies = ["laya>=0.4", "markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5"]
-#
-# [[tool.uv.index]]
-# name = "pytorch-cpu"
-# url = "https://download.pytorch.org/whl/cpu"
-# explicit = true
-#
-# [tool.uv.sources]
-# torch = { index = "pytorch-cpu" }
+# requires-python = ">=3.10"
+# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5"]
 # ///
-"""Classe des documents en local (type, domaine, moteur conseillé) avec Laya.
+"""Classe des documents (type, domaine, moteur conseillé) : règles, puis tri d'un modèle léger.
 
-Laya est un petit modèle de décision (licence Apache-2.0) qui tourne sur CPU,
-sans service en ligne. Il répond à des questions fermées sur le début de
-chaque document. Si Laya ne peut pas être chargé (premier téléchargement
-impossible, par exemple), le script se replie sur des règles simples et le
-signale dans `method` et `warnings`.
+Le script ne charge aucun modèle. Sans option, il applique des règles (type
+d'une présentation, Docling pour un PDF scanné). Le type et le domaine
+demandent de lire : --candidates écrit le début de chaque document, les
+types et les domaines permis et la consigne, pour un sous-agent de niveau
+simple, qui rend le fichier de tri ; --triage relit ce fichier, le valide et
+l'applique. Sur le jeu étiqueté de tests/classify_eval.py, ce tri donne le
+bon type pour 100 % des documents et le bon domaine pour 90 %.
 
 Affiche un rapport JSON. Usage :
-    uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b,c] [--min-confidence 0.5]
-
-Premier lancement long : PyTorch CPU (~200 Mo) puis le modèle (~1,3 Go,
-téléchargé une fois depuis Hugging Face).
+    uv run scripts/classify.py FICHIER|DOSSIER [...] [--domains a,b,c]
+        [--candidates FICHIER] [--triage FICHIER] | --schema
 """
 
 import argparse
+import difflib
 import json
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from script_report import print_report  # noqa: E402
 from skill_paths import require_module  # noqa: E402
+from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
 
 model_store = require_module("check-prerequisites", "lib/model_store.py")
 
@@ -41,11 +34,9 @@ PDF = {".pdf"}
 TEXT = {".md", ".markdown", ".txt"}
 OFFICE = {".docx", ".pptx", ".xlsx", ".xls", ".doc", ".ppt"}
 SUPPORTED = PDF | TEXT | OFFICE
-# Le modèle lit environ 1 000 tokens : le début du document suffit pour le classer.
-MAX_CHARS = 4000
+# Le début du document suffit pour le classer.
+MAX_CHARS = 1500
 MIN_CHARS_PER_PAGE = 30
-# Au-delà de cette probabilité, un PDF « à tableaux ou colonnes » part sur Docling.
-TABLES_THRESHOLD = 0.7
 
 DOC_TYPES = {
     "specification": "spécification fonctionnelle ou technique, exigences, cahier des charges",
@@ -67,10 +58,6 @@ DOMAINS = {
     "gestion-projet": "gestion de projet, planning, budget, pilotage",
 }
 RULE_TYPES = {".pptx": "presentation", ".ppt": "presentation"}
-
-
-class LayaError(Exception):
-    """Laya n'a pas pu répondre (modèle non téléchargé, par exemple)."""
 
 
 def collect(paths: list[Path]) -> list[Path]:
@@ -113,113 +100,122 @@ def parse_domains(value: str | None) -> dict:
     return domains
 
 
-def questions(domains: dict, pdf: bool) -> dict:
-    asked = {
-        "type": {"type": "choice", "instructions": "Quel est le type de ce document ?",
-                 "criteria": DOC_TYPES},
-        "domaine": {"type": "choice", "instructions": "Quel est le domaine principal du document ?",
-                    "criteria": domains},
-    }
-    if pdf:
-        asked["tableaux"] = {"type": "noul", "instructions":
-                             "Le document contient des tableaux de données ou une mise en page "
-                             "en plusieurs colonnes."}
-    return asked
+INSTRUCTIONS = (
+    "Pour chaque document de `documents`, lis `text` (le début du document) et choisis un `type` parmi "
+    "`types` et un `domaine` parmi `domaines` (leurs descriptions disent quand les choisir). Pour un PDF, "
+    "ajoute `tableaux` : true si le début montre des tableaux de données ou plusieurs colonnes. Écris "
+    "dans le fichier `output` un seul objet JSON : {\"<name>\": {\"type\": ..., \"domaine\": ..., "
+    "\"tableaux\": ...}}, une clé par document, sans autre texte.")
 
 
-def load_router():
-    os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
-    model_store.hub_offline()  # avant l'import : huggingface_hub lit HF_HUB_OFFLINE au chargement
-    from laya import Router
-
-    return Router(models=model_store.laya_models())
+def keys_of(files: list[Path]) -> dict[Path, str]:
+    """Clé de chaque document dans le tri : son nom, ou son chemin si deux documents portent ce nom."""
+    names = [path.name for path in files]
+    return {path: path.name if names.count(path.name) == 1 else path.as_posix() for path in files}
 
 
-def engine_for(suffix: str, scanned: list[int], tables: float | None) -> str:
-    if suffix not in PDF:
-        return "markitdown"
-    if scanned or (tables is not None and tables >= TABLES_THRESHOLD):
-        return "docling"
-    return "markitdown"
+def triage_entry(triage: dict, key: str) -> tuple[str | None, dict | None]:
+    """Entrée du tri pour ce document : par sa clé, sinon par son nom sans extension (note
+    Markdown tirée du document trié) quand une seule entrée le porte."""
+    if key in triage:
+        return key, triage[key]
+    same = [name for name in triage if Path(name).stem == Path(key).stem]
+    return (same[0], triage[same[0]]) if len(same) == 1 else (None, None)
 
 
-def classify(path: Path, router, domains: dict, min_confidence: float) -> dict:
+def triage_errors(triage: dict, domains: dict) -> list[str]:
+    """Domaines hors de la liste permise (elle dépend de --domains : le schéma ne la connaît pas)."""
+    errors = []
+    for name, entry in triage.items():
+        domain = entry.get("domaine")
+        if domain is not None and domain not in domains:
+            close = difflib.get_close_matches(domain, list(domains), 1)
+            errors.append(f"tri : {name}/domaine : « {domain} » n'est pas permis"
+                          + (f" ({close[0]} ?)" if close else "") + f" ; permis : {', '.join(domains)}")
+    return errors
+
+
+def write_candidates(target: Path, starts: dict[str, str], domains: dict) -> None:
+    output = target.with_name(target.name.removesuffix(".json").removesuffix(".candidats") + ".tri.json")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps({
+        "instructions": INSTRUCTIONS, "output": output.name, "types": DOC_TYPES, "domaines": domains,
+        "documents": [{"name": key, "text": text} for key, text in starts.items()]},
+        ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+def classify(path: Path, key: str, triage: dict | None) -> tuple[dict, str, str | None]:
+    """Rapport du document, début de son texte et clé du tri qui l'a classé."""
     suffix = path.suffix.lower()
     text, profile = read_start(path)
     scanned = profile.get("scanned_pages", [])
-    report = {"input": str(path), "type": RULE_TYPES.get(suffix), "type_confidence": None,
-              "domaine": None, "domaine_confidence": None, "tables": None,
+    report = {"input": str(path), "type": RULE_TYPES.get(suffix), "domaine": None, "tables": None,
               "engine": None, "method": "regles", "warnings": []}
     if scanned:
         report["warnings"].append(f"Pages sans texte (scannées ?) : {scanned}")
-
-    if router is not None and len(text.strip()) >= 20:
-        state = {"fichier": path.name, "debut": text}
-        try:
-            result = router.predict(state, questions(domains, suffix in PDF))
-        except Exception as error:  # noqa: BLE001 - l'appelant se replie sur les règles
-            raise LayaError(f"{type(error).__name__}: {error}") from error
-        answers = result["answers"]
-        for key in ("type", "domaine"):
-            confidence = round(float(answers[key].get("confidence", 0.0)), 3)
-            report[f"{key}_confidence"] = confidence
-            if confidence >= min_confidence:
-                report[key] = answers[key]["choice"]
-            else:
-                report["warnings"].append(
-                    f"{key} incertain ({answers[key]['choice']}, confiance {confidence}) : non retenu")
-        if "tableaux" in answers:
-            report["tables"] = round(float(answers["tableaux"]["noul"]), 3)
-        report["method"] = f"laya ({result.get('routing', {}).get('model', '?')})"
-    elif router is not None:
-        report["warnings"].append("Pas assez de texte pour classer : document scanné ?")
-
-    report["engine"] = engine_for(suffix, scanned, report["tables"])
-    return report
+    used, entry = triage_entry(triage, key) if triage is not None else (None, None)
+    if entry is not None:
+        report.update(type=entry["type"], domaine=entry.get("domaine"), method="tri",
+                      tables=entry.get("tableaux") if suffix in PDF else None)
+    elif triage is not None:
+        report["warnings"].append("Absent du tri : classé par les règles")
+    report["engine"] = "docling" if suffix in PDF and (scanned or report["tables"]) else "markitdown"
+    return report, text, used
 
 
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("paths", nargs="+", type=Path, help="fichiers ou dossiers")
+    parser.add_argument("paths", nargs="*", type=Path, help="fichiers ou dossiers")
     parser.add_argument("--domains", help="domaines possibles : a,b ou a:description,b:description")
-    parser.add_argument("--min-confidence", type=float, default=0.5,
-                        help="confiance minimale pour retenir un type ou un domaine (défaut : 0.5)")
-    parser.add_argument("--rules-only", action="store_true", help="ne pas charger Laya")
+    parser.add_argument("--candidates", type=Path,
+                        help="écrit le début des documents et la consigne de tri pour un sous-agent de niveau simple")
+    parser.add_argument("--triage", type=Path, help="tri rendu par ce sous-agent : {nom: {type, domaine, tableaux}}")
+    schema_option(parser)
     args = parser.parse_args()
-    network_warnings: list[str] = []
-    model_store.guard_network(network_warnings)
-
-    router, load_warning = None, None
-    if not args.rules_only:
-        try:
-            router = load_router()
-        except Exception as error:  # noqa: BLE001 - repli sur les règles
-            load_warning = f"Laya indisponible, repli sur les règles : {type(error).__name__}: {error}"
+    if args.schema:
+        print_schema(__file__)
+        return 0
+    if not args.paths:
+        print_report([], ["Aucun document : donnez des fichiers ou des dossiers"])
+        return 1
+    warnings: list[str] = []
+    model_store.guard_network(warnings)
 
     domains = parse_domains(args.domains)
-    reports, failed = [], False
-    for path in collect(args.paths):
+    triage = None
+    if args.triage:
+        triage, errors = read_spec(args.triage, __file__)
+        errors = errors or triage_errors(triage, domains)
+        if errors:
+            print_report([], errors)
+            return 1
+    files = collect(args.paths)
+    keys = keys_of(files)
+    reports, starts, used, failed = [], {}, set(), False
+    for path in files:
         if not path.is_file():
             reports.append({"input": str(path), "error": "Fichier introuvable"})
             failed = True
             continue
         try:
-            try:
-                report = classify(path.resolve(), router, domains, args.min_confidence)
-            except LayaError as error:
-                router = None
-                load_warning = f"Laya indisponible, repli sur les règles : {error}"
-                report = classify(path.resolve(), router, domains, args.min_confidence)
+            report, text, key = classify(path.resolve(), keys[path], triage)
         except Exception as error:  # noqa: BLE001 - le rapport doit lister chaque échec
             reports.append({"input": str(path), "error": f"{type(error).__name__}: {error}"})
             failed = True
             continue
-        if load_warning:
-            report["warnings"].insert(0, load_warning[:300])
+        used.add(key)
+        if report["method"] == "regles" and len(text.strip()) >= 20:
+            starts[keys[path]] = text
         reports.append(report)
-    print_report(reports, warnings=network_warnings)
+    unknown = sorted(set(triage or {}) - used)
+    if unknown:
+        warnings.append(f"Tri : {len(unknown)} entrée(s) sans document dans le lot : {', '.join(unknown[:5])}")
+    if args.candidates and not failed:
+        write_candidates(args.candidates, starts, domains)
+        warnings.append(f"{len(starts)} document(s) à trier dans {args.candidates.name}")
+    print_report(reports, warnings=warnings)
     return 1 if failed else 0
 
 
