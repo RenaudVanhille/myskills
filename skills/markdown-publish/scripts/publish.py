@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import local_tools  # noqa: E402
 from script_report import print_report  # noqa: E402
 from skill_paths import absent, load_module  # noqa: E402
+from text_tools import unlink_notes  # noqa: E402
 
 MERMAID = re.compile(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[([^\]]*)\]\(<?([^)>\s]+)>?(\s+\"[^\"]*\")?\)")
@@ -321,7 +322,8 @@ def publish(doc: Path, args, exporter) -> dict:
     report = {"input": str(doc), "outputs": [], "diagrams_exported": 0, "warnings": []}
     out_dir = (args.out or doc.parent).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    text = doc.read_text(encoding="utf-8")
+    # Liens du journal vers les notes d'exigence : utiles dans Obsidian, retirés du document publié.
+    text = unlink_notes(doc.read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory() as tmp:
         prepared = Prepared(doc, Path(tmp), args.vault, exporter)
         text = prepared.run(text)

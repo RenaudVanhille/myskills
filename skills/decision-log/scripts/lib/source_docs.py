@@ -79,12 +79,18 @@ def images(lines: list[str], doc: str, folder: Path) -> dict[str, Path]:
     return found
 
 
-def linker(ids: dict[str, str], docs: dict[str, tuple[str, list[str]]], folder: str):
+def wikilink(target: str, section: str | None, shown: str, bar: str) -> str:
+    return f"[[{target}{'#' + anchor(section) if section else ''}{bar}{shown}]]"
+
+
+def linker(ids: dict, docs: dict[str, tuple[str, list[str]]], folder: str, fmt=wikilink, relink: bool = True):
     """Fonction qui pose les wikilinks dans un texte Markdown, sans en changer les mots : un identifiant
     connu (EF-001, D-012) mène à sa note, un renvoi à un document source (« doc.md », « doc.md:30 »,
     `sources/doc.md`) à la note du document, à la section de la ligne citée. Blocs de code, code en ligne,
     titres et autres liens déjà écrits sont laissés tels quels ; dans un tableau, la barre du lien est échappée.
-    ids : identifiant -> note ; docs : document -> (note, lignes) ; folder : nom du dossier des sources."""
+    ids : identifiant -> note ; docs : document -> (note, lignes) ; folder : nom du dossier des sources ;
+    fmt(cible, section, texte, barre) écrit le lien (wikilink par défaut) ; relink : un lien Markdown déjà
+    posé sur un identifiant est repris par fmt. Le frontmatter du texte n'est pas touché."""
     parts = [r"(?P<skip>!?\[\[[^\]\n]*\]\]|!?\[[^\]\n]*\]\([^)\n]*\)|<[^>\n]+>)"]
     if docs:
         names = "|".join(re.escape(d) for d in sorted(docs, key=len, reverse=True))
@@ -97,11 +103,13 @@ def linker(ids: dict[str, str], docs: dict[str, tuple[str, list[str]]], folder: 
 
     def linked(text: str) -> str:
         out, fenced = [], False
-        for line in text.split("\n"):
+        lines = text.split("\n")
+        head = len(lines) - len(body_of(lines))
+        for number, line in enumerate(lines):
             stripped = line.lstrip()
             if stripped.startswith(("```", "~~~")):
                 fenced = not fenced
-            if fenced or stripped.startswith(("```", "~~~", "#")):
+            if number < head or fenced or stripped.startswith(("```", "~~~", "#")):
                 out.append(line)
                 continue
             bar = "\\|" if stripped.startswith("|") else "|"
@@ -109,16 +117,16 @@ def linker(ids: dict[str, str], docs: dict[str, tuple[str, list[str]]], folder: 
             def link(match: re.Match) -> str:
                 groups = match.groupdict()
                 if groups.get("id"):
-                    return f"[[{ids[groups['id']]}{bar}{groups['id']}]]"
+                    return fmt(ids[groups["id"]], None, groups["id"], bar)
                 if not groups.get("doc"):
                     # Lien Markdown déjà posé sur un identifiant ou un document (journal.md) : repris en wikilink.
-                    inner = re.fullmatch(r"\[([^\]\n]*)\]\([^)\n]*\)", groups.get("skip") or "")
+                    inner = re.fullmatch(r"\[([^\]\n]*)\]\([^)\n]*\)", groups.get("skip") or "") if relink else None
                     text = pattern.sub(link, inner.group(1)) if inner else None
                     return text if text and text != inner.group(1) else match.group(0)
                 target, lines = docs[groups["doc"]]
                 section = section_at(lines, int(groups["line"])) if groups.get("line") else None
                 shown = match.group(0).strip("`")
-                return f"[[{target}{'#' + anchor(section) if section else ''}{bar}{shown}]]"
+                return fmt(target, section, shown, bar)
             out.append(pattern.sub(link, line))
         return "\n".join(out)
     return linked

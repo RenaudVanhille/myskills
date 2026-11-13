@@ -84,8 +84,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from lib import source_docs  # noqa: E402
+from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import progress_chart  # noqa: E402
-from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -137,7 +139,14 @@ def now() -> str:
 
 
 def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Empreinte d'un fichier ; celle d'un Markdown ne dépend pas des liens posés sur ses identifiants d'exigence
+    (link_deliverables) : le script qui le régénère sans ces liens ne le fait pas passer pour modifié."""
+    data = path.read_bytes()
+    if path.suffix.lower() == ".md":
+        text = data.decode("utf-8", errors="surrogateescape")
+        plain = unlink_notes(text)
+        data = plain.encode("utf-8", errors="surrogateescape") if plain != text else data
+    return hashlib.sha256(data).hexdigest()
 
 
 def split(value: str | None) -> list[str]:
@@ -509,10 +518,42 @@ def load_state(folder: Path, errors: list[str]) -> dict | None:
     return state
 
 
+def link_deliverables(folder: Path, state: dict) -> int:
+    """Pose, dans les livrables Markdown soumis, un lien Markdown standard de chaque identifiant d'exigence vers
+    sa note du vault : les fichiers du dossier du workflow se lisent liés dans Obsidian ouvert à la racine du
+    projet. Les documents sources et le texte ne changent pas ; l'empreinte des fichiers non plus (digest) et
+    l'export les retire (markdown-publish). Rend le nombre de fichiers réécrits."""
+    memory = state["memory"]
+    definition = state.get("definition")
+    names = (definition.get("memory", {}) if definition else DEFAULT_MEMORY).get("requirements")
+    try:
+        catalog = json.loads((folder / names).read_text(encoding="utf-8")) if names else {}
+        notes = Path(memory["vault"]) / safe_folder(memory["folder"]) / "Exigences"
+        ids = {r["id"]: notes / f"{r['id']}.md" for r in catalog.get("requirements", [])}
+        sources = (folder / catalog.get("sources", "sources")).resolve()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return 0
+    written = 0
+    for rel in dict.fromkeys(f for stage in state["stages"] for f in stage.get("files", {})) if ids else []:
+        path = folder / rel
+        if path.suffix.lower() != ".md" or not path.is_file() or sources in path.resolve().parents:
+            continue
+        with open(path, encoding="utf-8", errors="surrogateescape", newline="") as handle:
+            text = handle.read()
+        linked = source_docs.linker(ids, {}, "", lambda target, _, shown, bar: md_link(shown, target, path.parent),
+                                    relink=False)(text)
+        if linked != text:
+            with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
+                handle.write(linked)
+            written += 1
+    return written
+
+
 def synchronize(folder: Path, state: dict, warnings: list[str]) -> dict | None:
     """Mémoire partagée dans le vault, s'il y en a un ; avertissements en cas d'échec."""
     if not state.get("memory"):
         return None
+    link_deliverables(folder, state)
     synced = sync(folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
     warnings += [f"vault : {e}" for e in synced["errors"]]
     warnings += [f"vault : {w}" for w in synced["warnings"]]
