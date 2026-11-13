@@ -6,7 +6,7 @@
     "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
   ],
   "outputs": [
-    "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme)",
+    "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
     "<nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM)",
     "ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py)"
   ],

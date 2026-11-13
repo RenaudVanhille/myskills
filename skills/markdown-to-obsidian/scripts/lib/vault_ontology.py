@@ -22,6 +22,7 @@ import os
 import re
 import time
 import unicodedata
+import urllib.parse
 from pathlib import Path
 
 try:
@@ -166,6 +167,14 @@ def check_meta(onto: dict, data: dict, generated: bool | None = None) -> tuple[l
     for name in spec.get("required", []):
         if data.get(name) in (None, ""):
             errors.append(f"{name} : propriété obligatoire pour le type {kind}")
+    # Traçabilité : l'une des propriétés ou relations du groupe (une exigence sans lien vers son document
+    # source ni raison de sa déduction). Erreur pour une note générée, avertissement pour une note saisie.
+    for group in spec.get("required_any", []):
+        if all(data.get(name) in (None, "", []) for name in group):
+            (errors if generated else warnings).append(
+                f"{group[0]} : {' ou '.join(group)} obligatoire pour le type {kind}"
+                + (f" ({onto['relations'][group[0]]['label']} : lien vers la note visée)"
+                   if group[0] in onto["relations"] else ""))
     for name, value in data.items():
         # Propriété vide (laissée vide dans Obsidian ou par un modèle) : comme absente.
         if name == "type" or value is None or value == "" or value == []:
@@ -457,12 +466,16 @@ def template_text(onto: dict, kind: str) -> str:
         value = '"{{date:YYYY-MM-DD}}"' if property_kind(schema) == "date" else \
             ("[]" if schema.get("type") == "array" else '""')
         lines.append(f"{name}: {value}")
+    lines += [f'{name}: ""' for group in spec.get("required_any", []) for name in group
+              if name not in onto["relations"] and name not in spec.get("required", [])]
     lines += [f"{name}: []" if onto["relations"][name].get("many") else f'{name}: ""' for name in relations]
     lines += [f"ontologie: {onto['version']}", "tags:", f"  - {type_tag(onto, kind)}", "---", "", "# {{title}}", ""]
     help_ = [spec.get("description", "")]
     allowed = [f"**{n}** : {', '.join(map(str, props[n]['enum']))}" for n in spec.get("required", []) + [
         n for n in spec.get("properties", {}) if n not in spec.get("required", [])] if "enum" in props.get(n, {})]
     help_ += ["Valeurs permises : " + " ; ".join(dict.fromkeys(allowed)) + "."] if allowed else []
+    help_ += [f"À remplir, l'une ou l'autre : {' ou '.join(f'**{n}**' for n in group)}."
+              for group in spec.get("required_any", [])]
     if relations:
         help_.append("Relations en wikilinks entre guillemets (\"[[Note]]\") : " + ", ".join(
             f"**{n}** vers {', '.join(onto['relations'][n]['to'])}" for n in relations) + ".")
@@ -1003,6 +1016,27 @@ def refresh_hubs(onto: dict, vault: Path, written: dict[str, dict], hubs: "Hubs 
     return changed
 
 
+# Dossier de projet ouvert tel quel dans Obsidian : il contient le vault et les fichiers d'origine.
+PROJECT_MARKS = (".obsidian", "mission.json", "workflow.json")
+
+
+def original(vault: Path, target: Path, rel: str) -> str | None:
+    """Chemin relatif (encodé pour un lien Markdown) d'un fichier du projet depuis la note rel, quand le vault
+    est dans le dossier du projet (un dossier parent du vault porte .obsidian, mission.json ou workflow.json et
+    contient le fichier) : la note renvoie alors à l'original, sans copie dans le vault. Sinon None."""
+    vault, target = Path(vault).resolve(), Path(target).resolve()
+    if vault in target.parents or not target.is_file():
+        return None
+    if not any(any((root / mark).exists() for mark in PROJECT_MARKS) for root in vault.parents
+               if root in target.parents):
+        return None
+    try:
+        relative = os.path.relpath(target, (vault / rel).parent)
+    except ValueError:  # autre lecteur sous Windows
+        return None
+    return urllib.parse.quote(Path(relative).as_posix())
+
+
 class Notes:
     """Notes typées écrites par un skill dans un vault : toutes vérifiées contre l'ontologie avant l'écriture."""
 
@@ -1012,6 +1046,7 @@ class Notes:
         self.metas: dict[str, dict] = {}
         self.texts: dict[str, str] = {}
         self.files: dict[str, Path] = {}  # copie dans le vault (chemin avec extension) -> fichier source
+        self.stale: list[str] = []  # anciennes copies d'un livrable désormais lié à son original
 
     def exists(self, rel: str) -> bool:
         return rel in self.pending or (self.vault / f"{rel}.md").is_file()
@@ -1030,14 +1065,19 @@ class Notes:
             return heading(parse(path.read_text(encoding="utf-8", errors="replace"))[1]) or default
         return default
 
-    def attach(self, rel: str, source: Path) -> str:
-        """Copie un livrable dans le vault (rel : chemin avec extension) pour le lier depuis une note ;
-        un Markdown copié porte la marque genere et sa source. Rend le wikilink vers la copie, libellé par le
-        titre du livrable."""
+    def attach(self, rel: str, source: Path, note: str | None = None) -> str:
+        """Lie un livrable depuis une note, libellé par son titre. Vault dans le dossier du projet : lien
+        Markdown vers l'original, une seule version du fichier. Sinon le livrable est copié dans le vault (rel :
+        chemin avec extension ; un Markdown copié porte la marque genere et sa source) et lié par un wikilink.
+        note : la note qui porte le lien, par défaut une note d'un sous-dossier du dossier du workflow."""
         source = Path(source)
-        self.files[rel] = source
         title = heading(source.read_text(encoding="utf-8", errors="replace")) if source.suffix.lower() == ".md" \
             else None
+        url = original(self.vault, source, note or rel.rsplit("/", 1)[0])
+        if url:
+            self.stale.append(rel)
+            return f"[{(title or source.name).replace('[', '(').replace(']', ')')}]({url})"
+        self.files[rel] = source
         return link(rel.removesuffix(".md"), title or source.name)
 
     def build(self) -> None:
@@ -1105,6 +1145,13 @@ class Notes:
             if path.is_file() and path.read_text(encoding="utf-8", errors="replace") == text:
                 continue
             save(path, text)
+        for rel in self.stale:
+            path = self.vault / rel
+            if path.is_file() and (path.suffix.lower() != ".md" or path.read_bytes().startswith(mark.encode("utf-8"))):
+                path.unlink()
+            for folder in list(path.parents)[:2]:  # Rapports/<titre>, puis Rapports, une fois vides
+                if folder.is_dir() and not any(folder.iterdir()):
+                    folder.rmdir()
         for rel, source in self.files.items():
             path = self.vault / rel
             data = f"---\ngenere: {self.genere}\nsource: {json.dumps(source.name, ensure_ascii=False)}\n---\n\n" \

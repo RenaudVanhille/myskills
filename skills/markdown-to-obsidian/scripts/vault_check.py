@@ -7,7 +7,10 @@ Lit le vault sans le modifier, sauf `--style` et `--templates`. Chaque note dont
 propriété `type` est vérifiée contre l'ontologie (`scripts/lib/vault-ontology.json`,
 source unique de l'ontologie) : type connu, propriétés obligatoires,
 valeurs permises, relations (wikilinks) permises depuis ce type et visant une
-note du bon type, tags normalisés. Les notes sans `type` sont comptées, pas
+note du bon type, tags normalisés. Une exigence générée sans lien vers son
+document source (`extrait-de`) ni raison de sa déduction (`deduite`) est en
+erreur, une exigence saisie à la main en avertissement (`required_any` de
+l'ontologie). Les notes sans `type` sont comptées, pas
 vérifiées. Une note générée (propriété `genere`) est aussi relue pour sa lisibilité
 (avertissements « lisibilité : » : lien libellé par un simple identifiant, accord
 « (s) », montant sans séparateur des milliers). Avec `--graph`, écrit le graphe des notes au format node-link de
@@ -113,8 +116,9 @@ def main() -> int:
         return (parsed[rel][0] or {}).get("type")
 
     def title_of(target: str):
+        # Copie d'un livrable (sans type) : son nom de fichier est le bon libellé.
         rel = resolve(target)
-        return vault_ontology.heading(parsed[rel][1]) if rel else None
+        return vault_ontology.heading(parsed[rel][1]) if rel and (parsed[rel][0] or {}).get("type") else None
 
     prefix = (args.folder or "").strip("/\\").replace("\\", "/")
     scope = [rel for rel in paths if not prefix or rel == prefix or rel.startswith(prefix + "/")]
@@ -130,7 +134,7 @@ def main() -> int:
         errors, warnings = errors + found, warnings + missing
         relations += sum(len(vault_ontology.targets(v)) for k, v in data.items() if k in onto["relations"])
         warnings = read_warnings + warnings
-        if data.get("genere"):
+        if data.get("genere") and data["type"] != "document":  # un document garde son texte d'origine
             warnings += vault_ontology.readability(parsed[rel][1], title_of)
         if errors or warnings:
             results.append({"note": rel, "type": str(data["type"]), "errors": errors, "warnings": warnings})

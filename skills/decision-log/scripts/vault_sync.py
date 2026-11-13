@@ -7,7 +7,9 @@ Lit les fichiers qui font foi dans le dossier du workflow (`workflow.json`
 et les livrables que la définition du workflow nomme dans `memory` :
 catalogue d'exigences, options, décision, ADR) et en tire une note par
 exigence, terme du glossaire, option et entrée du journal, une note par
-étape soumise avec ses livrables (images et Markdown copiés dans
+document du dossier des sources (`Documents/`, vers laquelle chaque exigence
+et chaque terme renvoient : relation `extrait-de` et lien vers la section de
+la citation), une note par étape soumise avec ses livrables (images et Markdown copiés dans
 `Fichiers/` et intégrés), plus une note d'index, reliées par des wikilinks :
 un autre agent, une autre session ou l'utilisateur retrouvent dans le vault
 l'état du workflow, chaque décision et ce qu'elle concerne. Sans définition,
@@ -24,15 +26,18 @@ son dossier sont gardés dans `workflow.json` (`journal.py init --vault`) :
 
 import argparse
 import json
+import os
 import re
 import sys
 import unicodedata
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
+from lib import source_docs  # noqa: E402
 from lib.workflow_chart import progress_chart  # noqa: E402
 from skill_paths import require_module, schema_of  # noqa: E402
 
@@ -171,8 +176,9 @@ def _alias(text: str) -> str:
     return text.replace("|", "-").replace("]", ")").replace("[", "(")
 
 
-def _sources(item: dict) -> list[str]:
-    return [s["doc"] + (f" : « {s['quote']} »" if s.get("quote") else "") for s in item.get("sources", [])]
+def _cited(item: dict) -> list[str]:
+    """Documents cités par une exigence ou un terme, sans doublon, dans l'ordre."""
+    return list(dict.fromkeys(s["doc"] for s in item.get("sources", [])))
 
 
 class _Sync:
@@ -195,6 +201,7 @@ class _Sync:
                          if memory.get("decision") else None) or self.options.get("decision")
         self.base = safe_folder(target)
         self.files_dir = f"{self.base}/Fichiers"
+        self.docs_dir = f"{self.base}/Documents"
         self.names: dict[str, str] = {}  # identifiant -> chemin de la note (sans .md), pour les wikilinks
         self.titles: dict[str, str] = {}  # identifiant -> libellé lisible des liens (EF-001 Déclarer un sinistre)
         self.notes: dict[str, str] = {}
@@ -214,6 +221,7 @@ class _Sync:
             names[opt["id"]] = f"{base}/Options/Option {opt['id']}"
             titles[opt["id"]] = f"Option {opt['id']} : {opt['name']}"
         self.glossary = self.catalog.get("glossary", [])
+        self.name_documents()
         for entry in self.glossary:
             names["terme:" + entry["term"]] = f"{base}/Glossaire/{safe_name(entry['term'])}"
         kept = [r for r in self.catalog.get("requirements", []) if r.get("status", "retenue") == "retenue"]
@@ -235,6 +243,41 @@ class _Sync:
         self.gaps = {(g, o["id"]): v for o in self.options.get("options", []) for g, v in o.get("gaps", {}).items()}
         self.up = f"Workflow : [[{self.index}|{_alias(state['title'])}]]"
 
+    def name_documents(self) -> None:
+        """Une note par document du dossier des sources, et par document cité qui n'y est plus : les exigences
+        et les termes y renvoient (relation extrait-de), le document entre dans le graphe du vault."""
+        self.sources_dir = self.data / self.catalog.get("sources", "sources") if self.catalog else None
+        self.docs = source_docs.load(self.sources_dir) if self.sources_dir else {}
+        items = self.catalog.get("requirements", []) + self.glossary
+        self.missing_docs = sorted({d for item in items for d in _cited(item)} - set(self.docs))
+        for doc in [*self.docs, *self.missing_docs]:
+            parts = Path(doc).with_suffix("").parts
+            self.names["doc:" + doc] = "/".join([self.docs_dir, *(safe_name(p) for p in parts)])
+            self.titles["doc:" + doc] = vault_ontology.heading(
+                "\n".join(source_docs.body_of(self.docs.get(doc, [])))) or parts[-1]
+        self.extracted = {doc: [r["id"] for r in self.catalog.get("requirements", []) if doc in _cited(r)]
+                          for doc in self.docs}
+        if self.missing_docs:
+            self.warnings.append(f"{vault_ontology.count(len(self.missing_docs), 'document cité')} hors de "
+                                 f"{self.sources_dir} : {', '.join(self.missing_docs[:5])}")
+
+    def source_lines(self, item: dict, rel: str) -> list[str]:
+        """Sources d'une exigence ou d'un terme (note rel) : lien vers le document, à la section de la citation ;
+        vers l'original quand le vault est dans le projet, sinon vers la note qui en porte le texte."""
+        lines = []
+        for ref in item.get("sources", []):
+            doc, quote = ref["doc"], ref.get("quote")
+            text = self.docs.get(doc, [])
+            section = source_docs.section_at(text, source_docs.line_of(text, quote))
+            title = self.titles["doc:" + doc]
+            shown = _alias(title if not section or section == title else f"{title}, {section}")
+            url = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
+            anchor = source_docs.anchor(section) if section else ""
+            target = f"[{shown}]({url}{'#' + urllib.parse.quote(anchor) if anchor else ''})" if url else \
+                f"[[{self.names['doc:' + doc]}{'#' + anchor if anchor else ''}|{shown}]]"
+            lines.append(f"- {target}" + (f" : « {quote} »" if quote else ""))
+        return lines
+
     # Liens
 
     def note_title(self, ref: str) -> str | None:
@@ -252,7 +295,8 @@ class _Sync:
         return f"[[{ref}|{_alias(title)}]]" if title else ref
 
     def linked(self, ids) -> list[tuple[str, str]]:
-        return [(self.names[r], r.removeprefix("terme:")) if r in self.names else (r, self.note_title(r))
+        return [(self.names[r], self.titles[r] if r.startswith("doc:") else r.removeprefix("terme:"))
+                if r in self.names else (r, self.note_title(r))
                 for r in ids if r in self.names or self.note_title(r)]
 
     def decisions(self, ref: str) -> list[str]:
@@ -274,6 +318,7 @@ class _Sync:
 
     def compose(self) -> None:
         self.requirement_notes()
+        self.document_notes()
         self.option_notes()
         self.glossary_notes()
         self.entry_notes()
@@ -298,8 +343,8 @@ class _Sync:
             if terms:
                 body += ["**Termes** : " + ", ".join(f"[[{names['terme:' + term]}|{_alias(term)}]]"
                                                      for term in terms), ""]
-            body += ["## Sources", ""] + [f"- {s}" for s in _sources(req)] + ([f"- déduite : {req['derived']}"]
-                                                                             if req.get("derived") else [])
+            body += ["## Sources", ""] + self.source_lines(req, names[rid]) + ([f"- déduite : {req['derived']}"]
+                                                                   if req.get("derived") else [])
             if req.get("questions"):
                 body += ["", "## Questions", ""] + [f"- {q}" for q in req["questions"]]
             covered = [f"- {link(o['id'])} : "
@@ -313,8 +358,37 @@ class _Sync:
                        {"id": rid, "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
                                                                    else "non-fonctionnelle"),
                         "priorite": req["priority"], "categorie": req.get("category"), "domaine": req.get("domain"),
-                        "statut": req.get("status", "retenue")}, body,
-                       {"termes": self.linked("terme:" + term for term in terms)})
+                        "statut": req.get("status", "retenue"), "deduite": req.get("derived")}, body,
+                       {"termes": self.linked("terme:" + term for term in terms),
+                        "extrait-de": self.linked("doc:" + doc for doc in _cited(req))})
+
+    def document_notes(self) -> None:
+        """Note de chaque document source, avec ce que le workflow en a tiré. Vault dans le projet : une fiche
+        qui renvoie à l'original, seule version du texte ; sinon la note porte le texte du document."""
+        for doc in [*self.docs, *self.missing_docs]:
+            rel, lines = self.names["doc:" + doc], source_docs.body_of(self.docs.get(doc, []))
+            original = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
+            body = [f"# {self.titles['doc:' + doc]}"] if original or not vault_ontology.heading("\n".join(lines)) \
+                else []
+            body += [] if original else ["", *lines] if body else list(lines)
+            if original:
+                pass
+            elif doc in self.missing_docs:
+                body += [""] + vault_ontology.callout("warning", "Document introuvable", [
+                    f"`{doc}` est cité par le catalogue d'exigences mais n'est plus dans le dossier des sources."])
+            else:
+                for image, path in source_docs.images(lines, doc, self.sources_dir).items():
+                    self.copies[f"{self.docs_dir}/{image}"] = path
+            body += ["", "## Dans le workflow", "", self.up, "",
+                     f"Document source : [{doc}]({original})." if original else
+                     f"Copie de `{doc}` : modifiez l'original, cette note est réécrite."]
+            if self.extracted.get(doc):
+                body += ["", "Exigences tirées de ce document :", ""] + [f"- {self.link(r)}"
+                                                                        for r in self.extracted[doc]]
+            terms = [g["term"] for g in self.glossary if doc in _cited(g)]
+            if terms:
+                body += ["", "Termes : " + ", ".join(f"[[{self.names['terme:' + t]}|{_alias(t)}]]" for t in terms)]
+            self.typed(rel, "document", {"source": doc}, body)
 
     def option_notes(self) -> None:
         names, link, decision = self.names, self.link, self.decision
@@ -344,14 +418,14 @@ class _Sync:
 
     def glossary_notes(self) -> None:
         for entry in self.glossary:
-            sources = _sources(entry)
+            sources = self.source_lines(entry, self.names["terme:" + entry["term"]])
             body = [f"# {entry['term']}", "", entry["definition"], "", self.up]
             if sources:
-                body += ["", "## Sources", ""] + [f"- {s}" for s in sources]
+                body += ["", "## Sources", ""] + sources
             if self.uses[entry["term"]]:
                 body += ["", "## Exigences", ""] + [f"- {self.link(r)}" for r in self.uses[entry["term"]]]
             self.typed(self.names["terme:" + entry["term"]], "terme", {"aliases": entry.get("aliases", [])}, body,
-                       tags=["glossaire"])
+                       {"extrait-de": self.linked("doc:" + doc for doc in _cited(entry))}, tags=["glossaire"])
 
     def entry_notes(self) -> None:
         for entry in self.state["entries"]:
@@ -384,13 +458,86 @@ class _Sync:
                    {"option": self.linked([self.decision["option"]] if self.decision else []),
                     "exigences": self.linked(sorted(cited))}, ["architecture"])
 
-    def drawio_source(self, file: str) -> list[str]:
-        """Lien vers la source draw.io d'un PNG exporté (x.drawio.png -> x.drawio), copiée à côté."""
+    def drawio_source(self, file: str, rel: str) -> list[str]:
+        """Lien vers la source draw.io d'un PNG exporté (x.drawio.png -> x.drawio)."""
         if not file.lower().endswith(".drawio.png") or not (self.folder / file[:-4]).is_file():
             return []
-        self.copies[f"{self.files_dir}/{file[:-4]}"] = self.folder / file[:-4]
-        name = Path(file[:-4]).name
-        return [f"Source modifiable : [[{self.files_dir}/{file[:-4]}|{name}]] (draw.io).", ""]
+        return [f"Source modifiable : {self.file_link(file[:-4], rel, Path(file[:-4]).name)} (draw.io).", ""]
+
+    def outside(self, target: Path, rel: str) -> str | None:
+        """Chemin relatif d'un fichier du projet depuis la note rel quand le vault est dans le dossier du projet
+        (une seule version du fichier : la note renvoie à l'original), sinon None."""
+        return vault_ontology.original(self.vault, target, rel)
+
+    def file_link(self, file: str, rel: str, label: str | None = None, code: bool = True) -> str:
+        """Lien, depuis la note rel, vers un fichier du workflow : la note de son document source, l'original
+        (vault dans le projet), sinon sa copie dans Fichiers/ ; le nom seul s'il n'est ni lisible ni présent."""
+        source, shown = self.folder / file, label or file
+        if self.document_of(file):
+            return self.link(self.document_of(file))
+        url = self.outside(source, rel)
+        if url:
+            return f"[{shown}]({url})"
+        if source.suffix.lower() in EMBEDDED | {".drawio"} and source.is_file():
+            self.copies[f"{self.files_dir}/{file}"] = source
+            return f"[[{self.files_dir}/{file}|{shown}]]"
+        return f"`{shown}`" if code else shown
+
+    def picture(self, file: str, rel: str) -> str:
+        """Image du workflow intégrée à la note rel : l'original (vault dans le projet), sinon sa copie."""
+        url = self.outside(self.folder / file, rel)
+        if url:
+            return f"![{Path(file).name}|{IMAGE_WIDTH}]({url})"
+        self.copies[f"{self.files_dir}/{file}"] = self.folder / file
+        return f"![[{self.files_dir}/{file}|{IMAGE_WIDTH}]]"
+
+    def rebased(self, text: str, source: Path, rel: str) -> str:
+        """Liens Markdown relatifs d'un livrable copié : vers une note ou un fichier du vault, un wikilink ;
+        vers un fichier du projet, le chemin depuis la copie s'il est joignable, sinon le texte seul."""
+        vault = self.vault.resolve()
+
+        def link(match: re.Match) -> str:
+            image, shown, url = match.groups()
+            path, _, anchor = urllib.parse.unquote(url).partition("#")
+            if not path or re.match(r"[a-z][a-z0-9+.-]*:|/", path, re.I):
+                return match.group(0)
+            target = (source.parent / path).resolve()
+            bar = "\\|" if match.string[:match.start()].rsplit("\n", 1)[-1].lstrip().startswith("|") else "|"
+            if vault in target.parents and target.is_file():
+                inside = target.relative_to(vault)
+                inside = inside.with_suffix("") if inside.suffix.lower() == ".md" else inside
+                return f"![[{inside.as_posix()}]]" if image else \
+                    f"[[{inside.as_posix()}{'#' + anchor if anchor else ''}{bar}{shown}]]"
+            copy = next((c for c, s in self.copies.items() if s.resolve() == target), None)
+            if copy:
+                return f"![[{copy}]]" if image else f"[[{copy}{bar}{shown}]]"
+            if image:
+                return match.group(0)
+            there = self.outside(target, rel)
+            return f"[{shown}]({there}{'#' + urllib.parse.quote(anchor) if anchor else ''})" if there else shown
+        return re.sub(r"(!?)\[([^\]\n]*)\]\(([^)\s]+)\)", link, text)
+
+    def link_ids(self) -> dict[str, str]:
+        """Identifiant -> note, pour lier les copies des livrables : exigences, entrées du journal, et notes des
+        autres skills (constats, risques, lots...) dont l'identifiant est unique dans le dossier du workflow."""
+        ids: dict[str, str | None] = {}
+        for rel, (meta, _) in vault_ontology.scan(self.vault, self.base).items():
+            ref = meta.get("id")
+            if isinstance(ref, str) and re.fullmatch(r"[A-Za-z][\w.]*[-_.]?\d[\w.-]*", ref):
+                ids[ref] = None if ref in ids else rel
+        own = [r["id"] for r in self.catalog.get("requirements", [])] + [e["id"] for e in self.state["entries"]]
+        ids.update({ref: self.names[ref] for ref in own})
+        return {ref: rel for ref, rel in ids.items() if rel}
+
+    def document_of(self, file: str) -> str | None:
+        """Référence de la note du document quand un livrable d'étape est un document source."""
+        if not self.docs:
+            return None
+        try:
+            doc = (self.folder / file).resolve().relative_to(self.sources_dir.resolve()).as_posix()
+        except ValueError:
+            return None
+        return "doc:" + doc if doc in self.docs else None
 
     def stage_notes_(self) -> None:
         """Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés."""
@@ -403,15 +550,17 @@ class _Sync:
                     f"Statut : **{STATUS_LABELS[stage['status']]}**.", "", "## Livrables", ""]
             for file in stage["files"]:
                 source = self.folder / file
-                if source.suffix.lower() in EMBEDDED and source.is_file():
-                    copy = f"{files_dir}/{file}"
-                    self.copies[copy] = source
-                    body += [f"### {file}", "", f"![[{copy}]]" if source.suffix.lower() == ".md"
-                             else f"![[{copy}|{IMAGE_WIDTH}]]", ""] + self.drawio_source(file)
+                embedded = source.suffix.lower() in EMBEDDED and source.is_file() and not self.document_of(file)
+                if embedded and source.suffix.lower() != ".md":
+                    body += [f"### {file}", "", self.picture(file, rel), ""] + self.drawio_source(file, rel)
+                elif embedded and not self.outside(source, rel):
+                    self.copies[f"{files_dir}/{file}"] = source
+                    body += [f"### {file}", "", f"![[{files_dir}/{file}]]", ""]
                 else:
-                    body.append(f"- `{file}`")
+                    body.append(f"- {self.file_link(file, rel)}")
             self.typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
             self.stage_notes.append(rel)
+
 
     def option_pictures(self) -> None:
         """Schéma de chaque option, s'il a été exporté (comme deck_build.py) : intégré à la note de l'option."""
@@ -422,11 +571,10 @@ class _Sync:
                         f"schemas/architectures-{index + 1}.drawio.png"]
             found = next((p for p in pictures if (self.folder / p).is_file()), None)
             if found and names.get(opt["id"]) in notes:
-                self.copies[f"{files_dir}/{found}"] = self.folder / found
                 caption = [f"*Schéma de l'option {opt['id']} : {opt.get('name', opt['id'])}.*", ""] \
-                    + self.drawio_source(found)
+                    + self.drawio_source(found, names[opt["id"]])
                 notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + "\n\n" + "\n".join(
-                    ["## Schéma", "", f"![[{files_dir}/{found}|{IMAGE_WIDTH}]]", ""] + caption).rstrip() + "\n"
+                    ["## Schéma", "", self.picture(found, names[opt["id"]]), ""] + caption).rstrip() + "\n"
 
     def review_notes(self) -> None:
         state, labels, files_dir = self.state, self.labels, self.files_dir
@@ -439,8 +587,8 @@ class _Sync:
                 continue
             rel = review_note(self.target, stage["id"])
             value, feedback = user_part(self.vault / f"{rel}.md", submission["id"])
-            shown = [f"[[{files_dir}/{f}|{f}]]" if f"{files_dir}/{f}" in self.copies else f"`{f}`"
-                     for f in stage.get("files", {})]
+            shown = [self.file_link(f, rel) if self.document_of(f) or self.outside(self.folder / f, rel)
+                     or f"{files_dir}/{f}" in self.copies else f"`{f}`" for f in stage.get("files", {})]
             body = [f"# Revue de l'étape {labels.get(stage['id'], stage['id'])}", "", self.up, ""]
             body += vault_ontology.callout("todo", "À vous de relire", REVIEW_HELP)
             body += [f"Soumission {self.link(submission['id'])} : {submission['text']}.", "", "**Fichiers** : "
@@ -471,6 +619,11 @@ class _Sync:
             body += [f"| [[{names[r['id']]}\\|{_alias(self.titles[r['id']])}]] | "
                      f"{vault_ontology.label(ONTOLOGY, r['priority'])} | "
                      f"{vault_ontology.label(ONTOLOGY, r.get('status', 'retenue'))} |" for r in requirements]
+        if self.docs or self.missing_docs:
+            body += ["", "## Documents", ""] + [
+                f"- {link('doc:' + doc)} : "
+                + vault_ontology.count(len(self.extracted.get(doc, [])), "exigence")
+                for doc in [*self.docs, *self.missing_docs]]
         if self.options.get("options"):
             body += ["", "## Options", ""] + [f"- {link(o['id'])}" + (" (retenue)" if decision and
                                                                      decision.get("option") == o["id"] else "")
@@ -481,7 +634,10 @@ class _Sync:
         if "ADR" in names:
             body += ["", "## Décision d'architecture", "", f"- [[{names['ADR']}|ADR]]"]
         if state["entries"]:
-            body += ["", "## Journal", ""] + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
+            journal = self.file_link("journal.md", self.index, "Journal complet") \
+                if (self.folder / "journal.md").is_file() else None
+            body += ["", "## Journal", ""] + ([f"{journal} (journal.md, identifiants liés aux notes).", ""]
+                                              if journal else []) + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
                                              f"{e['text']}" for e in state["entries"]]
         self.typed(self.index, "workflow", {}, body)
 
@@ -513,11 +669,17 @@ class _Sync:
                 continue
             vault_ontology.save(path, text)
         # Copies des livrables : Fichiers/ est entièrement généré (un Markdown copié porte la marque).
+        linked = source_docs.linker(self.link_ids(), {doc: (self.names["doc:" + doc], lines)
+                                                      for doc, lines in self.docs.items()},
+                                    self.catalog.get("sources", "sources"))
         for rel, source in self.copies.items():
             path = self.vault / rel
             content = source.read_bytes()
             if source.suffix.lower() == ".md":
-                content = (f"---\n{MARK}\nsource: {json.dumps(source.name)}\n---\n\n").encode("utf-8") + content
+                # Copie liée : identifiants et renvois aux documents deviennent des liens, l'original reste tel quel.
+                text = self.rebased(linked(content.decode("utf-8", errors="replace").replace("\r\n", "\n")),
+                                    source, rel)
+                content = (f"---\n{MARK}\nsource: {json.dumps(source.name)}\n---\n\n" + text).encode("utf-8")
             if path.is_file() and path.read_bytes() == content:
                 continue
             vault_ontology.save(path, content)
@@ -537,18 +699,22 @@ class _Sync:
                     continue
                 path.unlink()
                 removed += 1
-        if (vault / self.files_dir).is_dir():
-            for path in sorted((vault / self.files_dir).rglob("*"), reverse=True):
+        for folder in (self.files_dir, self.docs_dir):
+            for path in sorted((vault / folder).rglob("*"), reverse=True) if (vault / folder).is_dir() else []:
+                if folder == self.docs_dir and path.suffix.lower() == ".md":
+                    continue  # notes des documents : traitées plus haut
                 if path.is_file() and path.relative_to(vault).as_posix() not in self.copies:
                     path.unlink()
                     removed += 1
                 elif path.is_dir() and not any(path.iterdir()):
                     path.rmdir()
+            if (vault / folder).is_dir() and not any((vault / folder).iterdir()):
+                (vault / folder).rmdir()
         return removed
 
     def broken(self) -> list[str]:
         """Wikilinks écrits qui ne pointent vers aucune note ni aucun fichier."""
-        return sorted({target for text in self.notes.values() for target in re.findall(r"\[\[([^|\]\\]+)", text)
+        return sorted({target for text in self.notes.values() for target in re.findall(r"\[\[([^|\]\\#]+)", text)
                        if not (self.vault / f"{target}.md").exists() and not (self.vault / target).is_file()})
 
 

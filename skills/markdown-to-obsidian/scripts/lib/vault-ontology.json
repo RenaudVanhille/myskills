@@ -11,7 +11,7 @@
   "_views": "views d'un type : tableaux Obsidian Bases écrits par vault_ontology.write_base dans Tableaux.base, à la racine du dossier du workflow, pour les types qui y ont des notes. columns : propriétés affichées après le titre ; filter : valeurs retenues par propriété ; sort : propriétés de tri (une énumération se trie dans son ordre, file.name par nom de note).",
   "_labels": "Libellé affiché dans le corps des notes pour une valeur de propriété sans accents ni espaces (a-faire : à faire). Une valeur absente s'affiche telle quelle, tirets remplacés par des espaces.",
   "_canvas": "canvas : carte Obsidian Canvas (JSON Canvas) écrite par vault_ontology.write_canvas dans Carte.canvas, à côté de Tableaux.base : une colonne par entrée de columns (types de note, de gauche à droite), au plus max notes par colonne, reliées par leurs relations typées libellées, sauf celles de skip_relations (toutes les notes font partie du workflow).",
-  "canvas": {"columns": [["workflow"], ["exigence"], ["option-architecture", "adr"], ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage", "decoupage-domaines"], ["constat", "risque", "menace"]], "max": 30, "skip_relations": ["workflow"]},
+  "canvas": {"columns": [["workflow"], ["document"], ["exigence"], ["option-architecture", "adr"], ["revue-architecture", "revue-well-architected", "modele-menaces", "chiffrage", "decoupage-domaines"], ["constat", "risque", "menace"]], "max": 30, "skip_relations": ["workflow"]},
   "common": {
     "type": {"type": "string", "description": "Type de la note, une clé de types."},
     "id": {"type": "string", "minLength": 1, "description": "Identifiant stable dans son workflow ou son référentiel (EF-001, D-003, option-A)."},
@@ -70,15 +70,17 @@
       "description": "Exigence fonctionnelle ou non fonctionnelle du catalogue (requirements-catalog).",
       "folder": "Exigences", "color": "#16a34a",
       "required": ["id", "nature", "priorite", "statut"],
+      "required_any": [["extrait-de", "deduite"]],
       "properties": {
         "nature": {"enum": ["fonctionnelle", "non-fonctionnelle"]},
+        "deduite": {"type": "string", "minLength": 1, "description": "Raison de la déduction, pour une exigence qu'aucun document n'énonce (à la place de extrait-de)."},
         "priorite": {"enum": ["indispensable", "importante", "souhaitable", "hors-perimetre"]},
         "categorie": {"enum": ["performance", "disponibilite", "securite", "conformite", "exploitabilite", "maintenabilite", "evolutivite", "interoperabilite", "utilisabilite", "portabilite", "cout", "autre"]},
         "domaine": {"type": "string"},
         "statut": {"enum": ["retenue", "retiree"]}
       },
       "facets": ["nature", "priorite", "categorie", "statut"],
-      "views": [{"name": "Exigences", "columns": ["priorite", "nature", "categorie", "statut"], "sort": ["priorite"]}]
+      "views": [{"name": "Exigences", "columns": ["priorite", "nature", "categorie", "statut", "extrait-de"], "sort": ["priorite"]}]
     },
     "terme": {
       "label": "Terme du glossaire",

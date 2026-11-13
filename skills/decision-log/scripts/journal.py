@@ -78,13 +78,16 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from lib import source_docs  # noqa: E402
+from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import progress_chart  # noqa: E402
-from vault_sync import KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -136,7 +139,14 @@ def now() -> str:
 
 
 def digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Empreinte d'un fichier ; celle d'un Markdown ne dépend pas des liens posés sur ses identifiants d'exigence
+    (link_deliverables) : le script qui le régénère sans ces liens ne le fait pas passer pour modifié."""
+    data = path.read_bytes()
+    if path.suffix.lower() == ".md":
+        text = data.decode("utf-8", errors="surrogateescape")
+        plain = unlink_notes(text)
+        data = plain.encode("utf-8", errors="surrogateescape") if plain != text else data
+    return hashlib.sha256(data).hexdigest()
 
 
 def split(value: str | None) -> list[str]:
@@ -399,21 +409,53 @@ def chart(state: dict) -> list[str]:
     return progress_chart(stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"])
 
 
-def render(state: dict) -> str:
+def md_link(text: str, target: Path, folder: Path) -> str:
+    """Lien Markdown standard vers un fichier, relatif au dossier du journal (lisible dans Obsidian ouvert à la
+    racine du projet comme à l'export) ; le texte seul si le fichier n'est pas joignable par un chemin relatif."""
+    try:
+        relative = Path(os.path.relpath(target, folder)).as_posix()
+    except ValueError:  # autre lecteur sous Windows
+        return text
+    return f"[{text}]({urllib.parse.quote(relative)})"
+
+
+def linker(folder: Path, state: dict):
+    """Fonction qui lie une référence du journal : un fichier du dossier vers lui-même, une entrée, une exigence
+    ou une option vers sa note du vault quand le workflow en a un."""
+    memory = state.get("memory") or {}
+    base = Path(memory["vault"]) / safe_folder(memory["folder"]) if memory.get("vault") else None
+    entries = {e["id"] for e in state["entries"]}
+
+    def link(ref: str, code: bool = False) -> str:
+        shown = f"`{ref}`" if code else ref.replace("|", "\\|")
+        if (folder / ref).is_file():
+            return md_link(shown, folder / ref, folder)
+        if not base or ref != safe_name(ref):
+            return shown
+        notes = [base / "Décisions" / f"{ref}.md"] if ref in entries else \
+            [n for n in (base / "Exigences" / f"{ref}.md", base / "Options" / f"Option {ref}.md") if n.is_file()]
+        return md_link(shown, notes[0], folder) if notes else shown
+    return link
+
+
+def render(state: dict, folder: Path | None = None) -> str:
+    link = linker(folder, state) if folder else (lambda ref, code=False: f"`{ref}`" if code else ref)
     lines = [f"# Journal : {state['title']}", "",
              "Fichier généré par `journal.py` depuis `workflow.json`, qui fait foi.", "",
              "## Étapes", "", "| Étape | Statut | Fichiers soumis |", "| --- | --- | --- |"]
     for stage in state["stages"]:
-        files = ", ".join(f"`{f}`" for f in stage.get("files", {})) or "-"
+        files = ", ".join(link(f, code=True) for f in stage.get("files", {})) or "-"
         lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
     lines += ["", "## Avancement", ""] + chart(state)
     lines += ["", "## Décisions et revues", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for entry in state["entries"]:
-        cells = [entry["id"], entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
-                 entry["by"], entry["text"], entry.get("why", ""), ", ".join(entry.get("refs", []))]
-        lines.append("| " + " | ".join(c.replace("|", "\\|").replace("\n", " ") for c in cells) + " |")
+        cells = [entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
+                 entry["by"], entry["text"], entry.get("why", "")]
+        cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
+            + [", ".join(link(ref) for ref in entry.get("refs", [])).replace("\n", " ")]
+        lines.append("| " + " | ".join(cells) + " |")
     questions = [e for e in state["entries"] if e["kind"] == "question"]
     if questions:
         lines += ["", "## Questions posées", ""]
@@ -426,7 +468,7 @@ def save(folder: Path, state: dict) -> None:
         json.dump(state, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     with open(folder / JOURNAL, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render(state))
+        handle.write(render(state, folder))
 
 
 def read_review(note: Path) -> tuple[str | None, str]:
@@ -476,10 +518,42 @@ def load_state(folder: Path, errors: list[str]) -> dict | None:
     return state
 
 
+def link_deliverables(folder: Path, state: dict) -> int:
+    """Pose, dans les livrables Markdown soumis, un lien Markdown standard de chaque identifiant d'exigence vers
+    sa note du vault : les fichiers du dossier du workflow se lisent liés dans Obsidian ouvert à la racine du
+    projet. Les documents sources et le texte ne changent pas ; l'empreinte des fichiers non plus (digest) et
+    l'export les retire (markdown-publish). Rend le nombre de fichiers réécrits."""
+    memory = state["memory"]
+    definition = state.get("definition")
+    names = (definition.get("memory", {}) if definition else DEFAULT_MEMORY).get("requirements")
+    try:
+        catalog = json.loads((folder / names).read_text(encoding="utf-8")) if names else {}
+        notes = Path(memory["vault"]) / safe_folder(memory["folder"]) / "Exigences"
+        ids = {r["id"]: notes / f"{r['id']}.md" for r in catalog.get("requirements", [])}
+        sources = (folder / catalog.get("sources", "sources")).resolve()
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return 0
+    written = 0
+    for rel in dict.fromkeys(f for stage in state["stages"] for f in stage.get("files", {})) if ids else []:
+        path = folder / rel
+        if path.suffix.lower() != ".md" or not path.is_file() or sources in path.resolve().parents:
+            continue
+        with open(path, encoding="utf-8", errors="surrogateescape", newline="") as handle:
+            text = handle.read()
+        linked = source_docs.linker(ids, {}, "", lambda target, _, shown, bar: md_link(shown, target, path.parent),
+                                    relink=False)(text)
+        if linked != text:
+            with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
+                handle.write(linked)
+            written += 1
+    return written
+
+
 def synchronize(folder: Path, state: dict, warnings: list[str]) -> dict | None:
     """Mémoire partagée dans le vault, s'il y en a un ; avertissements en cas d'échec."""
     if not state.get("memory"):
         return None
+    link_deliverables(folder, state)
     synced = sync(folder, Path(state["memory"]["vault"]), state["memory"]["folder"])
     warnings += [f"vault : {e}" for e in synced["errors"]]
     warnings += [f"vault : {w}" for w in synced["warnings"]]

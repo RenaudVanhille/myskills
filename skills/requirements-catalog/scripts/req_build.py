@@ -36,9 +36,11 @@ import csv
 import difflib
 import hashlib
 import json
+import os
 import re
 import sys
 import unicodedata
+import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
@@ -240,7 +242,33 @@ def triage_key(text: str) -> str:
     return f"tri:{hashlib.sha1(normalize(text).encode('utf-8')).hexdigest()[:16]}"
 
 
-def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None) -> str:
+HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*#*\s*$")
+
+
+def source_links(sources: dict[str, list[str]], folder: Path, out_dir: Path):
+    """Fonction qui écrit les renvois « document.md:ligne » d'une cellule en liens Markdown standards vers le
+    document, à la section de la ligne : lisibles dans Obsidian ouvert à la racine du projet comme à l'export."""
+    names = "|".join(re.escape(d) for d in sorted(sources, key=len, reverse=True))
+    pattern = re.compile(rf"({names})(?::(\d+))?((?: \(p\. \d+\)| p\. \d+)?)") if names else None
+
+    def link(match: re.Match) -> str:
+        doc, line, page = match.groups()
+        section = None
+        for text in sources[doc][:int(line)] if line else []:
+            found = HEADING.match(text)
+            section = found.group(1) if found else section
+        anchor = re.sub(r"\s+", " ", re.sub(r"[#|^:\[\]*_`]|%%", " ", section)).strip() if section else ""
+        try:
+            relative = Path(os.path.relpath(folder / doc, out_dir)).as_posix()
+        except ValueError:  # autre lecteur sous Windows
+            return match.group(0)
+        return (f"[{cell(doc + (':' + line if line else ''))}]({urllib.parse.quote(relative)}"
+                f"{'#' + urllib.parse.quote(anchor) if anchor else ''}){page}")
+    return lambda where: pattern.sub(link, where) if pattern else cell(where)
+
+
+def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None,
+              where=cell) -> str:
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     functional = [r for r in kept if nature(r) == "fonctionnelle"]
     non_functional = [r for r in kept if nature(r) == "non-fonctionnelle"]
@@ -252,13 +280,13 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
              "| ID | Exigence | Domaine | Priorité | Source |", "| --- | --- | --- | --- | --- |"]
     for r in functional:
         lines.append(f"| {r['id']} | **{cell(r['title'])}** : {cell(r['text'])} | {cell(r.get('domain', ''))} | "
-                     f"{r['priority']} | {cell(r['_where'])} |")
+                     f"{r['priority']} | {where(r['_where'])} |")
     lines += ["", "## Exigences non fonctionnelles", "",
               "| ID | Exigence | Catégorie | Mesure | Priorité | Source |", "| --- | --- | --- | --- | --- | --- |"]
     for r in non_functional:
         lines.append(f"| {r['id']} | **{cell(r['title'])}** : {cell(r['text'])} | "
                      f"{CATEGORY_LABELS.get(r.get('category', ''), '')} | {cell(r.get('metric', 'à définir'))} | "
-                     f"{r['priority']} | {cell(r['_where'])} |")
+                     f"{r['priority']} | {where(r['_where'])} |")
     questions = [(r["id"], q) for r in kept for q in r.get("questions", [])]
     if questions:
         lines += ["", "## Questions ouvertes", ""] + [f"- **{rid}** : {q}" for rid, q in questions]
@@ -276,7 +304,7 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
             lines.append(f"| **{cell(term)}** | {cell(g['definition'])} | {', '.join(g['_refs']) or '-'} |")
     if ignored:
         lines += ["", "## Phrases des sources écartées", "", "| Source | Phrase | Raison |", "| --- | --- | --- |"]
-        lines += [f"| {cell(i['_where'])} | {cell(i['quote'])} | {cell(i['reason'])} |" for i in ignored]
+        lines += [f"| {where(i['_where'])} | {cell(i['quote'])} | {cell(i['reason'])} |" for i in ignored]
     return "\n".join(lines) + "\n"
 
 
@@ -496,7 +524,9 @@ def main() -> int:
     stem = args.spec.name.removesuffix(".json")
     md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_md(spec, items, ignored, counts.get("glossary")))
+        folder = (args.spec.parent / spec.get("sources", "sources")).resolve()
+        handle.write(render_md(spec, items, ignored, counts.get("glossary"),
+                               source_links(load_sources(folder), folder, out_dir.resolve())))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

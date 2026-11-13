@@ -31,6 +31,7 @@ from urllib.parse import unquote
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
 from spec_schema import check  # noqa: E402
+from text_tools import unlink_notes  # noqa: E402
 
 SKILL = "markdown-to-pptx"
 IMAGE = re.compile(r"!\[([^\]]*)\]\(<?([^)>\s]+)>?(?:\s+\"[^\"]*\")?\)")
@@ -127,13 +128,23 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         plan_path = Path(tmp) / "plan.json"
-        command = [sys.executable, str(entry), str(doc), "-o", str(out), "--plan", str(plan_path)]
+        # Liens du journal vers les notes d'exigence : retirés de la copie remise au skill externe.
+        text = doc.read_text(encoding="utf-8")
+        source = doc
+        if unlink_notes(text) != text:
+            source = doc.with_name(f".{doc.stem}.sans-liens.md")
+            source.write_text(unlink_notes(text), encoding="utf-8", newline="\n")
+        command = [sys.executable, str(entry), str(source), "-o", str(out), "--plan", str(plan_path)]
         if args.template:
             command += ["--template", str(args.template.resolve())]
         if args.lang:
             command += ["--lang", args.lang]
-        result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                                cwd=doc.parent)
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                    cwd=doc.parent)
+        finally:
+            if source != doc:
+                source.unlink(missing_ok=True)
         if result.returncode != 0 or not out.is_file() or not plan_path.is_file():
             meaning = spec["exit_codes"].get(str(result.returncode), "code inattendu")
             tail = (result.stderr.strip().splitlines() or [""])[-1][:300]

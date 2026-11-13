@@ -2,6 +2,22 @@
 from __future__ import annotations
 
 import difflib
+import re
+import urllib.parse
+
+# Lien Markdown qu'un journal de workflow pose sur un identifiant d'exigence dans un livrable :
+# [EF-001](vault/Projets/X/Exigences/EF-001.md).
+NOTE_LINK = re.compile(r"\[([^\]\n]+)\]\(([^)\s]+\.md)\)")
+
+
+def unlink_notes(text: str) -> str:
+    """Texte sans les liens posés sur les identifiants d'exigence (journal.py, skill decision-log) : pour
+    l'export d'un livrable et pour son empreinte, qui ne dépend pas de ces liens."""
+    def plain(match: re.Match) -> str:
+        parts = urllib.parse.unquote(match.group(2)).split("/")
+        linked = len(parts) > 1 and parts[-2] == "Exigences" and parts[-1] == match.group(1) + ".md"
+        return match.group(1) if linked else match.group(0)
+    return NOTE_LINK.sub(plain, text) if "](" in text else text
 
 
 def cell(text, bar: str = "\\|") -> str:
