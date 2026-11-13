@@ -101,6 +101,12 @@ pas sur le disque (`find`, `which`) et ne lis pas leur code pour deviner un
 format : `--schema` le donne. Donne à un sous-agent les chemins des scripts
 dont il a besoin.
 
+Écris ce chemin en entier dans chaque commande, entre guillemets et avec des
+`/` (`uv run "C:/.../scripts/journal.py" start ...`) : chaque appel repart
+d'un shell neuf, une variable ou une fonction d'un appel précédent y est
+vide. Lis le rapport JSON tel quel, sans tube vers un autre programme : le
+tube masque le code de sortie et l'erreur du script.
+
 ## Sobriété
 
 - Lis les rapports des scripts et `decoupage-back.md` une fois, pas les

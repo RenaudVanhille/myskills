@@ -27,6 +27,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                "meeting-notes", "operations-dossier", "process-diagram", "requirements-catalog",
                                "solution-estimate", "tender-response", "test-plan", "threat-model",
                                "well-architected-review"],
+             "workflow_chart.py": ["decision-log"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map", "process-diagram"]}
 # Modules et données partagés à source unique : une seule copie, dans le skill porteur ; les autres skills
 # les chargent par skill_paths (require_module, require_file) et les déclarent dans requires.
@@ -272,6 +273,10 @@ def render_skill(contract: dict, full: bool = False) -> str:
         checked = " ; description validée, `--schema` affiche son JSON Schema" if script.get("input") else ""
         lines.append(f"- **`{script['name']}`**{tag} : {script['role']} {kind[0].upper() + kind[1:]} "
                      f"(0 succès, 1 erreur{checked}).")
+    if contract["scripts"] and not full:
+        lines.append("- **Lancement** : `uv run \"<dossier du skill>/scripts/<script>\" ...`, chemin complet écrit "
+                     "dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent "
+                     "y est vide) ; rapport JSON lu tel quel, sans tube.")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for need in contract.get("requires", []):

@@ -36,6 +36,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import source_docs  # noqa: E402
+from lib.workflow_chart import progress_chart  # noqa: E402
 from skill_paths import require_module, schema_of  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
@@ -551,6 +552,10 @@ class _Sync:
             name = labels.get(s["id"], s["id"])
             shown = f"[[{stage_rel[safe_name(name)]}\\|{_alias(name)}]]" if safe_name(name) in stage_rel else name
             body.append(f"| {shown} | {STATUS_LABELS[s['status']]} |")
+        stages = [next((d for d in (self.definition or {}).get("stages", []) if d["id"] == s["id"]),
+                       {"id": s["id"]}) for s in state["stages"]]
+        body += ["", "## Avancement", ""] + progress_chart(
+            stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"])
         if self.reviews:
             body += [""] + vault_ontology.callout("todo", "Revues en attente", [
                 f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in self.reviews])[:-1]
