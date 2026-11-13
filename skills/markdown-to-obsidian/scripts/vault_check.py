@@ -116,8 +116,9 @@ def main() -> int:
         return (parsed[rel][0] or {}).get("type")
 
     def title_of(target: str):
+        # Copie d'un livrable (sans type) : son nom de fichier est le bon libellé.
         rel = resolve(target)
-        return vault_ontology.heading(parsed[rel][1]) if rel else None
+        return vault_ontology.heading(parsed[rel][1]) if rel and (parsed[rel][0] or {}).get("type") else None
 
     prefix = (args.folder or "").strip("/\\").replace("\\", "/")
     scope = [rel for rel in paths if not prefix or rel == prefix or rel.startswith(prefix + "/")]

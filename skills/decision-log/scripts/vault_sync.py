@@ -26,9 +26,11 @@ son dossier sont gardés dans `workflow.json` (`journal.py init --vault`) :
 
 import argparse
 import json
+import os
 import re
 import sys
 import unicodedata
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -368,8 +370,10 @@ class _Sync:
             else:
                 for image, path in source_docs.images(lines, doc, self.sources_dir).items():
                     self.copies[f"{self.docs_dir}/{image}"] = path
+            original = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
             body += ["", "## Dans le workflow", "", self.up, "",
-                     f"Copie de `{doc}` : modifiez l'original, cette note est réécrite."]
+                     f"Copie de {f'[{doc}]({original})' if original else f'`{doc}`'} : modifiez l'original, "
+                     "cette note est réécrite."]
             if self.extracted.get(doc):
                 body += ["", "Exigences tirées de ce document :", ""] + [f"- {self.link(r)}"
                                                                         for r in self.extracted[doc]]
@@ -453,6 +457,44 @@ class _Sync:
         self.copies[f"{self.files_dir}/{file[:-4]}"] = self.folder / file[:-4]
         name = Path(file[:-4]).name
         return [f"Source modifiable : [[{self.files_dir}/{file[:-4]}|{name}]] (draw.io).", ""]
+
+    def outside(self, target: Path, rel: str) -> str | None:
+        """Chemin relatif, depuis une note du vault, d'un fichier du projet hors du vault, quand Obsidian peut
+        les ouvrir ensemble : le vault est dans le dossier du workflow ou sous un dossier ouvert dans Obsidian
+        (`.obsidian`). Sinon None : un lien hors du vault serait mort."""
+        vault, target = self.vault.resolve(), target.resolve()
+        roots = [p for p in vault.parents if p in target.parents]
+        opened = any(p in (self.folder.resolve(), self.folder.resolve().parent) or (p / ".obsidian").is_dir()
+                     for p in roots)
+        if not opened or not target.is_file():
+            return None
+        return urllib.parse.quote(Path(os.path.relpath(target, (vault / rel).parent)).as_posix())
+
+    def rebased(self, text: str, source: Path, rel: str) -> str:
+        """Liens Markdown relatifs d'un livrable copié : vers une note ou un fichier du vault, un wikilink ;
+        vers un fichier du projet, le chemin depuis la copie s'il est joignable, sinon le texte seul."""
+        vault = self.vault.resolve()
+
+        def link(match: re.Match) -> str:
+            image, shown, url = match.groups()
+            path, _, anchor = urllib.parse.unquote(url).partition("#")
+            if not path or re.match(r"[a-z][a-z0-9+.-]*:|/", path, re.I):
+                return match.group(0)
+            target = (source.parent / path).resolve()
+            bar = "\\|" if match.string[:match.start()].rsplit("\n", 1)[-1].lstrip().startswith("|") else "|"
+            if vault in target.parents and target.is_file():
+                inside = target.relative_to(vault)
+                inside = inside.with_suffix("") if inside.suffix.lower() == ".md" else inside
+                return f"![[{inside.as_posix()}]]" if image else \
+                    f"[[{inside.as_posix()}{'#' + anchor if anchor else ''}{bar}{shown}]]"
+            copy = next((c for c, s in self.copies.items() if s.resolve() == target), None)
+            if copy:
+                return f"![[{copy}]]" if image else f"[[{copy}{bar}{shown}]]"
+            if image:
+                return match.group(0)
+            there = self.outside(target, rel)
+            return f"[{shown}]({there}{'#' + urllib.parse.quote(anchor) if anchor else ''})" if there else shown
+        return re.sub(r"(!?)\[([^\]\n]*)\]\(([^)\s]+)\)", link, text)
 
     def link_ids(self) -> dict[str, str]:
         """Identifiant -> note, pour lier les copies des livrables : exigences, entrées du journal, et notes des
@@ -621,7 +663,8 @@ class _Sync:
             content = source.read_bytes()
             if source.suffix.lower() == ".md":
                 # Copie liée : identifiants et renvois aux documents deviennent des liens, l'original reste tel quel.
-                text = linked(content.decode("utf-8", errors="replace").replace("\r\n", "\n"))
+                text = self.rebased(linked(content.decode("utf-8", errors="replace").replace("\r\n", "\n")),
+                                    source, rel)
                 content = (f"---\n{MARK}\nsource: {json.dumps(source.name)}\n---\n\n" + text).encode("utf-8")
             if path.is_file() and path.read_bytes() == content:
                 continue
