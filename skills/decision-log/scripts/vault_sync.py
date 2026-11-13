@@ -261,17 +261,21 @@ class _Sync:
             self.warnings.append(f"{vault_ontology.count(len(self.missing_docs), 'document cité')} hors de "
                                  f"{self.sources_dir} : {', '.join(self.missing_docs[:5])}")
 
-    def source_lines(self, item: dict) -> list[str]:
-        """Sources d'une exigence ou d'un terme : lien vers la note du document, à la section de la citation."""
+    def source_lines(self, item: dict, rel: str) -> list[str]:
+        """Sources d'une exigence ou d'un terme (note rel) : lien vers le document, à la section de la citation ;
+        vers l'original quand le vault est dans le projet, sinon vers la note qui en porte le texte."""
         lines = []
         for ref in item.get("sources", []):
             doc, quote = ref["doc"], ref.get("quote")
-            lines = self.docs.get(doc, [])
-            section = source_docs.section_at(lines, source_docs.line_of(lines, quote))
+            text = self.docs.get(doc, [])
+            section = source_docs.section_at(text, source_docs.line_of(text, quote))
             title = self.titles["doc:" + doc]
-            target = self.names["doc:" + doc] + (f"#{source_docs.anchor(section)}" if section else "")
-            shown = title if not section or section == title else f"{title}, {section}"
-            lines.append(f"- [[{target}|{_alias(shown)}]]" + (f" : « {quote} »" if quote else ""))
+            shown = _alias(title if not section or section == title else f"{title}, {section}")
+            url = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
+            anchor = source_docs.anchor(section) if section else ""
+            target = f"[{shown}]({url}{'#' + urllib.parse.quote(anchor) if anchor else ''})" if url else \
+                f"[[{self.names['doc:' + doc]}{'#' + anchor if anchor else ''}|{shown}]]"
+            lines.append(f"- {target}" + (f" : « {quote} »" if quote else ""))
         return lines
 
     # Liens
@@ -339,7 +343,7 @@ class _Sync:
             if terms:
                 body += ["**Termes** : " + ", ".join(f"[[{names['terme:' + term]}|{_alias(term)}]]"
                                                      for term in terms), ""]
-            body += ["## Sources", ""] + self.source_lines(req) + ([f"- déduite : {req['derived']}"]
+            body += ["## Sources", ""] + self.source_lines(req, names[rid]) + ([f"- déduite : {req['derived']}"]
                                                                    if req.get("derived") else [])
             if req.get("questions"):
                 body += ["", "## Questions", ""] + [f"- {q}" for q in req["questions"]]
@@ -359,21 +363,25 @@ class _Sync:
                         "extrait-de": self.linked("doc:" + doc for doc in _cited(req))})
 
     def document_notes(self) -> None:
-        """Note de chaque document source : son texte, puis ce que le workflow en a tiré."""
+        """Note de chaque document source, avec ce que le workflow en a tiré. Vault dans le projet : une fiche
+        qui renvoie à l'original, seule version du texte ; sinon la note porte le texte du document."""
         for doc in [*self.docs, *self.missing_docs]:
             rel, lines = self.names["doc:" + doc], source_docs.body_of(self.docs.get(doc, []))
-            body = list(lines) if vault_ontology.heading("\n".join(lines)) else \
-                [f"# {self.titles['doc:' + doc]}", "", *lines]
-            if doc in self.missing_docs:
+            original = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
+            body = [f"# {self.titles['doc:' + doc]}"] if original or not vault_ontology.heading("\n".join(lines)) \
+                else []
+            body += [] if original else ["", *lines] if body else list(lines)
+            if original:
+                pass
+            elif doc in self.missing_docs:
                 body += [""] + vault_ontology.callout("warning", "Document introuvable", [
                     f"`{doc}` est cité par le catalogue d'exigences mais n'est plus dans le dossier des sources."])
             else:
                 for image, path in source_docs.images(lines, doc, self.sources_dir).items():
                     self.copies[f"{self.docs_dir}/{image}"] = path
-            original = self.outside(self.sources_dir / doc, rel) if doc in self.docs else None
             body += ["", "## Dans le workflow", "", self.up, "",
-                     f"Copie de {f'[{doc}]({original})' if original else f'`{doc}`'} : modifiez l'original, "
-                     "cette note est réécrite."]
+                     f"Document source : [{doc}]({original})." if original else
+                     f"Copie de `{doc}` : modifiez l'original, cette note est réécrite."]
             if self.extracted.get(doc):
                 body += ["", "Exigences tirées de ce document :", ""] + [f"- {self.link(r)}"
                                                                         for r in self.extracted[doc]]
@@ -410,7 +418,7 @@ class _Sync:
 
     def glossary_notes(self) -> None:
         for entry in self.glossary:
-            sources = self.source_lines(entry)
+            sources = self.source_lines(entry, self.names["terme:" + entry["term"]])
             body = [f"# {entry['term']}", "", entry["definition"], "", self.up]
             if sources:
                 body += ["", "## Sources", ""] + sources
@@ -450,25 +458,38 @@ class _Sync:
                    {"option": self.linked([self.decision["option"]] if self.decision else []),
                     "exigences": self.linked(sorted(cited))}, ["architecture"])
 
-    def drawio_source(self, file: str) -> list[str]:
-        """Lien vers la source draw.io d'un PNG exporté (x.drawio.png -> x.drawio), copiée à côté."""
+    def drawio_source(self, file: str, rel: str) -> list[str]:
+        """Lien vers la source draw.io d'un PNG exporté (x.drawio.png -> x.drawio)."""
         if not file.lower().endswith(".drawio.png") or not (self.folder / file[:-4]).is_file():
             return []
-        self.copies[f"{self.files_dir}/{file[:-4]}"] = self.folder / file[:-4]
-        name = Path(file[:-4]).name
-        return [f"Source modifiable : [[{self.files_dir}/{file[:-4]}|{name}]] (draw.io).", ""]
+        return [f"Source modifiable : {self.file_link(file[:-4], rel, Path(file[:-4]).name)} (draw.io).", ""]
 
     def outside(self, target: Path, rel: str) -> str | None:
-        """Chemin relatif, depuis une note du vault, d'un fichier du projet hors du vault, quand Obsidian peut
-        les ouvrir ensemble : le vault est dans le dossier du workflow ou sous un dossier ouvert dans Obsidian
-        (`.obsidian`). Sinon None : un lien hors du vault serait mort."""
-        vault, target = self.vault.resolve(), target.resolve()
-        roots = [p for p in vault.parents if p in target.parents]
-        opened = any(p in (self.folder.resolve(), self.folder.resolve().parent) or (p / ".obsidian").is_dir()
-                     for p in roots)
-        if not opened or not target.is_file():
-            return None
-        return urllib.parse.quote(Path(os.path.relpath(target, (vault / rel).parent)).as_posix())
+        """Chemin relatif d'un fichier du projet depuis la note rel quand le vault est dans le dossier du projet
+        (une seule version du fichier : la note renvoie à l'original), sinon None."""
+        return vault_ontology.original(self.vault, target, rel)
+
+    def file_link(self, file: str, rel: str, label: str | None = None, code: bool = True) -> str:
+        """Lien, depuis la note rel, vers un fichier du workflow : la note de son document source, l'original
+        (vault dans le projet), sinon sa copie dans Fichiers/ ; le nom seul s'il n'est ni lisible ni présent."""
+        source, shown = self.folder / file, label or file
+        if self.document_of(file):
+            return self.link(self.document_of(file))
+        url = self.outside(source, rel)
+        if url:
+            return f"[{shown}]({url})"
+        if source.suffix.lower() in EMBEDDED | {".drawio"} and source.is_file():
+            self.copies[f"{self.files_dir}/{file}"] = source
+            return f"[[{self.files_dir}/{file}|{shown}]]"
+        return f"`{shown}`" if code else shown
+
+    def picture(self, file: str, rel: str) -> str:
+        """Image du workflow intégrée à la note rel : l'original (vault dans le projet), sinon sa copie."""
+        url = self.outside(self.folder / file, rel)
+        if url:
+            return f"![{Path(file).name}|{IMAGE_WIDTH}]({url})"
+        self.copies[f"{self.files_dir}/{file}"] = self.folder / file
+        return f"![[{self.files_dir}/{file}|{IMAGE_WIDTH}]]"
 
     def rebased(self, text: str, source: Path, rel: str) -> str:
         """Liens Markdown relatifs d'un livrable copié : vers une note ou un fichier du vault, un wikilink ;
@@ -529,24 +550,17 @@ class _Sync:
                     f"Statut : **{STATUS_LABELS[stage['status']]}**.", "", "## Livrables", ""]
             for file in stage["files"]:
                 source = self.folder / file
-                if self.document_of(file):
-                    body.append(f"- {self.link(self.document_of(file))}")
-                elif source.suffix.lower() in EMBEDDED and source.is_file():
-                    copy = f"{files_dir}/{file}"
-                    self.copies[copy] = source
-                    body += [f"### {file}", "", f"![[{copy}]]" if source.suffix.lower() == ".md"
-                             else f"![[{copy}|{IMAGE_WIDTH}]]", ""] + self.drawio_source(file)
+                embedded = source.suffix.lower() in EMBEDDED and source.is_file() and not self.document_of(file)
+                if embedded and source.suffix.lower() != ".md":
+                    body += [f"### {file}", "", self.picture(file, rel), ""] + self.drawio_source(file, rel)
+                elif embedded and not self.outside(source, rel):
+                    self.copies[f"{files_dir}/{file}"] = source
+                    body += [f"### {file}", "", f"![[{files_dir}/{file}]]", ""]
                 else:
-                    body.append(f"- `{file}`")
+                    body.append(f"- {self.file_link(file, rel)}")
             self.typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
             self.stage_notes.append(rel)
 
-    def journal_copy(self) -> str | None:
-        """journal.md copié dans le vault, ses identifiants liés aux notes ; rend le chemin de la copie."""
-        if not (self.folder / "journal.md").is_file():
-            return None
-        self.copies[f"{self.files_dir}/journal.md"] = self.folder / "journal.md"
-        return f"{self.files_dir}/journal.md"
 
     def option_pictures(self) -> None:
         """Schéma de chaque option, s'il a été exporté (comme deck_build.py) : intégré à la note de l'option."""
@@ -557,11 +571,10 @@ class _Sync:
                         f"schemas/architectures-{index + 1}.drawio.png"]
             found = next((p for p in pictures if (self.folder / p).is_file()), None)
             if found and names.get(opt["id"]) in notes:
-                self.copies[f"{files_dir}/{found}"] = self.folder / found
                 caption = [f"*Schéma de l'option {opt['id']} : {opt.get('name', opt['id'])}.*", ""] \
-                    + self.drawio_source(found)
+                    + self.drawio_source(found, names[opt["id"]])
                 notes[names[opt["id"]]] = notes[names[opt["id"]]].rstrip() + "\n\n" + "\n".join(
-                    ["## Schéma", "", f"![[{files_dir}/{found}|{IMAGE_WIDTH}]]", ""] + caption).rstrip() + "\n"
+                    ["## Schéma", "", self.picture(found, names[opt["id"]]), ""] + caption).rstrip() + "\n"
 
     def review_notes(self) -> None:
         state, labels, files_dir = self.state, self.labels, self.files_dir
@@ -574,9 +587,8 @@ class _Sync:
                 continue
             rel = review_note(self.target, stage["id"])
             value, feedback = user_part(self.vault / f"{rel}.md", submission["id"])
-            shown = [self.link(self.document_of(f)) if self.document_of(f) else
-                     f"[[{files_dir}/{f}|{f}]]" if f"{files_dir}/{f}" in self.copies else f"`{f}`"
-                     for f in stage.get("files", {})]
+            shown = [self.file_link(f, rel) if self.document_of(f) or self.outside(self.folder / f, rel)
+                     or f"{files_dir}/{f}" in self.copies else f"`{f}`" for f in stage.get("files", {})]
             body = [f"# Revue de l'étape {labels.get(stage['id'], stage['id'])}", "", self.up, ""]
             body += vault_ontology.callout("todo", "À vous de relire", REVIEW_HELP)
             body += [f"Soumission {self.link(submission['id'])} : {submission['text']}.", "", "**Fichiers** : "
@@ -622,8 +634,10 @@ class _Sync:
         if "ADR" in names:
             body += ["", "## Décision d'architecture", "", f"- [[{names['ADR']}|ADR]]"]
         if state["entries"]:
-            journal = self.journal_copy()
-            body += ["", "## Journal", ""] + ([f"[[{journal}|Journal complet]] (journal.md, identifiants liés aux notes).", ""] if journal else []) + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
+            journal = self.file_link("journal.md", self.index, "Journal complet") \
+                if (self.folder / "journal.md").is_file() else None
+            body += ["", "## Journal", ""] + ([f"{journal} (journal.md, identifiants liés aux notes).", ""]
+                                              if journal else []) + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
                                              f"{e['text']}" for e in state["entries"]]
         self.typed(self.index, "workflow", {}, body)
 
@@ -694,6 +708,8 @@ class _Sync:
                     removed += 1
                 elif path.is_dir() and not any(path.iterdir()):
                     path.rmdir()
+            if (vault / folder).is_dir() and not any((vault / folder).iterdir()):
+                (vault / folder).rmdir()
         return removed
 
     def broken(self) -> list[str]:

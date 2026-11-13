@@ -214,6 +214,11 @@ def check_outputs(case: dict, out: Path, failures: list[str]) -> None:
             continue
         content = path.read_text(encoding="utf-8", errors="replace")
         failures += [f"{rel} ne contient pas « {text} »" for text in texts if text not in content]
+    for rel, texts in case.get("excludes", {}).items():
+        path = out / rel
+        if path.exists():
+            content = path.read_text(encoding="utf-8", errors="replace")
+            failures += [f"{rel} contient « {text} »" for text in texts if text in content]
     for rel, expected in case.get("expected", {}).items():
         path = out / rel
         if not path.exists():
