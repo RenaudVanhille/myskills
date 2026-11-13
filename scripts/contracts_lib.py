@@ -27,6 +27,7 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
                                "meeting-notes", "operations-dossier", "process-diagram", "requirements-catalog",
                                "solution-estimate", "tender-response", "test-plan", "threat-model",
                                "well-architected-review"],
+             "workflow_chart.py": ["decision-log"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map", "process-diagram"]}
 # Modules et données partagés à source unique : une seule copie, dans le skill porteur ; les autres skills
 # les chargent par skill_paths (require_module, require_file) et les déclarent dans requires.
