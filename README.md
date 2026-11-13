@@ -194,6 +194,10 @@ Un répertoire = une mission : `mission.py init DOSSIER --nature avant-vente|rev
 (et `code/` pour une revue) et démarre le workflow de sa nature ; l'agent `orientation`
 le fait au démarrage. Les skills restent
 installés une fois pour toutes ; seules les données vivent dans la mission.
+Après une mise à jour de myskills, `mission.py upgrade DOSSIER` (à blanc, puis
+`--apply`) remet une mission existante à niveau : workflows suivant leur
+définition actuelle sans perdre l'avancement, `journal.md`, liens des
+livrables et mémoire du vault refaits.
 
 ### Architecture
 

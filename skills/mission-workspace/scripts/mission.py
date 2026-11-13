@@ -16,6 +16,7 @@ qu'on le leur donne.
     uv run scripts/mission.py freeze [DOSSIER]
     uv run scripts/mission.py status [DOSSIER]
     uv run scripts/mission.py check [DOSSIER] [--fail-on haute|moyenne|basse|aucune]
+    uv run scripts/mission.py upgrade [DOSSIER] [--apply] [--keep-definition]
     uv run scripts/mission.py --schema
 
 - init crée mission.json, documents/, le vault (et code/ pour une revue),
@@ -31,6 +32,13 @@ qu'on le leur donne.
   contrôles) et réécrit la note `Mission` du vault, conforme à l'ontologie.
 - check contrôle la cohérence entre livrables, sans modèle (règles MIS-xx,
   écarts voulus dans `accept` de mission.json, avec leur raison).
+- upgrade remet une mission ouverte avec une version antérieure au niveau
+  des scripts actuels : chaque workflow (journal.py upgrade : définition
+  livrée reprise sans perdre l'avancement, journal.md, liens des livrables,
+  mémoire du vault refaite), couleurs et modèles de notes du vault s'ils y
+  étaient déjà installés, puis le point de status. À blanc par défaut : le
+  rapport (`upgrade`) dit ce qui changerait et rien n'est écrit ; `--apply`
+  l'écrit. Rejouable : une deuxième passe ne change plus rien.
 """
 
 import argparse
@@ -371,6 +379,44 @@ def shared(root: Path, mission: dict, command: str, warnings: list[str]) -> dict
             "conflicts": len(found.get("conflicts", []))}
 
 
+def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[str]) -> dict:
+    """Mise à niveau de chaque workflow de la mission (journal.py upgrade) puis, avec --apply, des couleurs et
+    des modèles de notes du vault quand ils y sont déjà (jamais installés d'office)."""
+    rows = []
+    for flow in workspace.workflows(mission):
+        folder = root / flow["folder"]
+        if not (folder / workspace.STATE).is_file():
+            continue
+        report = run_script("decision-log", "journal.py", ["upgrade", folder] + (["--apply"] if args.apply else [])
+                            + (["--keep-definition"] if args.keep_definition else []))
+        errors += [f"{flow['folder']} : {e}" for e in report.get("errors", [])]
+        warnings += [f"{flow['folder']} : {w}" for w in report.get("warnings", [])]
+        if report.get("upgrade"):
+            done = report["upgrade"]
+            rows.append({"folder": flow["folder"], "definition": done["definition"], "vault": done["vault"],
+                         "journal": done["journal"], "links": done["links"],
+                         "notes": (report.get("memory") or {}).get("notes")})
+    vault = workspace.path_of(root, mission, "vault")
+    style = (vault / ".obsidian" / "snippets" / f"{vault_ontology.SNIPPET}.css").is_file()
+    folder = vault_ontology.templates_folder(vault)
+    templates = bool(folder) and any(vault_ontology.TEMPLATE_MARK in note.read_text(encoding="utf-8", errors="replace")
+                                     for note in (vault / folder).glob("*.md"))
+    if args.apply and not errors and vault.is_dir():
+        onto = vault_ontology.load()
+        with vault_ontology.vault_lock(vault):
+            if style:
+                vault_ontology.write_style(onto, vault)
+            if templates:
+                vault_ontology.write_templates(onto, vault, folder)
+    return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates}
+
+
+def pending(done: dict) -> bool:
+    """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
+    return any(w["journal"] or w["links"] or w["vault"] or (w["definition"] or {}).get("changed")
+               for w in done["workflows"])
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -394,9 +440,14 @@ def main() -> int:
     add_repo.add_argument("--url")
     add_repo.add_argument("--component", help="composant de l'architecture que le dépôt réalise")
     add_repo.add_argument("--alias", nargs="*", help="autres noms du service dans la configuration")
-    for name in ("freeze", "status", "check"):
+    for name in ("freeze", "status", "check", "upgrade"):
         command = sub.add_parser(name)
         command.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
+        if name == "upgrade":
+            command.add_argument("--apply", action="store_true",
+                                 help="écrire les changements (défaut : à blanc, rien n'est écrit)")
+            command.add_argument("--keep-definition", action="store_true",
+                                 help="garder les étapes et consignes d'origine de chaque workflow")
         if name == "check":
             command.add_argument("--fail-on", choices=SEVERITIES + ("aucune",), default="haute",
                                  help="code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)")
@@ -426,6 +477,16 @@ def main() -> int:
         report.update(repo(args, root, mission, errors))
     if mission and args.command == "freeze":
         report.update(freeze(root, mission, errors, warnings))
+    if mission and args.command == "upgrade":
+        report["upgrade"] = upgrade(args, root, mission, errors, warnings)
+        if not report["upgrade"]["applied"]:  # à blanc : le point de status écrirait dans le vault
+            report.update({"mission": str(root / workspace.MISSION), "nature": mission["nature"],
+                           "vault": str(workspace.path_of(root, mission, "vault"))})
+            if not errors:
+                report["next"] = ("montrer ces changements à l'utilisateur, puis relancer mission.py upgrade --apply"
+                                  if pending(report["upgrade"]) else
+                                  "mission à niveau ; mission.py upgrade --apply refait quand même la mémoire du vault")
+            mission = None
     if mission and not errors:
         flows = workflow_rows(root, mission, warnings)
         repos = repo_rows(root, mission)
@@ -435,7 +496,7 @@ def main() -> int:
                        "workflows": [{k: f[k] for k in ("definition", "folder", "current", "stages", "questions", "files")}
                                      for f in flows],
                        "repos": repos, "findings": findings, "counts": counts(findings)})
-        if args.command in ("init", "status", "check"):
+        if args.command in ("init", "status", "check", "upgrade"):
             report["note"] = write_note(root, mission, flows, repos, findings, errors)
         current = next((f for f in flows if f["current"]), None)
         open_ = [f for f in findings if not f["accepted"]]
@@ -445,7 +506,7 @@ def main() -> int:
             report["next"] = f"workflow {current['definition']} : étape {current['current']} (journal.py status {current['folder']})"
         else:
             report["next"] = "rien à faire"
-        if args.command in ("init", "status", "check"):
+        if args.command in ("init", "status", "check", "upgrade"):
             memory = shared(root, mission, args.command, warnings)
             if memory:
                 report["referentiel"] = memory

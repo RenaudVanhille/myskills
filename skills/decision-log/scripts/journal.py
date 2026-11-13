@@ -50,6 +50,17 @@ appel (livrables de la définition) : un tour de moins par étape.
 que ses scripts produisent entièrement à partir des étapes validées
 (support de soutenance) : démarrée, contrôlée et soumise en un appel.
 
+`upgrade DOSSIER` remet un workflow ouvert avec une version antérieure au
+niveau des scripts actuels, sans rien perdre : la définition gardée dans
+`workflow.json` à `init` est remplacée par celle livrée aujourd'hui (étapes
+nouvelles « à faire » à leur place, étapes retirées gardées si elles ont
+servi, statuts, fichiers et entrées intacts ; `--keep-definition` pour ne
+pas y toucher), le vault de la mission est retrouvé si le dossier a été
+déplacé, `journal.md` est réécrit, les livrables Markdown reçoivent leurs
+liens et la mémoire du vault est refaite. À blanc par défaut : le rapport
+(`upgrade`) dit ce qui changerait, `--apply` l'écrit. Rejouable : une
+deuxième passe ne change plus rien.
+
 Les messages de passage et rapports finaux d'agent sont validés par le
 skill `agent-handoff` (check_message.py), qui les note au journal par
 `trace()` quand le dossier est celui d'un workflow.
@@ -63,6 +74,7 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
     uv run scripts/journal.py check DOSSIER ETAPE [--submit]
     uv run scripts/journal.py status DOSSIER
+    uv run scripts/journal.py upgrade DOSSIER [--apply] [--definition NOM|DEF.json | --keep-definition]
     uv run scripts/journal.py --schema        (schéma de workflow.json)
 """
 
@@ -87,6 +99,7 @@ from lib.spec_schema import check, input_schema, print_schema, validate  # noqa:
 from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import progress_chart  # noqa: E402
+from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
 from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -518,9 +531,9 @@ def load_state(folder: Path, errors: list[str]) -> dict | None:
     return state
 
 
-def link_deliverables(folder: Path, state: dict) -> int:
+def link_deliverables(folder: Path, state: dict, write: bool = True) -> int:
     """Pose, dans les livrables Markdown soumis, un lien Markdown standard de chaque identifiant d'exigence vers
-    sa note du vault : les fichiers du dossier du workflow se lisent liés dans Obsidian ouvert à la racine du
+    sa note du vault (`write` faux : compte seulement) : les fichiers du dossier du workflow se lisent liés dans Obsidian ouvert à la racine du
     projet. Les documents sources et le texte ne changent pas ; l'empreinte des fichiers non plus (digest) et
     l'export les retire (markdown-publish). Rend le nombre de fichiers réécrits."""
     memory = state["memory"]
@@ -543,8 +556,9 @@ def link_deliverables(folder: Path, state: dict) -> int:
         linked = source_docs.linker(ids, {}, "", lambda target, _, shown, bar: md_link(shown, target, path.parent),
                                     relink=False)(text)
         if linked != text:
-            with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
-                handle.write(linked)
+            if write:
+                with open(path, "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
+                    handle.write(linked)
             written += 1
     return written
 
@@ -755,6 +769,49 @@ def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
     return entry
 
 
+def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple[dict | None, dict | None]:
+    """Remet un workflow ouvert avec une version antérieure au niveau des scripts d'aujourd'hui : définition
+    livrée reprise sans perdre l'avancement, vault de la mission retrouvé si le dossier a bougé, puis ce qui
+    reste à réécrire (journal.md, liens des livrables). N'écrit rien : main enregistre avec --apply."""
+    try:
+        state = json.loads((folder / STATE).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
+        return None, None
+    info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0}
+    old = state.get("definition") if isinstance(state, dict) else None
+    name = args.definition or (old.get("name") if isinstance(old, dict) else None)
+    if name and not args.keep_definition:
+        new = load_definition(name, errors)
+        if not new:
+            errors.append("upgrade : donnez la définition à suivre (--definition NOM|DEF.json) ou gardez celle du "
+                          "workflow (--keep-definition)")
+            return None, None
+        keys = input_schema(__file__)["$defs"]["definition"]["properties"]["stages"]["items"]["properties"]
+        try:
+            state, info["definition"] = merge_definition(state, new, keys)
+        except (KeyError, TypeError, AttributeError):
+            pass  # état trop abîmé pour être fusionné : la validation ci-dessous dit où
+    invalid = validate(state, __file__)
+    if invalid:
+        errors += [e.replace("description :", f"{STATE} :", 1) for e in invalid]
+        return None, None
+    memory = state.get("memory")
+    if memory and not Path(memory["vault"]).is_dir():
+        vault = workspace.vault_target(None, None, [folder], default_folder=None)[0]
+        if vault and Path(vault).is_dir():
+            memory["vault"] = info["vault"] = str(Path(vault).resolve())
+        else:
+            warnings.append(f"vault introuvable : {memory['vault']} ; mémoire partagée non resynchronisée")
+    try:
+        written = (folder / JOURNAL).read_text(encoding="utf-8")
+    except OSError:
+        written = None
+    info["journal"] = render(state, folder) != written
+    info["links"] = link_deliverables(folder, state, write=False)
+    return state, info
+
+
 def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
     try:
         return _run(args, errors, warnings)
@@ -820,6 +877,13 @@ def main() -> int:
                                                                 "(défaut : Workflows/<titre>)")
     status = sub.add_parser("status", help="état, prochaine action, fichiers validés modifiés")
     status.add_argument("folder", type=Path)
+    up = sub.add_parser("upgrade", help="remet un workflow existant au niveau des scripts actuels (à blanc sans --apply)")
+    up.add_argument("folder", type=Path)
+    up.add_argument("--apply", action="store_true", help="écrire les changements (défaut : à blanc, rien n'est écrit)")
+    choice = up.add_mutually_exclusive_group()
+    choice.add_argument("--definition", help="définition à suivre désormais (défaut : celle livrée du même nom)")
+    choice.add_argument("--keep-definition", action="store_true",
+                        help="garder les étapes et consignes d'origine du workflow")
     for name in ("start", "skip", "log", "submit", "review", "check"):
         command = sub.add_parser(name)
         command.add_argument("folder", type=Path)
@@ -850,16 +914,27 @@ def main() -> int:
 
     errors: list[str] = []
     warnings: list[str] = []
-    checks, memory = None, None
+    checks, memory, upgraded = None, None, None
     try:
-        if args.command == "check":
+        if args.command == "upgrade":
+            with locked(args.folder):
+                state, upgraded = upgrade(args, args.folder, errors, warnings)
+                entry = None
+                if state and args.apply:
+                    save(args.folder, state)
+                    upgraded["links"] = link_deliverables(args.folder, state)
+                    if state.get("memory") and Path(state["memory"]["vault"]).is_dir():
+                        memory = synchronize(args.folder, state, warnings)
+                        save(args.folder, state)  # journal.md lié aux notes que la synchronisation vient d'écrire
+                    upgraded["applied"] = True
+        elif args.command == "check":
             # Hors verrou : les contrôles peuvent durer, et des étapes en parallèle continuent d'écrire le journal.
             state, entry = load_state(args.folder, errors), None
             stage = stage_of(state, args.stage, errors) if state else None
             checks = run_checks(args.folder, state, stage, errors) if stage else []
             if args.submit and checks and not errors:
                 args.command, args.files = "submit", None
-        if args.command != "check":
+        if args.command not in ("check", "upgrade"):
             with locked(args.folder):
                 state, entry = run(args, errors, warnings)
                 if state and not errors and (args.command != "status" or getattr(args, "annotations", None)):
@@ -880,6 +955,9 @@ def main() -> int:
         state, entry, memory = None, None, None
         errors.append(str(error))
     current, action = next_action(state) if state else (None, "corriger l'erreur")
+    if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
+                                                 or upgraded["journal"] or upgraded["links"]):
+        action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
                   else f"soumettre {args.stage} (submit)")
@@ -901,7 +979,7 @@ def main() -> int:
               "stage": stage_definition(state, current_stage) if todo else None,
               "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
-              "memory": memory, "checks": checks, "annotations": getattr(args, "annotations", None) or None,
+              "memory": memory, "checks": checks, **({"upgrade": upgraded} if upgraded else {}), "annotations": getattr(args, "annotations", None) or None,
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0
