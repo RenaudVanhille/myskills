@@ -38,7 +38,7 @@ Généré depuis `src/agents/architecture-reviewer.contract.json`, qui fait foi.
 
 Déroule un workflow prédictible décrit en JSON, par défaut des documents d'un projet jusqu'à l'architecture : conversion des documents, catalogue des exigences avec sources, 2 ou 3 options comparées, schémas, puis au choix revue, chiffrage et dossier d'architecture technique. Suit aussi les autres workflows livrés (avant-vente, cadrage, migration, rétro-documentation, évolution, restitution...). S'arrête après chaque étape pour la revue de l'utilisateur et trace chaque choix et décision dans un journal.
 
-**Skills** : `check-prerequisites`, `mission-workspace`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `cloud-cost`, `architecture-dossier`, `tender-response`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`, `mockup-to-html`, `design-system`, `meeting-notes`, `data-model`, `domain-design`, `capacity-sizing`, `test-plan`, `mermaid-diagram`, `diagram-brief`, `excalidraw-diagram`, `c4-architecture`, `process-diagram`, `operations-dossier`
+**Skills** : `check-prerequisites`, `mission-workspace`, `decision-log`, `agent-handoff`, `doc-to-markdown`, `markdown-to-obsidian`, `requirements-catalog`, `architecture-options`, `urbanization-map`, `well-architected-review`, `drawio-diagram`, `cloud-architecture`, `diagram-export`, `architecture-deck`, `threat-model`, `architecture-review`, `solution-estimate`, `cloud-cost`, `architecture-dossier`, `tender-response`, `data-protection`, `migration-assessment`, `transition-roadmap`, `api-contract`, `mockup-to-html`, `design-system`, `meeting-notes`, `data-model`, `domain-design`, `capacity-sizing`, `test-plan`, `mermaid-diagram`, `diagram-brief`, `excalidraw-diagram`, `c4-architecture`, `process-diagram`, `operations-dossier`, `bmad-export`
 
 Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 
@@ -321,6 +321,29 @@ Résumé de [`contract.json`](skills/architecture-review/contract.json), qui fai
 - **Passe la main** au skill `threat-model` : analyse des menaces STRIDE de l'architecture revue.
 - **Passe la main** au skill `decision-log` : dans un workflow : noter les écarts acceptés et soumettre la revue.
 - **Passe la main** à l'utilisateur : un écart est voulu : sa raison va dans accept ; un risque attend un responsable.
+
+### `bmad-export`
+
+Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture, ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD. À utiliser pour passer du cadrage ou de l'avant-vente au développement avec BMAD, ou quand l'utilisateur demande un PRD, des epics ou des stories au format BMAD à partir d'un dossier déjà produit.
+
+Résumé de [`contract.json`](skills/bmad-export/contract.json), qui fait foi (champs des rapports en JSON Schema).
+
+- **Niveau** : simple (modèle léger).
+- **Entrées** : Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json ; Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités) ; Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out).
+- **Sorties** : Dans le dossier de planification de BMAD Method v6 (_bmad-output/planning-artifacts, ou celui de la configuration _bmad/ du projet) : brief.md, prd.md (FR-n par fonctionnalité, NFR-n, glossaire, périmètre, questions, hypothèses), architecture.md (décisions AD-n, flux et entités en Mermaid, interfaces), epics.md (ébauche des epics et stories) et addendum.md (correspondance des identifiants, options écartées, pièces de la mission) ; Rapport : fichiers écrits, gardés ou inchangés, compteurs, pièces absentes, suite dans BMAD.
+- **`bmad_export.py`** : Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, liens) ; ne remplace pas un artefact modifié depuis le dernier export sans --force. Rapport JSON, codes de sortie : 0 artefacts écrits (avertissements possibles : option seulement recommandée, pièce non vérifiée, artefact gardé car modifié) ; 1 exigences.json absent, pièce ou bmad.json invalide, option inconnue, relecture en échec ; aucun fichier produit.
+  Description JSON validée avant tout traitement : clé inconnue, type ou valeur hors liste donnent une erreur avec son chemin ; `--schema` affiche le JSON Schema.
+- **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json contre son schéma.
+- **Dépend de** `architecture-options` (`options_build.py`, facultatif : sans lui, avertissement) : valider options.json et decision.json contre leur schéma.
+- **Dépend de** `domain-design` (`domain_build.py`, facultatif : sans lui, avertissement) : valider domaines.json contre son schéma.
+- **Dépend de** `data-model` (`model_build.py`, facultatif : sans lui, avertissement) : valider modele.json contre son schéma.
+- **Dépend de** `api-contract` (`api_build.py`, facultatif : sans lui, avertissement) : valider api.json contre son schéma.
+- **Dépend de** `test-plan` (`test_build.py`, facultatif : sans lui, avertissement) : valider recette.json contre son schéma.
+- **Dépend de** `tender-response` (`assumptions.py`, facultatif : sans lui, avertissement) : valider registre.json contre son schéma.
+- **Dépend de** `mission-workspace` (`lib/workspace.py`, facultatif : sans lui, avertissement) : lire le nom de la mission et le dossier de son workflow dans mission.json.
+- **Passe la main** au skill `requirements-catalog` : exigences.json manque ou une exigence est à reformuler : le catalogue se corrige à la source, puis l'export se relance.
+- **Passe la main** au skill `test-plan` : des stories sont sans critère d'acceptation (counts.without_criteria) : écrire les cas de recette, puis relancer l'export.
+- **Passe la main** à l'utilisateur : les artefacts sont écrits : installer BMAD Method dans le projet cible et poursuivre avec ses skills (bmad-prd, bmad-create-epics-and-stories, bmad-sprint-planning, bmad-build).
 
 ### `c4-architecture`
 

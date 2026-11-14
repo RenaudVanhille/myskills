@@ -1,7 +1,7 @@
 {
   "name": "cadrage",
   "title": "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette",
-  "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+  "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette, puis au choix export vers BMAD Method pour le développement ; une porte de revue par étape.",
   "ask": [
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)"
   ],
@@ -382,6 +382,50 @@
         }
       ],
       "instructions": "Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. recette.lots.json passe au chiffrage (estimate_build.py --draft --lots recette.lots.json)."
+    },
+    {
+      "id": "developpement",
+      "label": "Passage au développement (BMAD)",
+      "level": "simple",
+      "facultative": true,
+      "after": [
+        "modele-donnees",
+        "interfaces",
+        "recette"
+      ],
+      "skills": [
+        "bmad-export"
+      ],
+      "inputs": [
+        "exigences.json",
+        "options.json",
+        "modele.json",
+        "api.json",
+        "recette.json"
+      ],
+      "deliverables": [
+        "_bmad-output/planning-artifacts/prd.md",
+        "_bmad-output/planning-artifacts/epics.md"
+      ],
+      "optional": [
+        "bmad.json",
+        "_bmad-output/planning-artifacts/brief.md",
+        "_bmad-output/planning-artifacts/architecture.md",
+        "_bmad-output/planning-artifacts/addendum.md"
+      ],
+      "checks": [
+        "bmad-export : bmad_export.py . (zéro erreur ; missing, counts.without_criteria et tout artefact gardé dits à l'utilisateur)"
+      ],
+      "run": [
+        {
+          "skill": "bmad-export",
+          "script": "bmad_export.py",
+          "args": [
+            "."
+          ]
+        }
+      ],
+      "instructions": "Étape facultative, à faire si le développement se mène avec BMAD Method (sinon skip, avec les mots de l'utilisateur). Le script écrit brief, PRD, architecture, ébauche d'epics et addendum depuis les livrables validés ; n'écrire bmad.json (vision, utilisateurs, parcours, indicateurs) que si l'utilisateur veut un PRD complet et que les sources le disent. Si le code vit dans un autre dépôt, relancer avec --out vers sa racine. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal."
     }
   ]
 }

@@ -2,11 +2,11 @@
 
 # Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette
 
-Workflow `cadrage` : 10 étapes, dont 3 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
+Workflow `cadrage` : 11 étapes, dont 4 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
-Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.
+Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette, puis au choix export vers BMAD Method pour le développement ; une porte de revue par étape.
 
 ## Ce que le moteur demande au départ
 
@@ -18,7 +18,7 @@ Workflow de cadrage de l'agent architecture-workflow : comptes rendus des atelie
 ---
 title: "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette"
 ---
-flowchart LR
+flowchart TD
   s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
   s_comptes_rendus["2. Comptes rendus des ateliers<br/><small>architecture-workflow</small>"]
   s_processus["3. Processus métier<br/><small>schema-designer</small>"]
@@ -29,6 +29,7 @@ flowchart LR
   s_dimensionnement["8. Dimensionnement<br/><small>architecture-workflow</small>"]
   s_interfaces["9. Interfaces et séquences<br/><small>architecture-workflow</small>"]
   s_recette["10. Plan de recette<br/><small>architecture-workflow</small>"]
+  s_developpement["11. Passage au développement (BMAD)<br/><small>architecture-workflow</small>"]
   s_documents --> s_processus
   s_comptes_rendus --> s_processus
   s_documents --> s_exigences
@@ -42,12 +43,15 @@ flowchart LR
   s_architectures --> s_interfaces
   s_modele_donnees --> s_interfaces
   s_exigences --> s_recette
+  s_modele_donnees --> s_developpement
+  s_interfaces --> s_developpement
+  s_recette --> s_developpement
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_comptes_rendus,s_exigences,s_domaines,s_modele_donnees,s_architectures,s_dimensionnement,s_interfaces,s_recette moteur
+  class s_comptes_rendus,s_exigences,s_domaines,s_modele_donnees,s_architectures,s_dimensionnement,s_interfaces,s_recette,s_developpement moteur
   class s_documents,s_processus agent
-  class s_comptes_rendus,s_processus,s_domaines facultative
+  class s_comptes_rendus,s_processus,s_domaines,s_developpement facultative
 ```
 
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
@@ -73,6 +77,7 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 8. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `dimensionnement.json`, `dimensionnement.md`, `dimensionnement.result.json` | 7 |
 | 9. Interfaces et séquences | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `api.json`, `api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 7, 6 |
 | 10. Plan de recette | moyen | `architecture-workflow` | `test-plan` | `recette.json`, `recette.md`, `recette.csv` | 4 |
+| 11. Passage au développement (BMAD) (facultative) | simple | `architecture-workflow` | `bmad-export` | `_bmad-output/planning-artifacts/prd.md`, `_bmad-output/planning-artifacts/epics.md` | 6, 9, 10 |
 
 ### 1. Documents en Markdown
 
@@ -161,6 +166,15 @@ Volumes, pointe et disponibilité repris des exigences non fonctionnelles (mesur
 - **Contrôle** : test-plan : test_build.py recette.json --draft --requirements exigences.json, puis test_build.py recette.json (toute exigence indispensable couverte, lots de recette au format de solution-estimate)
 
 Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. recette.lots.json passe au chiffrage (estimate_build.py --draft --lots recette.lots.json).
+
+### 11. Passage au développement (BMAD)
+
+- **Entrées** : `exigences.json`, `options.json`, `modele.json`, `api.json`, `recette.json`
+- **Livrables** : `_bmad-output/planning-artifacts/prd.md`, `_bmad-output/planning-artifacts/epics.md`
+- **Livrables possibles** : `bmad.json`, `_bmad-output/planning-artifacts/brief.md`, `_bmad-output/planning-artifacts/architecture.md`, `_bmad-output/planning-artifacts/addendum.md`
+- **Contrôle** : bmad-export : bmad_export.py . (zéro erreur ; missing, counts.without_criteria et tout artefact gardé dits à l'utilisateur)
+
+Étape facultative, à faire si le développement se mène avec BMAD Method (sinon skip, avec les mots de l'utilisateur). Le script écrit brief, PRD, architecture, ébauche d'epics et addendum depuis les livrables validés ; n'écrire bmad.json (vision, utilisateurs, parcours, indicateurs) que si l'utilisateur veut un PRD complet et que les sources le disent. Si le code vit dans un autre dépôt, relancer avec --out vers sa racine. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal.
 
 ## Mémoire partagée
 

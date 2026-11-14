@@ -1,0 +1,4 @@
+{"title": "Plan de recette du portail de sinistres", "requirements": "exigences.json", "cases": [
+ {"id": "T-1", "title": "Déclarer un sinistre habitation avec deux photos", "refs": ["EF-001"], "kind": "fonctionnel", "priority": "haute", "preconditions": "un assuré authentifié avec un contrat habitation", "steps": ["ouvrir la déclaration", "joindre deux photos", "valider"], "expected": "le dossier est créé au statut reçu et son numéro est affiché"},
+ {"id": "T-2", "title": "Tenir le pic après tempête", "refs": ["ENF-001"], "kind": "performance", "priority": "haute", "steps": ["injecter dix fois la charge habituelle pendant deux heures"], "expected": "2 000 déclarations par jour, pic x10 sur 2 heures, sans erreur"}
+]}
