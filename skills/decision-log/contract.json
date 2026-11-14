@@ -37,7 +37,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié).",
+        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations) sont omis.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -47,16 +47,10 @@
             "stages",
             "current",
             "next",
-            "entry",
-            "questions",
-            "memory",
-            "errors",
-            "warnings",
-            "changes",
-            "stage",
-            "ask",
             "ready",
-            "checks"
+            "questions",
+            "errors",
+            "warnings"
           ],
           "additionalProperties": false,
           "properties": {
@@ -77,29 +71,17 @@
               ]
             },
             "stages": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "required": [
-                  "id",
-                  "status"
-                ],
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "type": "string"
-                  },
-                  "status": {
-                    "enum": [
-                      "a-faire",
-                      "en-cours",
-                      "en-revue",
-                      "validee",
-                      "a-reprendre",
-                      "sautee"
-                    ]
-                  }
-                }
+              "description": "Statut de chaque étape, dans l'ordre du workflow.",
+              "type": "object",
+              "additionalProperties": {
+                "enum": [
+                  "a-faire",
+                  "en-cours",
+                  "en-revue",
+                  "validee",
+                  "a-reprendre",
+                  "sautee"
+                ]
               }
             },
             "current": {

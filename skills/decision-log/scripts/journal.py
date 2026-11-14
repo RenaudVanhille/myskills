@@ -972,14 +972,17 @@ def main() -> int:
         current_stage = current if state and current and args.command in ("init", "status") and \
             next(s for s in state["stages"] if s["id"] == current)["status"] != "en-revue" else None
     todo = bool(current_stage)
+    # Rapport court, lu à chaque commande : statut par étape (dans l'ordre), champs vides omis.
+    optional = {"entry": entry, "changes": getattr(args, "changes", None),
+                "stage": stage_definition(state, current_stage) if todo else None,
+                "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
+                "memory": memory, "checks": checks, "upgrade": upgraded,
+                "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,
-              "stages": [{"id": s["id"], "status": s["status"]} for s in state["stages"]] if state else [],
-              "current": current, "next": action, "entry": entry, "changes": getattr(args, "changes", None),
-              "ready": startable,
-              "stage": stage_definition(state, current_stage) if todo else None,
-              "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
+              "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},
+              "current": current, "next": action, "ready": startable,
               "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
-              "memory": memory, "checks": checks, **({"upgrade": upgraded} if upgraded else {}), "annotations": getattr(args, "annotations", None) or None,
+              **{key: value for key, value in optional.items() if value is not None},
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
     return 1 if errors else 0

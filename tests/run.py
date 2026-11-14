@@ -177,6 +177,8 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
         try:
             got = lookup(report, key)
         except (KeyError, IndexError, TypeError):
+            if wanted is None:  # null attendu : un champ vide omis du rapport convient
+                continue
             failures.append(f"{name} : {key} absent du rapport")
             continue
         if got != wanted:
