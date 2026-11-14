@@ -601,7 +601,8 @@
                 "applied",
                 "workflows",
                 "style",
-                "templates"
+                "templates",
+                "pending"
               ],
               "additionalProperties": false,
               "properties": {
@@ -712,6 +713,10 @@
                 },
                 "templates": {
                   "type": "boolean"
+                },
+                "pending": {
+                  "type": "boolean",
+                  "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, vault déplacé)."
                 }
               }
             }

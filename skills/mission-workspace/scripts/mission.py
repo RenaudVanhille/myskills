@@ -479,12 +479,13 @@ def main() -> int:
         report.update(freeze(root, mission, errors, warnings))
     if mission and args.command == "upgrade":
         report["upgrade"] = upgrade(args, root, mission, errors, warnings)
+        report["upgrade"]["pending"] = not report["upgrade"]["applied"] and pending(report["upgrade"])
         if not report["upgrade"]["applied"]:  # à blanc : le point de status écrirait dans le vault
             report.update({"mission": str(root / workspace.MISSION), "nature": mission["nature"],
                            "vault": str(workspace.path_of(root, mission, "vault"))})
             if not errors:
                 report["next"] = ("montrer ces changements à l'utilisateur, puis relancer mission.py upgrade --apply"
-                                  if pending(report["upgrade"]) else
+                                  if report["upgrade"]["pending"] else
                                   "mission à niveau ; mission.py upgrade --apply refait quand même la mémoire du vault")
             mission = None
     if mission and not errors:

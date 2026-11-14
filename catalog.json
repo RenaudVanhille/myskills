@@ -314,6 +314,7 @@
       ],
       "produces": [
         "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
+        "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
         "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
         "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
       ],
@@ -321,7 +322,8 @@
         "Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier)",
         "Poser plus d'une question à l'utilisateur",
         "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats",
-        "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)"
+        "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)",
+        "Mettre à niveau une mission sans l'accord de l'utilisateur"
       ],
       "handoffs": [
         {
@@ -780,7 +782,8 @@
                         "root",
                         "nature",
                         "workflows",
-                        "vault"
+                        "vault",
+                        "upgrade"
                       ],
                       "additionalProperties": false,
                       "properties": {
@@ -801,6 +804,13 @@
                         },
                         "vault": {
                           "type": "string"
+                        },
+                        "upgrade": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ],
+                          "description": "true : mission ouverte avec une version antérieure de myskills, à proposer de mettre à niveau (mission.py upgrade) ; null : non évalué."
                         }
                       }
                     }
@@ -822,6 +832,12 @@
           "skill": "mission-workspace",
           "script": "lib/workspace.py",
           "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+        },
+        {
+          "skill": "mission-workspace",
+          "script": "mission.py",
+          "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour proposer sa mise à niveau",
+          "optional": true
         }
       ],
       "handoffs": [
@@ -14524,7 +14540,8 @@
                     "applied",
                     "workflows",
                     "style",
-                    "templates"
+                    "templates",
+                    "pending"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -14635,6 +14652,10 @@
                     },
                     "templates": {
                       "type": "boolean"
+                    },
+                    "pending": {
+                      "type": "boolean",
+                      "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, vault déplacé)."
                     }
                   }
                 }

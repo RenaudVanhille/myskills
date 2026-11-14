@@ -195,7 +195,8 @@
                     "root",
                     "nature",
                     "workflows",
-                    "vault"
+                    "vault",
+                    "upgrade"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -216,6 +217,13 @@
                     },
                     "vault": {
                       "type": "string"
+                    },
+                    "upgrade": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ],
+                      "description": "true : mission ouverte avec une version antérieure de myskills, à proposer de mettre à niveau (mission.py upgrade) ; null : non évalué."
                     }
                   }
                 }
@@ -237,6 +245,12 @@
       "skill": "mission-workspace",
       "script": "lib/workspace.py",
       "why": "espace de travail de la mission (mission.json, vault et dossiers par défaut)"
+    },
+    {
+      "skill": "mission-workspace",
+      "script": "mission.py",
+      "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour proposer sa mise à niveau",
+      "optional": true
     }
   ],
   "handoffs": [
