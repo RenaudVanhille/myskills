@@ -216,8 +216,8 @@ def workflow_rows(root: Path, mission: dict, warnings: list[str]) -> list[dict]:
         report = run_script("decision-log", "journal.py", ["status", folder])
         warnings += [f"{flow['folder']} : {e}" for e in report.get("errors", [])]
         row["current"], row["questions"] = report.get("current"), report.get("questions", 0)
-        for stage in report.get("stages", []):
-            row["stages"][stage["status"]] = row["stages"].get(stage["status"], 0) + 1
+        for status in report.get("stages", {}).values():
+            row["stages"][status] = row["stages"].get(status, 0) + 1
         row["modified"] = [w for w in report.get("warnings", []) if "modifiés après validation" in w]
         state = json.loads((folder / workspace.STATE).read_text(encoding="utf-8"))
         row["title"] = state.get("title")
