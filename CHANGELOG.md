@@ -1,5 +1,27 @@
 # Journal des versions
 
+## [1.0.0](https://github.com/RenaudVanhille/myskills/compare/v0.15.0...v1.0.0) (2026-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **decision-log:** rapport de journal.py : stages n'est plus une liste d'objets {id, status} ; entry, changes, stage, ask, memory, checks et annotations sont absents quand ils sont vides.
+
+### Ajouts
+
+* **bmad-export:** export d'une mission vers les artefacts de BMAD Method v6 ([#109](https://github.com/RenaudVanhille/myskills/issues/109)) ([2007628](https://github.com/RenaudVanhille/myskills/commit/20076280b4901c7655d944376cc69dbc4a114928))
+
+
+### Coût et performances
+
+* **decision-log:** rapport de journal.py raccourci, statut par étape et champs vides omis ([#112](https://github.com/RenaudVanhille/myskills/issues/112)) ([45580ed](https://github.com/RenaudVanhille/myskills/commit/45580ede0af648c8b6205b3a0cd3aeadc92e6636))
+* **decision-log:** SKILL.md allégé, détail du vault dans references/ ([#111](https://github.com/RenaudVanhille/myskills/issues/111)) ([24de995](https://github.com/RenaudVanhille/myskills/commit/24de995d5ed32dd88e455daccf7d481135cb0ad8))
+
+
+### Maintenance
+
+* passage en version 1.0.0 ([#113](https://github.com/RenaudVanhille/myskills/issues/113)) ([41e8c26](https://github.com/RenaudVanhille/myskills/commit/41e8c2691d9343d3bb2d25d009925839587a1327))
+
 ## [0.15.0](https://github.com/RenaudVanhille/myskills/compare/v0.14.0...v0.15.0) (2026-11-14)
 
 
