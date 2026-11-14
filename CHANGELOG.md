@@ -1,5 +1,19 @@
 # Journal des versions
 
+## [0.15.0](https://github.com/RenaudVanhille/myskills/compare/v0.14.0...v0.15.0) (2026-11-14)
+
+
+### Ajouts
+
+* **decision-log:** exigences liées à leur document source, dans le vault et les fichiers du projet ([#105](https://github.com/RenaudVanhille/myskills/issues/105)) ([ec3e5f4](https://github.com/RenaudVanhille/myskills/commit/ec3e5f46c34c53355517a2551ffe16a570fc7c7f))
+* **decision-log:** schéma d'avancement des étapes dans le journal et l'index du vault ([#106](https://github.com/RenaudVanhille/myskills/issues/106)) ([4ee64b0](https://github.com/RenaudVanhille/myskills/commit/4ee64b09379ae38133abfdb9f12085a941afb038))
+* **mission-workspace:** mise à niveau d'une mission existante, à blanc puis --apply ([#108](https://github.com/RenaudVanhille/myskills/issues/108)) ([c50513f](https://github.com/RenaudVanhille/myskills/commit/c50513f20ab8dc78bffbcf53e12354a9bd822f49))
+
+
+### Corrections
+
+* chemin complet des scripts dans chaque commande, sans variable ni tube ([#104](https://github.com/RenaudVanhille/myskills/issues/104)) ([8b7ae76](https://github.com/RenaudVanhille/myskills/commit/8b7ae761eabae24cc1c96e4c726fb587090d6094))
+
 ## [0.14.0](https://github.com/RenaudVanhille/myskills/compare/v0.13.0...v0.14.0) (2026-11-12)
 
 
