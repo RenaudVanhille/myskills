@@ -4,8 +4,6 @@
   "bootstrap-sha": "30b7068798f755f6226f8bd32eeff75bd60204ba",
   "include-component-in-tag": false,
   "include-v-in-tag": true,
-  "bump-minor-pre-major": true,
-  "bump-patch-for-minor-pre-major": false,
   "changelog-sections": [
     {"type": "feat", "section": "Ajouts"},
     {"type": "fix", "section": "Corrections"},

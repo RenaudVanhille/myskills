@@ -10,7 +10,7 @@
     "type": {"type": ["string", "null"], "description": "Type Conventional Commits (feat, fix...)."},
     "scope": {"type": ["string", "null"], "description": "Portée entre parenthèses, en général le skill ou l'agent."},
     "breaking": {"type": "boolean", "description": "Rupture : « ! » ou pied BREAKING CHANGE."},
-    "bump": {"enum": ["major", "minor", "patch", "none"], "description": "Montée de version induite (avant 1.0, major monte le chiffre du milieu)."},
+    "bump": {"enum": ["major", "minor", "patch", "none"], "description": "Montée de version induite."},
     "errors": {"type": "array", "items": {"type": "string"}},
     "warnings": {"type": "array", "items": {"type": "string"}}
   }

@@ -253,8 +253,9 @@ supprime les conflits sur le journal.
   correctif), `perf` (coût en tokens ou en temps, correctif), `docs`,
   `refactor`, `test`, `ci`, `build`, `chore`, `style` (hors journal, sauf
   `docs` et `refactor`), `revert`. Rupture d'un contrat, d'un schéma ou d'une
-  option : `!` après le type ou pied `BREAKING CHANGE: ...` (avant 1.0, elle
-  monte le chiffre du milieu).
+  option : `!` après le type ou pied `BREAKING CHANGE: ...` (version
+  majeure). Pour forcer une version, pied `Release-As: X.Y.Z` dans le
+  message du squash.
 - Une PR = un sujet = une ligne du journal : son titre est ce qu'on lira
   dans `CHANGELOG.md`. Le détail (mesures, cas de test) va dans la
   description de la PR, pas dans le journal.
