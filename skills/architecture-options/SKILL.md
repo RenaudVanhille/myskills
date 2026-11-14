@@ -73,6 +73,10 @@ le fichier :
 }
 ```
 
+- **Technologies** : `tech` nomme le framework ou le produit d'un
+  composant ; ajoutez `version` (`"tech": "Spring Boot", "version": "3.3"`)
+  quand l'utilisateur ou les documents la fixent, jamais devinée. Elle suit
+  la technologie dans `options.md` et dans les exports (`bmad-export`).
 - **Critères** : sans `criteria`, une catégorie d'exigence non
   fonctionnelle par critère, pondérée par sa plus haute priorité
   (indispensable 3, importante 2, souhaitable 1). Donnez `criteria`

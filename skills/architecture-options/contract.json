@@ -162,7 +162,13 @@
                           ]
                         },
                         "tech": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Technologie ou framework du composant (React, Spring Boot, PostgreSQL...)."
+                        },
+                        "version": {
+                          "type": "string",
+                          "minLength": 1,
+                          "description": "Version retenue de la technologie (18.3, 21 LTS, 3.x), seulement si l'utilisateur ou les documents la donnent ; demande tech."
                         },
                         "refs": {
                           "type": "array",

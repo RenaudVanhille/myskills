@@ -60,16 +60,6 @@
  ],
  "stack": [
   {
-   "name": "React",
-   "version": "18.3",
-   "role": "interface"
-  },
-  {
-   "name": "Spring Boot",
-   "version": "3.3",
-   "role": "API déclarations"
-  },
-  {
    "name": "PostgreSQL",
    "version": "16",
    "role": "persistance"

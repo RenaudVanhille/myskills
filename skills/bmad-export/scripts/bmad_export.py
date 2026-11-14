@@ -16,10 +16,13 @@ BMAD (`_bmad-output/planning-artifacts`, ou celui de la configuration `_bmad/` d
 - `addendum.md` : correspondance des identifiants, options écartées, pièces de la mission ;
 - `ux-designs/ux-<nom>/DESIGN.md` et `EXPERIENCE.md` : les deux documents UX de BMAD, quand la mission a
   un design system (design-system.json), des pages décrites d'après les maquettes (pages/*.json), une
-  revue UX (revue-ux.json) ou un découpage en composants (decoupage.json) ; maquettes et rendus liés.
+  revue UX (revue-ux.json) ou un découpage en composants (decoupage.json) ; maquettes d'origine,
+  maquettes HTML (pages, styles, images, code de la bibliothèque visée) et rendus liés, ou copiés dans
+  mockups/ quand l'export sort du dossier de la mission.
 
 La pile technique d'architecture.md vient de bmad.json (`stack`, avec les versions), de la bibliothèque
-d'interface visée par le découpage des maquettes et de la technologie des composants de l'option.
+d'interface visée par le découpage des maquettes et de la technologie des composants de l'option, avec
+leur version quand options.json la donne (champ version d'un composant).
 
 Le modèle n'écrit, au besoin, que `bmad.json` : ce que la mission ne dit pas (vision, utilisateurs,
 parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités).
@@ -78,6 +81,10 @@ MISSING = {
 COMPANIONS = ("exigences.md", "options.md", "adr-architecture.md", "domaines.md", "modele.md", "modele.sql",
               "api.openapi.yaml", "api/api.openapi.yaml", "api.sequences.md", "recette.md", "dimensionnement.md",
               "registre.md", "schemas/*.png")
+# Fichiers des maquettes HTML (page_build.py) qui accompagnent les pages, et ceux qui sont du code à reprendre.
+MOCKUP_FILES = {".css", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".tsx", ".ts", ".vue", ".scss", ".html"}
+CODE_FILES = {".tsx", ".ts", ".vue", ".scss"}
+BOOTSTRAP = re.compile(r"^bootstrap-(\d[\w.]*)\.min\.css$")
 SETTING = re.compile(r"^\s*planning_artifacts\s*[:=]\s*[\"']?([^\"'\n#]+)", re.M)
 FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.S)
 LINK = re.compile(r"\]\(([^)\s]+)\)")
@@ -138,7 +145,7 @@ def load_screens(folder: Path, pieces: dict, used: list[str], errors: list[str],
             used.append(f"pages/{path.name}")
     breakdown = read_json(folder / "decoupage.json", errors) if (folder / "decoupage.json").is_file() else None
     if isinstance(breakdown, dict):
-        pieces["breakdown"] = breakdown
+        pieces["breakdown"] = {**breakdown, "versions": pinned_versions(folder)}
         used.append("decoupage.json")
 
 
@@ -179,13 +186,15 @@ def planning_dir(root: Path) -> Path:
     return (root / "_bmad-output" / "planning-artifacts").resolve()
 
 
-def place(paths: list[Path], folder: Path, base: Path, store: str, copies: list) -> list[str]:
+def place(paths: list[Path], folder: Path, base: Path, store: str, copies: list, root: Path | None = None) -> list[str]:
     """Liens vers des pièces de la mission, vus du dossier `base` : relatifs si l'export reste dans le
-    dossier de la mission, sinon vers leur copie (à faire) dans `base/store`."""
+    dossier de la mission, sinon vers leur copie (à faire) dans `base/store`, sous le même chemin que
+    dans `root` si elles y sont (une page HTML retrouve ainsi sa feuille de style et ses images)."""
     if base.is_relative_to(folder):
         return [Path(os.path.relpath(p, base)).as_posix() for p in paths]
-    copies += [(p, base / store / p.name) for p in paths]
-    return [f"{store}/{p.name}" for p in paths]
+    names = [p.relative_to(root).as_posix() if root and p.is_relative_to(root) else p.name for p in paths]
+    copies += [(p, base / store / name) for p, name in zip(paths, names)]
+    return [f"{store}/{name}" for name in names]
 
 
 def slug(name: str) -> str:
@@ -194,15 +203,34 @@ def slug(name: str) -> str:
 
 
 def screen_links(folder: Path, pages: list, base: Path, copies: list) -> dict:
-    """Pour chaque page : liens vers sa maquette, son rendu HTML et l'image du rendu, s'ils existent."""
-    links = {}
+    """Pour chaque page : liens vers sa maquette d'origine, sa maquette HTML, l'image de son rendu et sa
+    comparaison à la maquette, s'ils existent."""
+    root, links = folder / "pages", {}
     for name, page in pages:
-        found = [("maquette", folder / "pages" / page["mockup"])] if page.get("mockup") else []
-        found += [("HTML", folder / "pages" / f"{name}.html"), ("rendu", folder / "pages" / f"{name}.render.png")]
+        found = [("maquette", (root / page["mockup"]).resolve())] if page.get("mockup") else []
+        found += [("HTML", root / f"{name}.html"), ("rendu", root / f"{name}.render.png"),
+                  ("comparaison", root / f"{name}.compare.png")]
         found = [(label, path) for label, path in found if path.is_file()]
-        placed = place([path for _, path in found], folder, base, "imports", copies)
+        placed = place([path for _, path in found], folder, base, "mockups", copies, root)
         links[name] = [(label, target) for (label, _), target in zip(found, placed)]
     return links
+
+
+def mockup_code(folder: Path, base: Path, copies: list) -> list[str]:
+    """Maquettes HTML au complet : feuilles de style, images découpées (assets/), Bootstrap embarqué
+    (vendor/) et code de la bibliothèque visée (TSX, Vue, Angular) suivent les pages HTML ; rend les
+    liens vers les fichiers de code, cités dans EXPERIENCE.md."""
+    root = folder / "pages"
+    files = [p for p in sorted(root.rglob("*")) if p.is_file() and not p.name.startswith(".")
+             and p.suffix.lower() in MOCKUP_FILES]
+    placed = place(files, folder, base, "mockups", copies, root)
+    return [link for path, link in zip(files, placed) if path.suffix in CODE_FILES or ".component." in path.name]
+
+
+def pinned_versions(folder: Path) -> dict:
+    """Versions que les maquettes fixent déjà : le Bootstrap embarqué par page_build.py --target bootstrap."""
+    found = [BOOTSTRAP.match(p.name) for p in sorted((folder / "pages" / "vendor").glob("bootstrap-*.min.css"))]
+    return {"Bootstrap": found[0].group(1)} if found and found[0] else {}
 
 
 def digest(body: str) -> str:
@@ -236,7 +264,8 @@ def render_ux(model: dict, folder: Path, planning: Path, copies: list) -> dict:
     docs = {f"{where}/DESIGN.md": bmad_ux.design(model)} if model["design"] else {}
     if model["pages"] or model["review"] or model["breakdown"]:
         links = screen_links(folder, model["pages"], planning / where, copies)
-        docs[f"{where}/EXPERIENCE.md"] = bmad_ux.experience(model, links, "../../prd.md")
+        code = mockup_code(folder, planning / where, copies)
+        docs[f"{where}/EXPERIENCE.md"] = bmad_ux.experience(model, links, code, "../../prd.md")
     return docs
 
 

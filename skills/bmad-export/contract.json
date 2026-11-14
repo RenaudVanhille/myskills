@@ -2,23 +2,23 @@
   "skill": "bmad-export",
   "level": "simple",
   "inputs": [
-    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json et leurs maquettes, revue-ux.json, decoupage.json",
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
     "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
     "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
   ],
   "outputs": [
     "Dans le dossier de planification de BMAD Method v6 (_bmad-output/planning-artifacts, ou celui de la configuration _bmad/ du projet) : brief.md, prd.md (FR-n par fonctionnalité, NFR-n, glossaire, périmètre, questions, hypothèses), architecture.md (décisions AD-n, flux et entités en Mermaid, interfaces, pile technique avec frameworks et versions), epics.md (ébauche des epics et stories) et addendum.md (correspondance des identifiants, options écartées, pièces de la mission)",
-    "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes et rendus liés ou copiés dans imports/",
+    "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes d'origine, maquettes HTML au complet (pages, styles, images, code de la bibliothèque visée) et rendus liés, ou copiés dans mockups/ hors du dossier de la mission",
     "Rapport : fichiers écrits, gardés ou inchangés, compteurs, pièces absentes, suite dans BMAD"
   ],
   "scripts": [
     {
       "name": "bmad_export.py",
-      "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie des composants), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, liens) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
+      "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, liens) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
       "usage": "uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID] [--no-epics] [--force] | --schema",
       "options": {
         "DOSSIER": "dossier du workflow ou de la mission (défaut : le dossier courant)",
-        "--out": "racine du projet BMAD cible (défaut : DOSSIER) ; hors du dossier, les pièces citées sont copiées dans sources/",
+        "--out": "racine du projet BMAD cible (défaut : DOSSIER) ; hors du dossier, les pièces citées sont copiées dans sources/ et les maquettes HTML dans mockups/ du dossier UX",
         "--file": "description facultative (défaut : DOSSIER/bmad.json s'il existe)",
         "--option": "option d'architecture à exporter (défaut : decision.json, sinon la recommandation)",
         "--no-epics": "n'écrit pas l'ébauche epics.md",

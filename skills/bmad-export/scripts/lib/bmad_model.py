@@ -91,10 +91,16 @@ def glossary(pieces: dict) -> list[tuple[str, str]]:
 
 def stack(option: dict | None, breakdown: dict, extra: dict) -> list[tuple[str, str, str]]:
     """Pile technique (nom, version, rôle) : bmad.json d'abord, puis la bibliothèque d'interface visée par le
-    découpage des maquettes, puis la technologie de chaque composant de l'option ; un nom n'apparaît qu'une fois."""
+    découpage des maquettes, puis la technologie et la version de chaque composant de l'option (options.json) ;
+    un nom n'apparaît qu'une fois."""
     rows = [(s["name"], s.get("version", ""), s.get("role", "")) for s in extra.get("stack", [])]
-    rows += [(name, "", "interface (cible des maquettes)") for name in FRONTENDS.get(breakdown.get("target"), ())]
-    rows += [(c["tech"], "", c["label"]) for c in (option or {}).get("components", []) if c.get("tech")]
+    pinned = breakdown.get("versions", {})
+    rows += [(name, pinned.get(name, ""), "interface (cible des maquettes)")
+             for name in FRONTENDS.get(breakdown.get("target"), ())]
+    rows += [(c["tech"], c.get("version", ""), c["label"]) for c in (option or {}).get("components", []) if c.get("tech")]
+    # Une technologie citée deux fois garde la première ligne, complétée de la version connue plus bas.
+    known = {name.lower(): version for name, version, _ in rows if version}
+    rows = [(name, version or known.get(name.lower(), ""), role) for name, version, role in rows]
     seen: set[str] = set()
     return [row for row in rows if not (row[0].lower() in seen or seen.add(row[0].lower()))]
 

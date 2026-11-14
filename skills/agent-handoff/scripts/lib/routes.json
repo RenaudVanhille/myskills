@@ -406,7 +406,7 @@
    "level": "simple",
    "description": "Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture avec sa pile technique, documents UX (DESIGN.md, EXPERIENCE.md), ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD.",
    "inputs": [
-    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json et leurs maquettes, revue-ux.json, decoupage.json",
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
     "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
     "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
    ],

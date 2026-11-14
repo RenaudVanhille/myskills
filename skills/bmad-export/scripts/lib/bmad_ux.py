@@ -3,7 +3,8 @@ d'après les maquettes, la revue UX et le découpage en composants de la mission
 
     design(m)                    -> DESIGN.md : identité visuelle (tokens en frontmatter, sections du format
                                     DESIGN.md de Google Labs que BMAD reprend)
-    experience(m, links, prd)    -> EXPERIENCE.md : écrans, composants, accessibilité, parcours, constats
+    experience(m, links, code, prd) -> EXPERIENCE.md : écrans, maquettes HTML, composants, accessibilité,
+                                    parcours, constats
 
 `links` : pour chaque page, les liens vers sa maquette et son rendu HTML (déjà recalés par l'appelant).
 """
@@ -103,6 +104,21 @@ def patterns(m: dict) -> str:
     return table(["Composant", "Emplois"], [[kind, count] for kind, count in sorted(counts.items())])
 
 
+def mockups(m: dict, links: dict, code: list[str]) -> str:
+    """Maquettes HTML produites d'après les maquettes : pages à ouvrir, code de la bibliothèque visée."""
+    pages = [f"[{page['title']}]({path})" for name, page in m["pages"]
+             for label, path in links.get(name, []) if label == "HTML"]
+    if not pages and not code:
+        return ""
+    target = m["breakdown"].get("target")
+    return join([
+        "Pages HTML et CSS construites d'après les maquettes, à ouvrir dans un navigateur ; point de départ "
+        "du développement de l'interface, pas une référence qui prime sur ce document." if pages else "",
+        bullets(pages),
+        (f"Code généré pour {target} :\n" if target and target != "html" else "Code généré :\n")
+        + bullets(f"[{path.rsplit('/', 1)[-1]}]({path})" for path in code) if code else ""])
+
+
 def findings(m: dict) -> str:
     rows = [[SEVERITY.get(f["severity"], f["severity"]), HEURISTICS.get(f["heuristic"], f["heuristic"]),
              f.get("page", ""), f["problem"], f["fix"]]
@@ -110,7 +126,7 @@ def findings(m: dict) -> str:
     return join([m["review"].get("summary", ""), table(["Gravité", "Heuristique", "Écran", "Constat", "Correction"], rows)])
 
 
-def experience(m: dict, links: dict, prd: str) -> tuple[dict, str]:
+def experience(m: dict, links: dict, code: list[str], prd: str) -> tuple[dict, str]:
     target, ds = m["breakdown"].get("target"), m["design"] or {}
     foundation = join([
         f"Bibliothèque d'interface visée : {target}." if target and target != "html" else "",
@@ -126,6 +142,7 @@ def experience(m: dict, links: dict, prd: str) -> tuple[dict, str]:
         f"# {m['name']} — Experience Spine",
         section("Foundation", foundation),
         section("Information Architecture", screens(m, links)),
+        section("HTML Mockups", mockups(m, links, code)),
         section("Component Patterns", patterns(m)),
         section("Accessibility Floor", bullets(access) if m["review"] or ds else ""),
         section("Key Flows", flows),
