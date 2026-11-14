@@ -14,10 +14,10 @@ ni `journal.md` à la main.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Dossier du workflow ; Commande : init, start, log, check, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées) ; Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur ; Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json).
-- **Sorties** : workflow.json : étapes dans l'ordre (d'une définition JSON : workflows/architecture.json, cloud-existant.json, revue-dossier.json, conformite.json, migration-cloud.json, avant-vente.json, maquettes.json ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, schéma Mermaid d'avancement avec chaque étape obligatoire ou facultative et son statut, décisions et revues, questions), réécrite à chaque commande ; fichiers soumis, entrées, exigences et options y sont des liens Markdown vers le fichier ou la note du vault ; Livrables Markdown soumis (options.md, chiffrage.md, tracabilite.md...) : chaque identifiant d'exigence y devient un lien Markdown vers sa note du vault, sans changer le texte ni l'empreinte du fichier ; markdown-publish retire ces liens à l'export ; Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/EF-001.md... liées à leur document source, Documents/<document>.md (chaque document des sources), Glossaire/<terme>.md..., Options/Option A.md..., Décisions/D-001.md..., ADR architecture.md, Étapes/<étape>.md avec ses livrables (vault dans le dossier du projet : liens vers les originaux, une seule version de chaque fichier ; sinon copies dans Fichiers/) ; lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur.
+- **Entrées** : Dossier du workflow ; Commande (init, start, log, check, submit, review, status, upgrade, handoff, report), avec l'étape, le texte et les références (exigences, options, entrées) ; Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur ; Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json).
+- **Sorties** : workflow.json : étapes dans l'ordre (d'une définition JSON : un workflow livré de workflows/ ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal ; journal.md : version lisible (étapes, schéma Mermaid d'avancement avec chaque étape obligatoire ou facultative et son statut, décisions et revues, questions), réécrite à chaque commande ; fichiers soumis, entrées, exigences et options y sont des liens Markdown vers le fichier ou la note du vault ; Livrables Markdown soumis (options.md, chiffrage.md, tracabilite.md...) : chaque identifiant d'exigence y devient un lien Markdown vers sa note du vault, sans changer le texte ni l'empreinte du fichier ; markdown-publish retire ces liens à l'export ; Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/, Documents/, Glossaire/, Options/, Décisions/, l'ADR et Étapes/<étape>.md avec ses livrables (vault dans le dossier du projet : liens vers les originaux, une seule version de chaque fichier ; sinon copies dans Fichiers/) ; lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur.
 - **`journal.py`** : Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
-- **`vault_sync.py`** : Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option et entrée du journal, une note par document source (dossier Documents/) vers laquelle chaque exigence et chaque terme renvoient (relation extrait-de, lien vers la section de la citation), une note par étape soumise avec ses livrables (images et Markdown copiés dans Fichiers/ et intégrés), une note d'index et l'ADR, reliées par des wikilinks et typées selon l'ontologie du vault (type, propriétés, relations typées, tags normalisés, vérifiés avant l'écriture), depuis workflow.json et les livrables que la définition nomme dans memory ; supprime les notes générées qui ne correspondent plus à rien et vérifie que chaque lien pointe vers une note. Lancé par journal.py après chaque commande quand le vault est connu. Rapport JSON (0 succès, 1 erreur).
+- **`vault_sync.py`** : Écrit la mémoire partagée du workflow dans un vault Obsidian : une note par exigence, option, entrée du journal et document source (relation extrait-de), une note par étape soumise avec ses livrables, une note d'index et l'ADR, typées selon l'ontologie du vault et vérifiées avant l'écriture, depuis workflow.json et les livrables nommés dans memory ; supprime les notes générées orphelines et vérifie chaque lien. Lancé par journal.py après chaque commande quand le vault est connu. Rapport JSON (0 succès, 1 erreur). Rapport JSON (0 succès, 1 erreur).
 - **`lessons.py`** : Capitalise les retours de revue sans modèle : lit les retours du journal de chaque workflow des missions données, les regroupe par mission et par étape en rapprochant ceux qui disent la même chose (mots significatifs communs), repère ceux qui reviennent dans plusieurs missions et, pour une étape de chiffrage ou de revue, propose la règle de complétude qui les attraperait (poste attendu de solution-estimate, scénario attendu d'architecture-review) sauf si une règle en place les couvre déjà ; écrit lecons.md et lecons.json, relus. Avec --apply, ajoute les règles retenues par l'utilisateur au fichier de règles de la mission (references.regles de mission.json) ou de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json), validé avant l'écriture. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube.
 - **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider le catalogue d'exigences avant d'en écrire les notes.
@@ -87,11 +87,9 @@ Par défaut, une étape dépend de la précédente. `after` donne la liste des
 étapes dont elle dépend vraiment, toutes placées avant elle (`[]` : aucune) :
 dans `architecture`, revue et chiffrage dépendent des schémas et non l'une
 de l'autre, et le dossier attend les deux. Quand `ready` donne plusieurs
-étapes, démarrez-les toutes (`start` pour chacune) et confiez chacune à un
-sous-agent du niveau de l'étape ; chacune a sa propre revue, présentées
-ensemble. Les commandes d'un même dossier attendent leur tour (verrou
-`workflow.lock`) : des sous-agents peuvent appeler `journal.py` en même
-temps sans rien perdre. La définition est
+étapes, elles se mènent en parallèle (`references/moteur.md`) ; les
+commandes d'un même dossier attendent leur tour (verrou `workflow.lock`).
+La définition est
 copiée dans `workflow.json` : la modifier ensuite ne change pas un workflow
 commencé.
 
@@ -125,30 +123,17 @@ déroulé dans `references/lecons.md`.
 ## 4. Mémoire partagée dans Obsidian
 
 Avec `init --vault VAULT` (et `--folder`, défaut `Workflows/<titre>`),
-chaque commande réécrit dans le vault une note par exigence
-(`Exigences/EF-001`, liée à son document source : relation `extrait-de` et
-lien vers la section citée), par document des sources (`Documents/`), par terme du glossaire (`Glossaire/Sinistre`), par option (`Options/Option A`), par entrée du
-journal (`Décisions/D-001`), l'ADR et une note d'index, reliées par des
-wikilinks. Le frontmatter suit l'ontologie du vault
-(skill markdown-to-obsidian) : `type`, propriétés (`priorite`,
-`etape`, `par`...), relations typées en wikilinks (`workflow`, `concerne`,
-`termes`, `ecarts`, `option`...) et tags normalisés (`type/exigence`,
-`priorite/indispensable`) ; une note hors ontologie bloque l'écriture.
-C'est la mémoire commune des agents, des sessions et de
-l'utilisateur : pour reprendre un workflow ou retrouver une décision,
+chaque commande réécrit dans le vault les notes du workflow (exigences,
+documents, glossaire, options, décisions, ADR, index), typées selon
+l'ontologie du vault. C'est la mémoire commune des agents, des sessions et
+de l'utilisateur : pour reprendre un workflow ou retrouver une décision,
 interrogez-la avec `vault_query.py` (skill `markdown-to-obsidian` : `--type
 decision`, `--related "Option A"`, `--where statut=ouvert`), qui rend un JSON
 court, plutôt que de lire les notes.
 
-Une étape soumise a sa note de revue (`Revues/Revue <étape>`) : l'utilisateur
-y met la propriété `revue` à `validée` ou `retour` et écrit son retour sous
-« Votre retour » ; `review --from-vault` la lit et trace la décision comme
-prise dans Obsidian. Les autres notes sont générées (`genere: decision-log`) et
-réécrites à chaque passage, sauf leur section « Mes notes », toujours gardée :
-l'utilisateur y écrit, et chaque callout `> [!question]` ou `> [!retour]` qui
-s'y trouve devient, à la commande suivante, une entrée `question` ou
-`annotation` du journal (champ `annotations` du rapport, à prendre en compte).
-Une note générée devenue inutile mais annotée est gardée et signalée. Les
-autres notes du vault ne sont jamais touchées. Pour choisir le dossier, lisez d'abord le profil du vault
-(`vault_profile.py` du skill `markdown-to-obsidian`). Hors journal,
-`vault_sync.py DOSSIER --vault VAULT` refait la synchronisation.
+L'utilisateur peut valider dans Obsidian (`review --from-vault`) et écrire
+sous « Mes notes » : ses callouts `[!question]` et `[!retour]` arrivent dans
+le champ `annotations` du rapport, à prendre en compte. Notes écrites, revue
+dans le vault, choix du dossier : `references/vault.md`, à lire seulement
+dans ces cas. Hors journal, `vault_sync.py DOSSIER --vault VAULT` refait la
+synchronisation.

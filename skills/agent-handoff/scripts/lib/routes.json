@@ -492,7 +492,7 @@
    "description": "Tient l'état d'un workflow à étapes avec portes de revue humaine et trace chaque choix, hypothèse, question, retour et validation dans un journal (workflow.json et journal.md).",
    "inputs": [
     "Dossier du workflow",
-    "Commande : init, start, log, check, submit, review ou status, avec l'étape, le texte et les références (exigences, options, entrées)",
+    "Commande (init, start, log, check, submit, review, status, upgrade, handoff, report), avec l'étape, le texte et les références (exigences, options, entrées)",
     "Facultatif : un vault Obsidian, mémoire partagée entre agents, sessions et utilisateur",
     "Pour capitaliser : une ou plusieurs missions (ou dossiers de workflow), dont les retours du journal sont lus ; puis les règles retenues par l'utilisateur (schéma shared/schemas/rules.schema.json)"
    ],
