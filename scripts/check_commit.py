@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# Type : montée de version induite (avant 1.0, une rupture monte le chiffre du milieu).
+# Type : montée de version induite (une rupture monte la version majeure).
 TYPES = {
     "feat": "minor", "fix": "patch", "perf": "patch", "revert": "patch",
     "docs": "none", "refactor": "none", "test": "none", "ci": "none",
