@@ -8,6 +8,7 @@
   ],
   "produces": [
     "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
+    "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
     "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
     "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
   ],
@@ -15,7 +16,8 @@
     "Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier)",
     "Poser plus d'une question à l'utilisateur",
     "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats",
-    "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)"
+    "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)",
+    "Mettre à niveau une mission sans l'accord de l'utilisateur"
   ],
   "handoffs": [
     {

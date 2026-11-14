@@ -29,7 +29,7 @@ import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
-from skill_paths import require_module  # noqa: E402
+from skill_paths import require_module, run_script  # noqa: E402
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -75,6 +75,17 @@ def entry_text(kind: str, entry: dict) -> str:
     return " ".join(parts)
 
 
+def outdated(root: Path, warnings: list[str]) -> bool | None:
+    """Mission ouverte avec une version antérieure de myskills ? mission.py upgrade à blanc (rien n'est écrit) ;
+    None si la mise à niveau n'a pas pu être évaluée."""
+    found = run_script("mission-workspace", "mission.py", ["upgrade", root])
+    done = found.get("upgrade") or {}
+    if "pending" not in done:
+        warnings += [f"mise à niveau de la mission non évaluée : {e}" for e in found.get("errors", [])[:3]]
+        return None
+    return done["pending"]
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -98,7 +109,8 @@ def main() -> int:
         if mission:
             report["mission"] = {"root": str(root), "nature": mission["nature"],
                                  "workflows": [w["definition"] for w in workspace.workflows(mission)],
-                                 "vault": str(workspace.path_of(root, mission, "vault"))}
+                                 "vault": str(workspace.path_of(root, mission, "vault")),
+                                 "upgrade": outdated(root, warnings)}
     if not args.query and not args.list:
         errors.append("--query TEXTE (la demande) ou --list")
     try:

@@ -17,8 +17,8 @@
   "scripts": [
     {
       "name": "journal.py",
-      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py).",
-      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] | --schema",
+      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+      "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
@@ -29,7 +29,11 @@
         "--schema": "affiche le schéma de workflow.json sur une ligne",
         "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
         "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
-        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit"
+        "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit",
+        "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
+        "--apply": "avec upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
+        "--keep-definition": "avec upgrade : garder les étapes et consignes d'origine du workflow (refusé si l'ancienne définition n'est plus valide)",
+        "--definition": "avec init : workflow livré ou fichier de définition ; avec upgrade : définition à suivre désormais (défaut : celle livrée du même nom)"
       },
       "report": {
         "format": "json",
@@ -68,7 +72,8 @@
                 "submit",
                 "review",
                 "status",
-                "check"
+                "check",
+                "upgrade"
               ]
             },
             "stages": {
@@ -309,6 +314,98 @@
                   }
                 }
               ]
+            },
+            "upgrade": {
+              "type": "object",
+              "description": "upgrade : ce qui change (à blanc) ou a changé (--apply).",
+              "required": [
+                "applied",
+                "definition",
+                "vault",
+                "journal",
+                "links"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "applied": {
+                  "type": "boolean"
+                },
+                "definition": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "changed",
+                        "added",
+                        "removed",
+                        "kept",
+                        "updated",
+                        "fields"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "changed": {
+                          "type": "boolean"
+                        },
+                        "added": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "kept": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "updated": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "fields": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Définition reprise : étapes ajoutées (à faire), retirées (jamais menées), gardées (retirées de la définition livrée mais déjà menées), modifiées, autres champs changés ; null avec --keep-definition."
+                },
+                "vault": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Nouveau chemin du vault de la mission, si l'ancien n'existe plus."
+                },
+                "journal": {
+                  "type": "boolean",
+                  "description": "journal.md à réécrire (à blanc) ou différent avant réécriture."
+                },
+                "links": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Livrables Markdown qui reçoivent des liens."
+                }
+              }
             }
           }
         }

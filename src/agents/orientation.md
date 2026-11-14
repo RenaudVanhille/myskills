@@ -18,8 +18,8 @@ Généré depuis `src/agents/orientation.contract.json`, qui fait foi.
 
 - **Niveau** : simple (modèle léger, `shared/models.json`).
 - **Reçoit** : La demande de l'utilisateur, telle quelle, quand il ne sait pas quel agent ou quel workflow lancer ; Les fichiers qu'il fournit, s'il y en a (documents, schémas, code d'infrastructure, options, exigences) ; Le dossier de travail : une mission déjà ouverte (mission.json), ou le dossier où ouvrir celle d'une nouvelle avant-vente ou revue d'architecture.
-- **Produit** : Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init ; passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py ; Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi.
-- **Ne fait jamais** : Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier) ; Poser plus d'une question à l'utilisateur ; Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats ; Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication).
+- **Produit** : Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init ; Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte ; passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py ; Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi.
+- **Ne fait jamais** : Faire le travail métier de l'agent choisi (convertir, dessiner, concevoir, revoir, chiffrer, publier) ; Poser plus d'une question à l'utilisateur ; Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats ; Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication) ; Mettre à niveau une mission sans l'accord de l'utilisateur.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -58,6 +58,13 @@ workflow, la commande les trace aussi au journal.
    n'est pas null dans une mission (un répertoire, un vault) : ses
    workflows passent d'abord, et le dossier de la mission va dans
    `constraints` (`"mission : <root>"`).
+   **Ancien format** : si `mission.upgrade` vaut `true`, la mission a été
+   ouverte avec une version antérieure de myskills. Lance `mission.py
+   upgrade <root>` (à blanc, rien n'est écrit) et propose la mise à
+   niveau à l'utilisateur : ce sera ta seule question, avec ce qui
+   changerait en une phrase (étapes ajoutées ou retirées, journal, liens).
+   S'il accepte, lance `mission.py upgrade <root> --apply` ; sinon,
+   continue sans rien changer. Ne mets jamais à niveau sans son accord.
    **Démarrage** : hors mission, une nouvelle avant-vente (documents reçus
    à transformer en solution, chiffrage, schémas ou POS) ou une nouvelle
    revue d'architecture (dossier ou code à juger), ouvre-la toi-même dans
@@ -97,6 +104,7 @@ workflow, la commande les trace aussi au journal.
 | --- | --- |
 | Lancer `route.py` et `check_message.py`, écrire `passage.json` | simple |
 | Ouvrir la mission (`mission.py init`, `repo`), ranger les documents dans `documents/` | simple |
+| Proposer puis lancer la mise à niveau d'une mission d'un ancien format (`mission.py upgrade`) | simple |
 | Choisir entre deux candidats proches, formuler la question fermée | simple |
 | Tout travail métier (convertir, concevoir, revoir, chiffrer) | jamais : c'est l'agent choisi qui le fait |
 

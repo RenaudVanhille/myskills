@@ -15,8 +15,8 @@
   "scripts": [
     {
       "name": "mission.py",
-      "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie.",
-      "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | --schema",
+      "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. upgrade remet une mission ouverte avec une version antérieure au niveau des scripts actuels, à blanc sauf --apply.",
+      "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | upgrade [DOSSIER] [--apply] [--keep-definition] | --schema",
       "options": {
         "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré",
         "--nature": "avant-vente ou revue",
@@ -31,7 +31,10 @@
         "check": "contrôles de cohérence entre livrables (accept de mission.json pour les écarts voulus)",
         "--fail-on": "check : code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)",
         "DOSSIER": "dossier de la mission ou un de ses sous-dossiers (défaut : dossier courant)",
-        "--schema": "affiche le schéma de mission.json sur une ligne"
+        "--schema": "affiche le schéma de mission.json sur une ligne",
+        "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade), couleurs et modèles du vault s'ils y sont déjà, puis le point de status ; à blanc par défaut, rejouable",
+        "--apply": "upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
+        "--keep-definition": "upgrade : garder les étapes et consignes d'origine de chaque workflow"
       },
       "exit_codes": {
         "0": "commande appliquée (check : aucun contrôle ouvert au niveau de --fail-on)",
@@ -319,7 +322,8 @@
                 "repo",
                 "freeze",
                 "status",
-                "check"
+                "check",
+                "upgrade"
               ]
             },
             "mission": {
@@ -589,6 +593,132 @@
                   "type": "integer"
                 }
               }
+            },
+            "upgrade": {
+              "type": "object",
+              "description": "upgrade : par workflow, ce qui change (à blanc) ou a changé (--apply) ; couleurs (style) et modèles (templates) du vault déjà installés, donc réécrits avec --apply.",
+              "required": [
+                "applied",
+                "workflows",
+                "style",
+                "templates",
+                "pending"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "applied": {
+                  "type": "boolean"
+                },
+                "workflows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "folder",
+                      "definition",
+                      "vault",
+                      "journal",
+                      "links",
+                      "notes"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "folder": {
+                        "type": "string"
+                      },
+                      "definition": {
+                        "anyOf": [
+                          {
+                            "type": "null"
+                          },
+                          {
+                            "type": "object",
+                            "required": [
+                              "name",
+                              "changed",
+                              "added",
+                              "removed",
+                              "kept",
+                              "updated",
+                              "fields"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "changed": {
+                                "type": "boolean"
+                              },
+                              "added": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "removed": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "kept": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "updated": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "fields": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "description": "Définition reprise : étapes ajoutées (à faire), retirées (jamais menées), gardées (retirées de la définition livrée mais déjà menées), modifiées, autres champs changés ; null avec --keep-definition."
+                      },
+                      "vault": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "journal": {
+                        "type": "boolean"
+                      },
+                      "links": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "notes": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ],
+                        "description": "Notes réécrites dans le vault (--apply), null à blanc."
+                      }
+                    }
+                  }
+                },
+                "style": {
+                  "type": "boolean"
+                },
+                "templates": {
+                  "type": "boolean"
+                },
+                "pending": {
+                  "type": "boolean",
+                  "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, vault déplacé)."
+                }
+              }
             }
           }
         }
@@ -699,7 +829,7 @@
     {
       "skill": "decision-log",
       "script": "journal.py",
-      "why": "démarrer le workflow de la mission (init) et lire son état (status)"
+      "why": "démarrer le workflow de la mission (init), lire son état (status) et le mettre à niveau (upgrade)"
     },
     {
       "skill": "markdown-to-obsidian",
