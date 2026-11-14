@@ -182,6 +182,11 @@ def check_refs(where: str, refs, catalog: dict, errors: list[str]) -> None:
             errors.append(f"{where} : {ref} est retirée du catalogue")
 
 
+def tech_of(comp: dict) -> str:
+    """Technologie d'un composant, suivie de sa version si elle est fixée."""
+    return comp["tech"] + (f" {comp['version']}" if comp.get("version") else "")
+
+
 def layout(option: dict) -> list[dict]:
     """Description draw.io d'une option : colonnes par profondeur des flux, de gauche à droite."""
     ids = [c["id"] for c in option["components"]]
@@ -194,7 +199,7 @@ def layout(option: dict) -> list[dict]:
     elements = []
     for comp in option["components"]:
         col = depth[comp["id"]]
-        label = comp["label"] + (f"\n({comp['tech']})" if comp.get("tech") else "")
+        label = comp["label"] + (f"\n({tech_of(comp)})" if comp.get("tech") else "")
         elements.append({"id": comp["id"], "role": comp.get("role", "system"), "label": label,
                          "row": rows.get(col, 0), "col": col})
         rows[col] = rows.get(col, 0) + 1
@@ -383,7 +388,7 @@ def render_md(spec: dict, criteria: list[dict], ranking: list[dict], catalog: di
         lines += render_wa(reviews, wa)
     for option in spec["options"]:
         lines += ["", f"## Option {option['id']} : {option['name']}", "", option["summary"], ""]
-        comps = ", ".join(c["label"] + (f" ({c['tech']})" if c.get("tech") else "") for c in option["components"])
+        comps = ", ".join(c["label"] + (f" ({tech_of(c)})" if c.get("tech") else "") for c in option["components"])
         lines.append(f"**Composants** : {comps}.")
         for key, label in (("pros", "Avantages"), ("cons", "Inconvénients"), ("risks", "Risques")):
             if option.get(key):
@@ -478,6 +483,8 @@ def analyse(spec: dict, base: Path) -> dict:
         comp_ids = [c["id"] for c in option["components"]]
         if len(set(comp_ids)) != len(comp_ids):
             errors.append(f"{where}/components : identifiant en double")
+        errors += [f"{where}/components/{ci}/version : version « {c['version']} » sans technologie (tech)"
+                   for ci, c in enumerate(option["components"]) if c.get("version") and not c.get("tech")]
         for fi, flow in enumerate(option.get("flows", [])):
             for end in ("from", "to"):
                 if flow[end] not in comp_ids:

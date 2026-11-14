@@ -145,7 +145,7 @@
    "name": "cadrage",
    "agent": "architecture-workflow",
    "title": "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette",
-   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette ; une porte de revue par étape.",
+   "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette, puis au choix export vers BMAD Method pour le développement ; une porte de revue par étape.",
    "stages": [
     "documents",
     "comptes-rendus (facultative)",
@@ -156,12 +156,13 @@
     "architectures",
     "dimensionnement",
     "interfaces",
-    "recette"
+    "recette",
+    "developpement (facultative)"
    ],
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan"
+   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan Passage au développement (BMAD) bmad-export"
   },
   {
    "name": "cloud-existant",
@@ -399,6 +400,17 @@
     "Facultatif : les principes d'architecture du client, dans la mission (references.principes, liste principes de shared/schemas/rules.schema.json)"
    ],
    "match": "Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture."
+  },
+  {
+   "name": "bmad-export",
+   "level": "simple",
+   "description": "Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture avec sa pile technique, documents UX (DESIGN.md, EXPERIENCE.md), ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD.",
+   "inputs": [
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+    "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
+    "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
+   ],
+   "match": "Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture avec sa pile technique, documents UX (DESIGN.md, EXPERIENCE.md), ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD. À utiliser pour passer du cadrage ou de l'avant-vente au développement avec BMAD, ou quand l'utilisateur demande un PRD, des epics ou des stories au format BMAD à partir d'un dossier déjà produit."
   },
   {
    "name": "c4-architecture",

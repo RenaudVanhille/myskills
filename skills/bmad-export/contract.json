@@ -1,0 +1,436 @@
+{
+  "skill": "bmad-export",
+  "level": "simple",
+  "inputs": [
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+    "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
+    "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
+  ],
+  "outputs": [
+    "Dans le dossier de planification de BMAD Method v6 (_bmad-output/planning-artifacts, ou celui de la configuration _bmad/ du projet) : brief.md, prd.md (FR-n par fonctionnalité, NFR-n, glossaire, périmètre, questions, hypothèses), architecture.md (décisions AD-n, flux et entités en Mermaid, interfaces, pile technique avec frameworks et versions), epics.md (ébauche des epics et stories) et addendum.md (correspondance des identifiants, options écartées, pièces de la mission)",
+    "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes d'origine, maquettes HTML au complet (pages, styles, images, code de la bibliothèque visée) et rendus liés, ou copiés dans mockups/ hors du dossier de la mission",
+    "Rapport : fichiers écrits, gardés ou inchangés, compteurs, pièces absentes, suite dans BMAD"
+  ],
+  "scripts": [
+    {
+      "name": "bmad_export.py",
+      "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, liens) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
+      "usage": "uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID] [--no-epics] [--force] | --schema",
+      "options": {
+        "DOSSIER": "dossier du workflow ou de la mission (défaut : le dossier courant)",
+        "--out": "racine du projet BMAD cible (défaut : DOSSIER) ; hors du dossier, les pièces citées sont copiées dans sources/ et les maquettes HTML dans mockups/ du dossier UX",
+        "--file": "description facultative (défaut : DOSSIER/bmad.json s'il existe)",
+        "--option": "option d'architecture à exporter (défaut : decision.json, sinon la recommandation)",
+        "--no-epics": "n'écrit pas l'ébauche epics.md",
+        "--force": "écrase un artefact modifié depuis le dernier export",
+        "--schema": "affiche le schéma JSON de bmad.json sur une ligne, puis s'arrête"
+      },
+      "input": {
+        "format": "json",
+        "description": "bmad.json : compléments facultatifs de l'export, tous les champs sont facultatifs.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "project": {
+              "type": "string",
+              "minLength": 1,
+              "description": "nom du produit (défaut : nom de la mission)"
+            },
+            "vision": {
+              "type": "string",
+              "minLength": 1,
+              "description": "deux ou trois phrases : ce que c'est, pour qui, pourquoi"
+            },
+            "problem": {
+              "type": "string",
+              "minLength": 1,
+              "description": "le problème d'aujourd'hui et son coût, pour le brief"
+            },
+            "users": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "jobs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "ce que l'utilisateur cherche à accomplir"
+                  },
+                  "non_user": {
+                    "type": "boolean",
+                    "description": "public explicitement hors de la première version"
+                  }
+                }
+              }
+            },
+            "journeys": {
+              "type": "array",
+              "description": "parcours clés (UJ-n), dans l'ordre",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "persona",
+                  "path"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "persona": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "entry": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "path": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "3 à 5 étapes concrètes"
+                  },
+                  "climax": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "resolution": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "edge": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "identifiants d'exigences du catalogue (EF-001...)"
+                  }
+                }
+              }
+            },
+            "non_goals": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "ce que le produit ne fera pas"
+            },
+            "metrics": {
+              "type": "array",
+              "description": "indicateurs de succès (SM-n)",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "target"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "target": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "enum": [
+                      "primary",
+                      "secondary",
+                      "counter"
+                    ],
+                    "description": "défaut : primary ; counter : à ne pas optimiser"
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "identifiants d'exigences du catalogue (EF-001...)"
+                  }
+                }
+              }
+            },
+            "features": {
+              "type": "array",
+              "description": "regroupement des exigences fonctionnelles en fonctionnalités (une epic chacune) ; défaut : contextes délimités de domaines.json, sinon domaine de l'exigence",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "refs"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "refs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "identifiants d'exigences du catalogue (EF-001...)",
+                    "minItems": 1
+                  }
+                }
+              }
+            },
+            "stack": {
+              "type": "array",
+              "description": "frameworks et technologies retenus, avec leur version, pour la pile d'architecture.md ; complète la technologie des composants de l'option et la bibliothèque d'interface des maquettes, et prime sur elles",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "version retenue, ex. 18.3 ou 3.x"
+                  },
+                  "role": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "à quoi il sert : interface, API, persistance, tests..."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "report": {
+        "format": "json",
+        "description": "Artefacts écrits, compteurs, pièces absentes, erreurs.",
+        "schema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "layout",
+            "output",
+            "option",
+            "files",
+            "counts",
+            "missing",
+            "next",
+            "errors",
+            "warnings"
+          ],
+          "properties": {
+            "input": {
+              "type": "string"
+            },
+            "layout": {
+              "const": "bmad-method-6"
+            },
+            "output": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "dossier de planification BMAD écrit"
+            },
+            "option": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "option d'architecture exportée"
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "file",
+                  "status"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "enum": [
+                      "ecrit",
+                      "inchange",
+                      "garde"
+                    ],
+                    "description": "garde : modifié depuis le dernier export, non écrasé"
+                  }
+                }
+              }
+            },
+            "counts": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "description": "features, fr, nfr, stories, glossary, decisions, questions, without_criteria (FR sans critère d'acceptation), stack, stack_without_version, screens, ux_findings"
+            },
+            "missing": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "pièces absentes qui appauvrissent l'export, avec la commande qui les produit"
+            },
+            "next": {
+              "type": "string",
+              "description": "suite dans BMAD"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "exit_codes": {
+        "0": "artefacts écrits (avertissements possibles : option seulement recommandée, pièce non vérifiée, artefact gardé car modifié)",
+        "1": "exigences.json absent, pièce ou bmad.json invalide, option inconnue, relecture en échec ; aucun fichier produit"
+      }
+    }
+  ],
+  "requires": [
+    {
+      "skill": "requirements-catalog",
+      "script": "req_build.py",
+      "why": "valider exigences.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "architecture-options",
+      "script": "options_build.py",
+      "why": "valider options.json et decision.json contre leur schéma",
+      "optional": true
+    },
+    {
+      "skill": "domain-design",
+      "script": "domain_build.py",
+      "why": "valider domaines.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "data-model",
+      "script": "model_build.py",
+      "why": "valider modele.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "api-contract",
+      "script": "api_build.py",
+      "why": "valider api.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "test-plan",
+      "script": "test_build.py",
+      "why": "valider recette.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "tender-response",
+      "script": "assumptions.py",
+      "why": "valider registre.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "design-system",
+      "script": "ds_build.py",
+      "why": "valider design-system.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "mockup-to-html",
+      "script": "page_build.py",
+      "why": "valider les pages décrites d'après les maquettes contre leur schéma",
+      "optional": true
+    },
+    {
+      "skill": "mockup-to-html",
+      "script": "ux_review.py",
+      "why": "valider revue-ux.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "mission-workspace",
+      "script": "lib/workspace.py",
+      "why": "lire le nom de la mission et le dossier de son workflow dans mission.json",
+      "optional": true
+    }
+  ],
+  "handoffs": [
+    {
+      "to": "requirements-catalog",
+      "kind": "skill",
+      "when": "exigences.json manque ou une exigence est à reformuler : le catalogue se corrige à la source, puis l'export se relance"
+    },
+    {
+      "to": "test-plan",
+      "kind": "skill",
+      "when": "des stories sont sans critère d'acceptation (counts.without_criteria) : écrire les cas de recette, puis relancer l'export"
+    },
+    {
+      "to": "mockup-to-html",
+      "kind": "skill",
+      "when": "la mission a des maquettes mais pas encore de pages décrites ni de revue UX : les produire, puis relancer l'export"
+    },
+    {
+      "to": "utilisateur",
+      "kind": "utilisateur",
+      "when": "les artefacts sont écrits : installer BMAD Method dans le projet cible et poursuivre avec ses skills (bmad-prd, bmad-create-epics-and-stories, bmad-sprint-planning, bmad-build)"
+    }
+  ]
+}

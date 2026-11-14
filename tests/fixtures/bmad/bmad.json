@@ -1,0 +1,68 @@
+{
+ "project": "Portail sinistres",
+ "vision": "Un assuré déclare son sinistre en quelques minutes depuis son téléphone et sait à tout moment où en est son dossier.",
+ "problem": "La déclaration se fait par téléphone ou par courrier : les gestionnaires ressaisissent chaque dossier.",
+ "users": [
+  {
+   "name": "Assuré",
+   "jobs": [
+    "déclarer un sinistre sans se déplacer",
+    "savoir où en est son dossier"
+   ]
+  },
+  {
+   "name": "Courtier",
+   "non_user": true
+  }
+ ],
+ "journeys": [
+  {
+   "title": "Camille déclare un dégât des eaux",
+   "persona": "Camille, assurée habitation, rentre chez elle après l'orage",
+   "entry": "authentifiée par l'annuaire",
+   "path": [
+    "ouvre la déclaration",
+    "photographie les dégâts",
+    "valide"
+   ],
+   "climax": "le numéro de dossier s'affiche",
+   "refs": [
+    "EF-001"
+   ]
+  }
+ ],
+ "non_goals": [
+  "Pas de gestion des contrats dans le portail"
+ ],
+ "metrics": [
+  {
+   "name": "Part des déclarations en ligne",
+   "target": "60 % à un an",
+   "refs": [
+    "EF-001"
+   ]
+  },
+  {
+   "name": "Nombre de pièces jointes",
+   "target": "ne pas chercher à l'augmenter",
+   "kind": "counter"
+  }
+ ],
+ "features": [
+  {
+   "name": "Déclaration en ligne",
+   "description": "Saisie et suivi par l'assuré.",
+   "refs": [
+    "EF-001",
+    "EF-002"
+   ]
+  }
+ ],
+ "stack": [
+  {
+   "name": "PostgreSQL",
+   "version": "16",
+   "role": "persistance"
+  }
+ ]
+}
