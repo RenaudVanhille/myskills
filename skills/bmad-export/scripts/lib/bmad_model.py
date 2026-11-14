@@ -1,15 +1,18 @@
 """Modèle neutre d'une mission pour l'export BMAD : exigences numérotées FR-n et NFR-n, fonctionnalités,
-option retenue, contextes, entités, registre. Aucune écriture : tout vient des livrables déjà validés.
+option retenue, contextes, entités, registre, pile technique, design system, pages et revue UX. Aucune écriture : tout vient des livrables déjà validés.
 
     build(pieces, extra, name, chosen)  -> (modèle, avertissements)
 
 `pieces` : livrables lus et validés (requirements, options, decision, domains, model, api, tests,
-register) ; `extra` : la description facultative bmad.json (vision, utilisateurs, parcours...).
+register, design, pages, review, breakdown) ; `extra` : la description facultative bmad.json (vision, utilisateurs, parcours...).
 """
 
 PRIORITIES = ("indispensable", "importante", "souhaitable", "hors-perimetre")
 MVP = ("indispensable", "importante")
 GENERAL = "Général"
+# Bibliothèque d'interface visée par page_build.py et ui_breakdown.py (--target) -> frameworks à citer.
+FRONTENDS = {"react-mui": ("React", "MUI"), "react-antd": ("React", "Ant Design"), "vue-vuetify": ("Vue", "Vuetify"),
+             "angular-material": ("Angular", "Angular Material"), "bootstrap": ("Bootstrap",)}
 
 
 def nature(req: dict) -> str:
@@ -86,6 +89,16 @@ def glossary(pieces: dict) -> list[tuple[str, str]]:
     return terms
 
 
+def stack(option: dict | None, breakdown: dict, extra: dict) -> list[tuple[str, str, str]]:
+    """Pile technique (nom, version, rôle) : bmad.json d'abord, puis la bibliothèque d'interface visée par le
+    découpage des maquettes, puis la technologie de chaque composant de l'option ; un nom n'apparaît qu'une fois."""
+    rows = [(s["name"], s.get("version", ""), s.get("role", "")) for s in extra.get("stack", [])]
+    rows += [(name, "", "interface (cible des maquettes)") for name in FRONTENDS.get(breakdown.get("target"), ())]
+    rows += [(c["tech"], "", c["label"]) for c in (option or {}).get("components", []) if c.get("tech")]
+    seen: set[str] = set()
+    return [row for row in rows if not (row[0].lower() in seen or seen.add(row[0].lower()))]
+
+
 def register(pieces: dict, kind: str) -> list[dict]:
     return [item for item in (pieces.get("register") or {}).get("items", []) if item["kind"] == kind]
 
@@ -115,6 +128,9 @@ def build(pieces: dict, extra: dict, name: str, chosen: str | None) -> tuple[dic
         "links": (pieces.get("model") or {}).get("relations", []),
         "operations": (pieces.get("api") or {}).get("operations", []),
         "events": (pieces.get("api") or {}).get("events", []),
+        "stack": stack(option, pieces.get("breakdown") or {}, extra),
+        "design": pieces.get("design"), "pages": pieces.get("pages", []),
+        "review": pieces.get("review") or {}, "breakdown": pieces.get("breakdown") or {},
         "assumptions": register(pieces, "hypothese") + register(pieces, "prerequis"),
         "exclusions": register(pieces, "exclusion"),
         "questions": [q for q in register(pieces, "question") if not q.get("answer")],

@@ -278,7 +278,8 @@ def deferred(m: dict) -> str:
     items = [f"Risque à traiter : {risk}" for risk in option.get("risks", [])]
     items += [f"{ref} couverte {gap.get('level', 'en partie')} : {gap.get('note', '')}"
               for ref, gap in option.get("gaps", {}).items()]
-    items += [f"Version à fixer : {c['tech']} ({c['label']})" for c in option["components"] if c.get("tech")]
+    items += [f"Version à fixer : {name}" + (f" ({role})" if role else "") for name, version, role in m["stack"]
+              if not version]
     return bullets(items)
 
 
@@ -287,7 +288,7 @@ def architecture(m: dict, companions: list[str]) -> tuple[dict, str]:
     paradigm = (m["style"].get("style") or option["name"])
     ads = [f"### AD-{i} — {d['title']}\n\n- **Binds:** {d['binds']}\n- **Prevents:** {d['prevents']}\n"
            f"- **Rule:** {d['rule']}" for i, d in enumerate(decisions(m), 1)]
-    stack = table(["Name", "Version"], [[c["tech"], "à fixer"] for c in option["components"] if c.get("tech")])
+    stack = table(["Name", "Version", "Used for"], [[name, version or "à fixer", role] for name, version, role in m["stack"]])
     body = join([
         f"# Architecture Spine — {m['name']}",
         section("Design Paradigm", f"{paradigm} : {option['summary']}"),
@@ -315,7 +316,7 @@ def criteria(req: dict) -> str:
     return "\n\n".join(blocks) or "À écrire avec `bmad-create-epics-and-stories` : aucun cas de recette ne cite cette exigence."
 
 
-def epics(m: dict, inputs: list[str]) -> tuple[dict, str]:
+def epics(m: dict, inputs: list[str], ux: list[str]) -> tuple[dict, str]:
     coverage, parts = [], []
     for n, feature in enumerate(m["features"], 1):
         stories = [f"### Story {n}.{s}: {req['title']}\n\n{req['text']}\n\n*Exigence : {req['bmad']} "
@@ -329,6 +330,7 @@ def epics(m: dict, inputs: list[str]) -> tuple[dict, str]:
         section("NonFunctional Requirements", bullets(line(r) for r in m["nfrs"]), 3),
         section("Additional Requirements", bullets(f"AD-{i}: {d['title']}" for i, d in
                                                    enumerate(decisions(m) if m["option"] else [], 1)), 3),
+        section("UX Design Requirements", bullets(ux), 3),
         section("FR Coverage Map", bullets(coverage), 3),
     ])
     overview = (f"Ébauche du découpage de {m['name']} en epics et stories, générée depuis le catalogue d'exigences : "

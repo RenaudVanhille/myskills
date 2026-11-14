@@ -1,0 +1,26 @@
+{
+ "pages": [
+  "pages/accueil.json"
+ ],
+ "summary": "Écran de suivi clair ; la modale de clôture manque d'une issue explicite et le tableau n'indique pas l'état du filtre.",
+ "findings": [
+  {
+   "heuristic": "h3",
+   "severity": 3,
+   "problem": "la clôture d'un sinistre ne propose pas d'annulation visible",
+   "fix": "ajouter une action Annuler à côté de Confirmer"
+  },
+  {
+   "heuristic": "h1",
+   "severity": 2,
+   "problem": "le filtre appliqué au tableau n'est pas rappelé",
+   "fix": "afficher le filtre actif au-dessus du tableau"
+  },
+  {
+   "heuristic": "a11y",
+   "severity": 1,
+   "problem": "ordre de lecture à vérifier au clavier sur la barre latérale",
+   "fix": "tester la navigation au clavier"
+  }
+ ]
+}

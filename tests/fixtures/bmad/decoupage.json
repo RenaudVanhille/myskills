@@ -1,0 +1,55 @@
+{
+ "target": "react-mui",
+ "screens": [
+  {
+   "screen": "accueil",
+   "title": "Assur'Plus : déclarer un sinistre",
+   "components": 9,
+   "interactive": 2,
+   "complexity": "simple"
+  }
+ ],
+ "components": [
+  {
+   "type": "header",
+   "count": 1,
+   "screens": [
+    "accueil"
+   ],
+   "provided": true,
+   "library": "AppBar",
+   "layout": false
+  },
+  {
+   "type": "card",
+   "count": 3,
+   "screens": [
+    "accueil"
+   ],
+   "provided": true,
+   "library": "Card",
+   "layout": false
+  },
+  {
+   "type": "grid",
+   "count": 1,
+   "screens": [
+    "accueil"
+   ],
+   "provided": true,
+   "library": "Grid",
+   "layout": true
+  },
+  {
+   "type": "footer",
+   "count": 1,
+   "screens": [
+    "accueil"
+   ],
+   "provided": false,
+   "library": "",
+   "layout": false
+  }
+ ],
+ "patterns": []
+}

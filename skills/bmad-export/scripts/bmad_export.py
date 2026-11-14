@@ -13,7 +13,13 @@ BMAD (`_bmad-output/planning-artifacts`, ou celui de la configuration `_bmad/` d
   non fonctionnelles NFR-n, glossaire, périmètre, questions ouvertes, hypothèses ;
 - `architecture.md` : colonne d'architecture (décisions AD-n, flux en Mermaid, entités, interfaces) ;
 - `epics.md` : ébauche des epics et stories, lisible par `sprint_plan.py` de BMAD ;
-- `addendum.md` : correspondance des identifiants, options écartées, pièces de la mission.
+- `addendum.md` : correspondance des identifiants, options écartées, pièces de la mission ;
+- `ux-designs/ux-<nom>/DESIGN.md` et `EXPERIENCE.md` : les deux documents UX de BMAD, quand la mission a
+  un design system (design-system.json), des pages décrites d'après les maquettes (pages/*.json), une
+  revue UX (revue-ux.json) ou un découpage en composants (decoupage.json) ; maquettes et rendus liés.
+
+La pile technique d'architecture.md vient de bmad.json (`stack`, avec les versions), de la bibliothèque
+d'interface visée par le découpage des maquettes et de la technologie des composants de l'option.
 
 Le modèle n'écrit, au besoin, que `bmad.json` : ce que la mission ne dit pas (vision, utilisateurs,
 parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités).
@@ -34,12 +40,14 @@ import os
 import re
 import shutil
 import sys
+import unicodedata
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import bmad_model  # noqa: E402
 import bmad_render  # noqa: E402
+import bmad_ux  # noqa: E402
 from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
 
@@ -54,11 +62,15 @@ PIECES = {
     "api": (("api.json", "api/api.json"), "api-contract", "api_build.py"),
     "tests": (("recette.json",), "test-plan", "test_build.py"),
     "register": (("registre.json",), "tender-response", "assumptions.py"),
+    "design": (("design-system.json",), "design-system", "ds_build.py"),
+    "review": (("revue-ux.json",), "mockup-to-html", "ux_review.py"),
 }
 # Ce qu'une pièce absente retire de l'export, et la commande qui la produit.
 MISSING = {
     "options": "options.json absent : pas d'architecture.md (architecture-options : options_build.py options.json)",
     "tests": "recette.json absent : stories sans critère d'acceptation (test-plan : test_build.py recette.json)",
+    "design": "design-system.json absent : pas de DESIGN.md (design-system : ds_build.py design-system.json)",
+    "pages": "pages/*.json absent : pas d'écrans dans EXPERIENCE.md (mockup-to-html : page_build.py pages/<page>.json)",
     "extra": "bmad.json absent : vision, utilisateurs, parcours et indicateurs de succès non renseignés "
              "(bmad_export.py --schema)",
 }
@@ -110,6 +122,26 @@ def load_pieces(folder: Path, errors: list[str], warnings: list[str]) -> tuple[d
     return pieces, used
 
 
+def load_screens(folder: Path, pieces: dict, used: list[str], errors: list[str], warnings: list[str]) -> None:
+    """Pages décrites d'après les maquettes (validées contre le schéma de page_build.py) et découpage en
+    composants (decoupage.json, produit par ui_breakdown.py : lu tel quel)."""
+    schema = schema_of("mockup-to-html", "page_build.py")
+    paths = sorted((folder / "pages").glob("*.json"))
+    if paths and schema is None:
+        warnings.append("pages/*.json non vérifié : " + absent("mockup-to-html", "page_build.py"))
+    for path in paths:
+        data = read_json(path, errors)
+        invalid = check(data, schema) if data is not None and schema else []
+        errors.extend(f"pages/{path.name} : {e}" for e in invalid[:5])
+        if data is not None and not invalid:
+            pieces.setdefault("pages", []).append((path.stem, data))
+            used.append(f"pages/{path.name}")
+    breakdown = read_json(folder / "decoupage.json", errors) if (folder / "decoupage.json").is_file() else None
+    if isinstance(breakdown, dict):
+        pieces["breakdown"] = breakdown
+        used.append("decoupage.json")
+
+
 def check_option(pieces: dict, chosen: str | None, errors: list[str]) -> None:
     """L'option demandée ou décidée doit exister dans options.json."""
     options = pieces.get("options")
@@ -147,13 +179,30 @@ def planning_dir(root: Path) -> Path:
     return (root / "_bmad-output" / "planning-artifacts").resolve()
 
 
-def companions(folder: Path, planning: Path) -> tuple[list[str], list[tuple[Path, Path]]]:
-    """Pièces de la mission citées par l'addendum : liens relatifs si l'export reste dans le dossier,
-    sinon copies à faire dans sources/ du dossier de planification."""
-    found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
-    if planning.is_relative_to(folder):
-        return [Path(os.path.relpath(p, planning)).as_posix() for p in found], []
-    return [f"sources/{p.name}" for p in found], [(p, planning / "sources" / p.name) for p in found]
+def place(paths: list[Path], folder: Path, base: Path, store: str, copies: list) -> list[str]:
+    """Liens vers des pièces de la mission, vus du dossier `base` : relatifs si l'export reste dans le
+    dossier de la mission, sinon vers leur copie (à faire) dans `base/store`."""
+    if base.is_relative_to(folder):
+        return [Path(os.path.relpath(p, base)).as_posix() for p in paths]
+    copies += [(p, base / store / p.name) for p in paths]
+    return [f"{store}/{p.name}" for p in paths]
+
+
+def slug(name: str) -> str:
+    plain = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") or "projet"
+
+
+def screen_links(folder: Path, pages: list, base: Path, copies: list) -> dict:
+    """Pour chaque page : liens vers sa maquette, son rendu HTML et l'image du rendu, s'ils existent."""
+    links = {}
+    for name, page in pages:
+        found = [("maquette", folder / "pages" / page["mockup"])] if page.get("mockup") else []
+        found += [("HTML", folder / "pages" / f"{name}.html"), ("rendu", folder / "pages" / f"{name}.render.png")]
+        found = [(label, path) for label, path in found if path.is_file()]
+        placed = place([path for _, path in found], folder, base, "imports", copies)
+        links[name] = [(label, target) for (label, _), target in zip(found, placed)]
+    return links
 
 
 def digest(body: str) -> str:
@@ -180,17 +229,28 @@ def previous(path: Path) -> tuple[str | None, bool]:
     return meta.get("created"), meta.get("generated_by") != MARK or meta.get("export_hash") != digest(body)
 
 
-def render(model: dict, used: list[str], linked: list[str], epics: bool) -> dict:
-    """Artefacts à écrire : nom de fichier -> (frontmatter, corps)."""
+def render_ux(model: dict, folder: Path, planning: Path, copies: list) -> dict:
+    """Documents UX de BMAD, dans ux-designs/ux-<nom>/ : DESIGN.md s'il y a un design system,
+    EXPERIENCE.md s'il y a des pages, une revue UX ou un découpage."""
+    where = f"ux-designs/ux-{slug(model['name'])}"
+    docs = {f"{where}/DESIGN.md": bmad_ux.design(model)} if model["design"] else {}
+    if model["pages"] or model["review"] or model["breakdown"]:
+        links = screen_links(folder, model["pages"], planning / where, copies)
+        docs[f"{where}/EXPERIENCE.md"] = bmad_ux.experience(model, links, "../../prd.md")
+    return docs
+
+
+def render(model: dict, used: list[str], linked: list[str], ux: dict, epics: bool) -> dict:
+    """Artefacts à écrire : chemin dans le dossier de planification -> (frontmatter, corps)."""
     docs = {"brief.md": bmad_render.brief(model), "prd.md": bmad_render.prd(model, used)}
     inputs = ["prd.md"]
     if model["option"]:
         docs["architecture.md"] = bmad_render.architecture(model, ["addendum.md"] + linked)
         inputs.append("architecture.md")
     if epics:
-        docs["epics.md"] = bmad_render.epics(model, inputs)
-    docs["addendum.md"] = bmad_render.addendum(model, linked)
-    return docs
+        docs["epics.md"] = bmad_render.epics(model, inputs + list(ux), bmad_ux.requirements(model))
+    docs["addendum.md"] = bmad_render.addendum(model, linked + list(ux))
+    return {**docs, **ux}
 
 
 def verify(docs: dict, model: dict, planning: Path, copies: list) -> list[str]:
@@ -204,12 +264,12 @@ def verify(docs: dict, model: dict, planning: Path, copies: list) -> list[str]:
         if len(EPIC.findall(text)) != len(model["features"]) or len(STORY.findall(text)) != len(model["frs"]):
             errors.append(f"epics.md : {len(EPIC.findall(text))} epics et {len(STORY.findall(text))} stories "
                           f"reconnues, {len(model['features'])} et {len(model['frs'])} attendues")
-    coming = {target.resolve() for _, target in copies} | {planning / name for name in docs}
+    coming = {target.resolve() for _, target in copies} | {(planning / name).resolve() for name in docs}
     for name, (_, body) in docs.items():
         if "```mermaid\n```" in body:
             errors.append(f"{name} : schéma Mermaid vide")
         for target in LINK.findall(body):
-            path = (planning / target).resolve()
+            path = ((planning / name).parent / target).resolve()
             if not re.match(r"^([a-z]+:|#)", target) and not path.exists() and path not in coming:
                 errors.append(f"{name} : lien introuvable {target}")
     return errors
@@ -221,6 +281,7 @@ def write(docs: dict, planning: Path, copies: list, force: bool, warnings: list[
     files = []
     for name, (front, body) in docs.items():
         path = planning / name
+        path.parent.mkdir(parents=True, exist_ok=True)
         created, changed = previous(path)
         if changed and not force:
             warnings.append(f"{name} modifié depuis le dernier export (ou écrit par BMAD) : gardé tel quel, "
@@ -243,6 +304,8 @@ def counts(model: dict) -> dict:
             "stories": len(model["frs"]), "glossary": len(model["glossary"]),
             "decisions": len(bmad_render.decisions(model)) if model["option"] else 0,
             "questions": len(bmad_render.open_questions(model)),
+            "stack": len(model["stack"]), "stack_without_version": sum(1 for _, version, _ in model["stack"] if not version),
+            "screens": len(model["pages"]), "ux_findings": len(model["review"].get("findings", [])),
             "without_criteria": sum(1 for r in model["frs"] if not r["tests"] and not r.get("metric"))}
 
 
@@ -279,6 +342,7 @@ def main() -> int:
         errors.append(f"{args.file} introuvable")
     errors += validate(extra, __file__)
     pieces, used = load_pieces(folder, errors, warnings)
+    load_screens(folder, pieces, used, errors, warnings)
     check_option(pieces, args.option, errors)
     if errors:
         return done(1)
@@ -286,8 +350,10 @@ def main() -> int:
     model, notes = bmad_model.build(pieces, extra, name, args.option)
     warnings += notes
     planning = planning_dir((args.out or folder).resolve())
-    linked, copies = companions(folder, planning)
-    docs = render(model, used, linked, not args.no_epics)
+    copies: list = []
+    found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
+    linked = place(found, folder, planning, "sources", copies)
+    docs = render(model, used, linked, render_ux(model, folder, planning, copies), not args.no_epics)
     errors += verify(docs, model, planning, copies)
     if errors:
         return done(1)
@@ -297,8 +363,13 @@ def main() -> int:
     report["counts"] = counts(model)
     report["missing"] = [text for key, text in MISSING.items()
                          if (key == "extra" and not extra) or (key != "extra" and key not in pieces)]
+    loose = report["counts"]["stack_without_version"]
+    if loose:
+        report["missing"].append(f"{loose} framework(s) ou technologie(s) sans version dans architecture.md : "
+                                 "champ stack de bmad.json (nom, version, rôle)")
     report["next"] = ("BMAD installé dans le projet cible (npx bmad-method install) : bmad-prd pour valider le PRD, "
-                      "bmad-create-epics-and-stories pour reprendre l'ébauche, puis bmad-sprint-planning et bmad-build")
+                      "bmad-ux pour reprendre DESIGN.md et EXPERIENCE.md, bmad-create-epics-and-stories pour l'ébauche d'epics, puis "
+                      "bmad-sprint-planning et bmad-build")
     return done(0)
 
 
