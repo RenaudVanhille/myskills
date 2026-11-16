@@ -87,9 +87,13 @@ GAPS = {"options": "architecture non décidée : pas d'architecture.md",
         "model": "pas de modèle de données", "api": "pas de contrat d'interface",
         "extra": "vision, utilisateurs, parcours et indicateurs de succès non renseignés"}
 # Pièces de la mission jointes en annexe (copiées dans annexes/, liens recalés).
-COMPANIONS = ("exigences.md", "options.md", "adr-architecture.md", "domaines.md", "modele.md", "modele.sql",
-              "api.openapi.yaml", "api/api.openapi.yaml", "api.sequences.md", "recette.md", "dimensionnement.md",
-              "registre.md", "schemas/*.png")
+# Ni options.md ni l'ADR : le dossier ne porte que l'architecture retenue, pas les alternatives du cadrage.
+COMPANIONS = ("exigences.md", "domaines.md", "domaines.carte.drawio.png", "modele.md", "modele.mmd", "modele.sql",
+              "modele.png", "modele-1.png", "api.openapi.yaml", "api/api.openapi.yaml", "api.sequences.md",
+              "recette.md", "dimensionnement.md", "registre.md", "schemas/*.png")
+# Schémas propres à une option (options_build.py, cloud-architecture, pos_build.py) et pages du schéma des options.
+OPTION_FILE = re.compile(r"^(?:pos-)?option-([a-z0-9]+)\b", re.I)
+OPTIONS_PAGE = re.compile(r"^architectures(?:-(\d+))?\.drawio\.png$")
 # Fichiers des maquettes HTML (page_build.py) qui accompagnent les pages, et ceux qui sont du code à reprendre.
 MOCKUP_FILES = {".css", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".tsx", ".ts", ".vue", ".scss", ".html"}
 CODE_FILES = {".tsx", ".ts", ".vue", ".scss"}
@@ -286,9 +290,30 @@ def save_state(folder: Path, out: Path, hashes: dict, used: list[str]) -> None:
     path.write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
+def retained(path: Path, model: dict) -> bool:
+    """Un schéma d'option n'est joint que pour l'option retenue (page de architectures.drawio comprise)."""
+    option = model["option"]
+    if path.parent.name != "schemas":
+        return True
+    own, page = OPTION_FILE.match(path.name), OPTIONS_PAGE.match(path.name)
+    if not option:
+        return not own and not page
+    if own:
+        return own.group(1).lower() == option["id"].lower()
+    if page:
+        index = [o["id"] for o in model["all_options"]].index(option["id"]) + 1
+        return int(page.group(1) or 1) == index
+    return True
+
+
 def render(model: dict, folder: Path, out: Path, copies: list, missing: list[str]) -> dict:
     """Documents à écrire : nom dans le dossier -> (frontmatter, corps). ux.md et architecture.md seulement si
     la mission en porte les sources ; README.md en dernier, il les liste."""
+    found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file() and retained(p, model)]
+    annexes = place(found, out, "annexes", copies, folder)
+    model["images"] = {"model": [a for a in annexes if re.match(r"annexes/modele(-1)?\.png$", a)],
+                       "option": [a for a in annexes if a.startswith("annexes/schemas/") and a.endswith(".png")],
+                       "domains": [a for a in annexes if a.endswith("domaines.carte.drawio.png")]}
     has_ux = bool(model["design"] or model["pages"] or model["review"] or model["breakdown"])
     model["docs"] = [name for name in pack_render.DOCS
                      if (name != "ux.md" or has_ux) and (name != "architecture.md" or model["option"])]
@@ -301,8 +326,6 @@ def render(model: dict, folder: Path, out: Path, copies: list, missing: list[str
         docs["architecture.md"] = pack_render.architecture(model)
     docs["tests.md"] = pack_render.tests(model)
     docs["livraison.md"] = pack_render.livraison(model, ux_lines)
-    found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
-    annexes = place(found, out, "annexes", copies, folder)
     docs = {"README.md": pack_render.readme(model, list(docs), annexes, missing), **docs}
     return {name: (pack_render.describe(model, name, front, body), body) for name, (front, body) in docs.items()}
 
@@ -433,6 +456,9 @@ def main() -> int:
         return done(1)
     name = mission.get("name") or pieces["requirements"].get("title") or folder.name
     model, notes = pack_model.build(pieces, extra, name, args.option)
+    builder = load_module("data-model", "model_build.py") if pieces.get("model") else None
+    model["er"] = builder.mermaid(pieces["model"]) if builder else ""
+    model["all_options"] = (pieces.get("options") or {}).get("options", [])
     warnings += notes
     model["ai_cost"] = load_ai_cost(folder, used, errors, warnings)
     if errors:

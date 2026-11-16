@@ -19,8 +19,8 @@ DOCS = {
                        "fonctionnelles FR-n avec leurs critères d'acceptation, périmètre", "produit, développement, recette"),
     "ux.md": ("Spécification UX", "identité visuelle et tokens, écrans, composants, maquettes, accessibilité, "
               "constats UX", "conception, développement de l'interface"),
-    "architecture.md": ("Spécification d'architecture", "option retenue, décisions AD-n, pile technique et versions, "
-                        "composants et flux, données, interfaces, exigences non fonctionnelles NFR-n",
+    "architecture.md": ("Spécification d'architecture", "architecture validée, décisions AD-n, pile technique et versions, "
+                        "composants et flux, modèle de données, interfaces, exigences non fonctionnelles NFR-n",
                         "développement, exploitation"),
     "tests.md": ("Spécification des tests", "cas de recette, critères d'acceptation, vérification des NFR, "
                  "couverture des exigences", "recette, développement"),
@@ -213,6 +213,9 @@ def flow_chart(option: dict) -> str:
 
 
 def entity_chart(m: dict) -> str:
+    """Schéma du modèle de données : celui de data-model (entités, champs, clés), sinon entités et relations."""
+    if m.get("er"):
+        return "```mermaid\n" + m["er"].rstrip() + "\n```"
     if not m["entities"]:
         return ""
     name = lambda value: re.sub(r"\W", "_", value)  # noqa: E731
@@ -238,8 +241,9 @@ def decisions(m: dict) -> list[dict]:
     fonctionnelles indispensables mesurées."""
     option, decision, items = m["option"], m["decision"], []
     items.append({"title": f"Option {option['id']} : {option['name']}", "binds": "tout le produit",
-                  "prevents": "; ".join(f"{o['name']} ({'; '.join(o.get('cons', [])) or 'écartée'})"
-                                        for o in m["others"]) or "une autre architecture que celle étudiée",
+                  "prevents": ("les alternatives étudiées au cadrage, écartées : "
+                               + ", ".join(o["name"] for o in m["others"])) if m["others"]
+                  else "une autre architecture que celle validée",
                   "rule": f"{option['summary']} Option {decision['status']} : {decision['why']}."})
     if m["style"]:
         items.append({"title": f"Style {m['style']['style']}", "binds": "tout le produit",
@@ -273,13 +277,9 @@ def interfaces(m: dict) -> str:
     return table(["Interface", "Rôle", "Exigences"], rows)
 
 
-def rejected(m: dict) -> str:
-    return join([join([f"### {o['id']} : {o['name']}", o["summary"],
-                       "Limites :\n" + bullets(o["cons"]) if o.get("cons") else "",
-                       "Exigences non couvertes :\n" + bullets(
-                           f"{mapped([ref], m) or ref} ({gap.get('level', '')}) : {gap.get('note', '')}"
-                           for ref, gap in o["gaps"].items()) if o.get("gaps") else ""]).strip()
-                 for o in m["others"]])
+def images(m: dict, kind: str, label: str) -> list[str]:
+    """Schémas joints (annexes/) à afficher dans le document."""
+    return [f"![{label}]({path})" for path in m.get("images", {}).get(kind, [])]
 
 
 def pending(m: dict) -> str:
@@ -298,15 +298,15 @@ def architecture(m: dict) -> tuple[dict, str]:
            f"- **Évite :** {d['prevents']}" for i, d in enumerate(decisions(m), 1)]
     stack = table(["Technologie", "Version", "Rôle"], [[name, version or "à fixer", role] for name, version, role in m["stack"]])
     body = join([
-        intro(m, "architecture.md", f"Option retenue : **{option['name']}** ({m['decision']['status']}). "
+        intro(m, "architecture.md", f"Architecture validée : **{option['name']}** ({m['decision']['status']}). "
                                     f"{option['summary']}"),
         section("Décisions d'architecture", join(ads)),
         section("Pile technique", stack),
-        section("Composants et flux", join([components(m), flow_chart(option)])),
-        section("Données", join([entity_chart(m), entities(m)])),
+        section("Composants et flux", join([components(m), flow_chart(option)] + images(m, "option", "Schéma de l'architecture"))),
+        section("Contextes", join(images(m, "domains", "Carte des contextes"))),
+        section("Modèle de données", join([entity_chart(m)] + images(m, "model", "Modèle de données") + [entities(m)])),
         section("Interfaces", interfaces(m)),
         section("Exigences non fonctionnelles", bullets(nfr_line(r) for r in m["nfrs"])),
-        section("Options écartées", rejected(m)),
         section("Risques et points à fixer", pending(m)),
     ])
     return {"title": f"Spécification d'architecture : {m['name']}", "type": "architecture"}, body
