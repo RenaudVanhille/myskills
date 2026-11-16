@@ -6,7 +6,8 @@
 Entrée : `<nom>.parcours.json`, écrit par estimate_build.py quand le chiffrage
 déclare ses parcours (`journeys`) ; validé contre son schéma, puis la somme des
 parcours est recontrôlée pour chaque hypothèse. Sortie : `parcours.md`, un
-tableau de synthèse (coût, part, nombre de points d'attention) et, par
+tableau de synthèse (coût, part, nombre de points d'attention), le découpage
+en lots (lots propres et parcours servis, lots partagés) puis, par
 parcours, son schéma de workflow (Mermaid : persona puis étapes, à défaut les
 composants touchés), son coût dans l'hypothèse choisie avec ses principaux
 postes, et ses points d'attention (risques, hypothèses, dépendances, contrôles
@@ -47,6 +48,28 @@ def flowchart(j: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def lots_section(journeys: list[dict]) -> list[str]:
+    """Découpage en lots vu du PO : chaque lot propre et les parcours qu'il sert, puis les lots partagés."""
+    own: dict[str, dict] = {}
+    shared: dict[str, str] = {}
+    for j in journeys:
+        for lot in j["lots"]:
+            if lot["how"] == "partage":
+                shared[lot["id"]] = lot["name"]
+                continue
+            entry = own.setdefault(lot["id"], {"name": lot["name"], "post": lot["post"], "serves": []})
+            entry["serves"].append(f"{j['id']} {j['title']}" + ("" if lot["share"] >= 1 else f" ({pct(lot['share'])})"))
+    md = ["## Découpage en lots", "", "Lots propres aux parcours et ceux qu'ils servent : reporter un parcours retire "
+          "du périmètre les lots qui ne servent que lui.", "", "| Lot | Poste | Parcours servis |",
+          "| --- | --- | --- |"]
+    md += [f"| {k} {cell(v['name'])} | {POSTS[v['post']].split(' (')[0]} | {cell(', '.join(v['serves']))} |"
+           for k, v in own.items()]
+    shared = {k: v for k, v in shared.items() if k not in own}
+    if shared:
+        md += ["", "Lots partagés par tous les parcours, au prorata :", ""] + [f"- {k} {v}" for k, v in shared.items()]
+    return md + [""]
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -80,15 +103,16 @@ def main() -> int:
     value = (lambda x: money(x["cost"], cur)) if cur else (lambda x: f"{days(x['days'])} j")
     md = [f"# Parcours utilisateurs : {view['title']}", "",
           f"Coût de réalisation par parcours, hypothèse {scen['name'][0].lower() + scen['name'][1:]}, option "
-          f"{view['option']}. La somme des parcours redonne la réalisation ({value(scen)}) ; les postes partagés "
-          f"(cadrage, recette, pilotage, provision...) sont répartis au prorata du coût propre de chaque parcours "
-          f"({pct(view['spread'])} du total sans IA). Détail des postes et de leurs références : le chiffrage.", "",
+          f"{view['option']}. La somme des parcours redonne la réalisation : {value(scen)}. Les postes partagés "
+          f"(cadrage, recette, pilotage, provision...) sont répartis au prorata du coût propre de chaque parcours. "
+          f"Ils pèsent {pct(view['spread'])} du total sans IA. Détail des postes et de leurs références : le chiffrage.", "",
           "| Parcours | Persona | Coût | Part | Points d'attention |", "| --- | --- | --- | --- | --- |"]
     for j in view["journeys"]:
         x = j["scenarios"][index]
         md.append(f"| {j['id']} {cell(j['title'])} | {cell(j.get('persona', ''))} | {value(x)} | {pct(x['share'])} | "
                   f"{len(attention(j))} |")
     md += [f"| **Total** |  | **{value(scen)}** | 100 % |  |", ""]
+    md += lots_section(view["journeys"])
     for j in view["journeys"]:
         x = j["scenarios"][index]
         md += [f"## {j['id']}. {j['title']}", "", "### Workflow", ""]
@@ -117,7 +141,7 @@ def main() -> int:
     out.write_text("\n".join(md), encoding="utf-8", newline="\n")
     # Relecture : une section par parcours, chaque image citée présente.
     text = out.read_text(encoding="utf-8")
-    found = len(re.findall(r"^## ", text, re.M))
+    found = len(re.findall(r"^## ", text, re.M)) - 1
     if found != len(view["journeys"]):
         errors.append(f"{out.name} : {found} sections de parcours au lieu de {len(view['journeys'])}")
     errors += [f"{out.name} : image absente {p}" for p in report["images"] if not Path(p).exists()]

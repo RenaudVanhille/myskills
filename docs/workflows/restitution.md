@@ -6,7 +6,7 @@ Workflow `restitution` : 5 étapes, dont 1 facultatives. Point de départ : doss
 
 ## À quoi il sert
 
-Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), vue par parcours utilisateur en option (workflow, coût, points d'attention), support de présentation et document assemblé ; une porte de revue par étape.
+Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration), lisible par un client, un PO ou un BA : synthèse d'une page mise en page par script (décisions attendues, besoin, solution, bénéfices reliés aux exigences, coût par parcours, trois risques, suite), schémas métier (vue d'ensemble, processus) avec les vues techniques en annexe, coût par parcours et découpage en lots en option, glossaire automatique et contrôle de lisibilité (phrases longues, sigles sans définition, jargon), support de présentation et document assemblé ; une porte de revue par étape.
 
 ## Ce que le moteur demande au départ
 
@@ -49,32 +49,34 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 | Étape | Niveau | Menée par | Skills | Livrables | Après |
 | --- | --- | --- | --- | --- | --- |
-| 1. Décision attendue et messages | moyen | `architecture-workflow` | `diagram-brief` | `synthese.md`, `schemas/briefs/*.json` | début |
-| 2. Schémas pour le public visé | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `c4-architecture`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 1 |
+| 1. Décision attendue et messages | moyen | `architecture-workflow` | `architecture-dossier`, `diagram-brief` | `synthese.json`, `synthese.md`, `schemas/briefs/*.json` | début |
+| 2. Schémas pour le public visé | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `process-diagram`, `c4-architecture`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 1 |
 | 3. Support de présentation | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 1 |
 | 4. Vue par parcours utilisateur (facultative) | simple | `architecture-workflow` | `solution-estimate` | `parcours.md` | 1 |
-| 5. Document de restitution | simple | `architecture-workflow` | `architecture-dossier` | `restitution.md` | 2, 3, 4 |
+| 5. Document de restitution | simple | `architecture-workflow` | `architecture-dossier` | `glossaire.md`, `restitution.md` | 2, 3, 4 |
 
 ### 1. Décision attendue et messages
 
-- **Entrées** : `../options.json`, `../decision.json`, `../exigences.json`, `../adr-architecture.md`, `../chiffrage.md`, `../revue.md`
-- **Livrables** : `synthese.md`, `schemas/briefs/*.json`
-- **Livrables possibles** : `schemas/decisions/*.json`
+- **Entrées** : `../options.json`, `../decision.json`, `../exigences.json`, `../adr-architecture.md`, `../chiffrage.md`, `../revue.md`, `../*.parcours.json`
+- **Livrables** : `synthese.json`, `synthese.md`, `schemas/briefs/*.json`
+- **Livrables possibles** : `schemas/decisions/*.json`, `termes.json`
+- **Contrôle** : architecture-dossier : readout.py synthese.json --journeys ../*.parcours.json (synthèse d'une page, exigences des bénéfices vérifiées, coût par parcours repris du chiffrage)
+- **Contrôle** : architecture-dossier : readability.py synthese.md --terms ../exigences.json --terms termes.json (phrases longues, sigles sans définition, jargon)
 - **Contrôle** : diagram-brief : brief.py schemas/briefs/<nom>.json --out schemas/decisions/<nom>.json pour chaque schéma prévu
 
-synthese.md, une page pour le public donné à l'ouverture : la décision demandée, la recommandation et pourquoi (les critères dits dans les mots du métier, pas en scores), le coût et le délai s'ils existent, les risques et leurs conditions, les prochaines étapes. Chaque chiffre et chaque choix vient d'un livrable validé du dossier (options.json, decision.json, chiffrage.md, revue.md), cité ; rien n'est recalculé. Un brief par schéma : une vue d'ensemble (audience non technique, kind vue-ensemble) et, pour un public mixte ou technique, une vue C4 de contexte (vue-c4). À la revue, présenter la décision demandée et les messages.
+Vous écrivez synthese.json (--schema de readout.py), dans les mots du public donné à l'ouverture, sans jargon ni nom de produit : summary (la recommandation en une ou deux phrases), decisions (ce que le client doit trancher, avec ses choix et l'échéance), need, solution (et pourquoi : les critères dits dans les mots du métier, pas en scores), benefits (chaque exigence clé reformulée en bénéfice concret, « l'assuré déclare un sinistre en 5 minutes », avec les identifiants qu'elle sert), cost et delay avec leur source, les trois risques majeurs au plus avec leur parade, next_steps. Chaque chiffre et chaque choix vient d'un livrable validé du dossier (options.json, decision.json, chiffrage.md, revue.md), cité ; rien n'est recalculé. Avec un chiffrage par parcours, readout.py reprend lui-même le coût total et par parcours : cost ne porte alors que les autres coûts (exploitation). readout.py met en page synthese.md, ne l'écrivez pas. Lisez les avertissements de readability.py : coupez une phrase longue, remplacez un mot de jargon par l'équivalent proposé ; un sigle propre au projet se définit dans termes.json ({"terms": {"SIGLE": "définition d'une ligne"}}). Un brief par schéma : une vue d'ensemble (audience non technique, kind vue-ensemble), un processus métier (kind processus) pour le parcours principal et, pour un public mixte ou technique seulement, une vue C4 de contexte (vue-c4). À la revue, présenter les décisions attendues et les messages.
 
 ### 2. Schémas pour le public visé
 
 - **Entrées** : `schemas/briefs/*.json`, `../options.json`, `../decision.json`
 - **Livrables** : `schemas/briefs/*.json`, `schemas/**/*.png`
-- **Livrables possibles** : `schemas/decisions/*.json`, `schemas/excalidraw/*`, `schemas/c4/**`, `schemas/mermaid/*`, `schemas/drawio/*`
+- **Livrables possibles** : `schemas/decisions/*.json`, `schemas/excalidraw/*`, `schemas/process/*`, `schemas/c4/**`, `schemas/mermaid/*`, `schemas/drawio/*`
 - **Contrôle** : diagram-brief : brief.py schemas/briefs/<nom>.json --out schemas/decisions/<nom>.json pour chaque schéma (public, destination, type, message, 3 à 7 éléments) : il choisit le format et le skill
-- **Contrôle** : selon la décision, une description par schéma dans le dossier de son format : excalidraw-diagram : excalidraw_build.py schemas/excalidraw/<nom>.json --export png ; c4-architecture : c4_build.py schemas/c4/<nom>.json --out-dir schemas/c4/<nom> --export png ; mermaid-diagram : mermaid_build.py schemas/mermaid/<nom>.json --out schemas/mermaid/<nom>.mmd puis diagram-export : export.py en PNG ; drawio-diagram : drawio_build.py schemas/drawio/<nom>.json --export png
-- **Contrôle** : vue C4 de l'option retenue : c4-architecture : c4_build.py --from-options ../options.json --option <retenue> --out-dir schemas/c4/option --export png
+- **Contrôle** : selon la décision, une description par schéma dans le dossier de son format : excalidraw-diagram : excalidraw_build.py schemas/excalidraw/<nom>.json --export png ; process-diagram : process_build.py schemas/process/<nom>.json --export png ; c4-architecture : c4_build.py schemas/c4/<nom>.json --out-dir schemas/c4/<nom> --export png ; mermaid-diagram : mermaid_build.py schemas/mermaid/<nom>.json --out schemas/mermaid/<nom>.mmd puis diagram-export : export.py en PNG ; drawio-diagram : drawio_build.py schemas/drawio/<nom>.json --export png
+- **Contrôle** : vue C4 de l'option retenue, pour un public mixte ou technique : c4-architecture : c4_build.py --from-options ../options.json --option <retenue> --out-dir schemas/c4/option --export png (annexe technique du document)
 - **Contrôle** : relire chaque PNG une fois
 
-Un à trois schémas, chacun avec un seul message. Le brief de chaque schéma (diagram-brief) fixe le format et le skill selon le public et la destination : pour un public non technique, une vue d'ensemble Excalidraw ; pour un public technique, une vue C4 ou un schéma de flux. La description ne reprend que les éléments du brief ; un élément laissé de côté se dit dans left_out. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma détaillé demandé par l'utilisateur passe à schema-designer. La vue d'ensemble reprend les composants de l'option retenue (../options.json) regroupés en trois à sept blocs parlants pour le public, sans nom de produit ; la vue C4 se tire de l'option par --from-options.
+Un à trois schémas métier, chacun avec un seul message. Le brief de chaque schéma (diagram-brief) fixe le format et le skill selon le public et la destination. Pour un client, un PO ou un BA : une vue d'ensemble Excalidraw et le processus métier du parcours principal (process-diagram, couloirs par acteur) ; jamais de schéma d'infrastructure cloud. Une vue C4 de contexte simplifiée seulement pour un public mixte ou technique : elle va en annexe technique du document (schemas/c4/). La description ne reprend que les éléments du brief ; un élément laissé de côté se dit dans left_out. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma détaillé demandé par l'utilisateur passe à schema-designer. La vue d'ensemble reprend les composants de l'option retenue (../options.json) regroupés en trois à sept blocs parlants pour le public, sans nom de produit ; la vue C4 se tire de l'option par --from-options.
 
 ### 3. Support de présentation
 
@@ -90,15 +92,16 @@ Construit par le script à partir des seuls livrables validés du dossier parent
 - **Entrées** : `../chiffrage.parcours.json`
 - **Livrables** : `parcours.md`
 - **Livrables possibles** : `parcours/*`
-- **Contrôle** : solution-estimate : journeys_view.py ../chiffrage.parcours.json --out parcours.md --export png (workflow, coût et points d'attention de chaque parcours ; --scenario pour l'hypothèse retenue)
+- **Contrôle** : solution-estimate : journeys_view.py ../chiffrage.parcours.json --out parcours.md --export png (coût par parcours en premier, découpage en lots, puis workflow, coût et points d'attention de chaque parcours ; --scenario pour l'hypothèse retenue)
 
-À proposer si le chiffrage déclare ses parcours utilisateurs (../chiffrage.parcours.json, champ journeys de solution-estimate) ; sans lui, l'étape se saute. Construite par le script : pour chaque parcours, son workflow, son coût et ses points d'attention (risques, hypothèses, dépendances, contrôles du chiffrage), montants repris du chiffrage validé, rien de recalculé. Hypothèse montrée : celle de la recommandation de synthese.md (--scenario), sans IA par défaut. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER parcours --submit).
+À proposer si le chiffrage déclare ses parcours utilisateurs (../chiffrage.parcours.json, champ journeys de solution-estimate) ; sans lui, l'étape se saute. Construite par le script : le coût par parcours en premier, le découpage en lots (lots propres et parcours qu'ils servent : la vue que le PO arbitre), puis pour chaque parcours son workflow, son coût et ses points d'attention (risques, hypothèses, dépendances, contrôles du chiffrage), montants repris du chiffrage validé, rien de recalculé. Hypothèse montrée : celle de la recommandation de synthese.md (--scenario), sans IA par défaut. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER parcours --submit).
 
 ### 5. Document de restitution
 
-- **Entrées** : `synthese.md`, `schemas/**/*.png`, `parcours.md`, `presentation.md`
-- **Livrables** : `restitution.md`
+- **Entrées** : `synthese.md`, `schemas/**/*.png`, `parcours.md`, `presentation.md`, `../exigences.json`, `termes.json`, `../options.md`, `../adr-*.md`
+- **Livrables** : `glossaire.md`, `restitution.md`
+- **Contrôle** : architecture-dossier : readability.py synthese.md parcours*.md --terms ../exigences.json --terms termes.json --glossary glossaire.md (glossaire des sigles et termes rencontrés, lisibilité contrôlée)
 - **Contrôle** : architecture-dossier : dossier_build.py . --template restitution --out restitution.md --strict
 - **Contrôle** : si l'utilisateur veut un Word, un PDF ou une page Confluence : passer restitution.md à document-publisher
 
-Assemblage mécanique : synthèse, schémas, vue par parcours si elle est faite, et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit).
+Assemblage mécanique, en deux niveaux de lecture : pour le métier, la synthèse, le coût par parcours et les lots, les schémas métier et le glossaire ; en annexe technique, les vues C4, les options étudiées et la décision du dossier parent, puis le support et le journal. Le glossaire est tiré par readability.py des sigles et termes rencontrés (dictionnaire livré, glossaire d'exigences.json, termes.json) ; un sigle sans définition se définit dans termes.json avant de soumettre. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien d'autre à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit).
