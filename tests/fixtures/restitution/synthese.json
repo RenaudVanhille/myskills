@@ -1,0 +1,20 @@
+{
+  "title": "Restitution : portail de déclaration de sinistres",
+  "audience": "metier",
+  "summary": "Nous recommandons l'option A : un portail en ligne qui absorbe les pics après tempête et garde les données en Union européenne.",
+  "need": "Les assurés déclarent aujourd'hui leurs sinistres par téléphone. Après une tempête, les appels saturent et les dossiers prennent du retard.",
+  "solution": "Un portail web où l'assuré déclare son sinistre et joint ses photos. Les déclarations arrivent dans l'outil de gestion actuel. La connexion se fait avec le compte client existant (SSO).",
+  "benefits": [
+    {"text": "L'assuré déclare un sinistre en ligne en 5 minutes, photos comprises.", "refs": ["EF-001"]},
+    {"text": "Le portail reste disponible pendant les pics après une tempête.", "refs": ["ENF-001"]}
+  ],
+  "cost": {"text": "exploitation de 1 200 € par mois", "source": "chiffrage.md"},
+  "delay": {"text": "six mois jusqu'à la mise en service", "source": "chiffrage.md"},
+  "risks": [
+    {"text": "Le connecteur vers l'outil de gestion dépend d'une API à créer par l'éditeur.", "mitigation": "la demander dès le lancement."}
+  ],
+  "decisions": [
+    {"question": "Validez-vous l'option A pour lancer la réalisation ?", "options": ["oui", "non"], "due": "comité du 4 décembre"}
+  ],
+  "next_steps": ["Commander l'API à l'éditeur.", "Lancer le premier lot : déclaration en ligne."]
+}

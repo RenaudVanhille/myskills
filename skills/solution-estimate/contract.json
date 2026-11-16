@@ -2783,7 +2783,7 @@
     },
     {
       "name": "journeys_view.py",
-      "role": "Écrit parcours.md pour une restitution depuis <nom>.parcours.json : synthèse, puis par parcours son workflow (Mermaid : persona et étapes, sinon composants touchés), son coût et ses principaux postes dans l'hypothèse choisie, ses points d'attention (risques, hypothèses, dépendances, contrôles) ; recontrôle la somme, ne recalcule rien ; --export rend les workflows en image (diagram-export).",
+      "role": "Écrit parcours.md pour une restitution depuis <nom>.parcours.json : synthèse du coût par parcours, découpage en lots (lots propres et parcours qu'ils servent, lots partagés), puis par parcours son workflow (Mermaid : persona et étapes, sinon composants touchés), son coût et ses principaux postes dans l'hypothèse choisie, ses points d'attention (risques, hypothèses, dépendances, contrôles) ; recontrôle la somme, ne recalcule rien ; --export rend les workflows en image (diagram-export).",
       "usage": "uv run scripts/journeys_view.py chiffrage.parcours.json [--out parcours.md] [--scenario ID] [--export png|svg] | --schema",
       "options": {
         "chiffrage.parcours.json": "vue par parcours écrite par estimate_build.py (chiffrage avec journeys)",

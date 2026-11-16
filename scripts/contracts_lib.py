@@ -20,10 +20,10 @@ FRONTMATTER = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
 # Modules partagés (shared/scripts/) copiés dans scripts/lib/ des skills qui s'en servent.
 LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdown-publish", "mockup-to-html"],
-             "script_report.py": ["doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
+             "script_report.py": ["architecture-dossier", "doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
                                   "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
-             "text_tools.py": ["architecture-options", "architecture-review", "data-model", "decision-log",
+             "text_tools.py": ["architecture-dossier", "architecture-options", "architecture-review", "data-model", "decision-log",
                                "domain-design", "markdown-publish", "meeting-notes", "operations-dossier", "process-diagram", "requirements-catalog",
                                "solution-estimate", "tender-response", "test-plan", "threat-model",
                                "well-architected-review"],

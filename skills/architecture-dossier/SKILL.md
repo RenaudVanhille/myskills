@@ -13,12 +13,16 @@ reprend les livrables déjà validés : vous n'écrivez que la synthèse.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
-- **Entrées** : Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal) ; synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier ; Facultatif : un gabarit de sections (JSON) propre à l'organisation ; Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON ; Pour un mémoire technique : le dépouillement ao.json (tender-response) et les sections écrites dans memoire/ (gabarit memoire).
-- **Sorties** : dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés ; plan-actions.md et plan-actions.csv : plan d'actions unique, dédoublonné et priorisé, tiré des revues (CSV importable dans Jira ou Azure DevOps) ; memoire-technique.md : mémoire technique dans l'ordre des critères de notation, chaque critère rappelé, couverture et pages contrôlées.
+- **Entrées** : Dossier d'un workflow d'architecture (livrables validés : exigences.md, options.md, ADR, schémas PNG, revue, menaces, Well-Architected, chiffrage, journal) ; synthese.md : la synthèse pour le comité, seule pièce écrite pour le dossier ; Facultatif : un gabarit de sections (JSON) propre à l'organisation ; Pour actions.py : les revues déjà produites du dossier (*.wa.md, *.threats.md, *.aipd.md, revue.md) ; facultatif, l'affectation (responsable, échéance) en JSON ; Pour un mémoire technique : le dépouillement ao.json (tender-response) et les sections écrites dans memoire/ (gabarit memoire) ; Pour une restitution : synthese.json (besoin, solution, bénéfices reliés aux exigences, coût et délai sourcés, trois risques au plus, décisions attendues), le catalogue exigences.json et, s'il existe, le chiffrage par parcours <nom>.parcours.json ; facultatif, termes.json (sigles et jargon propres au projet).
+- **Sorties** : dossier-architecture.md : DAT en un seul Markdown (sommaire, sections numérotées, pièces reprises, schémas intégrés, annexes), liens vérifiés ; plan-actions.md et plan-actions.csv : plan d'actions unique, dédoublonné et priorisé, tiré des revues (CSV importable dans Jira ou Azure DevOps) ; memoire-technique.md : mémoire technique dans l'ordre des critères de notation, chaque critère rappelé, couverture et pages contrôlées ; synthese.md : synthèse d'une page pour un client, un PO ou un BA (décisions attendues, besoin, solution, bénéfices liés aux exigences, coût par parcours, risques, suite) ; glossaire.md : sigles et termes techniques rencontrés avec leur définition ; rapport de lisibilité (phrases longues, score, sigles sans définition, jargon).
 - **`dossier_build.py`** : Assemble le DAT d'un dossier de workflow selon un gabarit de sections : pièces Markdown reprises (frontmatter et titre retirés, titres décalés, liens recalés), images intégrées, fichiers listés en annexe ; signale chaque section obligatoire sans pièce avec la commande qui la produit ; relit le dossier produit et vérifie chaque lien et chaque image ; avec --tender, assemble un mémoire technique dans l'ordre des critères de notation, rappelle chaque critère et son poids, contrôle la couverture des critères et le budget de pages. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`actions.py`** : Rassemble les points ouverts des revues d'un dossier (constats Well-Architected et de revue d'architecture, risques de la revue, menaces à mesure retenue, risques de l'AIPD à mesure prévue ou résiduel élevé) en un plan d'actions unique : une action par règle ou par mesure (éléments regroupés), priorité P1 à P3 tirée de la gravité, responsable et échéance par défaut ou par clé ; relit le CSV produit. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`readout.py`** : Met en page la synthèse d'une page d'une restitution pour un client, un PO ou un BA depuis synthese.json : en bref, décisions attendues du client, besoin, solution, bénéfices (chacun relié aux exigences qu'il sert, identifiants vérifiés dans le catalogue et liés), coût et délai sourcés (avec le chiffrage par parcours : total puis coût de chaque parcours, du plus cher au moins cher, sans recalcul), trois risques au plus avec leur parade, prochaines étapes ; relit la page et signale une synthèse de plus d'une page. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`readability.py`** : Contrôle la lisibilité de documents Markdown pour un public métier : phrases trop longues (exemples cités), longueur moyenne, score de lisibilité (Flesch adapté au français), sigles employés sans définition et, pour un public métier, mots de jargon avec leur équivalent simple ; un sigle est défini par le dictionnaire livré, un fichier de termes (termes.json ou le glossaire d'exigences.json) ou le texte même ; écrit le glossaire des termes rencontrés et le relit. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube.
 - **Dépend de** `tender-response` (`tender_build.py`, facultatif : sans lui, avertissement) : valider ao.json contre son schéma.
+- **Dépend de** `requirements-catalog` (`req_build.py`, facultatif : sans lui, avertissement) : valider exigences.json (identifiants des bénéfices, glossaire du projet) contre son schéma.
+- **Dépend de** `solution-estimate` (`journeys_view.py`, facultatif : sans lui, avertissement) : valider le chiffrage par parcours repris dans la synthèse contre son schéma.
 - **Passe la main** à l'agent `document-publisher` : le dossier doit être livré en Word, PDF, HTML ou XWiki.
 - **Passe la main** au skill `decision-log` : le dossier est un livrable d'étape : le soumettre à la revue (journal.py submit).
 - **Passe la main** à l'utilisateur : une section obligatoire manque : produire la pièce, ou l'écarter du gabarit avec sa raison.
@@ -30,6 +34,30 @@ comité : objet du projet, option retenue et pourquoi (reprendre la
 décision), avis de la revue s'il existe, coût total et fonctionnement
 mensuel si le chiffrage existe, points ouverts et décisions attendues.
 Reprenez les chiffres des rapports des scripts, sans relire les livrables.
+
+Pour une restitution à un client, un PO ou un BA, n'écrivez pas la page :
+écrivez `synthese.json` (`readout.py --schema`) dans les mots du métier,
+puis
+
+```bash
+uv run scripts/readout.py synthese.json [--journeys ../chiffrage.parcours.json]
+```
+
+Le script met en page `synthese.md` : décisions attendues du client,
+besoin, solution, bénéfices (chaque exigence clé reformulée, « l'assuré
+déclare un sinistre en 5 minutes », avec ses identifiants, vérifiés et
+liés), coût et délai sourcés (avec `--journeys`, total et coût de chaque
+parcours repris du chiffrage), trois risques au plus, suite. Puis
+
+```bash
+uv run scripts/readability.py synthese.md parcours.md --terms ../exigences.json [--terms termes.json] [--glossary glossaire.md]
+```
+
+signale les phrases de plus de 25 mots, un score de lecture bas, les
+sigles sans définition et le jargon (avec son équivalent simple), et écrit
+le glossaire des termes rencontrés (dictionnaire livré, glossaire du
+catalogue d'exigences, `termes.json` : `{"terms": {"SIGLE": "définition"}}`).
+Corrigez la description d'après le rapport, sans relire la page.
 `contexte.md` (enjeux, périmètre, hors périmètre) est facultatif.
 
 ## 2. Assembler
@@ -56,8 +84,9 @@ avec `--out dossier-migration.md`) : synthèse, évaluation 6R, feuille de
 route, cible et chiffrage. `--template documentation` (workflow
 `documentation`, `--out documentation.md`) : synthèse, schémas, index et
 documents d'origine. `--template restitution` (workflow `restitution`,
-`--out restitution.md`) : décision attendue, vue d'ensemble et support en
-annexe. `--template existant` (workflow `retro-documentation`, `--out
+`--out restitution.md`) : en deux niveaux de lecture, la synthèse, le coût
+par parcours et les lots, les schémas métier et le glossaire, puis en
+annexe technique les vues C4, les options et la décision. `--template existant` (workflow `retro-documentation`, `--out
 dossier-existant.md`) : C4 constaté, modèle actuel, revue, découpage et
 trajectoire. `--template evolution` (workflow `evolution`, `--out
 dossier-evolution.md`) : écarts d'exigences et de contrat, options,

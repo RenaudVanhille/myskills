@@ -2363,15 +2363,22 @@
           ]
         },
         {
+          "file": "restitution/synthese.json",
+          "contains": [
+            "\"benefits\""
+          ]
+        },
+        {
           "file": "restitution/synthese.md",
           "contains": [
-            "##"
+            "## Décisions attendues de votre part"
           ]
         }
       ],
       "rubric": [
         "Le workflow restitution est mené dans le sous-dossier restitution/, sans modifier options.json, exigences.json ni decision.json du dossier parent.",
-        "synthese.md tient sur une page : décision demandée, recommandation et pourquoi dans les mots du métier, risques, suite.",
+        "synthese.md est mise en page par readout.py depuis synthese.json, pas écrite à la main : décisions attendues, besoin, solution dans les mots du métier, bénéfices reliés aux exigences, trois risques au plus, suite.",
+        "Les avertissements de readability.py sur synthese.md sont traités : phrases coupées, jargon remplacé, sigles définis.",
         "Au moins un brief de schéma (schemas/briefs/*.json) est contrôlé par brief.py et vise un public non technique.",
         "L'étape messages est soumise à la revue, pas validée par l'agent."
       ]

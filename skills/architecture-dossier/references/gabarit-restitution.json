@@ -1,12 +1,19 @@
 {
   "title": "Restitution",
   "sections": [
-    {"id": "synthese", "title": "Décision attendue et recommandation", "sources": ["synthese.md"], "required": true,
-     "help": "décision demandée, recommandation et pourquoi, coût, délai, risques et conditions, prochaines étapes"},
-    {"id": "schemas", "title": "Vue d'ensemble", "kind": "images", "sources": ["schemas/**/*.png"], "required": true,
-     "help": "schémas du public visé : diagram-brief puis excalidraw-diagram ou c4-architecture"},
-    {"id": "parcours", "title": "Parcours utilisateurs : workflow, coût et points d'attention", "sources": ["parcours.md"],
+    {"id": "synthese", "title": "En une page : décisions attendues, solution, coût et risques", "sources": ["synthese.md"], "required": true,
+     "help": "readout.py synthese.json --journeys ../*.parcours.json : décisions attendues, besoin, solution, bénéfices, coût par parcours, trois risques, suite"},
+    {"id": "parcours", "title": "Coût par parcours et découpage en lots", "sources": ["parcours.md"],
      "help": "facultatif : journeys_view.py (solution-estimate) sur le chiffrage par parcours"},
+    {"id": "schemas", "title": "Vue d'ensemble et processus métier", "kind": "images", "required": true,
+     "sources": ["schemas/*.png", "schemas/excalidraw/**/*.png", "schemas/process/**/*.png", "schemas/mermaid/**/*.png", "schemas/drawio/**/*.png"],
+     "help": "schémas métier : diagram-brief puis excalidraw-diagram (vue d'ensemble), process-diagram (processus) ; les vues C4 vont en annexe technique"},
+    {"id": "glossaire", "title": "Glossaire", "sources": ["glossaire.md"], "required": true,
+     "help": "readability.py synthese.md parcours*.md --terms ../exigences.json --glossary glossaire.md"},
+    {"id": "technique-schemas", "title": "Annexe technique : vues d'architecture", "kind": "images", "sources": ["schemas/c4/**/*.png"],
+     "intro": "Pour les équipes techniques : vues C4 de l'option retenue."},
+    {"id": "technique-options", "title": "Annexe technique : options étudiées et décision", "sources": ["../options.md", "../adr-*.md"],
+     "intro": "Pour les équipes techniques : le détail des options comparées et la décision d'architecture."},
     {"id": "presentation", "title": "Annexe : support de présentation", "kind": "files", "sources": ["presentation.md"]},
     {"id": "journal", "title": "Annexe : journal des choix", "sources": ["journal.md"]}
   ]
