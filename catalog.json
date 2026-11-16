@@ -316,7 +316,8 @@
       "produces": [
         "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
         "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
-        "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
+        "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints, niveau recommandé dans level), validé par check_message.py",
+        "L'agent choisi lancé comme sous-agent, au modèle de son niveau, et ses questions ou portes de revue relayées à l'utilisateur ; repli : l'agent à lancer et son niveau donnés à l'utilisateur quand l'outil ne permet pas de sous-agent",
         "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
       ],
       "never": [
@@ -378,7 +379,7 @@
           ]
         }
       ],
-      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question.",
+      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et le lance comme sous-agent, au modèle de son niveau, avec un message validé. Ne fait aucun travail métier et pose au plus une question.",
       "skills": [
         "agent-handoff",
         "mission-workspace"
