@@ -93,6 +93,7 @@ COMPANIONS = ("exigences.md", "options.md", "adr-architecture.md", "domaines.md"
 MOCKUP_FILES = {".css", ".png", ".svg", ".jpg", ".jpeg", ".webp", ".tsx", ".ts", ".vue", ".scss", ".html"}
 CODE_FILES = {".tsx", ".ts", ".vue", ".scss"}
 BOOTSTRAP = re.compile(r"^bootstrap-(\d[\w.]*)\.min\.css$")
+UPDATED = re.compile(r"^updated: .*$", re.M)
 FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.S)
 STORY = re.compile(r"^#### S-\d+\.\d+ : ", re.M)
 
@@ -280,7 +281,8 @@ def render(model: dict, folder: Path, out: Path, copies: list, missing: list[str
     docs["livraison.md"] = pack_render.livraison(model, ux_lines)
     found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
     annexes = place(found, out, "annexes", copies, folder)
-    return {"README.md": pack_render.readme(model, list(docs), annexes, missing), **docs}
+    docs = {"README.md": pack_render.readme(model, list(docs), annexes, missing), **docs}
+    return {name: (pack_render.describe(model, name, front, body), body) for name, (front, body) in docs.items()}
 
 
 def verify(docs: dict, model: dict, out: Path, bundle: list, roots: list[Path]) -> list[str]:
@@ -323,9 +325,10 @@ def write(docs: dict, out: Path, bundle: list, force: bool, hashes: dict, warnin
             files.append({"file": name, "status": "garde"})
             continue
         old = path.read_text(encoding="utf-8") if path.is_file() else ""
-        same = FRONT.sub("", old, count=1).lstrip("\n") == body
+        text = document(front, body, created or date.today().isoformat())
+        same = UPDATED.sub("", old) == UPDATED.sub("", text)
         if not same:
-            path.write_text(document(front, body, created or date.today().isoformat()), encoding="utf-8", newline="\n")
+            path.write_text(text, encoding="utf-8", newline="\n")
         hashes[name] = digest(body)
         files.append({"file": name, "status": "inchange" if same else "ecrit"})
     for target, data in bundle:

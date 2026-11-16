@@ -7,6 +7,7 @@ d'origine du catalogue entre parenthèses. Une section sans donnée est omise. C
 (frontmatter, corps).
 
     readme(m, docs, annexes, missing), fonctionnel(m), architecture(m), tests(m), livraison(m, ux_lines)
+    describe(m, name, front, body) -> frontmatter complet, pour qu'un agent choisisse et relie les documents
 """
 
 import re
@@ -196,7 +197,7 @@ def fonctionnel(m: dict) -> tuple[dict, str]:
         section("Questions ouvertes", "\n".join(f"{i}. {q}" for i, q in enumerate(open_questions(m), 1))),
         section("Hypothèses et prérequis", bullets(assumptions(m))),
     ])
-    return {"title": f"Spécification fonctionnelle : {m['name']}", "document": "fonctionnel"}, body
+    return {"title": f"Spécification fonctionnelle : {m['name']}", "type": "fonctionnel"}, body
 
 
 # --- Architecture ------------------------------------------------------------------------------------------
@@ -308,7 +309,7 @@ def architecture(m: dict) -> tuple[dict, str]:
         section("Options écartées", rejected(m)),
         section("Risques et points à fixer", pending(m)),
     ])
-    return {"title": f"Spécification d'architecture : {m['name']}", "document": "architecture"}, body
+    return {"title": f"Spécification d'architecture : {m['name']}", "type": "architecture"}, body
 
 
 # --- Tests -------------------------------------------------------------------------------------------------
@@ -351,7 +352,7 @@ def tests(m: dict) -> tuple[dict, str]:
         section("Exigences sans cas de recette", bullets(uncovered)),
         section("Couverture", matrix),
     ])
-    return {"title": f"Spécification des tests : {m['name']}", "document": "tests"}, body
+    return {"title": f"Spécification des tests : {m['name']}", "type": "tests"}, body
 
 
 # --- Livraison ---------------------------------------------------------------------------------------------
@@ -391,7 +392,7 @@ def livraison(m: dict, ux_lines: list[str]) -> tuple[dict, str]:
         section("Dépendances et préalables", bullets(d for d in deps if d)),
         section("Définition de terminé", bullets(done)),
     ])
-    return {"title": f"Plan de livraison : {m['name']}", "document": "livraison"}, body
+    return {"title": f"Plan de livraison : {m['name']}", "type": "livraison"}, body
 
 
 # --- Index -------------------------------------------------------------------------------------------------
@@ -425,4 +426,33 @@ def readme(m: dict, docs: list[str], annexes: list[str], missing: list[str]) -> 
         section("Annexes", bullets(f"[{path.split('/', 1)[-1]}]({path})" for path in annexes)),
         section("À compléter", bullets(missing)),
     ])
-    return {"title": f"Dossier de spécifications : {m['name']}", "document": "index"}, body
+    return {"title": f"Dossier de spécifications : {m['name']}", "type": "index"}, body
+
+
+# --- Frontmatter -------------------------------------------------------------------------------------------
+
+DEFINED = re.compile(r"^(?:#{2,4} |- \*\*|- |\*\*)((?:FR|NFR|AD|S|T|UX)-[\w.]*\w)(?: :|\*\* :| ·)", re.M)
+CITED = re.compile(r"\b((?:FR|NFR)-\d+)\b")
+# Identifiants dont chaque document est la source (un autre document peut les rappeler, sans les définir).
+OWNS = {"fonctionnel.md": ("FR",), "ux.md": ("UX",), "architecture.md": ("AD", "NFR"), "tests.md": ("T",),
+        "livraison.md": ("S",)}
+KINDS = {"README.md": "index", "fonctionnel.md": "fonctionnel", "ux.md": "ux", "architecture.md": "architecture",
+         "tests.md": "tests", "livraison.md": "livraison"}
+
+
+def describe(m: dict, name: str, front: dict, body: str) -> dict:
+    """Frontmatter lisible par tout agent, sans format d'outil : quoi (type, description), pour qui (audience),
+    ce que le document définit (defines) et les exigences qu'il traite (covers), les documents du dossier
+    qu'il cite (related). Le titre et le type viennent du rendu."""
+    title, covers_text, audience = DOCS.get(name, ("Index du dossier de spécifications", "liste des documents, "
+                                                   "conventions, traçabilité des exigences", "tous"))
+    defined = [ref for ref in dict.fromkeys(DEFINED.findall(body)) if ref.split("-")[0] in OWNS.get(name, ())]
+    cited = sorted(set(CITED.findall(body)) - set(defined), key=lambda ref: (ref.split("-")[0], int(ref.split("-")[1])))
+    related = [doc for doc in ["README.md", *m.get("docs", DOCS)] if doc != name and (doc in body or doc == "README.md")]
+    meta = {"title": front.get("title", title), "type": KINDS.get(name, "spec"), "product": m["name"],
+            "description": f"{title} de « {m['name']} » : {covers_text}.", "audience": audience.split(", "),
+            "language": "fr", "status": "draft"}
+    meta.update({"defines": defined} if defined else {})
+    meta.update({"covers": cited} if cited else {})
+    meta.update({"related": related} if related else {})
+    return meta

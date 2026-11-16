@@ -54,6 +54,13 @@ est obligatoire. Sans `--out`, les documents vont dans `DOSSIER/specs/`.
 | `tests.md` | stratégie, cas de recette par fonctionnalité, vérification des NFR, exigences sans cas, couverture |
 | `livraison.md` | un lot par fonctionnalité, une story S-n.m par exigence fonctionnelle avec ses critères, ordre de réalisation, dépendances, définition de terminé |
 
+Chaque document commence par un frontmatter YAML lisible par tout agent :
+`type`, `description`, `audience`, `language`, `status`, `defines` (les
+identifiants dont il est la source : FR-n, AD-n et NFR-n, T-n, S-n.m, UX-n),
+`covers` (les exigences qu'il traite sans les définir) et `related` (les
+autres documents qu'il cite). Un agent choisit ainsi le document à lire
+sans l'ouvrir.
+
 `ux.md` n'est écrit que si la mission porte ses sources, `architecture.md`
 que si elle a des options. Une ligne de pile sans version est marquée
 « à fixer » et comptée dans `counts.stack_without_version`. L'option

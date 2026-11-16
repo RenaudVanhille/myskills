@@ -147,7 +147,7 @@ def ux(m: dict, links: dict, code: list[str]) -> tuple[dict, str]:
         section("Constats de la revue UX", findings(m)),
         section("Exigences d'interface", bullets(requirements(m))),
     ])
-    return {"title": f"Spécification UX : {m['name']}", "document": "ux"}, body
+    return {"title": f"Spécification UX : {m['name']}", "type": "ux"}, body
 
 
 def requirements(m: dict) -> list[str]:
