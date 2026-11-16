@@ -116,8 +116,7 @@ def brief(m: dict) -> tuple[dict, str]:
 
 def requirement(req: dict) -> str:
     """Une exigence fonctionnelle au format du gabarit : FR, conséquences testables, notes."""
-    sources = ", ".join(dict.fromkeys(s["doc"] for s in req.get("sources", [])))
-    origin = f"*Origine : {req['id']}, priorité {req['priority']}" + (f", source {sources}" if sources else "") + ".*"
+    origin = f"*Origine : {req['id']}, priorité {req['priority']}.*"
     checks = [f"{case['expected']} ({case['id']})" for case in req["tests"]]
     if req.get("metric"):
         checks.append(f"Mesure : {req['metric']}")
@@ -173,9 +172,9 @@ def dependencies(m: dict) -> str:
                    for c in (m["option"] or {}).get("components", []) if c.get("role") == "external")
 
 
-def prd(m: dict, sources: list[str]) -> tuple[dict, str]:
-    purpose = (f"PRD de « {m['name']} », généré par myskills (skill bmad-export) depuis les livrables validés de la "
-               f"mission : {', '.join(sources)}. Les exigences fonctionnelles sont numérotées FR-n et les exigences "
+def prd(m: dict) -> tuple[dict, str]:
+    purpose = (f"PRD de « {m['name']} », tiré du catalogue d'exigences validé au cadrage. Les exigences fonctionnelles "
+               "sont numérotées FR-n et les exigences "
                "non fonctionnelles NFR-n ; l'identifiant d'origine du catalogue suit chaque exigence, et la table de "
                "correspondance est dans `addendum.md`, avec les options écartées. Le vocabulaire du glossaire "
                "s'impose aux documents suivants.")
@@ -367,7 +366,7 @@ def addendum(m: dict, companions: list[str]) -> tuple[dict, str]:
     body = join([
         f"# Addendum: {m['name']}",
         "Détail qui n'a pas sa place dans le PRD : correspondance des identifiants, options écartées et pièces "
-        "de la mission à lire à la demande.",
+        "jointes, à lire à la demande.",
         section("Requirement Traceability", table(
             ["BMAD", "Origine", "Exigence", "Priorité", "Fonctionnalité", "Composants", "Cas de recette"], rows)),
         section("Rejected Alternatives", join(rejected)),

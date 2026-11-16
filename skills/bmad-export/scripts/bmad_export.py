@@ -37,7 +37,7 @@ local mène à un fichier du bundle. Un fichier modifié depuis le dernier expor
 écrasé sans --force.
 
     uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID]
-                                  [--no-epics] [--force] | --schema
+                                  [--no-epics] [--force] | --check BUNDLE | --schema
 """
 
 import argparse
@@ -58,7 +58,9 @@ from skill_paths import absent, load_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
 
 LAYOUT = "bmad-method-6"
-MARK = "myskills bmad-export"
+MARK = "myskills bmad-export"  # marque des exports d'avant le bundle autonome, encore reconnue
+# État des exports, gardé côté mission (jamais dans le bundle) : empreinte de chaque artefact écrit.
+STATE = ".bmad-export.json"
 # Livrable -> (fichiers possibles dans le dossier du workflow, skill et script dont le schéma le valide).
 PIECES = {
     "requirements": (("exigences.json",), "requirements-catalog", "req_build.py"),
@@ -238,23 +240,45 @@ def digest(body: str) -> str:
 
 
 def document(front: dict, body: str, created: str) -> str:
-    """Fichier complet : frontmatter (valeurs en JSON, donc en YAML valide), marque et empreinte du corps."""
-    meta = {**front, "created": created, "updated": date.today().isoformat(),
-            "generated_by": MARK, "export_hash": digest(body)}
+    """Fichier complet : frontmatter de BMAD (valeurs en JSON, donc en YAML valide), sans trace de la mission
+    ni de l'outil : l'empreinte du corps est gardée dans l'état de l'export, côté mission."""
+    meta = {**front, "created": created, "updated": date.today().isoformat()}
     lines = [f"{key}: {json.dumps(value, ensure_ascii=False)}" for key, value in meta.items()]
     return "---\n" + "\n".join(lines) + "\n---\n\n" + body
 
 
-def previous(path: Path) -> tuple[str | None, bool]:
-    """Date de création d'un fichier déjà exporté, et s'il a été modifié depuis (empreinte différente,
-    ou fichier qui ne vient pas de cet export)."""
+def previous(path: Path, known: str | None) -> tuple[str | None, str | None]:
+    """Date de création d'un fichier déjà exporté et son corps s'il a été modifié depuis le dernier export
+    (empreinte `known` de l'état, ou marque d'un export plus ancien ; sans l'une ni l'autre, le fichier ne
+    vient pas de cet export)."""
     if not path.is_file():
-        return None, False
+        return None, None
     text = path.read_text(encoding="utf-8")
     head = FRONT.match(text)
     meta = dict(re.findall(r'^(\w+):\s*"?([^"\n]*)"?\s*$', head.group(1), re.M)) if head else {}
     body = text[head.end():].lstrip("\n") if head else text
-    return meta.get("created"), meta.get("generated_by") != MARK or meta.get("export_hash") != digest(body)
+    known = known or (meta.get("export_hash") if meta.get("generated_by") == MARK else None)
+    return meta.get("created"), None if known == digest(body) else body
+
+
+def load_state(folder: Path, planning: Path) -> dict:
+    """Empreintes du dernier export vers ce dossier de planification."""
+    try:
+        state = json.loads((folder / STATE).read_text(encoding="utf-8"))
+        return state.get("exports", {}).get(planning.as_posix(), {}).get("files", {})
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def save_state(folder: Path, planning: Path, hashes: dict, used: list[str]) -> None:
+    path = folder / STATE
+    try:
+        state = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    except ValueError:
+        state = {}
+    state.setdefault("exports", {})[planning.as_posix()] = {"date": date.today().isoformat(), "pieces": used,
+                                                            "files": hashes}
+    path.write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
 def render_ux(model: dict, folder: Path, planning: Path, copies: list) -> dict:
@@ -269,9 +293,9 @@ def render_ux(model: dict, folder: Path, planning: Path, copies: list) -> dict:
     return docs
 
 
-def render(model: dict, used: list[str], linked: list[str], ux: dict, epics: bool) -> dict:
+def render(model: dict, linked: list[str], ux: dict, epics: bool) -> dict:
     """Artefacts à écrire : chemin dans le dossier de planification -> (frontmatter, corps)."""
-    docs = {"brief.md": bmad_render.brief(model), "prd.md": bmad_render.prd(model, used)}
+    docs = {"brief.md": bmad_render.brief(model), "prd.md": bmad_render.prd(model)}
     inputs = ["prd.md"]
     if model["option"]:
         docs["architecture.md"] = bmad_render.architecture(model, ["addendum.md"] + linked)
@@ -282,7 +306,7 @@ def render(model: dict, used: list[str], linked: list[str], ux: dict, epics: boo
     return {**docs, **ux}
 
 
-def verify(docs: dict, model: dict, planning: Path, bundle: list) -> list[str]:
+def verify(docs: dict, model: dict, planning: Path, bundle: list, roots: list[Path]) -> list[str]:
     """Relecture des artefacts avant écriture : identifiants, stories, titres reconnus par BMAD, liens
     restés dans le bundle (artefacts et copies)."""
     errors = []
@@ -295,33 +319,37 @@ def verify(docs: dict, model: dict, planning: Path, bundle: list) -> list[str]:
             errors.append(f"epics.md : {len(EPIC.findall(text))} epics et {len(STORY.findall(text))} stories "
                           f"reconnues, {len(model['features'])} et {len(model['frs'])} attendues")
     coming = {target.resolve() for target, _ in bundle} | {(planning / name).resolve() for name in docs}
-    texts = [(name, body) for name, (_, body) in docs.items()]
+    texts = [(name, document(front, body, "")) for name, (front, body) in docs.items()]
     texts += [(target.relative_to(planning).as_posix(), data.decode("utf-8", errors="replace"))
               for target, data in bundle if target.suffix.lower() in bmad_bundle.TEXT]
     for name, body in texts:
         if "```mermaid\n```" in body:
             errors.append(f"{name} : schéma Mermaid vide")
         errors += bmad_bundle.escapes(name, body, planning, coming)
+        errors += bmad_bundle.foreign(name, body, roots)
     return errors
 
 
-def write(docs: dict, planning: Path, bundle: list, force: bool, warnings: list[str]) -> list[dict]:
-    """Écrit les artefacts ; garde un fichier modifié depuis le dernier export, sauf --force."""
+def write(docs: dict, planning: Path, bundle: list, force: bool, hashes: dict, warnings: list[str]) -> list[dict]:
+    """Écrit les artefacts ; garde un fichier modifié depuis le dernier export, sauf --force. `hashes` (état de
+    l'export) reçoit l'empreinte de chaque artefact écrit ou inchangé."""
     planning.mkdir(parents=True, exist_ok=True)
     files = []
     for name, (front, body) in docs.items():
         path = planning / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        created, changed = previous(path)
-        if changed and not force:
+        created, edited = previous(path, hashes.get(name))
+        if edited is not None and edited != body and not force:
             warnings.append(f"{name} modifié depuis le dernier export (ou écrit par BMAD) : gardé tel quel, "
                             "--force pour l'écraser")
             files.append({"file": name, "status": "garde"})
             continue
         text = document(front, body, created or date.today().isoformat())
-        same = path.is_file() and FRONT.sub("", path.read_text(encoding="utf-8"), count=1).lstrip("\n") == body
+        old = path.read_text(encoding="utf-8") if path.is_file() else ""
+        same = FRONT.sub("", old, count=1).lstrip("\n") == body and f'generated_by: "{MARK}"' not in old
         if not same:
             path.write_text(text, encoding="utf-8", newline="\n")
+        hashes[name] = digest(body)
         files.append({"file": name, "status": "inchange" if same else "ecrit"})
     for target, data in bundle:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -348,6 +376,9 @@ def main() -> int:
     parser.add_argument("--option", help="option d'architecture à exporter (défaut : celle de la décision)")
     parser.add_argument("--no-epics", action="store_true", help="n'écrit pas l'ébauche epics.md")
     parser.add_argument("--force", action="store_true", help="écrase un artefact modifié depuis le dernier export")
+    parser.add_argument("--check", type=Path, metavar="BUNDLE",
+                        help="contrôle seul un bundle déjà écrit, où qu'il soit copié (liens internes, aucun chemin "
+                             "de la machine), sans rien exporter")
     schema_option(parser)
     args = parser.parse_args()
     if args.schema:
@@ -363,6 +394,15 @@ def main() -> int:
         return code
 
     errors, warnings = report["errors"], report["warnings"]
+    if args.check:
+        if not args.check.is_dir():
+            errors.append(f"{args.check} : dossier introuvable")
+            return done(1)
+        read, found = bmad_bundle.audit(args.check.resolve())
+        errors += found
+        report.update(input=str(args.check), output=str(args.check.resolve()), counts={"files": read},
+                      next="" if found else "bundle autonome : il peut être copié ou transmis seul")
+        return done(1 if found else 0)
     if not (folder / "exigences.json").is_file():
         errors.append(f"exigences.json introuvable dans {args.folder} : menez d'abord l'étape des exigences "
                       "(requirements-catalog : req_build.py exigences.json)")
@@ -384,13 +424,15 @@ def main() -> int:
     copies: list = []
     found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
     linked = place(found, planning, "sources", copies, folder)
-    docs = render(model, used, linked, render_ux(model, folder, planning, copies), not args.no_epics)
+    docs = render(model, linked, render_ux(model, folder, planning, copies), not args.no_epics)
     bundle, notes = bmad_bundle.pack(copies, planning, folder)
     warnings += notes
-    errors += verify(docs, model, planning, bundle)
+    errors += verify(docs, model, planning, bundle, [folder, planning, root or folder])
     if errors:
         return done(1)
-    report["files"] = write(docs, planning, bundle, args.force, warnings)
+    hashes = load_state(folder, planning)
+    report["files"] = write(docs, planning, bundle, args.force, hashes, warnings)
+    save_state(folder, planning, hashes, used)
     report["output"] = str(planning)
     report["option"] = (model["option"] or {}).get("id")
     report["counts"] = {**counts(model), "copies": len(bundle)}

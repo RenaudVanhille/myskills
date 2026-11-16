@@ -4660,21 +4660,22 @@
       ],
       "outputs": [
         "Dans le dossier de planification de BMAD Method v6 (_bmad-output/planning-artifacts, ou celui de la configuration _bmad/ du projet) : brief.md, prd.md (FR-n par fonctionnalité, NFR-n, glossaire, périmètre, questions, hypothèses), architecture.md (décisions AD-n, flux et entités en Mermaid, interfaces, pile technique avec frameworks et versions), epics.md (ébauche des epics et stories) et addendum.md (correspondance des identifiants, options écartées, pièces de la mission)",
-        "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes d'origine, maquettes HTML au complet (pages, styles, images, code de la bibliothèque visée) et rendus copiés dans mockups/ ; bundle autonome : pièces citées copiées dans sources/, liens recalés sur les copies, aucun lien vers la mission ni le vault",
+        "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes d'origine, maquettes HTML au complet (pages, styles, images, code de la bibliothèque visée) et rendus copiés dans mockups/ ; bundle autonome : pièces citées copiées dans sources/, liens recalés sur les copies, aucun lien ni trace de la mission ou du vault : il se copie ou se transmet seul",
         "Rapport : fichiers écrits, gardés ou inchangés, compteurs, pièces absentes, suite dans BMAD"
       ],
       "scripts": [
         {
           "name": "bmad_export.py",
-          "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, aucun lien hors du bundle : liens Markdown, HTML et CSS des copies recalés, notes du vault et wikilinks réduits à leur texte, lien sortant refusé) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
-          "usage": "uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID] [--no-epics] [--force] | --schema",
+          "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, aucun lien hors du bundle ni trace de la mission (noms des pièces et des documents sources, chemins absolus, marque et empreinte dans le frontmatter) : liens Markdown, HTML et CSS des copies recalés, notes du vault et wikilinks réduits à leur texte, lien sortant refusé) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
+          "usage": "uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID] [--no-epics] [--force] | --check BUNDLE | --schema",
           "options": {
             "DOSSIER": "dossier du workflow ou de la mission (défaut : le dossier courant)",
             "--out": "racine du projet BMAD cible (défaut : DOSSIER) ; dans tous les cas, les pièces citées sont copiées dans sources/ et les maquettes HTML dans mockups/ du dossier UX",
             "--file": "description facultative (défaut : DOSSIER/bmad.json s'il existe)",
             "--option": "option d'architecture à exporter (défaut : decision.json, sinon la recommandation)",
             "--no-epics": "n'écrit pas l'ébauche epics.md",
-            "--force": "écrase un artefact modifié depuis le dernier export",
+            "--force": "écrase un artefact modifié depuis le dernier export (empreintes gardées dans .bmad-export.json du dossier de la mission, jamais dans le bundle)",
+            "--check": "contrôle seul un bundle déjà écrit, où qu'il ait été copié : chaque lien mène à un fichier du bundle, aucun wikilink, chemin absolu ni URL file: ; code 1 sinon, sans rien exporter",
             "--schema": "affiche le schéma JSON de bmad.json sur une ligne, puis s'arrête"
           },
           "input": {
@@ -4961,7 +4962,7 @@
                     "type": "integer",
                     "minimum": 0
                   },
-                  "description": "features, fr, nfr, stories, glossary, decisions, questions, without_criteria (FR sans critère d'acceptation), stack, stack_without_version, screens, ux_findings, copies (fichiers copiés dans le bundle)"
+                  "description": "features, fr, nfr, stories, glossary, decisions, questions, without_criteria (FR sans critère d'acceptation), stack, stack_without_version, screens, ux_findings, copies (fichiers copiés dans le bundle) ; avec --check : files (fichiers lus)"
                 },
                 "missing": {
                   "type": "array",

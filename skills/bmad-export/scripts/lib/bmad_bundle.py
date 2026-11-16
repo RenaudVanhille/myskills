@@ -8,6 +8,8 @@ autre Markdown de la mission) ou vers un fichier absent devient du texte.
 
     pack(copies, planning, folder) -> (fichiers à écrire, avertissements)
     escapes(name, text, planning, coming) -> liens qui sortent du bundle ou n'y mènent à rien
+    foreign(name, text, roots) -> chemins de la machine (absolus, file:, dossier de la mission) cités
+    audit(planning) -> contrôle d'un bundle déjà écrit, où qu'il ait été copié
 """
 from __future__ import annotations
 
@@ -27,6 +29,9 @@ ATTR = re.compile(r"\b(src|href|poster|data-src)(\s*=\s*)([\"'])([^\"']*)\3", re
 CSS_URL = re.compile(r"url\(\s*([\"']?)([^\"')]+)\1\s*\)")
 CSS_IMPORT = re.compile(r"(@import\s+)([\"'])([^\"']+)\2")
 # Ancre, schéma d'au moins deux lettres (une lettre seule est un lecteur Windows), adresse sans schéma.
+# Chemin absolu d'une machine (Unix, macOS, Windows) ou URL file: : sans valeur une fois le bundle copié ailleurs.
+ABSOLUTE = re.compile(r"file:/|(?<![\w.~-])/(?:home|Users|tmp|mnt|root|Volumes)/[^\s)\"'`]*"
+                      r"|(?<![\w])[A-Za-z]:[\\/]Users[\\/][^\s)\"'`]*")
 EXTERNAL = re.compile(r"^(#|[a-z][a-z0-9+.-]+:|//)", re.I)
 
 
@@ -172,3 +177,24 @@ def escapes(name: str, text: str, planning: Path, coming: set[Path]) -> list[str
         elif path not in coming and not path.exists():
             found.append(f"{name} : lien introuvable {target}")
     return found
+
+
+def foreign(name: str, text: str, roots: list[Path]) -> list[str]:
+    """Chemins de la machine cités dans un fichier du bundle : chemin absolu, URL file:, dossier de la mission."""
+    found = [f"{name} : chemin absolu {m.group(0)[:80]} : sans valeur une fois le bundle copié ailleurs"
+             for m in ABSOLUTE.finditer(text)]
+    found += [f"{name} : chemin de la mission {root.as_posix()}" for root in dict.fromkeys(roots)
+              if root.as_posix() in text.replace("\\", "/")]
+    return found
+
+
+def audit(planning: Path) -> tuple[int, list[str]]:
+    """Contrôle d'un bundle sur disque : chaque lien mène à un fichier du bundle, aucun wikilink ni chemin de
+    la machine. Rend le nombre de fichiers lus et les erreurs."""
+    files = [p for p in sorted(planning.rglob("*")) if p.is_file()]
+    errors = []
+    for path in files:
+        if path.suffix.lower() in TEXT:
+            name, text = path.relative_to(planning).as_posix(), path.read_text(encoding="utf-8", errors="replace")
+            errors += escapes(name, text, planning, set()) + foreign(name, text, [])
+    return len(files), errors
