@@ -17,8 +17,12 @@ BMAD (`_bmad-output/planning-artifacts`, ou celui de la configuration `_bmad/` d
 - `ux-designs/ux-<nom>/DESIGN.md` et `EXPERIENCE.md` : les deux documents UX de BMAD, quand la mission a
   un design system (design-system.json), des pages décrites d'après les maquettes (pages/*.json), une
   revue UX (revue-ux.json) ou un découpage en composants (decoupage.json) ; maquettes d'origine,
-  maquettes HTML (pages, styles, images, code de la bibliothèque visée) et rendus liés, ou copiés dans
-  mockups/ quand l'export sort du dossier de la mission.
+  maquettes HTML (pages, styles, images, code de la bibliothèque visée) et rendus copiés dans mockups/.
+
+Le dossier de planification est un bundle autonome : les pièces citées sont copiées dans sources/ et
+mockups/, leurs liens (Markdown, wikilinks, HTML, CSS) recalés sur les copies, une image ou une feuille de
+style qu'elles visent copiée à son tour ; un lien vers une note du vault ou un autre fichier de la mission
+devient du texte. Aucun lien ne sort du bundle : l'export échoue sinon.
 
 La pile technique d'architecture.md vient de bmad.json (`stack`, avec les versions), de la bibliothèque
 d'interface visée par le découpage des maquettes et de la technologie des composants de l'option, avec
@@ -29,7 +33,7 @@ parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnali
 
 Avant d'écrire, le script relit ce qu'il a produit : chaque exigence retenue a son identifiant BMAD dans
 le PRD, chaque FR sa story, les titres d'epics et de stories passent les expressions de BMAD, chaque lien
-local existe. Un fichier modifié depuis le dernier export (par vous ou par un agent BMAD) n'est pas
+local mène à un fichier du bundle. Un fichier modifié depuis le dernier export (par vous ou par un agent BMAD) n'est pas
 écrasé sans --force.
 
     uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID]
@@ -39,15 +43,14 @@ local existe. Un fichier modifié depuis le dernier export (par vous ou par un a
 import argparse
 import hashlib
 import json
-import os
 import re
-import shutil
 import sys
 import unicodedata
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+import bmad_bundle  # noqa: E402
 import bmad_model  # noqa: E402
 import bmad_render  # noqa: E402
 import bmad_ux  # noqa: E402
@@ -87,7 +90,6 @@ CODE_FILES = {".tsx", ".ts", ".vue", ".scss"}
 BOOTSTRAP = re.compile(r"^bootstrap-(\d[\w.]*)\.min\.css$")
 SETTING = re.compile(r"^\s*planning_artifacts\s*[:=]\s*[\"']?([^\"'\n#]+)", re.M)
 FRONT = re.compile(r"\A---\n(.*?)\n---\n", re.S)
-LINK = re.compile(r"\]\(([^)\s]+)\)")
 # Mêmes expressions que sprint_plan.py de BMAD (bmad-sprint-planning) pour les titres d'epics et de stories.
 EPIC = re.compile(r"^#{1,3}\s*Epic\s+(\d+)\s*:?\s*(.*?)\s*#*\s*$", re.I | re.M)
 STORY = re.compile(r"^#{2,4}\s*Story\s+(\d+)\.(\d+[a-z]?)\s*:?\s*(.*?)\s*#*\s*$", re.I | re.M)
@@ -186,12 +188,10 @@ def planning_dir(root: Path) -> Path:
     return (root / "_bmad-output" / "planning-artifacts").resolve()
 
 
-def place(paths: list[Path], folder: Path, base: Path, store: str, copies: list, root: Path | None = None) -> list[str]:
-    """Liens vers des pièces de la mission, vus du dossier `base` : relatifs si l'export reste dans le
-    dossier de la mission, sinon vers leur copie (à faire) dans `base/store`, sous le même chemin que
-    dans `root` si elles y sont (une page HTML retrouve ainsi sa feuille de style et ses images)."""
-    if base.is_relative_to(folder):
-        return [Path(os.path.relpath(p, base)).as_posix() for p in paths]
+def place(paths: list[Path], base: Path, store: str, copies: list, root: Path | None = None) -> list[str]:
+    """Liens vers la copie (à faire) de pièces de la mission dans `base/store`, jamais vers l'original :
+    sous le même chemin que dans `root` si elles y sont (une page HTML retrouve ainsi sa feuille de style
+    et ses images)."""
     names = [p.relative_to(root).as_posix() if root and p.is_relative_to(root) else p.name for p in paths]
     copies += [(p, base / store / name) for p, name in zip(paths, names)]
     return [f"{store}/{name}" for name in names]
@@ -211,7 +211,7 @@ def screen_links(folder: Path, pages: list, base: Path, copies: list) -> dict:
         found += [("HTML", root / f"{name}.html"), ("rendu", root / f"{name}.render.png"),
                   ("comparaison", root / f"{name}.compare.png")]
         found = [(label, path) for label, path in found if path.is_file()]
-        placed = place([path for _, path in found], folder, base, "mockups", copies, root)
+        placed = place([path for _, path in found], base, "mockups", copies, root)
         links[name] = [(label, target) for (label, _), target in zip(found, placed)]
     return links
 
@@ -223,7 +223,7 @@ def mockup_code(folder: Path, base: Path, copies: list) -> list[str]:
     root = folder / "pages"
     files = [p for p in sorted(root.rglob("*")) if p.is_file() and not p.name.startswith(".")
              and p.suffix.lower() in MOCKUP_FILES]
-    placed = place(files, folder, base, "mockups", copies, root)
+    placed = place(files, base, "mockups", copies, root)
     return [link for path, link in zip(files, placed) if path.suffix in CODE_FILES or ".component." in path.name]
 
 
@@ -282,8 +282,9 @@ def render(model: dict, used: list[str], linked: list[str], ux: dict, epics: boo
     return {**docs, **ux}
 
 
-def verify(docs: dict, model: dict, planning: Path, copies: list) -> list[str]:
-    """Relecture des artefacts avant écriture : identifiants, stories, titres reconnus par BMAD, liens."""
+def verify(docs: dict, model: dict, planning: Path, bundle: list) -> list[str]:
+    """Relecture des artefacts avant écriture : identifiants, stories, titres reconnus par BMAD, liens
+    restés dans le bundle (artefacts et copies)."""
     errors = []
     prd = docs["prd.md"][1]
     errors += [f"prd.md : {r['id']} ({r['bmad']}) absente" for r in model["frs"] + model["nfrs"]
@@ -293,18 +294,18 @@ def verify(docs: dict, model: dict, planning: Path, copies: list) -> list[str]:
         if len(EPIC.findall(text)) != len(model["features"]) or len(STORY.findall(text)) != len(model["frs"]):
             errors.append(f"epics.md : {len(EPIC.findall(text))} epics et {len(STORY.findall(text))} stories "
                           f"reconnues, {len(model['features'])} et {len(model['frs'])} attendues")
-    coming = {target.resolve() for _, target in copies} | {(planning / name).resolve() for name in docs}
-    for name, (_, body) in docs.items():
+    coming = {target.resolve() for target, _ in bundle} | {(planning / name).resolve() for name in docs}
+    texts = [(name, body) for name, (_, body) in docs.items()]
+    texts += [(target.relative_to(planning).as_posix(), data.decode("utf-8", errors="replace"))
+              for target, data in bundle if target.suffix.lower() in bmad_bundle.TEXT]
+    for name, body in texts:
         if "```mermaid\n```" in body:
             errors.append(f"{name} : schéma Mermaid vide")
-        for target in LINK.findall(body):
-            path = ((planning / name).parent / target).resolve()
-            if not re.match(r"^([a-z]+:|#)", target) and not path.exists() and path not in coming:
-                errors.append(f"{name} : lien introuvable {target}")
+        errors += bmad_bundle.escapes(name, body, planning, coming)
     return errors
 
 
-def write(docs: dict, planning: Path, copies: list, force: bool, warnings: list[str]) -> list[dict]:
+def write(docs: dict, planning: Path, bundle: list, force: bool, warnings: list[str]) -> list[dict]:
     """Écrit les artefacts ; garde un fichier modifié depuis le dernier export, sauf --force."""
     planning.mkdir(parents=True, exist_ok=True)
     files = []
@@ -322,9 +323,10 @@ def write(docs: dict, planning: Path, copies: list, force: bool, warnings: list[
         if not same:
             path.write_text(text, encoding="utf-8", newline="\n")
         files.append({"file": name, "status": "inchange" if same else "ecrit"})
-    for source, target in copies:
+    for target, data in bundle:
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
+        if not target.is_file() or target.read_bytes() != data:
+            target.write_bytes(data)
     return files
 
 
@@ -381,15 +383,17 @@ def main() -> int:
     planning = planning_dir((args.out or folder).resolve())
     copies: list = []
     found = [p for pattern in COMPANIONS for p in sorted(folder.glob(pattern)) if p.is_file()]
-    linked = place(found, folder, planning, "sources", copies)
+    linked = place(found, planning, "sources", copies, folder)
     docs = render(model, used, linked, render_ux(model, folder, planning, copies), not args.no_epics)
-    errors += verify(docs, model, planning, copies)
+    bundle, notes = bmad_bundle.pack(copies, planning, folder)
+    warnings += notes
+    errors += verify(docs, model, planning, bundle)
     if errors:
         return done(1)
-    report["files"] = write(docs, planning, copies, args.force, warnings)
+    report["files"] = write(docs, planning, bundle, args.force, warnings)
     report["output"] = str(planning)
     report["option"] = (model["option"] or {}).get("id")
-    report["counts"] = counts(model)
+    report["counts"] = {**counts(model), "copies": len(bundle)}
     report["missing"] = [text for key, text in MISSING.items()
                          if (key == "extra" and not extra) or (key != "extra" and key not in pieces)]
     loose = report["counts"]["stack_without_version"]
