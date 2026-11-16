@@ -19,7 +19,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
 - **Reçoit** : Le catalogue d'exigences validé (exigences.json de requirements-catalog) ; Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là ; Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning ; Facultatif : les abaques de l'utilisateur ou de la mission (~/.myskills/abaques.json, references.abaques de mission.json), donnés avant le lancement ; sans eux, valeurs par défaut à calibrer.
-- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script ; chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script ; chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers.
+- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script ; chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script ; chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers ; chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack.
 - **Ne fait jamais** : Écrire un total, une espérance ou une fourchette à la main : le script les calcule ; Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base ; Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient ; Ajouter une marge dans un lot alors que pilotage et provision existent, ou garder un point à challenger sans le justifier dans assumptions.
 - **Passe la main** :
 
@@ -31,7 +31,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 | `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
@@ -127,7 +127,8 @@ workflow, la commande les trace aussi au journal.
 10. Livre les chemins et les chiffres du rapport (réalisation et fourchette,
    fonctionnement mensuel, coût total, budget, taux de réemploi, points à
    challenger restants, abaques par défaut ou fournis, et pour chaque
-   hypothèse de production le coût total et son écart avec sans IA), les
+   hypothèse de production le coût total et son écart avec sans IA, et le
+   coût IA du développement : médiane, fourchette P10-P90 et fiabilité), les
    hypothèses à valider,
    puis le rapport final JSON de la section Contrat. Si le coût contredit
    la note du critère coût d'une option, signale-le. Dans un workflow,

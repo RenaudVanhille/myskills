@@ -96,6 +96,7 @@
   {
    "name": "architecture",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Des documents du projet aux schémas d'architecture",
    "description": "Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'exigences, 2 ou 3 options comparées et situées dans le SI, choix de l'utilisateur et schémas ; puis, au choix de l'utilisateur, revue d'architecture et chiffrage de l'option retenue, puis le dossier d'architecture technique (DAT) qui rassemble le tout.",
    "stages": [
@@ -116,6 +117,7 @@
   {
    "name": "avant-vente",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Réponse à un appel d'offres, des documents reçus à l'offre",
    "description": "Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier de consultation en Markdown, dépouillement (dates limites, critères pondérés, pièces, clauses à risque) et qualification go / no-go menés en parallèle du catalogue d'exigences, découpage en domaines facultatif, 2 ou 3 options de solution et la décision, puis matrice de conformité, chiffrage de la solution et revue en parallèle, registre des hypothèses et questions au client, mémoire technique dans l'ordre des critères et support de soutenance ; une porte de revue par étape.",
    "stages": [
@@ -144,6 +146,7 @@
   {
    "name": "cadrage",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette",
    "description": "Workflow de cadrage de l'agent architecture-workflow : comptes rendus des ateliers et documents, au choix processus métier en couloirs, catalogue d'exigences, découpage en domaines facultatif, puis modèle de données par contexte et options d'architecture en parallèle, dimensionnement, contrats d'interface avec leurs séquences et plan de recette, puis au choix export vers BMAD Method pour le développement ; une porte de revue par étape.",
    "stages": [
@@ -167,6 +170,7 @@
   {
    "name": "cloud-existant",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Schémas et menaces d'une infrastructure existante",
    "description": "Du code d'infrastructure (Terraform, docker-compose, Kubernetes) au schéma cloud relu, puis au modèle de menaces STRIDE et à la revue Well-Architected du fournisseur.",
    "stages": [
@@ -182,6 +186,7 @@
   {
    "name": "conformite",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Conformité d'une architecture : sécurité, RGPD et hébergement",
    "description": "Des exigences et de la description cloud d'une solution (existante ou retenue) au dossier de conformité : modèle de menaces STRIDE, revue Well-Architected avec la qualification de l'hébergeur (SecNumCloud), registre des traitements et analyse d'impact (AIPD) RGPD, puis le plan d'actions qui en découle.",
    "stages": [
@@ -200,6 +205,7 @@
   {
    "name": "documentation",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Des documents en vrac à une documentation : notes du vault, synthèse, schémas et document",
    "description": "Workflow de documentation de l'agent architecture-workflow : documents hétérogènes (PDF, Office, images, vidéos) en Markdown, notes rangées dans le vault Obsidian avec leur index, synthèse pour le public visé dont chaque point cite son document, schémas au format choisi selon le public et la destination, puis un document assemblé à publier en Word, PDF ou Confluence ; une porte de revue par étape.",
    "stages": [
@@ -217,6 +223,7 @@
   {
    "name": "evolution",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Évolution d'une solution validée : écarts, impacts, décision et chiffrage du changement",
    "description": "Workflow d'évolution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier aux étapes validées : demande de changement en Markdown, copie de travail du catalogue d'exigences et écart calculé (ajoutées, modifiées, retirées, contextes bornés touchés), au choix l'écart de contrat d'interface (ruptures et version à monter) et le modèle de données modifié, au choix 2 options de mise en œuvre situées dans le SI et la décision (ADR), au choix le chiffrage du seul changement, puis le dossier d'évolution ; une porte de revue par étape.",
    "stages": [
@@ -237,6 +244,7 @@
   {
    "name": "maquettes",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend",
    "description": "Workflow des maquettes de l'agent architecture-workflow : design system tiré des maquettes ou repris du client, une page HTML mesurée et comparée bloc par bloc par écran, revue UX et accessibilité, puis découpage en composants et lots du chiffrage frontend, constats UX retenus compris ; une porte de revue par étape.",
    "stages": [
@@ -253,6 +261,7 @@
   {
    "name": "migration-cloud",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Migration d'un portefeuille d'applications vers le cloud",
    "description": "D'un inventaire d'applications à la trajectoire de migration : exigences, évaluation 6R de chaque application et vagues calculées, architecture cible relue (Well-Architected, hébergeur), au choix le chiffrage et le dossier d'exploitation, puis la feuille de route avec chemin critique et, au choix, le dossier de migration.",
    "stages": [
@@ -273,6 +282,7 @@
   {
    "name": "restitution",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Restitution d'une architecture retenue au comité ou aux décideurs",
    "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), support de présentation et document assemblé ; une porte de revue par étape.",
    "stages": [
@@ -294,6 +304,7 @@
   {
    "name": "retro-documentation",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Rétro-documentation et modernisation d'une application existante",
    "description": "Workflow de rétro-documentation de l'agent architecture-workflow : d'une application existante (un ou plusieurs dépôts, lus en local par graphify) à son architecture constatée, au choix son hébergement et son modèle de données tirés de leurs sources et ses processus métier en couloirs, puis au choix le découpage cible en domaines, la revue du code comparé à l'architecture, la trajectoire de modernisation et le dossier de l'existant ; une porte de revue par étape.",
    "stages": [
@@ -315,6 +326,7 @@
   {
    "name": "revue-dossier",
    "agent": "architecture-workflow",
+   "level": "moyen",
    "title": "Instruction d'un dossier d'architecture reçu",
    "description": "Pour un comité d'architecture : documents du dossier reçu d'un projet en Markdown, catalogue des exigences, revue d'architecture (scénarios de qualité, risques, compromis, traçabilité) avec avis calculé, puis l'avis d'architecture assemblé ; sans concevoir d'options.",
    "stages": [
@@ -672,9 +684,10 @@
    "inputs": [
     "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
     "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
-    "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions",
+    "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), ai_cost (tokens_per_day, phases, complexity, levels, models, prices, mix, exchange_rate, measured, basis), budget (dont ai), assumptions, exclusions",
     "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
     "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
+    "Grille du coût IA du développement (references/jetons-ia.json, versionnée et datée : millions de jetons par jour de l'équipe en fourchette, poids des phases et des complexités, part de chaque niveau de travail, modèle par niveau, tarifs par modèle, mélange entrée, cache, sortie mesuré sur le dépôt, taux de change), lue par le script, jamais de tarif en ligne",
     "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
     "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission",
     "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
@@ -686,7 +699,7 @@
    "level": "simple",
    "description": "Extrait d'une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) un dossier de spécifications autonome en Markdown : fonctionnel, UX, architecture, tests, livraison et un index de traçabilité, sans format propre à un outil, prêt pour le développement assisté par IA (BMAD, Spec Kit, Kiro, Copilot ou une équipe).",
    "inputs": [
-    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json, <nom>.ia.json (coût IA du développement, solution-estimate)",
     "Facultatif : specs.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
     "Facultatif : le dossier où écrire les spécifications (--out, défaut DOSSIER/specs)"
    ],

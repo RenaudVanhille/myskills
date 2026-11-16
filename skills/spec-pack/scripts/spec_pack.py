@@ -16,7 +16,8 @@ propre à un outil (BMAD, Spec Kit, Kiro, Copilot...) :
 - `architecture.md` : option retenue, décisions AD-n, pile technique et versions, composants et flux,
   données, interfaces, exigences non fonctionnelles NFR-n, options écartées, risques ;
 - `tests.md` : stratégie, cas de recette, vérification des NFR, couverture ;
-- `livraison.md` : lots et stories S-n.m, ordre, dépendances, définition de terminé.
+- `livraison.md` : lots et stories S-n.m, ordre, dépendances, définition de terminé, et le coût IA du
+  développement estimé au chiffrage (<nom>.ia.json de solution-estimate) s'il existe.
 
 Le dossier est autonome : les pièces citées sont copiées dans annexes/ et les maquettes dans maquettes/,
 leurs liens (Markdown, wikilinks, HTML, CSS) recalés sur les copies, une image ou une feuille de style
@@ -136,6 +137,27 @@ def load_pieces(folder: Path, errors: list[str], warnings: list[str]) -> tuple[d
             pieces["decision"] = data
             used.append("decision.json")
     return pieces, used
+
+
+def load_ai_cost(folder: Path, used: list[str], errors: list[str], warnings: list[str]) -> str:
+    """Coût IA du développement estimé au chiffrage (<nom>.ia.json de solution-estimate) : section de livraison.md."""
+    found = sorted(folder.glob("*.ia.json"))
+    if not found:
+        return ""
+    path = next((p for p in found if p.name == "chiffrage.ia.json"), found[0])
+    if len(found) > 1:
+        warnings.append(f"plusieurs coûts IA du développement : {path.name} repris, les autres ignorés")
+    ai = load_module("solution-estimate", "lib/estimate_ai.py")
+    if ai is None:
+        warnings.append(f"{path.name} non repris : " + absent("solution-estimate", "lib/estimate_ai.py"))
+        return ""
+    data = read_json(path, errors)
+    invalid = check(data, ai.SUMMARY_SCHEMA, ai.SUMMARY_SCHEMA) if data is not None else []
+    errors.extend(f"{path.name} : {e}" for e in invalid[:10])
+    if data is None or invalid:
+        return ""
+    used.append(path.name)
+    return "\n".join(ai.markdown(data)[2:])
 
 
 def load_screens(folder: Path, pieces: dict, used: list[str], errors: list[str], warnings: list[str]) -> None:
@@ -438,6 +460,9 @@ def main() -> int:
     model["er"] = builder.mermaid(pieces["model"]) if builder else ""
     model["all_options"] = (pieces.get("options") or {}).get("options", [])
     warnings += notes
+    model["ai_cost"] = load_ai_cost(folder, used, errors, warnings)
+    if errors:
+        return done(1)
     out = (args.out or folder / OUT).resolve()
     copies: list = []
     report["missing"], gaps = missing_of(model, pieces, extra)

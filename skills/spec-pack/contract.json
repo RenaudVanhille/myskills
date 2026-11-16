@@ -2,12 +2,12 @@
   "skill": "spec-pack",
   "level": "simple",
   "inputs": [
-    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json, <nom>.ia.json (coût IA du développement, solution-estimate)",
     "Facultatif : specs.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
     "Facultatif : le dossier où écrire les spécifications (--out, défaut DOSSIER/specs)"
   ],
   "outputs": [
-    "Un dossier de spécifications autonome, en Markdown, sans format propre à un outil de développement IA (utilisable avec BMAD, Spec Kit, Kiro, Copilot ou une équipe) : README.md (index, conventions d'identifiants, traçabilité exigence, composants, cas, story), fonctionnel.md (vision, utilisateurs, parcours, glossaire, FR-n avec critères d'acceptation, périmètre, indicateurs, questions, hypothèses), ux.md (identité visuelle et tokens, écrans, maquettes HTML et code, composants, accessibilité, constats UX), architecture.md (architecture validée seule : décisions AD-n, alternatives du cadrage réduites à une ligne, pile technique et versions, composants et flux en Mermaid avec les schémas de l'option retenue, modèle de données complet en Mermaid et image, interfaces, NFR-n, risques), tests.md (stratégie, cas de recette, vérification des NFR, couverture), livraison.md (lots et stories S-n.m, ordre, dépendances, définition de terminé) ; chaque document ouvre sur un frontmatter YAML pour les agents (type, description, audience, language, status, defines : identifiants dont il est la source, covers : exigences traitées, related : documents cités)",
+    "Un dossier de spécifications autonome, en Markdown, sans format propre à un outil de développement IA (utilisable avec BMAD, Spec Kit, Kiro, Copilot ou une équipe) : README.md (index, conventions d'identifiants, traçabilité exigence, composants, cas, story), fonctionnel.md (vision, utilisateurs, parcours, glossaire, FR-n avec critères d'acceptation, périmètre, indicateurs, questions, hypothèses), ux.md (identité visuelle et tokens, écrans, maquettes HTML et code, composants, accessibilité, constats UX), architecture.md (architecture validée seule : décisions AD-n, alternatives du cadrage réduites à une ligne, pile technique et versions, composants et flux en Mermaid avec les schémas de l'option retenue, modèle de données complet en Mermaid et image, interfaces, NFR-n, risques), tests.md (stratégie, cas de recette, vérification des NFR, couverture), livraison.md (lots et stories S-n.m, ordre, dépendances, définition de terminé, coût IA du développement repris du chiffrage s'il existe) ; chaque document ouvre sur un frontmatter YAML pour les agents (type, description, audience, language, status, defines : identifiants dont il est la source, covers : exigences traitées, related : documents cités)",
     "Pièces citées copiées dans annexes/ (ni options.md ni ADR, schémas de la seule option retenue), maquettes HTML au complet copiées dans maquettes/, liens recalés sur les copies ; aucun lien ni trace de la mission ou du vault (ni noms de ses pièces, ni chemins de la machine) : le dossier se copie ou se transmet seul ; empreintes des documents gardées dans .spec-pack.json de la mission",
     "Rapport : documents écrits, gardés ou inchangés, compteurs, pièces absentes, suite"
   ],
@@ -398,6 +398,12 @@
       "skill": "mockup-to-html",
       "script": "ux_review.py",
       "why": "valider revue-ux.json contre son schéma",
+      "optional": true
+    },
+    {
+      "skill": "solution-estimate",
+      "script": "lib/estimate_ai.py",
+      "why": "valider et reprendre dans livraison.md le coût IA du développement estimé au chiffrage (<nom>.ia.json)",
       "optional": true
     },
     {

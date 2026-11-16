@@ -13,6 +13,8 @@ AGENTS_SRC = REPO / "src" / "agents"
 MODELS = REPO / "shared" / "models.json"
 LEVELS = ("simple", "moyen", "complexe")
 MARKER = "{{niveaux}}"
+# Ligne d'un agent source remplacée par la façon de lancer un sous-agent dans chaque outil (agent orientation).
+DELEGATION = "{{delegation}}"
 
 
 # Modèles donnés à l'installation (install.py --models), par outil puis par niveau : priment sur shared/models.json.
@@ -75,6 +77,35 @@ def levels_text(level: str, flavor: str) -> str:
         "tube masque le code de sortie et l'erreur du script."])
 
 
+def delegation_text(flavor: str) -> str:
+    """Comment lancer soi-même l'agent choisi, avec le modèle du niveau recommandé, dans l'outil cible.
+    Sources : docs Claude Code (sub-agents), VS Code (custom agents, agents/runSubagent), OpenCode (agents,
+    mode all), Kiro (custom-agents/subagents), Hermes (delegation), vérifiées le 2026-11-16."""
+    names = {lvl: model_name(model_for(lvl, flavor)) for lvl in LEVELS}
+    table = ", ".join(f"{lvl} `{names[lvl]}`" for lvl in LEVELS) if all(names.values()) else None
+    own = (f"Il prend le modèle de son niveau, écrit dans son fichier ({table})." if table else
+           "Il prend le modèle écrit dans son fichier (`install.py --models`), sinon celui de la session.")
+    if flavor == "claude":
+        return ("Lance-le avec l'outil `Agent` : `subagent_type` `myskills:<agent>` (`<agent>` seul s'il est "
+                "installé hors plugin), `model` celui du niveau recommandé"
+                + (f" ({table})" if table else "") + ", et pour consigne le dossier de travail et le "
+                "message de `passage.json`.")
+    if flavor == "copilot":
+        return ("Lance-le avec l'outil `agent` (sous-agent nommé `<agent>` ; `task` dans Copilot CLI), avec "
+                "pour consigne le dossier de travail et le message de `passage.json`. " + own)
+    if flavor == "opencode":
+        return ("Lance-le avec l'outil `task` (`subagent` en V2), agent `<agent>`, avec pour consigne le dossier "
+                "de travail et le message de `passage.json`. " + own)
+    if flavor == "kiro":
+        return ("Lance-le avec l'outil `subagent` en nommant l'agent `<agent>`, avec pour consigne le dossier "
+                "de travail et le message de `passage.json`. " + own)
+    if flavor == "hermes":
+        return ("Lance-le avec l'outil `delegate_task` : `goal` « charge le skill <agent> et traite le message "
+                "de passage », `context` le dossier de travail et le message de `passage.json`. Hermes ne choisit "
+                "pas de modèle par appel : le sous-agent prend `delegation.model` de sa configuration.")
+    raise ValueError(f"Format inconnu : {flavor}")
+
+
 def parse_agent(path: Path) -> tuple[dict[str, str], str]:
     """Renvoie (frontmatter, corps) d'un fichier agent source."""
     text = path.read_text(encoding="utf-8")
@@ -103,7 +134,7 @@ def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> s
     meta, body = parse_agent(path)
     name, desc = meta["name"], meta["description"]
     level = agent_level(name)
-    body = body.replace(MARKER, levels_text(level, flavor))
+    body = body.replace(MARKER, levels_text(level, flavor)).replace(DELEGATION, delegation_text(flavor))
     model = model_for(level, flavor)
     lines = ["---"]
     if flavor == "claude":
@@ -114,7 +145,8 @@ def render_agent(path: Path, flavor: str, skills_dir: str = ".kiro/skills") -> s
                   "tools: ['read', 'edit', 'execute', 'agent']"]
     elif flavor == "opencode":
         # Pas d'accès web ; le shell n'accepte que les commandes listées.
-        lines += [f"description: {desc}", "mode: primary", "permission:",
+        # all : agent principal, et sous-agent que l'agent orientation peut lancer (outil task).
+        lines += [f"description: {desc}", "mode: all", "permission:",
                   "  webfetch: deny", "  websearch: deny", "  codesearch: deny",
                   "  bash:", '    "*": deny']
         lines += [f'    "{command}": allow' for command in split_list(meta.get("commands", ""))]

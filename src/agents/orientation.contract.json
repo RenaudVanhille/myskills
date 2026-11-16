@@ -9,7 +9,8 @@
   "produces": [
     "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
     "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
-    "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
+    "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints, niveau recommandé dans level), validé par check_message.py",
+    "L'agent choisi lancé comme sous-agent, au modèle de son niveau, et ses questions ou portes de revue relayées à l'utilisateur ; repli : l'agent à lancer et son niveau donnés à l'utilisateur quand l'outil ne permet pas de sous-agent",
     "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
   ],
   "never": [

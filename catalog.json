@@ -316,7 +316,8 @@
       "produces": [
         "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
         "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
-        "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints), validé par check_message.py",
+        "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints, niveau recommandé dans level), validé par check_message.py",
+        "L'agent choisi lancé comme sous-agent, au modèle de son niveau, et ses questions ou portes de revue relayées à l'utilisateur ; repli : l'agent à lancer et son niveau donnés à l'utilisateur quand l'outil ne permet pas de sous-agent",
         "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
       ],
       "never": [
@@ -378,7 +379,7 @@
           ]
         }
       ],
-      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et lui passe la main par un message validé. Ne fait aucun travail métier et pose au plus une question.",
+      "description": "Point d'entrée quand on ne sait pas par où commencer : lit la demande et les fichiers fournis, ouvre la mission au démarrage d'une avant-vente ou d'une revue d'architecture (un répertoire, un vault, le workflow de sa nature), choisit l'agent ou le workflow de myskills qui la traite (conversion de documents, schémas, architecture, revue, chiffrage, publication) et le lance comme sous-agent, au modèle de son niveau, avec un message validé. Ne fait aucun travail métier et pose au plus une question.",
       "skills": [
         "agent-handoff",
         "mission-workspace"
@@ -457,7 +458,8 @@
         "chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses)",
         "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
         "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
-        "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers"
+        "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers",
+        "chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack"
       ],
       "never": [
         "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
@@ -18155,23 +18157,25 @@
       "inputs": [
         "Catalogue d'exigences validé (exigences.json de requirements-catalog)",
         "Options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation",
-        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), budget, assumptions, exclusions",
+        "Description JSON du chiffrage : title, context, requirements, architecture, option, currency, horizon, hosting (provider, qualifications, refs), providers, rates (facultatif), hours_per_day, work (id, name, phase, component, refs, effort, complexity, ai), overheads, contingency, infra (id, name, component, environment, kind, provider, quantity, unit_cost, period, basis), run, scenarios (avec-ia, ia-natif : factors, gain_uncertainty, setup_percent, tooling_per_day, run_factor, contingency, basis), ai_cost (tokens_per_day, phases, complexity, levels, models, prices, mix, exchange_rate, measured, basis), budget (dont ai), assumptions, exclusions",
         "Catalogue des hébergeurs (shared/providers.json, commun aux skills cloud : AWS, Azure, Google Cloud, OVHcloud, Cloud Temple, Outscale, S3NS, Bleu, NumSpot, Scaleway, interne ; juridiction, qualifications SecNumCloud, HDS), complété par un catalogue propre au projet",
         "Hypothèses de production par défaut (references/hypotheses-ia.json : facteurs par phase, incertitude, adoption, outillage IA, run, avec leurs sources), lues par le script",
+        "Grille du coût IA du développement (references/jetons-ia.json, versionnée et datée : millions de jetons par jour de l'équipe en fourchette, poids des phases et des complexités, part de chaque niveau de travail, modèle par niveau, tarifs par modèle, mélange entrée, cache, sortie mesuré sur le dépôt, taux de change), lue par le script, jamais de tarif en ligne",
         "Règles de complétude (postes attendus) : references/postes-attendus.json, complétées par celles de l'utilisateur (MYSKILLS_REGLES, sinon ~/.myskills/regles.json) et de la mission (references.regles de mission.json), schéma shared/schemas/rules.schema.json",
         "Pour la calibration : missions passées comparables désignées dans mission.json (analogues), lues seulement, mission par mission",
         "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
       ],
       "outputs": [
-        "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, lots, phases, profils, infrastructure, run, coût total par année, points à challenger et réemploi, couverture, hypothèses, exclusions)",
+        "<nom>.md : chiffrage pour la revue (synthèse, budget, hypothèses sans IA, avec IA et IA natif, coût IA du développement, lots, phases, profils, infrastructure, run, coût total par année, points à challenger et réemploi, couverture, hypothèses, exclusions)",
         "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script",
         "<nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script",
-        "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil), relu par le script ; seuls produits sans rates"
+        "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil ; coût IA du développement en jetons et en dollars), relu par le script ; seuls produits sans rates",
+        "<nom>.ia.json : coût IA du développement (jetons des agents et assistants, en dollars et dans la devise : médiane et fourchette P10-P90 à 80 %, par hypothèse et par lot, fiabilité des hypothèses, confiance de tenir le budget IA), relu par le script ; repris par spec-pack dans livraison.md"
       ],
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots ; lots transverses chiffrés par ratio quand les experts couvrent toute la réalisation) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer.",
+          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; estime le coût IA du développement (jetons des agents par jour de l'équipe, poids de la phase et de la complexité, modèle et tarif de chaque niveau de travail : médiane et fourchette P10-P90 à 80 % par simulation à graine fixe, par hypothèse et par lot, fiabilité des hypothèses, confiance de tenir le budget IA) et l'ajoute à la réalisation des hypothèses avec IA ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant et le résumé du coût IA (<nom>.ia.json) (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots ; lots transverses chiffrés par ratio quand les experts couvrent toute la réalisation) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--abaques ABAQUES.json] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots LOTS.json ...] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
@@ -18586,6 +18590,11 @@
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
                       }
+                    },
+                    "ai": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "Budget du coût IA du développement (jetons), dans la devise du chiffrage : le rapport donne la confiance de le tenir."
                     }
                   }
                 },
@@ -18601,6 +18610,263 @@
                   "items": {
                     "type": "string",
                     "minLength": 1
+                  }
+                },
+                "ai_cost": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Coût IA du développement (jetons des agents) : valeurs qui remplacent celles de references/jetons-ia.json, avec leur base ; measured: true quand les jetons par jour viennent d'un lot pilote.",
+                  "properties": {
+                    "tokens_per_day": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Millions de jetons par jour de l'équipe, par hypothèse.",
+                      "properties": {
+                        "avec-ia": {
+                          "type": "array",
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "description": "[mini, probable, maxi]"
+                        },
+                        "ia-natif": {
+                          "type": "array",
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "description": "[mini, probable, maxi]"
+                        }
+                      }
+                    },
+                    "phases": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Poids de chaque phase (0 : pas d'IA).",
+                      "properties": {
+                        "cadrage": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "conception": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "realisation": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "integration": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "tests": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "deploiement": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "migration": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "conduite-changement": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "pilotage": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        }
+                      }
+                    },
+                    "complexity": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Poids de chaque complexité de lot.",
+                      "properties": {
+                        "faible": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "moyenne": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "elevee": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "tres-elevee": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        }
+                      }
+                    },
+                    "levels": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Part des jetons par niveau de travail (somme 1), par hypothèse.",
+                      "properties": {
+                        "avec-ia": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "simple": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "moyen": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "complexe": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        },
+                        "ia-natif": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "simple": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "moyen": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "complexe": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "models": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Modèle de chaque niveau (clé de prices).",
+                      "properties": {
+                        "simple": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "moyen": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "complexe": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "prices": {
+                      "type": "object",
+                      "description": "Tarifs par modèle, en dollars par million de jetons.",
+                      "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "cache_write",
+                          "cache_read",
+                          "output"
+                        ],
+                        "properties": {
+                          "input": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "cache_write": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "cache_read": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "output": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "description": "Dollars par million de jetons."
+                      }
+                    },
+                    "mix": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Parts des jetons en entrée, écriture et lecture du cache, sortie (somme 1).",
+                      "properties": {
+                        "input": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "cache_write": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "cache_read": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "output": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    },
+                    "exchange_rate": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Unités de la devise du chiffrage pour un dollar."
+                    },
+                    "measured": {
+                      "type": "boolean"
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "checked": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    }
                   }
                 }
               },
@@ -18822,6 +19088,290 @@
                       }
                     }
                   }
+                },
+                "ai_grid": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Grille par défaut (references/jetons-ia.json).",
+                  "properties": {
+                    "tokens_per_day": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Millions de jetons par jour de l'équipe, par hypothèse.",
+                      "properties": {
+                        "avec-ia": {
+                          "type": "array",
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "description": "[mini, probable, maxi]"
+                        },
+                        "ia-natif": {
+                          "type": "array",
+                          "minItems": 3,
+                          "maxItems": 3,
+                          "items": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "description": "[mini, probable, maxi]"
+                        }
+                      }
+                    },
+                    "phases": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Poids de chaque phase (0 : pas d'IA).",
+                      "properties": {
+                        "cadrage": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "conception": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "realisation": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "integration": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "tests": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "deploiement": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "migration": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "conduite-changement": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "pilotage": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 3
+                        }
+                      }
+                    },
+                    "complexity": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Poids de chaque complexité de lot.",
+                      "properties": {
+                        "faible": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "moyenne": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "elevee": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        },
+                        "tres-elevee": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 5
+                        }
+                      }
+                    },
+                    "levels": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Part des jetons par niveau de travail (somme 1), par hypothèse.",
+                      "properties": {
+                        "avec-ia": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "simple": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "moyen": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "complexe": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        },
+                        "ia-natif": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "simple": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "moyen": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "complexe": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "models": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Modèle de chaque niveau (clé de prices).",
+                      "properties": {
+                        "simple": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "moyen": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "complexe": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    "prices": {
+                      "type": "object",
+                      "description": "Tarifs par modèle, en dollars par million de jetons.",
+                      "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "input",
+                          "cache_write",
+                          "cache_read",
+                          "output"
+                        ],
+                        "properties": {
+                          "input": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "cache_write": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "cache_read": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "output": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "description": "Dollars par million de jetons."
+                      }
+                    },
+                    "mix": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "description": "Parts des jetons en entrée, écriture et lecture du cache, sortie (somme 1).",
+                      "properties": {
+                        "input": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "cache_write": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "cache_read": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "output": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      }
+                    },
+                    "exchange_rate": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Unités de la devise du chiffrage pour un dollar."
+                    },
+                    "measured": {
+                      "type": "boolean"
+                    },
+                    "basis": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "checked": {
+                      "type": "string",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "exchange_rates": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  },
+                  "required": [
+                    "checked",
+                    "tokens_per_day",
+                    "phases",
+                    "complexity",
+                    "levels",
+                    "models",
+                    "prices",
+                    "mix",
+                    "basis"
+                  ]
                 }
               }
             }
@@ -19163,6 +19713,10 @@
                               "tooling": {
                                 "type": "number",
                                 "minimum": 0
+                              },
+                              "tokens": {
+                                "type": "number",
+                                "description": "Jetons des agents IA (médiane), dans la devise"
                               }
                             }
                           },
@@ -19575,6 +20129,74 @@
                         "type": "string"
                       },
                       "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
+                    },
+                    "ai_cost": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "confidence",
+                        "interval",
+                        "checked",
+                        "scenarios"
+                      ],
+                      "description": "Coût IA du développement : P10, P50, P90 en millions de jetons, en dollars et dans la devise ; fiabilité des hypothèses ; confiance de tenir budget.ai.",
+                      "properties": {
+                        "confidence": {
+                          "enum": [
+                            "faible",
+                            "moyenne",
+                            "bonne"
+                          ]
+                        },
+                        "interval": {
+                          "type": "number"
+                        },
+                        "checked": {
+                          "type": "string"
+                        },
+                        "scenarios": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "mtok",
+                              "usd",
+                              "cost"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "mtok": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "usd": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "cost": {
+                                "type": [
+                                  "array",
+                                  "null"
+                                ],
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "budget_confidence": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -19963,6 +20585,74 @@
                         "type": "string"
                       },
                       "description": "Fichiers d'abaques lus (utilisateur, mission, --abaques) ; vide : seuils par défaut, à calibrer."
+                    },
+                    "ai_cost": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "confidence",
+                        "interval",
+                        "checked",
+                        "scenarios"
+                      ],
+                      "description": "Coût IA du développement : P10, P50, P90 en millions de jetons, en dollars et dans la devise ; fiabilité des hypothèses ; confiance de tenir budget.ai.",
+                      "properties": {
+                        "confidence": {
+                          "enum": [
+                            "faible",
+                            "moyenne",
+                            "bonne"
+                          ]
+                        },
+                        "interval": {
+                          "type": "number"
+                        },
+                        "checked": {
+                          "type": "string"
+                        },
+                        "scenarios": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "mtok",
+                              "usd",
+                              "cost"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "mtok": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "usd": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "cost": {
+                                "type": [
+                                  "array",
+                                  "null"
+                                ],
+                                "items": {
+                                  "type": "number"
+                                }
+                              },
+                              "budget_confidence": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -20162,12 +20852,12 @@
       "skill": "spec-pack",
       "level": "simple",
       "inputs": [
-        "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+        "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json, <nom>.ia.json (coût IA du développement, solution-estimate)",
         "Facultatif : specs.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
         "Facultatif : le dossier où écrire les spécifications (--out, défaut DOSSIER/specs)"
       ],
       "outputs": [
-        "Un dossier de spécifications autonome, en Markdown, sans format propre à un outil de développement IA (utilisable avec BMAD, Spec Kit, Kiro, Copilot ou une équipe) : README.md (index, conventions d'identifiants, traçabilité exigence, composants, cas, story), fonctionnel.md (vision, utilisateurs, parcours, glossaire, FR-n avec critères d'acceptation, périmètre, indicateurs, questions, hypothèses), ux.md (identité visuelle et tokens, écrans, maquettes HTML et code, composants, accessibilité, constats UX), architecture.md (architecture validée seule : décisions AD-n, alternatives du cadrage réduites à une ligne, pile technique et versions, composants et flux en Mermaid avec les schémas de l'option retenue, modèle de données complet en Mermaid et image, interfaces, NFR-n, risques), tests.md (stratégie, cas de recette, vérification des NFR, couverture), livraison.md (lots et stories S-n.m, ordre, dépendances, définition de terminé) ; chaque document ouvre sur un frontmatter YAML pour les agents (type, description, audience, language, status, defines : identifiants dont il est la source, covers : exigences traitées, related : documents cités)",
+        "Un dossier de spécifications autonome, en Markdown, sans format propre à un outil de développement IA (utilisable avec BMAD, Spec Kit, Kiro, Copilot ou une équipe) : README.md (index, conventions d'identifiants, traçabilité exigence, composants, cas, story), fonctionnel.md (vision, utilisateurs, parcours, glossaire, FR-n avec critères d'acceptation, périmètre, indicateurs, questions, hypothèses), ux.md (identité visuelle et tokens, écrans, maquettes HTML et code, composants, accessibilité, constats UX), architecture.md (architecture validée seule : décisions AD-n, alternatives du cadrage réduites à une ligne, pile technique et versions, composants et flux en Mermaid avec les schémas de l'option retenue, modèle de données complet en Mermaid et image, interfaces, NFR-n, risques), tests.md (stratégie, cas de recette, vérification des NFR, couverture), livraison.md (lots et stories S-n.m, ordre, dépendances, définition de terminé, coût IA du développement repris du chiffrage s'il existe) ; chaque document ouvre sur un frontmatter YAML pour les agents (type, description, audience, language, status, defines : identifiants dont il est la source, covers : exigences traitées, related : documents cités)",
         "Pièces citées copiées dans annexes/ (ni options.md ni ADR, schémas de la seule option retenue), maquettes HTML au complet copiées dans maquettes/, liens recalés sur les copies ; aucun lien ni trace de la mission ou du vault (ni noms de ses pièces, ni chemins de la machine) : le dossier se copie ou se transmet seul ; empreintes des documents gardées dans .spec-pack.json de la mission",
         "Rapport : documents écrits, gardés ou inchangés, compteurs, pièces absentes, suite"
       ],
@@ -20558,6 +21248,12 @@
           "skill": "mockup-to-html",
           "script": "ux_review.py",
           "why": "valider revue-ux.json contre son schéma",
+          "optional": true
+        },
+        {
+          "skill": "solution-estimate",
+          "script": "lib/estimate_ai.py",
+          "why": "valider et reprendre dans livraison.md le coût IA du développement estimé au chiffrage (<nom>.ia.json)",
           "optional": true
         },
         {

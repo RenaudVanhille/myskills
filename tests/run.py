@@ -645,6 +645,11 @@ def _agent_rules(failures: list, notices: list) -> None:
             tools = next((line for line in render_agent(src, flavor).splitlines() if line.startswith("tools:")), "")
             if "web" in tools.lower():
                 failures.append(f"agent {name} : outil web autorisé ({flavor})")
+        for flavor in ("claude", "copilot", "opencode", "kiro", "hermes"):
+            left = re.findall(r"\{\{[a-z]+\}\}", render_agent(src, flavor))
+            if left:
+                failures.append(f"agent {name} : marqueur {', '.join(sorted(set(left)))} non remplacé ({flavor}) : "
+                                "ajoutez-le dans scripts/agents_lib.py (render_agent)")
         size = len(src.read_text(encoding="utf-8"))
         if size > MAX_CHARS:
             failures.append(f"agent {name} : {size} caractères, plus que le budget de {MAX_CHARS} (lu à chaque tour) : "

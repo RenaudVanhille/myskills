@@ -362,14 +362,16 @@ def build_catalog_json(agents_meta: dict[str, dict]) -> str:
 
 def build_routes(agents_meta: dict[str, dict]) -> str:
     """Catalogue réduit au routage (agents, workflows, skills : nom, niveau, description, entrées), pour
-    route.py (agent-handoff) : l'agent orientation choisit sans lire catalog.json en entier."""
+    route.py (agent-handoff) : l'agent orientation choisit sans lire catalog.json en entier. Le niveau d'un
+    workflow est celui de l'agent qui le déroule : l'agent orientation le lance à ce niveau."""
     def short(text: str) -> str:
         text = text.strip('"')
         return text.split(". ")[0].rstrip(".") + "."
     workflows = []
     for path in sorted((REPO / "skills" / "decision-log" / "workflows").glob("*.json")):
         definition = load(path)
-        workflows.append({"name": definition["name"], "agent": "architecture-workflow", "title": definition["title"],
+        workflows.append({"name": definition["name"], "agent": "architecture-workflow",
+                          "level": agent_contracts()["architecture-workflow"]["level"], "title": definition["title"],
                           "description": definition["description"],
                           "stages": [s["id"] + (" (facultative)" if s.get("facultative") else "")
                                      for s in definition["stages"]],
