@@ -1,5 +1,21 @@
 # Journal des versions
 
+## [2.0.0](https://github.com/RenaudVanhille/myskills/compare/v1.0.0...v2.0.0) (2026-11-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **spec-pack:** skill bmad-export et bmad_export.py retirés ; bmad.json devient specs.json, sortie dans specs/.
+
+### Ajouts
+
+* **spec-pack:** dossier de spécifications autonome à la place de l'export BMAD ([#116](https://github.com/RenaudVanhille/myskills/issues/116)) ([f59a699](https://github.com/RenaudVanhille/myskills/commit/f59a699f4c2869c75519f9dce0075c4815b85199))
+
+
+### Corrections
+
+* **bmad-export:** bundle autonome, sans lien vers la mission ni le vault ([#114](https://github.com/RenaudVanhille/myskills/issues/114)) ([4179184](https://github.com/RenaudVanhille/myskills/commit/417918400420e16b5cffdeb08c743cba99e8ae89))
+
 ## [1.0.0](https://github.com/RenaudVanhille/myskills/compare/v0.15.0...v1.0.0) (2026-11-14)
 
 
