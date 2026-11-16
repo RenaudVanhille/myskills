@@ -162,7 +162,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan Passage au développement (BMAD) bmad-export"
+   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan Passage au développement (spécifications) spec-pack"
   },
   {
    "name": "cloud-existant",
@@ -400,17 +400,6 @@
     "Facultatif : les principes d'architecture du client, dans la mission (references.principes, liste principes de shared/schemas/rules.schema.json)"
    ],
    "match": "Revue d'une architecture logicielle ou solution à la manière d'ATAM : scénarios de qualité évalués, risques, points de sensibilité, compromis et décisions, contrôle mécanique de la structure (cycles, base partagée, couches, chaîne synchrone, dépendance externe, point unique de défaillance) et de la traçabilité des exigences, avis calculé. Peut comparer le code à l'architecture avec graphify (analyse locale) et intégrer les piliers Well-Architected d'une option cloud. À utiliser pour revoir, auditer ou valider une architecture, une option retenue ou un dossier d'architecture."
-  },
-  {
-   "name": "bmad-export",
-   "level": "simple",
-   "description": "Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture avec sa pile technique, documents UX (DESIGN.md, EXPERIENCE.md), ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD.",
-   "inputs": [
-    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
-    "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
-    "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
-   ],
-   "match": "Exporte une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) vers les artefacts de planification de BMAD Method v6 : product brief, PRD, architecture avec sa pile technique, documents UX (DESIGN.md, EXPERIENCE.md), ébauche d'epics et de stories, dans _bmad-output/planning-artifacts, prêts pour les agents BMAD. À utiliser pour passer du cadrage ou de l'avant-vente au développement avec BMAD, ou quand l'utilisateur demande un PRD, des epics ou des stories au format BMAD à partir d'un dossier déjà produit."
   },
   {
    "name": "c4-architecture",
@@ -691,6 +680,17 @@
     "Abaques donnés avant le lancement (shared/schemas/abaques.schema.json) : ~/.myskills/abaques.json ou MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques ; section challenge pour les seuils des points à challenger ; sans eux, seuils par défaut à calibrer"
    ],
    "match": "Chiffre une solution à partir du catalogue d'exigences et de l'option d'architecture retenue : charge de réalisation par lot, phase et profil (estimation à trois points, fourchette calculée), pilotage et provision, coût d'infrastructure, maintenance et exploitation, coût total sur plusieurs années, budget tenu ou dépassé, le tout en trois hypothèses de production comparées (sans IA, avec IA, dev IA natif), et un plan de charge par tâche (complexité, jours, heures), seul produit sans taux journaliers. Les calculs et les contrôles de couverture sont faits par script. À utiliser pour chiffrer un projet, estimer une charge, un budget, un coût d'infrastructure, un coût total de possession ou le gain d'un développement assisté par l'IA."
+  },
+  {
+   "name": "spec-pack",
+   "level": "simple",
+   "description": "Extrait d'une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) un dossier de spécifications autonome en Markdown : fonctionnel, UX, architecture, tests, livraison et un index de traçabilité, sans format propre à un outil, prêt pour le développement assisté par IA (BMAD, Spec Kit, Kiro, Copilot ou une équipe).",
+   "inputs": [
+    "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
+    "Facultatif : specs.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
+    "Facultatif : le dossier où écrire les spécifications (--out, défaut DOSSIER/specs)"
+   ],
+   "match": "Extrait d'une mission (exigences, option d'architecture retenue, domaines, modèle de données, API, plan de recette, design system, maquettes et revue UX) un dossier de spécifications autonome en Markdown : fonctionnel, UX, architecture, tests, livraison et un index de traçabilité, sans format propre à un outil, prêt pour le développement assisté par IA (BMAD, Spec Kit, Kiro, Copilot ou une équipe). Le dossier ne garde aucun lien ni trace de la mission : il se copie ou se transmet seul. À utiliser pour passer du cadrage ou de l'avant-vente au développement, ou quand l'utilisateur demande des spécifications, un PRD, des stories ou un dossier à donner à un agent de développement."
   },
   {
    "name": "tender-response",

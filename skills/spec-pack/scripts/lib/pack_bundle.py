@@ -1,13 +1,15 @@
-"""Bundle BMAD autonome : copies des pièces citées, liens réécrits vers ces copies, contrôle des liens.
+"""Dossier de spécifications autonome : copies des pièces citées, liens réécrits vers ces copies, contrôle des liens.
 
-L'export ne garde aucun lien vers la mission ni vers le vault Obsidian : chaque fichier copié (sources/,
-mockups/) est relu, ses liens Markdown, wikilinks, attributs HTML (src, href) et url() CSS sont recalés
+L'export ne garde aucun lien vers la mission ni vers le vault Obsidian : chaque fichier copié (annexes/,
+maquettes/) est relu, ses liens Markdown, wikilinks, attributs HTML (src, href) et url() CSS sont recalés
 sur la copie du fichier visé ; une image, une feuille de style ou une page visée qui n'est pas encore dans
-le bundle y est copiée (dans sources/, sous son chemin dans la mission) ; un lien vers une note (vault,
+le dossier y est copiée (dans annexes/, sous son chemin dans la mission) ; un lien vers une note (vault,
 autre Markdown de la mission) ou vers un fichier absent devient du texte.
 
     pack(copies, planning, folder) -> (fichiers à écrire, avertissements)
-    escapes(name, text, planning, coming) -> liens qui sortent du bundle ou n'y mènent à rien
+    escapes(name, text, planning, coming) -> liens qui sortent du dossier ou n'y mènent à rien
+    foreign(name, text, roots) -> chemins de la machine (absolus, file:, dossier de la mission) cités
+    audit(planning) -> contrôle d'un dossier déjà écrit, où qu'il ait été copié
 """
 from __future__ import annotations
 
@@ -18,7 +20,7 @@ from pathlib import Path
 
 # Fichiers relus et réécrits ; les autres (images, code) sont copiés tels quels.
 TEXT = {".md", ".html", ".htm", ".css", ".scss", ".svg"}
-# Fichiers visés par un lien qu'on copie dans le bundle ; une note Markdown visée n'est pas copiée.
+# Fichiers visés par un lien qu'on copie dans le dossier ; une note Markdown visée n'est pas copiée.
 ASSETS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".css", ".html", ".htm", ".pdf", ".woff", ".woff2",
           ".ttf", ".otf", ".js", ".yaml", ".yml", ".sql", ".drawio", ".excalidraw"}
 MD_LINK = re.compile(r"(!?)\[([^\]\n]*)\]\(\s*<?([^)\s>]+)>?(\s+\"[^\"\n]*\")?\s*\)")
@@ -27,6 +29,9 @@ ATTR = re.compile(r"\b(src|href|poster|data-src)(\s*=\s*)([\"'])([^\"']*)\3", re
 CSS_URL = re.compile(r"url\(\s*([\"']?)([^\"')]+)\1\s*\)")
 CSS_IMPORT = re.compile(r"(@import\s+)([\"'])([^\"']+)\2")
 # Ancre, schéma d'au moins deux lettres (une lettre seule est un lecteur Windows), adresse sans schéma.
+# Chemin absolu d'une machine (Unix, macOS, Windows) ou URL file: : sans valeur une fois le dossier copié ailleurs.
+ABSOLUTE = re.compile(r"file:/|(?<![\w.~-])/(?:home|Users|tmp|mnt|root|Volumes)/[^\s)\"'`]*"
+                      r"|(?<![\w])[A-Za-z]:[\\/]Users[\\/][^\s)\"'`]*")
 EXTERNAL = re.compile(r"^(#|[a-z][a-z0-9+.-]+:|//)", re.I)
 
 
@@ -58,10 +63,10 @@ class Packer:
         self.taken = set(self.dest.values())
 
     def adopt(self, path: Path) -> Path:
-        """Copie dans sources/ d'un fichier visé qui n'est pas encore dans le bundle."""
+        """Copie dans annexes/ d'un fichier visé qui n'est pas encore dans le dossier."""
         if path not in self.dest:
             name = path.relative_to(self.folder).as_posix() if path.is_relative_to(self.folder) else path.name
-            target, n = self.planning / "sources" / name, 1
+            target, n = self.planning / "annexes" / name, 1
             while target in self.taken:
                 n += 1
                 target = target.with_name(f"{path.stem}-{n}{path.suffix}")
@@ -134,12 +139,12 @@ class Packer:
             text = CSS_URL.sub(css, CSS_IMPORT.sub(css_import, text))
         if dropped:
             self.warnings.append(f"{out.relative_to(self.planning).as_posix()} : {len(dropped)} lien(s) hors du "
-                                 f"bundle retiré(s) ({', '.join(dict.fromkeys(dropped[:3]))})")
+                                 f"dossier retiré(s) ({', '.join(dict.fromkeys(dropped[:3]))})")
         return text
 
 
 def pack(copies: list, planning: Path, folder: Path) -> tuple[list, list[str]]:
-    """Fichiers du bundle (destination, octets), liens recalés ; les fichiers visés suivent, de proche en proche."""
+    """Fichiers du dossier (destination, octets), liens recalés ; les fichiers visés suivent, de proche en proche."""
     packer, files, done = Packer(copies, planning.resolve(), folder.resolve()), [], set()
     while len(done) < len(packer.dest):
         for source, target in list(packer.dest.items()):
@@ -155,20 +160,41 @@ def pack(copies: list, planning: Path, folder: Path) -> tuple[list, list[str]]:
 
 
 def escapes(name: str, text: str, planning: Path, coming: set[Path]) -> list[str]:
-    """Liens d'un fichier du bundle qui en sortent, mènent à un fichier absent, ou sont des wikilinks."""
+    """Liens d'un fichier du dossier qui en sortent, mènent à un fichier absent, ou sont des wikilinks."""
     here, suffix = (planning / name).parent, Path(name).suffix.lower()
     targets = [m.group(3) for m in MD_LINK.finditer(text)] if suffix == ".md" else []
     targets += [m.group(4) for m in ATTR.finditer(text)] if suffix in {".md", ".html", ".htm", ".svg"} else []
     if suffix in {".html", ".htm", ".css", ".scss", ".svg"}:
         targets += [m.group(2).strip() for m in CSS_URL.finditer(text)] + [m.group(3) for m in CSS_IMPORT.finditer(text)]
-    found = [f"{name} : wikilink {m.group(0)} (propre à Obsidian, hors du bundle) : écrivez le texte sans crochets" for m in WIKI.finditer(text)] if suffix == ".md" else []
+    found = [f"{name} : wikilink {m.group(0)} (propre à Obsidian, hors du dossier) : écrivez le texte sans crochets" for m in WIKI.finditer(text)] if suffix == ".md" else []
     for target in targets:
         if not target or external(target):
             continue
         path = resolve(target, here)
         if not path.is_relative_to(planning):
-            found.append(f"{name} : lien hors du bundle {target} : l'export doit rester autonome, retirez ce lien "
-                         "de sa source (bmad.json ou pièce de la mission)")
+            found.append(f"{name} : lien hors du dossier {target} : l'export doit rester autonome, retirez ce lien "
+                         "de sa source (specs.json ou pièce de la mission)")
         elif path not in coming and not path.exists():
             found.append(f"{name} : lien introuvable {target}")
     return found
+
+
+def foreign(name: str, text: str, roots: list[Path]) -> list[str]:
+    """Chemins de la machine cités dans un fichier du dossier : chemin absolu, URL file:, dossier de la mission."""
+    found = [f"{name} : chemin absolu {m.group(0)[:80]} : sans valeur une fois le dossier copié ailleurs"
+             for m in ABSOLUTE.finditer(text)]
+    found += [f"{name} : chemin de la mission {root.as_posix()}" for root in dict.fromkeys(roots)
+              if root.as_posix() in text.replace("\\", "/")]
+    return found
+
+
+def audit(planning: Path) -> tuple[int, list[str]]:
+    """Contrôle d'un dossier sur disque : chaque lien mène à un fichier du dossier, aucun wikilink ni chemin de
+    la machine. Rend le nombre de fichiers lus et les erreurs."""
+    files = [p for p in sorted(planning.rglob("*")) if p.is_file()]
+    errors = []
+    for path in files:
+        if path.suffix.lower() in TEXT:
+            name, text = path.relative_to(planning).as_posix(), path.read_text(encoding="utf-8", errors="replace")
+            errors += escapes(name, text, planning, set()) + foreign(name, text, [])
+    return len(files), errors

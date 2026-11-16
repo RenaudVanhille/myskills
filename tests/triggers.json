@@ -61,6 +61,6 @@
     {"prompt": "Voici le design system du client en tokens JSON : reprends-le pour nos maquettes.", "skill": "design-system"},
     {"prompt": "Découpe le portail en contextes bornés et dis-moi si des microservices se justifient ou si un monolithe modulaire suffit.", "skill": "domain-design"},
     {"prompt": "Définis les sous-domaines cœur, support et génériques du SI sinistres et la carte des contextes.", "skill": "domain-design"},
-    {"prompt": "Exporte le cadrage au format BMAD pour que l'équipe démarre le développement avec ses agents.", "skill": "bmad-export"}
+    {"prompt": "Prépare les spécifications du cadrage pour que l'équipe démarre le développement avec ses agents IA.", "skill": "spec-pack"}
   ]
 }

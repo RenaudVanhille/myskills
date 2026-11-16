@@ -1,33 +1,33 @@
 {
-  "skill": "bmad-export",
+  "skill": "spec-pack",
   "level": "simple",
   "inputs": [
     "Le dossier d'un workflow ou d'une mission : exigences.json (obligatoire) et, s'ils existent, options.json, decision.json, domaines.json, modele.json, api.json, recette.json, registre.json, design-system.json, pages/*.json avec leurs maquettes et les maquettes HTML produites (pages/*.html, .css, assets/, code de la bibliothèque visée), revue-ux.json, decoupage.json",
-    "Facultatif : bmad.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
-    "Facultatif : la racine du projet de développement où BMAD Method est ou sera installé (--out)"
+    "Facultatif : specs.json, ce que la mission ne dit pas (vision, problème, utilisateurs, parcours, hors-périmètre, indicateurs de succès, regroupement en fonctionnalités, frameworks et versions)",
+    "Facultatif : le dossier où écrire les spécifications (--out, défaut DOSSIER/specs)"
   ],
   "outputs": [
-    "Dans le dossier de planification de BMAD Method v6 (_bmad-output/planning-artifacts, ou celui de la configuration _bmad/ du projet) : brief.md, prd.md (FR-n par fonctionnalité, NFR-n, glossaire, périmètre, questions, hypothèses), architecture.md (décisions AD-n, flux et entités en Mermaid, interfaces, pile technique avec frameworks et versions), epics.md (ébauche des epics et stories) et addendum.md (correspondance des identifiants, options écartées, pièces de la mission)",
-    "Si la mission a un design system, des pages décrites d'après les maquettes, une revue UX ou un découpage en composants : ux-designs/ux-<nom>/DESIGN.md (tokens et identité visuelle) et EXPERIENCE.md (écrans, composants, accessibilité, parcours, constats UX), maquettes d'origine, maquettes HTML au complet (pages, styles, images, code de la bibliothèque visée) et rendus copiés dans mockups/ ; bundle autonome : pièces citées copiées dans sources/, liens recalés sur les copies, aucun lien vers la mission ni le vault",
-    "Rapport : fichiers écrits, gardés ou inchangés, compteurs, pièces absentes, suite dans BMAD"
+    "Un dossier de spécifications autonome, en Markdown, sans format propre à un outil de développement IA (utilisable avec BMAD, Spec Kit, Kiro, Copilot ou une équipe) : README.md (index, conventions d'identifiants, traçabilité exigence, composants, cas, story), fonctionnel.md (vision, utilisateurs, parcours, glossaire, FR-n avec critères d'acceptation, périmètre, indicateurs, questions, hypothèses), ux.md (identité visuelle et tokens, écrans, maquettes HTML et code, composants, accessibilité, constats UX), architecture.md (décisions AD-n, pile technique et versions, composants et flux en Mermaid, données, interfaces, NFR-n, options écartées, risques), tests.md (stratégie, cas de recette, vérification des NFR, couverture), livraison.md (lots et stories S-n.m, ordre, dépendances, définition de terminé) ; chaque document ouvre sur un frontmatter YAML pour les agents (type, description, audience, language, status, defines : identifiants dont il est la source, covers : exigences traitées, related : documents cités)",
+    "Pièces citées copiées dans annexes/, maquettes HTML au complet copiées dans maquettes/, liens recalés sur les copies ; aucun lien ni trace de la mission ou du vault (ni noms de ses pièces, ni chemins de la machine) : le dossier se copie ou se transmet seul ; empreintes des documents gardées dans .spec-pack.json de la mission",
+    "Rapport : documents écrits, gardés ou inchangés, compteurs, pièces absentes, suite"
   ],
   "scripts": [
     {
-      "name": "bmad_export.py",
-      "role": "Exporte les livrables validés d'une mission vers les artefacts de planification de BMAD Method v6 : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, regroupe les exigences fonctionnelles en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (bmad.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit les documents UX depuis le design system, les pages et la revue UX, écrit une epic par fonctionnalité et une story par exigence avec les cas de recette en critères d'acceptation ; relit le tout avant d'écrire (chaque exigence dans le PRD, chaque FR dans une story, titres reconnus par sprint_plan.py de BMAD, aucun lien hors du bundle : liens Markdown, HTML et CSS des copies recalés, notes du vault et wikilinks réduits à leur texte, lien sortant refusé) ; ne remplace pas un artefact modifié depuis le dernier export sans --force.",
-      "usage": "uv run scripts/bmad_export.py [DOSSIER] [--out RACINE] [--file bmad.json] [--option ID] [--no-epics] [--force] | --schema",
+      "name": "spec_pack.py",
+      "role": "Extrait d'une mission un dossier de spécifications autonome pour le développement assisté par IA, quel que soit l'outil : valide chaque pièce contre le schéma du skill qui l'a produite, renumérote les exigences (FR-n, NFR-n) en gardant l'identifiant d'origine, les regroupe en fonctionnalités, reprend l'option décidée (sinon recommandée, signalée) en décisions d'architecture, dresse la pile technique (specs.json, bibliothèque d'interface des maquettes, technologie et version des composants d'options.json), écrit l'UX depuis le design system, les pages et la revue UX, les cas de recette en critères d'acceptation, un lot par fonctionnalité et une story par exigence ; relit le tout avant d'écrire (chaque exigence dans son document, chaque FR sa story et sa ligne de couverture, aucun lien hors du dossier ni chemin de la machine : liens des copies recalés, notes du vault et wikilinks réduits à leur texte, lien sortant refusé) ; ne remplace pas un document modifié depuis le dernier export sans --force ; --check contrôle un dossier copié ailleurs.",
+      "usage": "uv run scripts/spec_pack.py [DOSSIER] [--out DOSSIER_DES_SPECS] [--file specs.json] [--option ID] [--force] | --check DOSSIER_DES_SPECS | --schema",
       "options": {
         "DOSSIER": "dossier du workflow ou de la mission (défaut : le dossier courant)",
-        "--out": "racine du projet BMAD cible (défaut : DOSSIER) ; dans tous les cas, les pièces citées sont copiées dans sources/ et les maquettes HTML dans mockups/ du dossier UX",
-        "--file": "description facultative (défaut : DOSSIER/bmad.json s'il existe)",
+        "--out": "dossier des spécifications (défaut : DOSSIER/specs) ; les pièces citées y sont copiées dans annexes/, les maquettes HTML dans maquettes/",
+        "--file": "description facultative (défaut : DOSSIER/specs.json s'il existe)",
         "--option": "option d'architecture à exporter (défaut : decision.json, sinon la recommandation)",
-        "--no-epics": "n'écrit pas l'ébauche epics.md",
-        "--force": "écrase un artefact modifié depuis le dernier export",
-        "--schema": "affiche le schéma JSON de bmad.json sur une ligne, puis s'arrête"
+        "--force": "écrase un document modifié depuis le dernier export (empreintes gardées dans .spec-pack.json du dossier de la mission, jamais dans le dossier des spécifications)",
+        "--check": "contrôle seul un dossier de spécifications déjà écrit, où qu'il ait été copié : chaque lien mène à un fichier du dossier, aucun wikilink, chemin absolu ni URL file: ; code 1 sinon, sans rien exporter",
+        "--schema": "affiche le schéma JSON de specs.json sur une ligne, puis s'arrête"
       },
       "input": {
         "format": "json",
-        "description": "bmad.json : compléments facultatifs de l'export, tous les champs sont facultatifs.",
+        "description": "specs.json : compléments facultatifs de l'export, tous les champs sont facultatifs.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -46,7 +46,7 @@
             "problem": {
               "type": "string",
               "minLength": 1,
-              "description": "le problème d'aujourd'hui et son coût, pour le brief"
+              "description": "le problème d'aujourd'hui et son coût, pour fonctionnel.md"
             },
             "users": {
               "type": "array",
@@ -180,7 +180,7 @@
             },
             "features": {
               "type": "array",
-              "description": "regroupement des exigences fonctionnelles en fonctionnalités (une epic chacune) ; défaut : contextes délimités de domaines.json, sinon domaine de l'exigence",
+              "description": "regroupement des exigences fonctionnelles en fonctionnalités (un lot chacune) ; défaut : contextes délimités de domaines.json, sinon domaine de l'exigence",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -211,7 +211,7 @@
             },
             "stack": {
               "type": "array",
-              "description": "frameworks et technologies retenus, avec leur version, pour la pile d'architecture.md ; complète la technologie des composants de l'option et la bibliothèque d'interface des maquettes, et prime sur elles",
+              "description": "frameworks et technologies retenus, avec leur version, pour la pile technique d'architecture.md ; complète la technologie des composants de l'option et la bibliothèque d'interface des maquettes, et prime sur elles",
               "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -248,7 +248,6 @@
           "additionalProperties": false,
           "required": [
             "input",
-            "layout",
             "output",
             "option",
             "files",
@@ -262,15 +261,12 @@
             "input": {
               "type": "string"
             },
-            "layout": {
-              "const": "bmad-method-6"
-            },
             "output": {
               "type": [
                 "string",
                 "null"
               ],
-              "description": "dossier de planification BMAD écrit"
+              "description": "dossier des spécifications écrit (ou contrôlé)"
             },
             "option": {
               "type": [
@@ -309,7 +305,7 @@
                 "type": "integer",
                 "minimum": 0
               },
-              "description": "features, fr, nfr, stories, glossary, decisions, questions, without_criteria (FR sans critère d'acceptation), stack, stack_without_version, screens, ux_findings, copies (fichiers copiés dans le bundle)"
+              "description": "features, fr, nfr, stories, glossary, decisions, questions, without_criteria (FR sans critère d'acceptation), stack, stack_without_version, screens, ux_findings, test_cases, copies (fichiers copiés dans le dossier) ; avec --check : files (fichiers lus)"
             },
             "missing": {
               "type": "array",
@@ -320,7 +316,7 @@
             },
             "next": {
               "type": "string",
-              "description": "suite dans BMAD"
+              "description": "suite : donner le dossier à l'outil de développement"
             },
             "errors": {
               "type": "array",
@@ -338,8 +334,8 @@
         }
       },
       "exit_codes": {
-        "0": "artefacts écrits (avertissements possibles : option seulement recommandée, pièce non vérifiée, artefact gardé car modifié)",
-        "1": "exigences.json absent, pièce ou bmad.json invalide, option inconnue, relecture en échec ; aucun fichier produit"
+        "0": "documents écrits, ou dossier contrôlé sans erreur (avertissements possibles : option seulement recommandée, pièce non vérifiée, document gardé car modifié, lien hors du dossier retiré)",
+        "1": "exigences.json absent, pièce ou specs.json invalide, option inconnue, relecture en échec, lien sortant ou chemin de la machine ; aucun fichier produit"
       }
     }
   ],
@@ -420,7 +416,7 @@
     {
       "to": "test-plan",
       "kind": "skill",
-      "when": "des stories sont sans critère d'acceptation (counts.without_criteria) : écrire les cas de recette, puis relancer l'export"
+      "when": "des exigences sont sans critère d'acceptation (counts.without_criteria) : écrire les cas de recette, puis relancer l'export"
     },
     {
       "to": "mockup-to-html",
@@ -430,7 +426,7 @@
     {
       "to": "utilisateur",
       "kind": "utilisateur",
-      "when": "les artefacts sont écrits : installer BMAD Method dans le projet cible et poursuivre avec ses skills (bmad-prd, bmad-create-epics-and-stories, bmad-sprint-planning, bmad-build)"
+      "when": "les spécifications sont écrites : donner le dossier (README.md et le document de l'aspect traité) à l'outil de développement IA choisi, quel qu'il soit ; spec_pack.py --check avant de transmettre une copie"
     }
   ]
 }

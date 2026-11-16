@@ -385,7 +385,7 @@
     },
     {
       "id": "developpement",
-      "label": "Passage au développement (BMAD)",
+      "label": "Passage au développement (spécifications)",
       "level": "simple",
       "facultative": true,
       "after": [
@@ -394,7 +394,7 @@
         "recette"
       ],
       "skills": [
-        "bmad-export"
+        "spec-pack"
       ],
       "inputs": [
         "exigences.json",
@@ -404,28 +404,29 @@
         "recette.json"
       ],
       "deliverables": [
-        "_bmad-output/planning-artifacts/prd.md",
-        "_bmad-output/planning-artifacts/epics.md"
+        "specs/README.md",
+        "specs/fonctionnel.md",
+        "specs/tests.md",
+        "specs/livraison.md"
       ],
       "optional": [
-        "bmad.json",
-        "_bmad-output/planning-artifacts/brief.md",
-        "_bmad-output/planning-artifacts/architecture.md",
-        "_bmad-output/planning-artifacts/addendum.md"
+        "specs.json",
+        "specs/ux.md",
+        "specs/architecture.md"
       ],
       "checks": [
-        "bmad-export : bmad_export.py . (zéro erreur ; missing, counts.without_criteria et tout artefact gardé dits à l'utilisateur)"
+        "spec-pack : spec_pack.py . (zéro erreur ; missing, counts.without_criteria et tout document gardé dits à l'utilisateur)"
       ],
       "run": [
         {
-          "skill": "bmad-export",
-          "script": "bmad_export.py",
+          "skill": "spec-pack",
+          "script": "spec_pack.py",
           "args": [
             "."
           ]
         }
       ],
-      "instructions": "Étape facultative, à faire si le développement se mène avec BMAD Method (sinon skip, avec les mots de l'utilisateur). Le script écrit brief, PRD, architecture, ébauche d'epics et addendum depuis les livrables validés ; n'écrire bmad.json (vision, utilisateurs, parcours, indicateurs) que si l'utilisateur veut un PRD complet et que les sources le disent. Si le code vit dans un autre dépôt, relancer avec --out vers sa racine. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal."
+      "instructions": "Étape facultative, à faire si l'équipe passe au développement (sinon skip, avec les mots de l'utilisateur). Le script écrit un dossier de spécifications autonome (fonctionnel, UX, architecture, tests, livraison, index de traçabilité) depuis les livrables validés, utilisable par n'importe quel outil de développement IA ; n'écrire specs.json (vision, utilisateurs, parcours, indicateurs, versions) que si l'utilisateur veut des spécifications complètes et que les sources le disent. Pour le transmettre ailleurs, --out vers le dossier voulu puis --check sur la copie. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal."
     }
   ]
 }
