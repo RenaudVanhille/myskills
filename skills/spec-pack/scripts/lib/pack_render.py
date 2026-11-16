@@ -391,6 +391,7 @@ def livraison(m: dict, ux_lines: list[str]) -> tuple[dict, str]:
         section("Ordre de réalisation suggéré", "\n".join(f"{i}. {line}" for i, line in enumerate(sequence, 1))),
         section("Dépendances et préalables", bullets(d for d in deps if d)),
         section("Définition de terminé", bullets(done)),
+        section("Coût IA du développement", m.get("ai_cost", "")),
     ])
     return {"title": f"Plan de livraison : {m['name']}", "type": "livraison"}, body
 
