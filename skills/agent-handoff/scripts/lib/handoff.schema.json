@@ -17,6 +17,8 @@
                     "description": "Où le résultat sera lu."},
     "output": {"type": "string", "minLength": 1, "description": "Dossier ou fichier attendu."},
     "constraints": {"type": "array", "items": {"type": "string"},
-                    "description": "Ce qu'il ne faut pas changer, modèle Word, délais..."}
+                    "description": "Ce qu'il ne faut pas changer, modèle Word, délais..."},
+    "level": {"enum": ["simple", "moyen", "complexe"],
+              "description": "Niveau recommandé pour l'agent qui reçoit (route.py) : l'appelant le lance avec le modèle de ce niveau (shared/models.json)."}
   }
 }

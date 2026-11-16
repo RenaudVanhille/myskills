@@ -29,7 +29,9 @@
       "rubric": [
         "passage.json est un message de passage vers architecture-workflow, avec le workflow architecture dans constraints.",
         "Les deux documents fournis figurent dans files.",
-        "L'agent n'a ni converti les documents, ni écrit d'exigences ou d'options.",
+        "passage.json porte le niveau recommandé (level) de l'agent choisi.",
+        "L'agent a lancé lui-même architecture-workflow comme sous-agent, ou, si son outil ne le permet pas, a dit à l'utilisateur quel agent lancer et à quel niveau.",
+        "L'agent n'a ni converti les documents, ni écrit d'exigences ou d'options lui-même.",
         "La mission est ouverte en avant-vente (mission.json, documents rangés dans documents/, vault) et son dossier figure dans constraints."
       ]
     },
