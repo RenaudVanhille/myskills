@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+import estimate_ai
 from estimate_common import COMPLEXITY, PHASES, days, money, pct
 from text_tools import cell
 
@@ -77,7 +78,8 @@ def render_scenarios(spec: dict, found: dict) -> list[str]:
            row("Réalisation, coût", lambda i: f"{money(i['build']['cost'], cur)} ({money(i['build']['cost_low'], cur)}"
                                               f" à {money(i['build']['cost_high'], cur)})"),
            row("dont adoption de l'IA", lambda i: money(i["build"]["setup"], cur)),
-           row("dont outillage IA (licences, jetons)", lambda i: money(i["build"]["tooling"], cur)),
+           row("dont licences d'outils IA", lambda i: money(i["build"]["tooling"], cur)),
+           row("dont jetons des agents IA (médiane)", lambda i: money(i["build"].get("tokens", 0), cur)),
            row("Run par an", lambda i: money(i["run"]["annual"], cur)),
            row("Fonctionnement par mois", lambda i: money(i["operate"]["monthly"], cur)),
            row(f"**Coût total sur {years(horizon)}**", lambda i: f"**{money(i['tco']['total'], cur)}**"),
@@ -92,7 +94,7 @@ def render_scenarios(spec: dict, found: dict) -> list[str]:
             for p in phases]
     for label, key, fmt in (("Incertitude sur le gain (écart type relatif)", "gain_uncertainty", num),
                             ("Adoption, % de la charge des lots", "setup_percent", num),
-                            (f"Outillage IA par jour travaillé ({cur})", "tooling_per_day", num),
+                            (f"Licences IA par jour travaillé ({cur})", "tooling_per_day", num),
                             ("Facteur du run", "run_factor", num)):
         out.append(f"| {label} | " + " | ".join(fmt(i["scenario"].get(key, 0 if key in ("setup_percent", "tooling_per_day", "gain_uncertainty") else 1))
                                               for i in items[1:]) + " |")
@@ -141,6 +143,7 @@ def render_md(spec: dict, option: dict, status: str, found: dict, providers: dic
         out.append("")
 
     out += render_scenarios(spec, found)
+    out += estimate_ai.markdown(found["ai_cost"]) if found.get("ai_cost") else []
     tasks = [line for line in found["lines"] if line["type"] == "lot"]
     out += ["## Réalisation par lot", "",
             "| Lot | Phase | Composant | Exigences | Profil | Mini | Probable | Maxi | Espérés | Coût |",
@@ -291,6 +294,7 @@ def render_charges(spec: dict, option: dict, status: str, found: dict) -> str:
         out += [f"| {PHASES.get(k, k)} | {days(v[0])} | {hrs(v[0], per_day)} | " + " | ".join(days(x) for x in v[1:]) + " |"
                 for k, v in groups.items()]
     out.append("")
+    out += estimate_ai.markdown(found["ai_cost"]) if found.get("ai_cost") else []
     out += render_challenge(found)
     for key, label in (("assumptions", "Hypothèses"), ("exclusions", "Exclusions")):
         if spec.get(key):

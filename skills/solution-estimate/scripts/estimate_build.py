@@ -87,6 +87,7 @@ from estimate_checks import (  # noqa: E402
     phase_shares,
     three_points,
 )
+import estimate_ai  # noqa: E402
 from estimate_common import BUILD_PHASES, PHASES, days, hint, plain  # noqa: E402
 from estimate_render import (  # noqa: E402
     charge_csv,
@@ -110,6 +111,8 @@ UNCERTAIN = 1.0  # (maxi - mini) / probable au-delà : estimation à découper o
 PROVIDERS = require_file("cloud-architecture", "lib/providers.json")
 # Hypothèses de production par défaut : sans IA (charges saisies), avec IA, dev IA natif.
 SCENARIOS = Path(__file__).resolve().parent.parent / "references" / "hypotheses-ia.json"
+# Grille du coût IA du développement : jetons par jour, modèles par niveau, tarifs datés.
+AI_GRID = SCENARIOS.parent / "jetons-ia.json"
 STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à revérifier
 
 
@@ -612,6 +615,12 @@ def scenarios(spec: dict, found: dict, profile, errors: list[str], warnings: lis
     """Mêmes calculs que la réalisation et le run, avec le facteur de chaque phase ou lot de l'hypothèse."""
     defs = load_scenarios(spec, errors, warnings)
     lots = [x for x in found["lines"] if x["type"] == "lot"]
+    # Coût IA du développement (jetons) : fourchette par hypothèse, ajoutée à l'outillage de la réalisation.
+    grid = estimate_ai.load(spec, AI_GRID, errors, warnings)
+    rate = estimate_ai.exchange_rate(spec, grid, warnings) if grid else None
+    ai = estimate_ai.estimate(spec, lots, defs, grid, rate, warnings) if grid and not errors else None
+    found["ai_cost"] = ai
+    tokens = {s["id"]: s for s in (ai or {}).get("scenarios", [])}
     base_days = sum(x["days"] for x in lots)
     base_cost = sum(x["cost"] for x in lots)
     avg_rate = base_cost / base_days if base_days else 0.0
@@ -652,11 +661,15 @@ def scenarios(spec: dict, found: dict, profile, errors: list[str], warnings: lis
         per_day = scen.get("tooling_per_day", 0)
         tooling = per_day * (w_days + setup_days)
         if tooling:
-            rows.append({"type": "outillage", "id": "O", "name": "Outillage IA : licences et jetons", "phase": "",
+            rows.append({"type": "outillage", "id": "O", "name": "Outillage IA : licences", "phase": "",
                          "profile": "", "factor": "", "days": "", "rate": per_day, "cost": tooling, "annual": 0})
+        spent = tokens.get(sid, {}).get("cost") or [0.0, 0.0, 0.0]
+        if spent[1]:
+            rows.append({"type": "jetons", "id": "J", "name": "Jetons des agents IA (médiane)", "phase": "",
+                         "profile": "", "factor": "", "days": "", "rate": "", "cost": spent[1], "annual": 0})
         contingency = scen.get("contingency", spec.get("contingency", 0)) / 100
         sd_days, sd_cost = math.sqrt(w_var + g_days ** 2), math.sqrt(c_var + g_cost ** 2)
-        fixed_days, fixed_cost = setup_days, setup_days * setup_rate + tooling
+        fixed_days, fixed_cost = setup_days, setup_days * setup_rate + tooling + spent[1]
         f_days = over_days / (w_days + setup_days) if w_days + setup_days else 0.0
         f_cost = over_cost / (w_cost + setup_days * setup_rate) if w_cost + setup_days * setup_rate else 0.0
         base = w_cost + fixed_cost + over_cost
@@ -666,12 +679,12 @@ def scenarios(spec: dict, found: dict, profile, errors: list[str], warnings: lis
                  "days_low": round((max(w_days - Z90 * sd_days, 0) + fixed_days) * (1 + f_days), 1),
                  "days_high": round((w_days + Z90 * sd_days + fixed_days) * (1 + f_days), 1),
                  "cost": round(base * (1 + contingency)),
-                 "cost_low": round((low_c * (1 + f_cost) + per_day * (max(w_days - Z90 * sd_days, 0) + fixed_days))
-                                   * (1 + contingency)),
-                 "cost_high": round((high_c * (1 + f_cost) + per_day * (w_days + Z90 * sd_days + fixed_days))
-                                    * (1 + contingency)),
+                 "cost_low": round((low_c * (1 + f_cost) + per_day * (max(w_days - Z90 * sd_days, 0) + fixed_days)
+                                    + spent[0]) * (1 + contingency)),
+                 "cost_high": round((high_c * (1 + f_cost) + per_day * (w_days + Z90 * sd_days + fixed_days)
+                                     + spent[2]) * (1 + contingency)),
                  "contingency": round(base * contingency), "setup": round(setup_days * setup_rate),
-                 "tooling": round(tooling)}
+                 "tooling": round(tooling), "tokens": round(spent[1])}
         run_annual = run_tooling = 0.0
         for item in found["run"]:
             factor = scen.get("run_factor", 1)
@@ -861,6 +874,11 @@ def main() -> int:
                    "challenge": {k: v for k, v in found["challenge"].items() if k not in ("limits", "abaques")},
                    "abaques": sources})
     report["analogy"] = analogy(args.spec, spec, errors, warnings)
+    ai = found.get("ai_cost")
+    if ai:
+        report["ai_cost"] = {"confidence": ai["confidence"], "interval": ai["interval"], "checked": ai["checked"],
+                             "scenarios": [{k: s[k] for k in ("id", "mtok", "usd", "cost", "budget_confidence")
+                                            if k in s} for s in ai["scenarios"]]}
 
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -883,6 +901,12 @@ def main() -> int:
         csv.writer(handle, delimiter=";").writerows(charge_csv(found))
     errors += verify_charges(charge_table, found)
     report["outputs"] += [str(charge_md), str(charge_table)]
+    if ai:
+        ai_file = out_dir / f"{stem}.ia.json"
+        with open(ai_file, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(ai, handle, ensure_ascii=False, indent=2)
+        errors += estimate_ai.verify(ai_file)
+        report["outputs"].append(str(ai_file))
     if args.vault and not errors:
         report["vault"] = write_vault(args.vault, args.folder, spec, option, found,
                                       md if report["mode"] == "chiffrage" else charge_md, errors, report["warnings"])
