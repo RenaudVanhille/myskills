@@ -64,6 +64,6 @@ En pointillés : les workflows dont le dossier validé (exigences et options) es
 | [Évolution d'une solution validée : écarts, impacts, décision et chiffrage du changement](evolution.md) (`evolution`) | 8 | Dossier validé |
 | [Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend](maquettes.md) (`maquettes`) | 4 | Maquettes d'écrans |
 | [Migration d'un portefeuille d'applications vers le cloud](migration-cloud.md) (`migration-cloud`) | 7 | Documents du projet |
-| [Restitution d'une architecture retenue au comité ou aux décideurs](restitution.md) (`restitution`) | 4 | Dossier validé |
+| [Restitution d'une architecture retenue au comité ou aux décideurs](restitution.md) (`restitution`) | 5 | Dossier validé |
 | [Rétro-documentation et modernisation d'une application existante](retro-documentation.md) (`retro-documentation`) | 9 | Code de l'application |
 | [Instruction d'un dossier d'architecture reçu](revue-dossier.md) (`revue-dossier`) | 4 | Documents du projet |

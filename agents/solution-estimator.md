@@ -19,7 +19,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 
 - **Niveau** : complexe (modèle puissant, `shared/models.json`).
 - **Reçoit** : Le catalogue d'exigences validé (exigences.json de requirements-catalog) ; Les options d'architecture (options.json d'architecture-options), avec la décision ou la recommandation ; l'option à chiffrer si ce n'est pas celle-là ; Ce que l'utilisateur veut chiffrer et les données connues : taux journaliers des profils, horizon, budget, devis ou grilles tarifaires, contraintes de planning ; Facultatif : les abaques de l'utilisateur ou de la mission (~/.myskills/abaques.json, references.abaques de mission.json), donnés avant le lancement ; sans eux, valeurs par défaut à calibrer.
-- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script ; chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script ; chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers ; chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack.
+- **Produit** : chiffrage.json : description du chiffrage (lots, charges, infrastructure, run, hypothèses), validée par estimate_build.py ; chiffrage.md : chiffrage pour la revue (synthèse, fourchette, budget, trois hypothèses sans IA, avec IA et dev IA natif, détail, coût total, réemploi et points à challenger, couverture, hypothèses) ; chiffrage.csv : lignes détaillées pour un tableur, relu par le script ; chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script ; chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers ; chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack ; chiffrage.parcours.json (avec journeys) : coût par parcours utilisateur, poste par poste avec ses références, somme égale à la réalisation, relu par le script ; repris par journeys_view.py en restitution.
 - **Ne fait jamais** : Écrire un total, une espérance ou une fourchette à la main : le script les calcule ; Chercher un tarif en ligne ou envoyer le chiffrage à un service en ligne : un prix inconnu est une hypothèse avec sa base ; Modifier exigences.json ou options.json : un écart se signale à l'agent ou au skill qui les tient ; Ajouter une marge dans un lot alors que pilotage et provision existent, ou garder un point à challenger sans le justifier dans assumptions.
 - **Passe la main** :
 
@@ -109,6 +109,10 @@ workflow, la commande les trace aussi au journal.
    des montants, prends des valeurs usuelles, note-les dans `assumptions`
    et signale-les : c'est la seule question à poser, et seulement si la
    réponse change le résultat.
+   Parcours utilisateurs connus (UJ de spec-pack, maquettes, exigences) ou
+   coût par parcours demandé : décris-les dans `journeys` (`refs`, `screens`
+   des lots frontend, `path`, risques et dépendances) ; le script répartit
+   chaque poste avec ses références et contrôle la somme.
 7. Lance `estimate_build.py chiffrage.json` et corrige jusqu'à zéro erreur.
    Traite chaque avertissement : exigence qu'aucun lot ne porte, composant
    sans chiffrage, lot incertain, poste souvent oublié, budget dépassé (le

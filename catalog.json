@@ -459,7 +459,8 @@
         "chiffrage.csv : lignes détaillées pour un tableur, relu par le script",
         "chiffrage.hypotheses.csv : lignes de chaque hypothèse de production, relu par le script",
         "chiffrage.charges.md et chiffrage.charges.csv : plan de charge sans montant (tâche, complexité, jours, heures, par hypothèse) ; seuls produits sans taux journaliers",
-        "chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack"
+        "chiffrage.ia.json : coût IA du développement (jetons des agents, en dollars et dans la devise, médiane et fourchette P10-P90 par hypothèse et par lot, fiabilité), relu par le script, repris par spec-pack",
+        "chiffrage.parcours.json (avec journeys) : coût par parcours utilisateur, poste par poste avec ses références, somme égale à la réalisation, relu par le script ; repris par journeys_view.py en restitution"
       ],
       "never": [
         "Écrire un total, une espérance ou une fourchette à la main : le script les calcule",
@@ -18170,12 +18171,13 @@
         "<nom>.csv : lignes détaillées (lots, pilotage, infrastructure, run), séparateur point-virgule, relu par le script",
         "<nom>.hypotheses.csv : lignes de chaque hypothèse de production (sans IA, avec IA, IA natif : lots avec leur facteur, adoption, pilotage, outillage IA, run), relu par le script",
         "<nom>.charges.md et <nom>.charges.csv : plan de charge sans montant (chaque tâche avec sa complexité, ses jours et ses heures, sans IA, avec IA et IA natif ; par phase et par profil ; coût IA du développement en jetons et en dollars), relu par le script ; seuls produits sans rates",
-        "<nom>.ia.json : coût IA du développement (jetons des agents et assistants, en dollars et dans la devise : médiane et fourchette P10-P90 à 80 %, par hypothèse et par lot, fiabilité des hypothèses, confiance de tenir le budget IA), relu par le script ; repris par spec-pack dans livraison.md"
+        "<nom>.ia.json : coût IA du développement (jetons des agents et assistants, en dollars et dans la devise : médiane et fourchette P10-P90 à 80 %, par hypothèse et par lot, fiabilité des hypothèses, confiance de tenir le budget IA), relu par le script ; repris par spec-pack dans livraison.md",
+        "<nom>.parcours.json (avec journeys) : coût par parcours, hypothèse et poste, avec références, relu par le script, aussi en section du chiffrage ; parcours.md (journeys_view.py) : workflow, coût et points d'attention par parcours, pour la restitution"
       ],
       "scripts": [
         {
           "name": "estimate_build.py",
-          "role": "Vérifie les profils, les composants de l'option chiffrée (options.json, architecture-options) et les exigences (exigences.json, requirements-catalog), contrôle l'hébergeur de chaque ligne d'infrastructure contre le catalogue des hébergeurs et les qualifications exigées (SecNumCloud, HDS...), calcule la charge espérée de chaque lot (estimation à trois points), la fourchette P10-P90 de la réalisation, le pilotage, la provision, l'infrastructure par an et ponctuelle, le run et le coût total sur l'horizon, puis les mêmes montants pour trois hypothèses de production (sans IA, avec IA, dev IA natif : facteur de charge par phase ou par lot, incertitude élargie, adoption, licences et jetons, run) ; signale les exigences qu'aucun lot ne porte, les composants sans chiffrage, les postes attendus absents (règles de complétude selon les exigences et les composants : tests de sécurité et de charge, hors production, réseau, recette, mise en production, formation, sauvegarde, supervision, intégration, reprise de données), les estimations très incertaines et les dépassements de budget ; estime le coût IA du développement (jetons des agents par jour de l'équipe, poids de la phase et de la complexité, modèle et tarif de chaque niveau de travail : médiane et fourchette P10-P90 à 80 % par simulation à graine fixe, par hypothèse et par lot, fiabilité des hypothèses, confiance de tenir le budget IA) et l'ajoute à la réalisation des hypothèses avec IA ; écrit le chiffrage, son CSV et celui des hypothèses, ainsi que le plan de charge sans montant et le résumé du coût IA (<nom>.ia.json) (tâche, complexité, jours, heures) ; sans taux journaliers, ce plan de charge seul, puis relit les CSV pour vérifier les totaux ; dans une mission qui désigne des missions passées (analogues), compare les parts de charge par phase à leurs fourchettes (écarts en avertissements, rien de leur contenu recopié) ; avec --draft, écrit le brouillon de la description (lots par composant et transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts frontend et backend, --lots ; lots transverses chiffrés par ratio quand les experts couvrent toute la réalisation) pour que le modèle n'écrive que les charges ; applique le réemploi déclaré par lot (reuse : part épargnée, base) et donne le taux de réemploi ; relève les points à challenger (marges cumulées, part de la réalisation, lots trop gros, lots semblables sans réemploi, jours par exigence) avec les seuils des abaques donnés avant le lancement, sinon des seuils par défaut à calibrer.",
+          "role": "Vérifie profils, composants de l'option (options.json), exigences (exigences.json) et hébergeur de chaque ligne d'infrastructure (catalogue, qualifications SecNumCloud, HDS...) ; calcule charge espérée par lot (trois points), fourchette P10-P90, pilotage, provision, infrastructure, run et coût total, pour trois hypothèses de production (sans IA, avec IA, dev IA natif) et le coût IA du développement (jetons : médiane et P10-P90 par hypothèse et par lot, fiabilité, budget IA) ; signale exigences sans lot, composants non chiffrés, postes attendus absents (règles de complétude), estimations incertaines, budget dépassé, écarts aux missions analogues ; applique le réemploi déclaré et relève les points à challenger (seuils des abaques, sinon par défaut) ; avec journeys, répartit la réalisation par parcours utilisateur et par poste, avec ses références, postes partagés au prorata, somme contrôlée ; écrit chiffrage, CSV, plan de charge sans montant (seul sans taux), <nom>.ia.json et <nom>.parcours.json, puis les relit. Avec --draft : brouillon de la description (lots par composant, transverses, valeurs usuelles, budget, infrastructure de cloud-cost, lots des experts --lots, transverses par ratio) ; le modèle n'écrit que les charges.",
           "usage": "uv run scripts/estimate_build.py chiffrage.json [--out-dir DOSSIER] [--abaques ABAQUES.json] [--vault VAULT --folder DOSSIER_DU_VAULT] | chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots LOTS.json ...] | --schema",
           "options": {
             "chiffrage.json": "description du chiffrage ; requirements, architecture et providers sont relatifs à ce fichier",
@@ -18406,6 +18408,16 @@
                             "description": "Ce qui est réutilisé et pourquoi (même gabarit, composant commun, existant du client)."
                           }
                         }
+                      },
+                      "post": {
+                        "enum": [
+                          "front",
+                          "back",
+                          "donnees",
+                          "tests",
+                          "transverse"
+                        ],
+                        "description": "Poste du lot dans le coût par parcours (défaut : tiré de la phase et du composant)."
                       }
                     }
                   }
@@ -18866,6 +18878,91 @@
                     "checked": {
                       "type": "string",
                       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                    }
+                  }
+                },
+                "journeys": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "Parcours utilisateurs (UJ) : coût de chacun, poste par poste avec ses références, postes partagés répartis au prorata ; la somme redonne la réalisation.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "title",
+                      "refs"
+                    ],
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^_": {}
+                    },
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "persona": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "refs": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                        },
+                        "description": "Exigences du parcours : un lot qui en porte se rattache au parcours, au prorata des exigences communes."
+                      },
+                      "screens": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Écrans du parcours : un lot qui nomme l'écran s'y rattache (lots frontend de ui_breakdown.py)."
+                      },
+                      "work": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$"
+                        },
+                        "description": "Lots rattachés d'office au parcours."
+                      },
+                      "path": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "description": "Étapes du parcours, dans l'ordre : son schéma de workflow (défaut : composants touchés)."
+                      },
+                      "risks": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "assumptions": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "dependencies": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
                     }
                   }
                 }
@@ -20197,6 +20294,53 @@
                           }
                         }
                       }
+                    },
+                    "journeys": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "count",
+                        "spread",
+                        "items"
+                      ],
+                      "description": "Coût par parcours (sans IA) : nombre, part répartie au prorata, jours, coût et part de chaque parcours.",
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "spread": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                              "id",
+                              "days",
+                              "cost",
+                              "share"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "days": {
+                                "type": "number"
+                              },
+                              "cost": {
+                                "type": "number"
+                              },
+                              "share": {
+                                "type": "number"
+                              }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 },
@@ -20790,6 +20934,381 @@
             "0": "chiffrage produit et CSV vérifié (avertissements possibles)",
             "1": "description invalide, profil, composant ou exigence inconnu, estimation hors ordre, CSV qui ne redonne pas les totaux ; aucun fichier produit sauf dans ce dernier cas"
           }
+        },
+        {
+          "name": "journeys_view.py",
+          "role": "Écrit parcours.md pour une restitution depuis <nom>.parcours.json : synthèse, puis par parcours son workflow (Mermaid : persona et étapes, sinon composants touchés), son coût et ses principaux postes dans l'hypothèse choisie, ses points d'attention (risques, hypothèses, dépendances, contrôles) ; recontrôle la somme, ne recalcule rien ; --export rend les workflows en image (diagram-export).",
+          "usage": "uv run scripts/journeys_view.py chiffrage.parcours.json [--out parcours.md] [--scenario ID] [--export png|svg] | --schema",
+          "options": {
+            "chiffrage.parcours.json": "vue par parcours écrite par estimate_build.py (chiffrage avec journeys)",
+            "--out": "Markdown produit (défaut : parcours.md à côté de l'entrée)",
+            "--scenario": "hypothèse montrée : sans-ia (défaut), avec-ia ou ia-natif",
+            "--export": "rend aussi chaque workflow en image (png ou svg, skill diagram-export) dans parcours/, cité par parcours.md",
+            "--schema": "affiche le schéma JSON de l'entrée sur une ligne, puis s'arrête"
+          },
+          "input": {
+            "format": "json",
+            "description": "Vue par parcours d'estimate_build.py, validée avant tout traitement (clé inconnue, type, poste hors liste) ; somme des parcours égale à la réalisation de chaque hypothèse, sinon erreur sans fichier produit.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "title",
+                "option",
+                "currency",
+                "scenarios",
+                "spread",
+                "refs",
+                "journeys"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "option": {
+                  "type": "string"
+                },
+                "currency": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "scenarios": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "name",
+                      "days",
+                      "cost"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "days": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "cost": {
+                        "type": "number",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                },
+                "spread": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "part de la réalisation sans IA répartie au prorata"
+                },
+                "refs": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "références des postes sans lot (pilotage, provision, ia)"
+                },
+                "journeys": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "title",
+                      "refs",
+                      "path",
+                      "components",
+                      "lots",
+                      "scenarios",
+                      "attention"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "persona": {
+                        "type": "string"
+                      },
+                      "refs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "path": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "components": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "lots": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "id",
+                            "name",
+                            "post",
+                            "how",
+                            "share",
+                            "refs"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "post": {
+                              "enum": [
+                                "front",
+                                "back",
+                                "donnees",
+                                "tests",
+                                "transverse"
+                              ]
+                            },
+                            "how": {
+                              "enum": [
+                                "lot",
+                                "ecran",
+                                "exigences",
+                                "partage"
+                              ]
+                            },
+                            "share": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "refs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "note": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      },
+                      "scenarios": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "id",
+                            "days",
+                            "cost",
+                            "share",
+                            "posts"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "days": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "cost": {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            "share": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "posts": {
+                              "type": "object",
+                              "additionalProperties": false,
+                              "properties": {
+                                "front": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "back": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "donnees": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "tests": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "transverse": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "pilotage": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "ia": {
+                                  "$ref": "#/$defs/amount"
+                                },
+                                "provision": {
+                                  "$ref": "#/$defs/amount"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "attention": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "risks",
+                          "assumptions",
+                          "dependencies",
+                          "checks"
+                        ],
+                        "properties": {
+                          "risks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "assumptions": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "dependencies": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "checks": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "$defs": {
+                "amount": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "days",
+                    "cost"
+                  ],
+                  "properties": {
+                    "days": {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    "cost": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Parcours rendus, hypothèse montrée et son total, images rendues, fichiers produits, erreurs et avertissements.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "input",
+                "outputs",
+                "journeys",
+                "scenario",
+                "total",
+                "images",
+                "errors",
+                "warnings"
+              ],
+              "properties": {
+                "input": {
+                  "type": "string"
+                },
+                "outputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "journeys": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "scenario": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "total": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "réalisation de l'hypothèse montrée (montant, ou jours sans taux)"
+                },
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "exit_codes": {
+            "0": "parcours.md écrit et relu",
+            "1": "entrée invalide, somme des parcours différente de la réalisation, hypothèse inconnue ou export en échec"
+          }
         }
       ],
       "requires": [
@@ -20819,6 +21338,12 @@
           "skill": "cloud-architecture",
           "script": "lib/providers.json",
           "why": "catalogue commun des hébergeurs"
+        },
+        {
+          "skill": "diagram-export",
+          "script": "export.py",
+          "why": "journeys_view.py --export : rendre le workflow de chaque parcours en image dans le même appel",
+          "optional": true
         }
       ],
       "handoffs": [

@@ -5,6 +5,8 @@
      "help": "décision demandée, recommandation et pourquoi, coût, délai, risques et conditions, prochaines étapes"},
     {"id": "schemas", "title": "Vue d'ensemble", "kind": "images", "sources": ["schemas/**/*.png"], "required": true,
      "help": "schémas du public visé : diagram-brief puis excalidraw-diagram ou c4-architecture"},
+    {"id": "parcours", "title": "Parcours utilisateurs : workflow, coût et points d'attention", "sources": ["parcours.md"],
+     "help": "facultatif : journeys_view.py (solution-estimate) sur le chiffrage par parcours"},
     {"id": "presentation", "title": "Annexe : support de présentation", "kind": "files", "sources": ["presentation.md"]},
     {"id": "journal", "title": "Annexe : journal des choix", "sources": ["journal.md"]}
   ]

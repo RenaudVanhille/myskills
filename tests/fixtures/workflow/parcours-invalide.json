@@ -1,0 +1,410 @@
+{
+ "title": "Chiffrage par parcours du portail de sinistres",
+ "option": "A",
+ "currency": "\u20ac",
+ "scenarios": [
+  {
+   "id": "sans-ia",
+   "name": "Sans IA",
+   "days": 169.1,
+   "cost": 128776
+  },
+  {
+   "id": "avec-ia",
+   "name": "Avec IA",
+   "days": 139.0,
+   "cost": 107251
+  },
+  {
+   "id": "ia-natif",
+   "name": "Dev IA natif",
+   "days": 116.6,
+   "cost": 92985
+  }
+ ],
+ "spread": 0.439,
+ "refs": {
+  "pilotage": "P1 Pilotage 12 %",
+  "provision": "10 % de la r\u00e9alisation",
+  "ia": "adoption et outillage (hypotheses-ia.json), jetons : grille du 2026-11-16, fiabilit\u00e9 faible"
+ },
+ "journeys": [
+  {
+   "id": "UJ1",
+   "title": "D\u00e9clarer un sinistre",
+   "persona": "Assur\u00e9",
+   "refs": [
+    "EF-001",
+    "EF-003"
+   ],
+   "path": [
+    "Se connecter",
+    "D\u00e9crire le sinistre",
+    "Joindre les photos",
+    "Confirmer la d\u00e9claration"
+   ],
+   "components": [
+    "Portail web",
+    "API d\u00e9clarations",
+    "File de d\u00e9clarations"
+   ],
+   "lots": [
+    {
+     "id": "L2",
+     "name": "Portail web",
+     "post": "frontend",
+     "how": "exigences",
+     "share": 1.0,
+     "refs": [
+      "EF-001",
+      "SEC-01"
+     ]
+    },
+    {
+     "id": "L3",
+     "name": "API des d\u00e9clarations",
+     "post": "back",
+     "how": "exigences",
+     "share": 0.5,
+     "refs": [
+      "EF-001",
+      "EF-002",
+      "ENF-001",
+      "ENF-003",
+      "ENF-005",
+      "SEC-02"
+     ]
+    },
+    {
+     "id": "L4",
+     "name": "File et connecteur vers l'outil de gestion",
+     "post": "back",
+     "how": "exigences",
+     "share": 1.0,
+     "refs": [
+      "EF-003",
+      "ENF-002"
+     ]
+    },
+    {
+     "id": "L1",
+     "name": "Cadrage et architecture d\u00e9taill\u00e9e",
+     "post": "transverse",
+     "how": "partage",
+     "share": 0.797,
+     "refs": []
+    },
+    {
+     "id": "L5",
+     "name": "Authentification par l'annuaire",
+     "post": "back",
+     "how": "partage",
+     "share": 0.797,
+     "refs": []
+    },
+    {
+     "id": "L6",
+     "name": "Recette et tests de charge",
+     "post": "tests",
+     "how": "partage",
+     "share": 0.797,
+     "refs": [
+      "ENF-001"
+     ]
+    },
+    {
+     "id": "L7",
+     "name": "Mise en production",
+     "post": "transverse",
+     "how": "partage",
+     "share": 0.797,
+     "refs": []
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "sans-ia",
+     "days": 135.2,
+     "cost": 102619,
+     "share": 0.797,
+     "posts": {
+      "front": {
+       "days": 41.7,
+       "cost": 27083
+      },
+      "back": {
+       "days": 44.7,
+       "cost": 29489
+      },
+      "tests": {
+       "days": 16.6,
+       "cost": 9131
+      },
+      "transverse": {
+       "days": 17.8,
+       "cost": 15313
+      },
+      "pilotage": {
+       "days": 14.4,
+       "cost": 12274
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 9329
+      }
+     }
+    },
+    {
+     "id": "avec-ia",
+     "days": 111.7,
+     "cost": 85985,
+     "share": 0.802,
+     "posts": {
+      "front": {
+       "days": 31.3,
+       "cost": 20312
+      },
+      "back": {
+       "days": 36.0,
+       "cost": 23752
+      },
+      "tests": {
+       "days": 13.4,
+       "cost": 7349
+      },
+      "transverse": {
+       "days": 16.7,
+       "cost": 14429
+      },
+      "pilotage": {
+       "days": 11.9,
+       "cost": 10146
+      },
+      "ia": {
+       "days": 2.4,
+       "cost": 2180
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 7817
+      }
+     }
+    },
+    {
+     "id": "ia-natif",
+     "days": 95.1,
+     "cost": 75684,
+     "share": 0.814,
+     "posts": {
+      "front": {
+       "days": 20.8,
+       "cost": 13542
+      },
+      "back": {
+       "days": 28.7,
+       "cost": 18848
+      },
+      "tests": {
+       "days": 11.0,
+       "cost": 6061
+      },
+      "transverse": {
+       "days": 17.0,
+       "cost": 14800
+      },
+      "pilotage": {
+       "days": 10.2,
+       "cost": 8639
+      },
+      "ia": {
+       "days": 7.4,
+       "cost": 6914
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 6880
+      }
+     }
+    }
+   ],
+   "attention": {
+    "risks": [
+     "Photos volumineuses depuis un mobile"
+    ],
+    "assumptions": [],
+    "dependencies": [
+     "API de cr\u00e9ation de dossier de l'outil de gestion"
+    ],
+    "checks": [
+     "estimation incertaine : L4",
+     "lot trop gros : L2"
+    ]
+   }
+  },
+  {
+   "id": "UJ2",
+   "title": "Suivre son dossier",
+   "persona": "Assur\u00e9",
+   "refs": [
+    "EF-002"
+   ],
+   "path": [],
+   "components": [
+    "API d\u00e9clarations"
+   ],
+   "lots": [
+    {
+     "id": "L3",
+     "name": "API des d\u00e9clarations",
+     "post": "back",
+     "how": "exigences",
+     "share": 0.5,
+     "refs": [
+      "EF-001",
+      "EF-002",
+      "ENF-001",
+      "ENF-003",
+      "ENF-005",
+      "SEC-02"
+     ]
+    },
+    {
+     "id": "L1",
+     "name": "Cadrage et architecture d\u00e9taill\u00e9e",
+     "post": "transverse",
+     "how": "partage",
+     "share": 0.203,
+     "refs": []
+    },
+    {
+     "id": "L5",
+     "name": "Authentification par l'annuaire",
+     "post": "back",
+     "how": "partage",
+     "share": 0.203,
+     "refs": []
+    },
+    {
+     "id": "L6",
+     "name": "Recette et tests de charge",
+     "post": "tests",
+     "how": "partage",
+     "share": 0.203,
+     "refs": [
+      "ENF-001"
+     ]
+    },
+    {
+     "id": "L7",
+     "name": "Mise en production",
+     "post": "transverse",
+     "how": "partage",
+     "share": 0.203,
+     "refs": []
+    }
+   ],
+   "scenarios": [
+    {
+     "id": "sans-ia",
+     "days": 33.9,
+     "cost": 26157,
+     "share": 0.203,
+     "posts": {
+      "back": {
+       "days": 21.5,
+       "cost": 14420
+      },
+      "tests": {
+       "days": 4.2,
+       "cost": 2327
+      },
+      "transverse": {
+       "days": 4.5,
+       "cost": 3903
+      },
+      "pilotage": {
+       "days": 3.7,
+       "cost": 3129
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 2378
+      }
+     }
+    },
+    {
+     "id": "avec-ia",
+     "days": 27.3,
+     "cost": 21266,
+     "share": 0.198,
+     "posts": {
+      "back": {
+       "days": 16.3,
+       "cost": 10901
+      },
+      "tests": {
+       "days": 3.3,
+       "cost": 1818
+      },
+      "transverse": {
+       "days": 4.1,
+       "cost": 3570
+      },
+      "pilotage": {
+       "days": 3.0,
+       "cost": 2510
+      },
+      "ia": {
+       "days": 0.6,
+       "cost": 534
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 1933
+      }
+     }
+    },
+    {
+     "id": "ia-natif",
+     "days": 21.5,
+     "cost": 17301,
+     "share": 0.186,
+     "posts": {
+      "back": {
+       "days": 11.1,
+       "cost": 7412
+      },
+      "tests": {
+       "days": 2.5,
+       "cost": 1387
+      },
+      "transverse": {
+       "days": 3.9,
+       "cost": 3387
+      },
+      "pilotage": {
+       "days": 2.3,
+       "cost": 1977
+      },
+      "ia": {
+       "days": 1.7,
+       "cost": 1565
+      },
+      "provision": {
+       "days": 0.0,
+       "cost": 1573
+      }
+     }
+    }
+   ],
+   "attention": {
+    "risks": [],
+    "assumptions": [
+     "Le statut du dossier est lu dans l'outil de gestion, sans copie locale."
+    ],
+    "dependencies": [],
+    "checks": []
+   }
+  }
+ ]
+}

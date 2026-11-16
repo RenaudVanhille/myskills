@@ -59,6 +59,11 @@ seuils des abaques donnés avant le lancement (~/.myskills/abaques.json ou
 MYSKILLS_ABAQUES, references.abaques de mission.json, --abaques), sinon des
 seuils par défaut à calibrer.
 
+Parcours utilisateurs (`journeys`) : la réalisation de chaque hypothèse est
+répartie par parcours et par poste, chaque poste avec ses références, les postes
+partagés au prorata ; la somme des parcours est contrôlée (`<nom>.parcours.json`,
+section du chiffrage, lib/estimate_journeys.py).
+
 Avec `--vault`, le chiffrage va aussi dans le vault Obsidian du workflow, selon
 son ontologie : une note chiffrage (coût total, charge, budget, hébergeur ;
 relation evalue vers la note de l'option) et une note par lot (porte-sur ses
@@ -88,6 +93,7 @@ from estimate_checks import (  # noqa: E402
     three_points,
 )
 import estimate_ai  # noqa: E402
+import estimate_journeys  # noqa: E402
 from estimate_common import BUILD_PHASES, PHASES, days, hint, plain  # noqa: E402
 from estimate_render import (  # noqa: E402
     charge_csv,
@@ -240,8 +246,12 @@ def draft(path: Path, option_id: str | None, infra: Path | None, rules: list[dic
                        f"({', '.join(sorted(known))})" for u in unknown]
             continue
         work = [w for w in work if w.get("component") not in covered]
-        work += [{**w, "_from": (file.name, w.get("id"))} for w in data["work"] if isinstance(w, dict)]
         domain = data.get("domain") or ("frontend" if data["work"][0].get("id", "").startswith("F") else "d'expert")
+        # Poste du coût par parcours, tiré du domaine de l'expert (un lot de tests garde le sien).
+        post = {"frontend": "front", "backend": "back", "recette": "tests"}.get(domain)
+        work += [{**w, "_from": (file.name, w.get("id")),
+                  **({"post": post} if post and "post" not in w and w.get("phase") != "tests" else {})}
+                 for w in data["work"] if isinstance(w, dict)]
         warnings.append(f"--lots : {len(data['work'])} lots {domain} repris de {file.name} avec leurs charges "
                         "d'abaque, à relire")
     if errors:
@@ -874,6 +884,16 @@ def main() -> int:
                    "challenge": {k: v for k, v in found["challenge"].items() if k not in ("limits", "abaques")},
                    "abaques": sources})
     report["analogy"] = analogy(args.spec, spec, errors, warnings)
+    # Coût par parcours utilisateur (journeys) : postes répartis, somme contrôlée par hypothèse.
+    view = estimate_journeys.allocate(spec, found, option, _Refs(spec, catalog, option, errors).refs, errors, warnings)
+    if errors:
+        print(json.dumps(report, ensure_ascii=False))
+        return 1
+    section = "\n".join(estimate_journeys.markdown(view)) + "\n" if view else ""
+    if view:
+        report["journeys"] = {"count": len(view["journeys"]), "spread": view["spread"],
+                              "items": [{"id": j["id"], **{k: j["scenarios"][0][k] for k in ("days", "cost", "share")}}
+                                        for j in view["journeys"]]}
     ai = found.get("ai_cost")
     if ai:
         report["ai_cost"] = {"confidence": ai["confidence"], "interval": ai["interval"], "checked": ai["checked"],
@@ -887,7 +907,8 @@ def main() -> int:
     charge_md, charge_table = out_dir / f"{stem}.charges.md", out_dir / f"{stem}.charges.csv"
     if priced:
         with open(md, "w", encoding="utf-8", newline="\n") as handle:
-            handle.write(render_md(spec, option, status, found, providers))
+            handle.write(render_md(spec, option, status, found, providers).replace(
+                "## Réalisation par lot", section + "## Réalisation par lot", 1))
         with open(table, "w", encoding="utf-8-sig", newline="") as handle:
             csv.writer(handle, delimiter=";").writerows(csv_rows(found))
         with open(hypo, "w", encoding="utf-8-sig", newline="") as handle:
@@ -896,7 +917,8 @@ def main() -> int:
         errors += verify_scenarios(hypo, found, spec)
         report["outputs"] = [str(md), str(table), str(hypo)]
     with open(charge_md, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(render_charges(spec, option, status, found))
+        handle.write(render_charges(spec, option, status, found).replace(
+            "## Détail par tâche", ("" if priced else section) + "## Détail par tâche", 1))
     with open(charge_table, "w", encoding="utf-8-sig", newline="") as handle:
         csv.writer(handle, delimiter=";").writerows(charge_csv(found))
     errors += verify_charges(charge_table, found)
@@ -907,6 +929,12 @@ def main() -> int:
             json.dump(ai, handle, ensure_ascii=False, indent=2)
         errors += estimate_ai.verify(ai_file)
         report["outputs"].append(str(ai_file))
+    if view:
+        trip = out_dir / f"{stem}.parcours.json"
+        with open(trip, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(view, handle, ensure_ascii=False, indent=1)
+        errors += estimate_journeys.verify(trip)
+        report["outputs"].append(str(trip))
     if args.vault and not errors:
         report["vault"] = write_vault(args.vault, args.folder, spec, option, found,
                                       md if report["mode"] == "chiffrage" else charge_md, errors, report["warnings"])
