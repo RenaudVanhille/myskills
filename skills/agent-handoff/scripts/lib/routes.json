@@ -284,11 +284,12 @@
    "agent": "architecture-workflow",
    "level": "moyen",
    "title": "Restitution d'une architecture retenue au comité ou aux décideurs",
-   "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), support de présentation et document assemblé ; une porte de revue par étape.",
+   "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), vue par parcours utilisateur en option (workflow, coût, points d'attention), support de présentation et document assemblé ; une porte de revue par étape.",
    "stages": [
     "messages",
     "schemas",
     "presentation",
+    "parcours (facultative)",
     "document"
    ],
    "inputs": [
@@ -299,7 +300,7 @@
     "../chiffrage.md",
     "../revue.md"
    ],
-   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé Support de présentation architecture-deck Document de restitution architecture-dossier comité de direction décideurs présentation public non technique option retenue"
+   "match": "Décision attendue et messages diagram-brief Schémas pour le public visé Support de présentation architecture-deck Vue par parcours utilisateur solution-estimate Document de restitution architecture-dossier comité de direction décideurs présentation public non technique option retenue"
   },
   {
    "name": "retro-documentation",

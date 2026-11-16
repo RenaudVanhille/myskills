@@ -1,0 +1,226 @@
+{
+ "title": "Chiffrage par parcours du portail de sinistres",
+ "context": "Réalisation et trois ans de fonctionnement de l'option retenue.",
+ "rates": {
+  "chef-de-projet": 850,
+  "architecte": 950,
+  "developpeur": 650,
+  "testeur": 550
+ },
+ "work": [
+  {
+   "id": "L1",
+   "name": "Cadrage et architecture détaillée",
+   "phase": "cadrage",
+   "effort": {
+    "architecte": [
+     8,
+     10,
+     14
+    ],
+    "chef-de-projet": 5
+   }
+  },
+  {
+   "id": "L2",
+   "name": "Portail web",
+   "phase": "realisation",
+   "component": "portail",
+   "effort": {
+    "developpeur": [
+     30,
+     40,
+     60
+    ]
+   }
+  },
+  {
+   "id": "L3",
+   "name": "API des déclarations",
+   "phase": "realisation",
+   "component": "api",
+   "effort": {
+    "developpeur": [
+     25,
+     35,
+     55
+    ],
+    "architecte": 3
+   }
+  },
+  {
+   "id": "L4",
+   "name": "File et connecteur vers l'outil de gestion",
+   "phase": "integration",
+   "component": "file",
+   "refs": [
+    "EF-003"
+   ],
+   "effort": {
+    "developpeur": [
+     10,
+     15,
+     40
+    ]
+   }
+  },
+  {
+   "id": "L5",
+   "name": "Authentification par l'annuaire",
+   "phase": "integration",
+   "component": "annuaire",
+   "effort": {
+    "developpeur": [
+     5,
+     8,
+     12
+    ]
+   }
+  },
+  {
+   "id": "L6",
+   "name": "Recette et tests de charge",
+   "phase": "tests",
+   "refs": [
+    "ENF-001"
+   ],
+   "effort": {
+    "testeur": [
+     15,
+     20,
+     30
+    ]
+   }
+  },
+  {
+   "id": "L7",
+   "name": "Mise en production",
+   "phase": "deploiement",
+   "effort": {
+    "developpeur": 5,
+    "architecte": 2
+   }
+  }
+ ],
+ "overheads": [
+  {
+   "id": "P1",
+   "name": "Pilotage",
+   "percent": 12,
+   "profile": "chef-de-projet"
+  }
+ ],
+ "contingency": 10,
+ "infra": [
+  {
+   "id": "I1",
+   "name": "Conteneurs managés, 2 zones",
+   "component": "api",
+   "environment": "production",
+   "kind": "cloud",
+   "quantity": 4,
+   "unit_cost": 70,
+   "period": "mois",
+   "basis": "hypothèse : 4 tâches 1 vCPU 2 Go, grille publique 2026"
+  },
+  {
+   "id": "I2",
+   "name": "Distribution du portail",
+   "component": "portail",
+   "environment": "production",
+   "kind": "cloud",
+   "unit_cost": 150,
+   "period": "mois",
+   "basis": "hypothèse : 1 To sortant par mois"
+  },
+  {
+   "id": "I3",
+   "name": "File de messages",
+   "component": "file",
+   "kind": "cloud",
+   "unit_cost": 20,
+   "period": "mois",
+   "basis": "hypothèse : 2 millions de messages par mois"
+  },
+  {
+   "id": "I4",
+   "name": "Environnement de recette",
+   "environment": "hors-production",
+   "kind": "cloud",
+   "unit_cost": 400,
+   "period": "mois",
+   "basis": "hypothèse : un tiers de la production"
+  },
+  {
+   "id": "I5",
+   "name": "Mise en place du compte et de la supervision",
+   "kind": "service",
+   "unit_cost": 6000,
+   "period": "unique",
+   "basis": "devis infogérant du 2026-10-01"
+  }
+ ],
+ "run": [
+  {
+   "id": "R1",
+   "name": "Maintenance corrective et évolutive",
+   "percent_of_build": 15
+  },
+  {
+   "id": "R2",
+   "name": "Exploitation",
+   "profile": "developpeur",
+   "days_per_year": 24
+  }
+ ],
+ "budget": {
+  "monthly": 8000,
+  "refs": [
+   "ENF-005"
+  ]
+ },
+ "assumptions": [
+  "L'outil de gestion expose une API de création de dossier.",
+  "Les environnements hors production s'arrêtent la nuit."
+ ],
+ "exclusions": [
+  "Reprise des dossiers existants."
+ ],
+ "journeys": [
+  {
+   "id": "UJ1",
+   "title": "Déclarer un sinistre",
+   "persona": "Assuré",
+   "refs": [
+    "EF-001",
+    "EF-003"
+   ],
+   "path": [
+    "Se connecter",
+    "Décrire le sinistre",
+    "Joindre les photos",
+    "Confirmer la déclaration"
+   ],
+   "risks": [
+    "Photos volumineuses depuis un mobile"
+   ],
+   "dependencies": [
+    "API de création de dossier de l'outil de gestion"
+   ]
+  },
+  {
+   "id": "UJ2",
+   "title": "Suivre son dossier",
+   "persona": "Assuré",
+   "refs": [
+    "EF-099"
+   ],
+   "assumptions": [
+    "Le statut du dossier est lu dans l'outil de gestion, sans copie locale."
+   ],
+   "work": [
+    "L99"
+   ]
+  }
+ ]
+}

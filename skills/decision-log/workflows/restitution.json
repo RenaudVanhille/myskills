@@ -1,7 +1,7 @@
 {
   "name": "restitution",
   "title": "Restitution d'une architecture retenue au comité ou aux décideurs",
-  "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), support de présentation et document assemblé ; une porte de revue par étape.",
+  "description": "Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), vue par parcours utilisateur en option (workflow, coût, points d'attention), support de présentation et document assemblé ; une porte de revue par étape.",
   "ask": [
     "le dossier d'architecture à restituer (défaut : le dossier parent, dont les étapes architectures et schémas sont validées) ; restitution menée dans son sous-dossier restitution/",
     "le public (comité d'architecture, direction, métiers) et la décision attendue ; sans réponse : comité d'architecture et validation de l'option retenue, hypothèse notée au journal",
@@ -194,12 +194,51 @@
       "instructions": "Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER presentation --submit)."
     },
     {
+      "id": "parcours",
+      "label": "Vue par parcours utilisateur",
+      "level": "simple",
+      "facultative": true,
+      "after": [
+        "messages"
+      ],
+      "skills": [
+        "solution-estimate"
+      ],
+      "inputs": [
+        "../chiffrage.parcours.json"
+      ],
+      "deliverables": [
+        "parcours.md"
+      ],
+      "optional": [
+        "parcours/*"
+      ],
+      "checks": [
+        "solution-estimate : journeys_view.py ../chiffrage.parcours.json --out parcours.md --export png (workflow, coût et points d'attention de chaque parcours ; --scenario pour l'hypothèse retenue)"
+      ],
+      "run": [
+        {
+          "skill": "solution-estimate",
+          "script": "journeys_view.py",
+          "args": [
+            "../chiffrage.parcours.json",
+            "--out",
+            "parcours.md",
+            "--export",
+            "png"
+          ]
+        }
+      ],
+      "instructions": "À proposer si le chiffrage déclare ses parcours utilisateurs (../chiffrage.parcours.json, champ journeys de solution-estimate) ; sans lui, l'étape se saute. Construite par le script : pour chaque parcours, son workflow, son coût et ses points d'attention (risques, hypothèses, dépendances, contrôles du chiffrage), montants repris du chiffrage validé, rien de recalculé. Hypothèse montrée : celle de la recommandation de synthese.md (--scenario), sans IA par défaut. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER parcours --submit)."
+    },
+    {
       "id": "document",
       "label": "Document de restitution",
       "level": "simple",
       "after": [
         "schemas",
-        "presentation"
+        "presentation",
+        "parcours"
       ],
       "skills": [
         "architecture-dossier"
@@ -207,6 +246,7 @@
       "inputs": [
         "synthese.md",
         "schemas/**/*.png",
+        "parcours.md",
         "presentation.md"
       ],
       "deliverables": [
@@ -230,7 +270,7 @@
           ]
         }
       ],
-      "instructions": "Assemblage mécanique : synthèse, schémas et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit)."
+      "instructions": "Assemblage mécanique : synthèse, schémas, vue par parcours si elle est faite, et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit)."
     }
   ]
 }

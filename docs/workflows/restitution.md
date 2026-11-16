@@ -2,11 +2,11 @@
 
 # Restitution d'une architecture retenue au comité ou aux décideurs
 
-Workflow `restitution` : 4 étapes, dont 0 facultatives. Point de départ : dossier validé. [Tous les workflows](README.md).
+Workflow `restitution` : 5 étapes, dont 1 facultatives. Point de départ : dossier validé. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
-Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), support de présentation et document assemblé ; une porte de revue par étape.
+Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dossier d'un dossier d'architecture aux étapes validées (architecture, cadrage, avant-vente, migration) : synthèse d'une page pour les décideurs (décision attendue, recommandation, coût, risques, suite), schémas choisis selon le public (vue d'ensemble pour un public non technique, vue de contexte), vue par parcours utilisateur en option (workflow, coût, points d'attention), support de présentation et document assemblé ; une porte de revue par étape.
 
 ## Ce que le moteur demande au départ
 
@@ -24,22 +24,26 @@ flowchart LR
   s_messages["1. Décision attendue et messages<br/><small>architecture-workflow</small>"]
   s_schemas["2. Schémas pour le public visé<br/><small>schema-designer</small>"]
   s_presentation["3. Support de présentation<br/><small>architecture-workflow</small>"]
-  s_document["4. Document de restitution<br/><small>architecture-workflow</small>"]
+  s_parcours["4. Vue par parcours utilisateur<br/><small>architecture-workflow</small>"]
+  s_document["5. Document de restitution<br/><small>architecture-workflow</small>"]
   s_messages --> s_schemas
   s_messages --> s_presentation
+  s_messages --> s_parcours
   s_schemas --> s_document
   s_presentation --> s_document
+  s_parcours --> s_document
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_messages,s_presentation,s_document moteur
+  class s_messages,s_presentation,s_parcours,s_document moteur
   class s_schemas agent
+  class s_parcours facultative
 ```
 
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
-- 2. Schémas pour le public visé, 3. Support de présentation
+- 2. Schémas pour le public visé, 3. Support de présentation, 4. Vue par parcours utilisateur
 
 ## Étapes
 
@@ -48,7 +52,8 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 1. Décision attendue et messages | moyen | `architecture-workflow` | `diagram-brief` | `synthese.md`, `schemas/briefs/*.json` | début |
 | 2. Schémas pour le public visé | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `c4-architecture`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 1 |
 | 3. Support de présentation | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 1 |
-| 4. Document de restitution | simple | `architecture-workflow` | `architecture-dossier` | `restitution.md` | 2, 3 |
+| 4. Vue par parcours utilisateur (facultative) | simple | `architecture-workflow` | `solution-estimate` | `parcours.md` | 1 |
+| 5. Document de restitution | simple | `architecture-workflow` | `architecture-dossier` | `restitution.md` | 2, 3, 4 |
 
 ### 1. Décision attendue et messages
 
@@ -80,11 +85,20 @@ Un à trois schémas, chacun avec un seul message. Le brief de chaque schéma (d
 
 Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER presentation --submit).
 
-### 4. Document de restitution
+### 4. Vue par parcours utilisateur
 
-- **Entrées** : `synthese.md`, `schemas/**/*.png`, `presentation.md`
+- **Entrées** : `../chiffrage.parcours.json`
+- **Livrables** : `parcours.md`
+- **Livrables possibles** : `parcours/*`
+- **Contrôle** : solution-estimate : journeys_view.py ../chiffrage.parcours.json --out parcours.md --export png (workflow, coût et points d'attention de chaque parcours ; --scenario pour l'hypothèse retenue)
+
+À proposer si le chiffrage déclare ses parcours utilisateurs (../chiffrage.parcours.json, champ journeys de solution-estimate) ; sans lui, l'étape se saute. Construite par le script : pour chaque parcours, son workflow, son coût et ses points d'attention (risques, hypothèses, dépendances, contrôles du chiffrage), montants repris du chiffrage validé, rien de recalculé. Hypothèse montrée : celle de la recommandation de synthese.md (--scenario), sans IA par défaut. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER parcours --submit).
+
+### 5. Document de restitution
+
+- **Entrées** : `synthese.md`, `schemas/**/*.png`, `parcours.md`, `presentation.md`
 - **Livrables** : `restitution.md`
 - **Contrôle** : architecture-dossier : dossier_build.py . --template restitution --out restitution.md --strict
 - **Contrôle** : si l'utilisateur veut un Word, un PDF ou une page Confluence : passer restitution.md à document-publisher
 
-Assemblage mécanique : synthèse, schémas et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit).
+Assemblage mécanique : synthèse, schémas, vue par parcours si elle est faite, et support en annexe. La publication passe à document-publisher, qui produit les fichiers sans rien mettre en ligne. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER document --submit).

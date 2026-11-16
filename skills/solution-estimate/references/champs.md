@@ -64,3 +64,14 @@ Détail de chaque champ de `chiffrage.json` (`estimate_build.py --schema` en don
   Pas de marge dans un lot : pilotage et provision s'ajoutent une fois.
 - **Hypothèses et exclusions** : chacune en une phrase ; elles vont dans
   le chiffrage et, dans un workflow, au journal.
+- **Parcours utilisateurs** : `journeys` (id, title, persona, refs, et au
+  besoin screens, work, path, risks, assumptions, dependencies) donne le
+  coût de chaque parcours, poste par poste (front, back, données, tests,
+  transverse, pilotage, IA, provision). Un lot va aux parcours qui le citent
+  (`work`), sinon à ceux dont il nomme un écran (`screens`, lots frontend),
+  sinon à ceux qui partagent ses exigences (du lot et de son composant), au
+  prorata des exigences communes ; un lot sans parcours est partagé, réparti
+  au prorata du coût propre de chaque parcours, comme le pilotage et
+  l'outillage IA. Le poste se déduit de la phase et du composant ; `post`
+  sur un lot le force. Les étapes (`path`, reprises des parcours UJ de
+  spec-pack) dessinent le workflow de `journeys_view.py`.
