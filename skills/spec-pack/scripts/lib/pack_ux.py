@@ -1,15 +1,16 @@
-"""Rendu des deux documents UX de BMAD Method (bmad-ux) depuis le design system, les pages décrites
-d'après les maquettes, la revue UX et le découpage en composants de la mission.
+"""Rendu de ux.md, la spécification UX du dossier : identité visuelle et tokens (design-system.json),
+écrans décrits d'après les maquettes (pages/*.json), maquettes HTML et code, composants (decoupage.json),
+accessibilité et constats (revue-ux.json), parcours (specs.json).
 
-    design(m)                    -> DESIGN.md : identité visuelle (tokens en frontmatter, sections du format
-                                    DESIGN.md de Google Labs que BMAD reprend)
-    experience(m, links, code, prd) -> EXPERIENCE.md : écrans, maquettes HTML, composants, accessibilité,
-                                    parcours, constats
+    ux(m, links, code) -> (frontmatter, corps)
+    requirements(m)    -> exigences d'interface UX-n, reprises dans livraison.md
 
 `links` : pour chaque page, les liens vers sa maquette et son rendu HTML (déjà recalés par l'appelant).
 """
 
-from bmad_render import bullets, join, journey, mapped, section, table
+import json
+
+from pack_render import bullets, intro, join, journey, section, table
 
 HEURISTICS = {"h1": "visibilité de l'état", "h2": "monde réel", "h3": "contrôle et liberté", "h4": "cohérence",
               "h5": "prévention des erreurs", "h6": "reconnaissance", "h7": "souplesse", "h8": "sobriété",
@@ -31,7 +32,7 @@ def walk(nodes):
 
 
 def tokens(ds: dict) -> dict:
-    """Tokens du frontmatter de DESIGN.md : couleurs à plat, typographie, rayons, espacements, composants."""
+    """Tokens du design system : couleurs à plat, typographie, rayons, espacements, composants."""
     fonts, colors = ds.get("fonts", {}), ds.get("colors", {})
     typography = {role: {"fontFamily": family} for role, family in fonts.items()}
     typography.setdefault("body", {}).update({"lineHeight": str(ds["line_height"])} if ds.get("line_height") else {})
@@ -49,33 +50,6 @@ def component(name: str, spec: dict) -> str:
     if spec.get("variants"):
         lines.append("Variantes : " + ", ".join(spec["variants"]) + ".")
     return " ".join(lines)
-
-
-def design(m: dict) -> tuple[dict, str]:
-    ds = m["design"]
-    locked = (ds.get("source") or {}).get("locked")
-    brand = join([ds.get("description", ""), bullets(ds.get("principles", [])),
-                  "Design system fourni par le client : il s'applique tel quel, sans modification." if locked else ""])
-    rules = [f"À faire ({name}) : {text}" for name, spec in ds.get("components", {}).items() for text in spec.get("do", [])]
-    rules += [f"À éviter ({name}) : {text}" for name, spec in ds.get("components", {}).items()
-              for text in spec.get("dont", [])]
-    sizes = ", ".join(f"{name} {size}" for name, size in px(ds.get("font_sizes")).items())
-    layout = join([bullets(f"`{name}` : {value}" for name, value in px(ds.get("spacing")).items()),
-                   f"Largeur du contenu : {ds['max_width']}px." if ds.get("max_width") else ""])
-    body = join([
-        f"# {ds['name']} — Design",
-        section("Brand & Style", brand),
-        section("Colors", bullets(f"`{role}` : {value}" for role, value in ds.get("colors", {}).items())),
-        section("Typography", join([bullets(f"`{role}` : {family}" for role, family in ds.get("fonts", {}).items()),
-                                    f"Tailles : {sizes}." if sizes else ""])),
-        section("Layout & Spacing", layout),
-        section("Elevation & Depth", bullets(f"`{name}` : {value}" for name, value in ds.get("shadows", {}).items())),
-        section("Shapes", bullets(f"`{name}` : {value}" for name, value in px(ds.get("radii")).items())),
-        section("Components", bullets(component(name, spec) for name, spec in ds.get("components", {}).items())),
-        section("Do's and Don'ts", bullets(rules)),
-    ])
-    front = {"name": ds["name"], "description": ds.get("description", m["name"]), **tokens(ds), "status": "draft"}
-    return front, body
 
 
 def screens(m: dict, links: dict) -> str:
@@ -126,37 +100,60 @@ def findings(m: dict) -> str:
     return join([m["review"].get("summary", ""), table(["Gravité", "Heuristique", "Écran", "Constat", "Correction"], rows)])
 
 
-def experience(m: dict, links: dict, code: list[str], prd: str) -> tuple[dict, str]:
+def identity(ds: dict) -> str:
+    locked = (ds.get("source") or {}).get("locked")
+    rules = [f"À faire ({name}) : {text}" for name, spec in ds.get("components", {}).items() for text in spec.get("do", [])]
+    rules += [f"À éviter ({name}) : {text}" for name, spec in ds.get("components", {}).items()
+              for text in spec.get("dont", [])]
+    sizes = ", ".join(f"{name} {size}" for name, size in px(ds.get("font_sizes")).items())
+    return join([
+        join([f"Design system **{ds['name']}**. " + ds.get("description", ""), bullets(ds.get("principles", [])),
+              "Fourni par le client : il s'applique tel quel, sans modification." if locked else ""]),
+        section("Couleurs", bullets(f"`{role}` : {value}" for role, value in ds.get("colors", {}).items()), 3),
+        section("Typographie", join([bullets(f"`{role}` : {family}" for role, family in ds.get("fonts", {}).items()),
+                                     f"Tailles : {sizes}." if sizes else ""]), 3),
+        section("Espacements et mise en page", join([
+            bullets(f"`{name}` : {value}" for name, value in px(ds.get("spacing")).items()),
+            f"Largeur du contenu : {ds['max_width']}px." if ds.get("max_width") else ""]), 3),
+        section("Ombres", bullets(f"`{name}` : {value}" for name, value in ds.get("shadows", {}).items()), 3),
+        section("Formes", bullets(f"`{name}` : {value}" for name, value in px(ds.get("radii")).items()), 3),
+        section("Composants du design system", bullets(component(name, spec)
+                                                       for name, spec in ds.get("components", {}).items()), 3),
+        section("Règles", bullets(rules), 3),
+        section("Tokens", "Valeurs à reprendre telles quelles (thème, variables CSS) :\n\n```json\n"
+                + json.dumps(tokens(ds), ensure_ascii=False, indent=1) + "\n```", 3),
+    ])
+
+
+def ux(m: dict, links: dict, code: list[str]) -> tuple[dict, str]:
     target, ds = m["breakdown"].get("target"), m["design"] or {}
     foundation = join([
         f"Bibliothèque d'interface visée : {target}." if target and target != "html" else "",
-        "`DESIGN.md` est la référence de l'identité visuelle ; ce document décrit le comportement." if ds else "",
         f"Écrans décrits d'après les maquettes : {len(m['pages'])}. Les maquettes et leurs rendus HTML sont des "
-        "références de composition ; en cas d'écart, ce document et `DESIGN.md` l'emportent." if m["pages"] else ""])
+        "références de composition ; en cas d'écart, ce document l'emporte." if m["pages"] else ""])
     level = m["review"].get("level") or "AA"
     contrast = (ds.get("contrast") or {}).get("min")
     access = [f"Niveau WCAG visé : {level}." + (f" Contraste minimal du texte : {contrast}." if contrast else "")]
     access += [f"{f['problem']} : {f['fix']}" for f in m["review"].get("findings", []) if f["heuristic"] == "a11y"]
     flows = "\n".join(journey(j, i, m) for i, j in enumerate(m["extra"].get("journeys", []), 1))
     body = join([
-        f"# {m['name']} — Experience Spine",
-        section("Foundation", foundation),
-        section("Information Architecture", screens(m, links)),
-        section("HTML Mockups", mockups(m, links, code)),
-        section("Component Patterns", patterns(m)),
-        section("Accessibility Floor", bullets(access) if m["review"] or ds else ""),
-        section("Key Flows", flows),
-        section("UX Review Findings", findings(m)),
+        intro(m, "ux.md", foundation),
+        section("Identité visuelle", identity(ds) if ds else ""),
+        section("Écrans", screens(m, links)),
+        section("Maquettes HTML", mockups(m, links, code)),
+        section("Composants d'interface", patterns(m)),
+        section("Accessibilité", bullets(access) if m["review"] or ds else ""),
+        section("Parcours", flows),
+        section("Constats de la revue UX", findings(m)),
+        section("Exigences d'interface", bullets(requirements(m))),
     ])
-    return {"name": m["name"], "status": "draft", "sources": [prd]}, body
+    return {"title": f"Spécification UX : {m['name']}", "document": "ux"}, body
 
 
 def requirements(m: dict) -> list[str]:
-    """Exigences de conception pour l'inventaire d'epics.md : un écran par ligne, puis les constats majeurs."""
-    lines = [f"Écran « {page['title']} » conforme à EXPERIENCE.md et DESIGN.md" for _, page in m["pages"]]
+    """Exigences d'interface : un écran par ligne, puis les constats majeurs de la revue UX."""
+    lines = [f"Écran « {page['title']} » conforme à ux.md (identité visuelle, composants, accessibilité)"
+             for _, page in m["pages"]]
     lines += [f"{f['problem']} : {f['fix']} ({SEVERITY[f['severity']]})"
               for f in m["review"].get("findings", []) if f["severity"] >= 3]
-    return [f"UX-DR{i}: {line}" for i, line in enumerate(lines, 1)]
-
-
-__all__ = ["design", "experience", "requirements", "mapped"]
+    return [f"UX-{i} : {line}" for i, line in enumerate(lines, 1)]

@@ -29,7 +29,7 @@ flowchart TD
   s_dimensionnement["8. Dimensionnement<br/><small>architecture-workflow</small>"]
   s_interfaces["9. Interfaces et séquences<br/><small>architecture-workflow</small>"]
   s_recette["10. Plan de recette<br/><small>architecture-workflow</small>"]
-  s_developpement["11. Passage au développement (BMAD)<br/><small>architecture-workflow</small>"]
+  s_developpement["11. Passage au développement (spécifications)<br/><small>architecture-workflow</small>"]
   s_documents --> s_processus
   s_comptes_rendus --> s_processus
   s_documents --> s_exigences
@@ -77,7 +77,7 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 8. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `dimensionnement.json`, `dimensionnement.md`, `dimensionnement.result.json` | 7 |
 | 9. Interfaces et séquences | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `api.json`, `api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 7, 6 |
 | 10. Plan de recette | moyen | `architecture-workflow` | `test-plan` | `recette.json`, `recette.md`, `recette.csv` | 4 |
-| 11. Passage au développement (BMAD) (facultative) | simple | `architecture-workflow` | `bmad-export` | `_bmad-output/planning-artifacts/prd.md`, `_bmad-output/planning-artifacts/epics.md` | 6, 9, 10 |
+| 11. Passage au développement (spécifications) (facultative) | simple | `architecture-workflow` | `spec-pack` | `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md` | 6, 9, 10 |
 
 ### 1. Documents en Markdown
 
@@ -167,14 +167,14 @@ Volumes, pointe et disponibilité repris des exigences non fonctionnelles (mesur
 
 Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. recette.lots.json passe au chiffrage (estimate_build.py --draft --lots recette.lots.json).
 
-### 11. Passage au développement (BMAD)
+### 11. Passage au développement (spécifications)
 
 - **Entrées** : `exigences.json`, `options.json`, `modele.json`, `api.json`, `recette.json`
-- **Livrables** : `_bmad-output/planning-artifacts/prd.md`, `_bmad-output/planning-artifacts/epics.md`
-- **Livrables possibles** : `bmad.json`, `_bmad-output/planning-artifacts/brief.md`, `_bmad-output/planning-artifacts/architecture.md`, `_bmad-output/planning-artifacts/addendum.md`
-- **Contrôle** : bmad-export : bmad_export.py . (zéro erreur ; missing, counts.without_criteria et tout artefact gardé dits à l'utilisateur)
+- **Livrables** : `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md`
+- **Livrables possibles** : `specs.json`, `specs/ux.md`, `specs/architecture.md`
+- **Contrôle** : spec-pack : spec_pack.py . (zéro erreur ; missing, counts.without_criteria et tout document gardé dits à l'utilisateur)
 
-Étape facultative, à faire si le développement se mène avec BMAD Method (sinon skip, avec les mots de l'utilisateur). Le script écrit brief, PRD, architecture, ébauche d'epics et addendum depuis les livrables validés ; n'écrire bmad.json (vision, utilisateurs, parcours, indicateurs) que si l'utilisateur veut un PRD complet et que les sources le disent. Si le code vit dans un autre dépôt, relancer avec --out vers sa racine. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal.
+Étape facultative, à faire si l'équipe passe au développement (sinon skip, avec les mots de l'utilisateur). Le script écrit un dossier de spécifications autonome (fonctionnel, UX, architecture, tests, livraison, index de traçabilité) depuis les livrables validés, utilisable par n'importe quel outil de développement IA ; n'écrire specs.json (vision, utilisateurs, parcours, indicateurs, versions) que si l'utilisateur veut des spécifications complètes et que les sources le disent. Pour le transmettre ailleurs, --out vers le dossier voulu puis --check sur la copie. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal.
 
 ## Mémoire partagée
 

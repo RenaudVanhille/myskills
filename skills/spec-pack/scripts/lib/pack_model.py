@@ -1,10 +1,10 @@
-"""Modèle neutre d'une mission pour l'export BMAD : exigences numérotées FR-n et NFR-n, fonctionnalités,
+"""Modèle neutre d'une mission pour le dossier de spécifications : exigences numérotées FR-n et NFR-n, fonctionnalités,
 option retenue, contextes, entités, registre, pile technique, design system, pages et revue UX. Aucune écriture : tout vient des livrables déjà validés.
 
     build(pieces, extra, name, chosen)  -> (modèle, avertissements)
 
 `pieces` : livrables lus et validés (requirements, options, decision, domains, model, api, tests,
-register, design, pages, review, breakdown) ; `extra` : la description facultative bmad.json (vision, utilisateurs, parcours...).
+register, design, pages, review, breakdown) ; `extra` : la description facultative specs.json (vision, utilisateurs, parcours...).
 """
 
 PRIORITIES = ("indispensable", "importante", "souhaitable", "hors-perimetre")
@@ -42,7 +42,7 @@ def pick_option(pieces: dict, chosen: str | None, warnings: list[str]) -> tuple[
 
 
 def feature_of(req: dict, contexts: list[dict], given: dict) -> str:
-    """Fonctionnalité d'une exigence : bmad.json, sinon son contexte délimité, sinon son domaine."""
+    """Fonctionnalité d'une exigence : specs.json, sinon son contexte délimité, sinon son domaine."""
     if req["id"] in given:
         return given[req["id"]]
     context = next((c for c in contexts if req["id"] in c.get("refs", [])), None)
@@ -51,7 +51,7 @@ def feature_of(req: dict, contexts: list[dict], given: dict) -> str:
 
 def number(reqs: list[dict], prefix: str, tests: list[dict]) -> list[dict]:
     """Exigences renumérotées (FR-1, NFR-1...) dans l'ordre du catalogue, avec leurs cas de recette."""
-    return [{**req, "bmad": f"{prefix}-{index}",
+    return [{**req, "ref": f"{prefix}-{index}",
              "tests": [case for case in tests if req["id"] in case.get("refs", [])]}
             for index, req in enumerate(reqs, 1)]
 
@@ -65,7 +65,7 @@ def features(frs: list[dict], pieces: dict, extra: dict, warnings: list[str]) ->
         described[feature["name"]] = feature.get("description", "")
         unknown = [ref for ref in feature["refs"] if ref not in known]
         if unknown:
-            warnings.append(f"bmad.json : fonctionnalité « {feature['name']} », exigence(s) fonctionnelle(s) "
+            warnings.append(f"specs.json : fonctionnalité « {feature['name']} », exigence(s) fonctionnelle(s) "
                             f"inconnue(s) ou hors périmètre : {', '.join(unknown)}")
         given.update({ref: feature["name"] for ref in feature["refs"]})
     groups: dict[str, list[dict]] = {f["name"]: [] for f in extra.get("features", [])}
@@ -90,7 +90,7 @@ def glossary(pieces: dict) -> list[tuple[str, str]]:
 
 
 def stack(option: dict | None, breakdown: dict, extra: dict) -> list[tuple[str, str, str]]:
-    """Pile technique (nom, version, rôle) : bmad.json d'abord, puis la bibliothèque d'interface visée par le
+    """Pile technique (nom, version, rôle) : specs.json d'abord, puis la bibliothèque d'interface visée par le
     découpage des maquettes, puis la technologie et la version de chaque composant de l'option (options.json) ;
     un nom n'apparaît qu'une fois."""
     rows = [(s["name"], s.get("version", ""), s.get("role", "")) for s in extra.get("stack", [])]
@@ -122,7 +122,7 @@ def build(pieces: dict, extra: dict, name: str, chosen: str | None) -> tuple[dic
     model = {
         "name": extra.get("project") or name, "extra": extra,
         "context": (pieces.get("options") or {}).get("context") or domains.get("context") or "",
-        "frs": frs, "nfrs": nfrs, "ids": {r["id"]: r["bmad"] for r in frs + nfrs},
+        "frs": frs, "nfrs": nfrs, "ids": {r["id"]: r["ref"] for r in frs + nfrs},
         "features": features(frs, pieces, extra, warnings),
         "excluded": [r for r in kept if r["priority"] == "hors-perimetre"],
         "glossary": glossary(pieces),
