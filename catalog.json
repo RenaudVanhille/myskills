@@ -5875,7 +5875,7 @@
       "scripts": [
         {
           "name": "cloud_build.py",
-          "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+          "role": "Construit le schéma draw.io (mise en page des groupes imbriqués ; sans groupe, en colonnes dans le sens des flux plutôt que sur une seule ligne, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
           "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] [--export png|svg] | --types [aws|azure|gcp|k8s|generic] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture",
@@ -5942,7 +5942,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {
@@ -7765,14 +7766,14 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (une étape reprise se refait sur place, sans copie à côté). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (une étape reprise se refait sur place, sans copie à côté). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
             "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
             "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
             "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
-            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
+            "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs ; un retour ne remet à reprendre que l'étape ; sa nouvelle validation remet à reprendre les étapes commencées qui en dépendent dont une entrée (fichier lu d'une étape amont) a changé, les autres restent validées (impacts)",
             "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
             "--schema": "affiche le schéma de workflow.json sur une ligne",
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
@@ -7785,7 +7786,7 @@
           },
           "report": {
             "format": "json",
-            "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived) sont omis.",
+            "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived, impacts) sont omis.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
@@ -8137,13 +8138,36 @@
                     }
                   }
                 },
+                "cleaned": {
+                  "type": "integer",
+                  "description": "submit : fichiers de travail retirés de .myskills-tmp/ (dossier du workflow et ses sous-dossiers directs) une fois toutes les étapes en cours soumises ; omis si aucun."
+                },
                 "archived": {
                   "type": "string",
                   "description": "review --decision valide : dossier où la version validée est gardée (.historique/ETAPE/DATE, relatif au workflow) ; omis si cette version y est déjà."
                 },
-                "cleaned": {
-                  "type": "integer",
-                  "description": "submit : fichiers de travail retirés de .myskills-tmp/ (dossier du workflow et ses sous-dossiers directs) une fois toutes les étapes en cours soumises ; omis si aucun."
+                "impacts": {
+                  "type": "object",
+                  "required": [
+                    "redo",
+                    "kept"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "redo": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "kept": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "description": "review --decision valide d'une étape reprise : étapes commencées qui en dépendent, remises à reprendre parce qu'une de leurs entrées a changé (redo) ou laissées telles quelles (kept) ; omis sinon."
                 }
               }
             }
@@ -8233,6 +8257,14 @@
                           }
                         },
                         "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
+                      },
+                      "inputs": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "description": "Entrées lues au démarrage de l'étape : fichier d'une étape amont -> empreinte SHA-256 (champ inputs de la définition, sinon tous les fichiers des étapes de after). À la validation d'une étape reprise, seule une étape dont une entrée a changé est remise à reprendre."
                       }
                     }
                   }
@@ -8385,7 +8417,7 @@
                               "type": "string",
                               "minLength": 1
                             },
-                            "description": "fichiers lus (motifs relatifs au dossier)"
+                            "description": "fichiers lus (motifs relatifs au dossier) ; ceux des étapes amont sont les entrées de l'étape : elle n'est remise à reprendre après le retour sur une étape amont que si l'un d'eux a changé"
                           },
                           "deliverables": {
                             "type": "array",
@@ -11968,8 +12000,8 @@
         },
         {
           "name": "check_drawio.py",
-          "role": "Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image).",
-          "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
+          "role": "Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image). Signale un fichier compressé ou écrit sur une seule ligne ; avec --pretty, le réécrit en XML clair et indenté, seulement s'il change.",
+          "usage": "uv run scripts/check_drawio.py [--pretty] SCHEMA.drawio [...]",
           "report": {
             "format": "json",
             "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
@@ -12023,6 +12055,10 @@
                       "review_image": {
                         "type": "boolean",
                         "description": "Lisibilité douteuse (avertissement de lisibilité ou chevauchement) : ouvrir l'image exportée ; sinon, ne pas l'ouvrir."
+                      },
+                      "reformatted": {
+                        "type": "boolean",
+                        "description": "Avec --pretty : le fichier a été réécrit en XML indenté (il était compressé, sur une ligne ou autrement mis en forme)."
                       }
                     }
                   }
@@ -12047,6 +12083,9 @@
           "exit_codes": {
             "0": "aucune erreur",
             "1": "au moins un fichier a une erreur"
+          },
+          "options": {
+            "--pretty": "réécrit chaque fichier en XML clair et indenté (pages compressées décompressées), comme drawio_build.py, seulement s'il change : un même schéma donne toujours le même fichier"
           }
         },
         {
@@ -24198,7 +24237,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {
@@ -25794,7 +25834,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {

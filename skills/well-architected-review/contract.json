@@ -81,7 +81,8 @@
             "layout": {
               "enum": [
                 "row",
-                "column"
+                "column",
+                "flow"
               ]
             },
             "wrap": {
