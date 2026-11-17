@@ -28,7 +28,9 @@ Sans outil de sous-agent, les mener l'une après l'autre.
 
 `review --decision retour` remet à reprendre elle et les suivantes :
 les reprendre dans l'ordre, chacune avec sa revue, par éditions ciblées en
-gardant les identifiants.
+gardant les identifiants. Chaque version validée est gardée dans
+`.historique/ETAPE/DATE/` : les livrables se reprennent sur place, jamais
+de copie `.avant-*` ou `.v1` à côté.
 
 ## Mission
 
@@ -45,3 +47,6 @@ gardant les identifiants.
   la raison de l'utilisateur). Un `next` qui propose de verser des notes au
   référentiel du client : montre le `referentiel.py push` à blanc, `--apply`
   seulement avec son accord.
+- Un avertissement de `mission.py status` sur des copies de sauvegarde ou
+  des dossiers de travail à ranger : montre `mission.py tidy DOSSIER` à
+  blanc, puis `--apply` avec l'accord de l'utilisateur.

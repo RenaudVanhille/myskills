@@ -198,6 +198,11 @@ Après une mise à jour de myskills, `mission.py upgrade DOSSIER` (à blanc, pui
 `--apply`) remet une mission existante à niveau : workflows suivant leur
 définition actuelle sans perdre l'avancement, `journal.md`, liens des
 livrables et mémoire du vault refaits.
+Une seule version de chaque livrable à la racine : `journal.py` garde chaque
+version validée dans `.historique/ETAPE/DATE/`, et `mission.py tidy DOSSIER`
+(à blanc, puis `--apply`) y range les copies de sauvegarde (`.avant-*`,
+`.v1-*`, `.before-*`) et les dossiers de travail (`_tmp`) d'une mission
+existante.
 
 ### Architecture
 
