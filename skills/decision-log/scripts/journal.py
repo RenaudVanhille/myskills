@@ -79,7 +79,7 @@ skill `agent-handoff` (check_message.py), qui les note au journal par
     uv run scripts/journal.py init DOSSIER [--title TITRE] [--stages a,b,c | --definition NOM|DEF.json] [--vault VAULT [--folder F]]
     uv run scripts/journal.py start DOSSIER ETAPE [--submit]
     uv run scripts/journal.py skip DOSSIER ETAPE --text "mots de l'utilisateur"
-    uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question --text T [--why J] [--refs A,B] [--by agent|utilisateur]
+    uv run scripts/journal.py log DOSSIER ETAPE --kind choix|hypothese|question|reponse --text T [--why J] [--refs A,B] [--by agent|utilisateur]
     uv run scripts/journal.py submit DOSSIER ETAPE [--files F ...]
     uv run scripts/journal.py review DOSSIER ETAPE --decision valide|retour --text "mots de l'utilisateur" [--refs A,B]
     uv run scripts/journal.py review DOSSIER ETAPE --from-vault
@@ -111,7 +111,7 @@ from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import progress_chart  # noqa: E402
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
-from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, answers, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -540,10 +540,16 @@ def render(state: dict, folder: Path | None = None) -> str:
         cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
             + [", ".join(link(ref) for ref in entry.get("refs", [])).replace("\n", " ")]
         lines.append("| " + " | ".join(cells) + " |")
-    questions = [e for e in state["entries"] if e["kind"] == "question"]
-    if questions:
-        lines += ["", "## Questions posées", ""]
-        lines += [f"- **{e['id']}** ({e['stage']}) : {e['text']}" for e in questions]
+    waiting = open_questions(state)
+    if waiting:
+        lines += ["", "## Questions ouvertes", ""]
+        lines += [f"- **{link(e['id'])}** ({e['stage']}) : {e['text']}" for e in waiting]
+    answered = answers(state)
+    if answered:
+        texts = {e["id"]: e for e in state["entries"]}
+        lines += ["", "## Questions répondues", ""]
+        lines += [f"- **{link(q)}** ({texts[q]['stage']}) : {texts[q]['text']} ; réponse {link(r)} : "
+                  f"{texts[r]['text']}" for q, r in answered.items()]
     return "\n".join(lines) + "\n"
 
 
@@ -920,7 +926,11 @@ def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str
     if args.command in ("start", "skip"):
         entry = start_or_skip(args, folder, state, stage, errors)
     elif args.command == "log":
-        if args.kind != "question" and stage["status"] != "en-cours":
+        waiting = {e["id"] for e in open_questions(state)}
+        if args.kind == "reponse" and not waiting & set(split(args.refs)):
+            errors.append("log --kind reponse : --refs doit citer une question ouverte"
+                          + (f" ({', '.join(sorted(waiting))})" if waiting else " (aucune question ouverte)"))
+        elif args.kind not in ("question", "reponse") and stage["status"] != "en-cours":
             errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : un {args.kind} se note "
                           "pendant l'étape (start d'abord)")
         else:
@@ -929,6 +939,10 @@ def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str
         entry = submit(args, folder, state, stage, errors)
     elif args.command == "review":
         entry = review(args, folder, state, stage, errors)
+        waiting = [e["id"] for e in open_questions(state) if e["stage"] == stage["id"]]
+        if entry and args.decision == "valide" and waiting:
+            warnings.append(f"{stage['id']} validée avec {len(waiting)} question(s) ouverte(s) : {', '.join(waiting)} ; "
+                            "notez la réponse de l'utilisateur (log --kind reponse --refs)")
     return state, entry
 
 
@@ -966,7 +980,7 @@ def main() -> int:
         if name == "skip":
             command.add_argument("--text", help="les mots de l'utilisateur qui renonce à l'étape")
         if name == "log":
-            command.add_argument("--kind", required=True, choices=["choix", "hypothese", "question"])
+            command.add_argument("--kind", required=True, choices=["choix", "hypothese", "question", "reponse"])
             command.add_argument("--text", required=True)
             command.add_argument("--why", help="justification")
             command.add_argument("--refs", help="exigences, options ou entrées concernées, séparées par des virgules")
@@ -1062,7 +1076,7 @@ def main() -> int:
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},
               "current": current, "next": action, "ready": startable,
-              "questions": sum(e["kind"] == "question" for e in state["entries"]) if state else 0,
+              "questions": len(open_questions(state)) if state else 0,
               **{key: value for key, value in optional.items() if value is not None},
               "errors": errors, "warnings": warnings}
     print(json.dumps(report, ensure_ascii=False))
