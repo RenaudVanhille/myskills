@@ -1,0 +1,11 @@
+{
+  "name": "entrees",
+  "title": "Retour sur le modèle de données sans toucher aux schémas",
+  "stages": [
+    {"id": "domaines", "level": "moyen", "deliverables": ["domaines.json"], "optional": ["modele.json"]},
+    {"id": "architectures", "level": "complexe", "inputs": ["domaines.json"], "deliverables": ["options.json"]},
+    {"id": "schemas", "level": "simple", "inputs": ["options.json"], "deliverables": ["schemas/option-a.drawio"]},
+    {"id": "interfaces", "level": "moyen", "after": ["architectures"], "inputs": ["options.json", "modele.json"],
+     "deliverables": ["api.json"]}
+  ]
+}

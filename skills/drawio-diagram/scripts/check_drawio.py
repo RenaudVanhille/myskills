@@ -10,9 +10,16 @@ icônes et groupes officiels AWS, Azure, GCP, Kubernetes), pas de titre ; et
 lisibilité, estimée sans rendu : libellé trop long pour sa forme, flèches
 qui se croisent, flèche qui passe sous une forme. `review_image` dit s'il
 faut ouvrir l'image exportée : seulement quand la lisibilité est douteuse.
-Lit aussi les diagrammes compressés. Affiche un rapport JSON. Usage :
-    uv run scripts/check_drawio.py SCHEMA.drawio [...]
+Lit aussi les diagrammes compressés. Un fichier compressé ou écrit sur une
+seule ligne (enregistré par un éditeur, collé à la main) est signalé :
+`--pretty` le réécrit en XML clair et indenté, comme les scripts de
+construction, et seulement s'il change (`reformatted`) : le même schéma
+donne toujours le même fichier, sans écart en diff. Affiche un rapport JSON.
+Usage :
+    uv run scripts/check_drawio.py [--pretty] SCHEMA.drawio [...]
 """
+
+import io
 
 import base64
 import json
@@ -227,13 +234,45 @@ def check_page(name: str, model: ET.Element, errors: list, warnings: list) -> in
     return len(vertices), review
 
 
-def check(path: Path) -> dict:
+def unreadable(path: Path) -> str | None:
+    """Pourquoi le fichier est illisible en texte : page compressée ou formes sur une même ligne ; None sinon."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if re.search(r"<diagram\b[^>]*>\s*[A-Za-z0-9+/=]{16,}\s*</diagram>", text):
+        return "diagramme compressé"
+    if any(line.count("<mxCell") > 1 for line in text.splitlines()):
+        return "XML sur une seule ligne"
+    return None
+
+
+def prettify(path: Path) -> bool:
+    """Réécrit le fichier en XML clair et indenté (pages décompressées), seulement s'il change ; rend s'il a changé."""
+    root = ET.parse(path).getroot()
+    for name, model in models(root):
+        diagram = next((d for d in root.findall("diagram") if d.get("name", "?") == name), None)
+        if diagram is not None and diagram.find("mxGraphModel") is None:
+            diagram.text = None
+            diagram.append(model)
+    ET.indent(root)
+    buffer = io.BytesIO()
+    ET.ElementTree(root).write(buffer, encoding="utf-8", xml_declaration=False)
+    if buffer.getvalue() == path.read_bytes():
+        return False
+    path.write_bytes(buffer.getvalue())
+    return True
+
+
+def check(path: Path, pretty: bool = False) -> dict:
     report = {"file": str(path), "pages": 0, "shapes": 0, "review_image": False, "errors": [], "warnings": []}
     try:
+        if pretty:
+            report["reformatted"] = prettify(path)
         pages = models(ET.parse(path).getroot())
     except (ET.ParseError, ValueError, zlib.error, OSError) as error:
         report["errors"].append(f"XML illisible : {error}")
         return report
+    reason = unreadable(path)
+    if reason:
+        report["warnings"].append(f"{reason} : illisible en diff ; check_drawio.py --pretty le réécrit en XML indenté")
     report["pages"] = len(pages)
     for name, model in pages:
         shapes, review = check_page(name, model, report["errors"], report["warnings"])
@@ -245,10 +284,13 @@ def check(path: Path) -> dict:
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    if len(sys.argv) < 2:
-        print_report([], ["aucun fichier : uv run scripts/check_drawio.py SCHEMA.drawio [...]"])
+    args = sys.argv[1:]
+    pretty = "--pretty" in args
+    files = [a for a in args if a != "--pretty"]
+    if not files:
+        print_report([], ["aucun fichier : uv run scripts/check_drawio.py [--pretty] SCHEMA.drawio [...]"])
         return 1
-    reports = [check(Path(p)) for p in sys.argv[1:]]
+    reports = [check(Path(p), pretty) for p in files]
     print_report(reports)
     return 1 if any(r["errors"] for r in reports) else 0
 
