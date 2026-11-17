@@ -42,7 +42,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 | --- | --- | --- |
 | `init DOSSIER [--definition NOM\|DEF.json \| --stages a,b,c] [--title T] [--vault VAULT --folder F]` | une fois, au début | `workflow.json` existe déjà, définition introuvable ou non conforme, vault introuvable |
 | `start DOSSIER ETAPE [--submit]` | avant de travailler sur l'étape ; avec `--submit`, pour une étape que ses scripts produisent entièrement : contrôles et soumission dans le même appel | une étape dont elle dépend n'est pas validée, ou un de ses livrables a changé depuis |
-| `log DOSSIER ETAPE --kind choix\|hypothese\|question --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement | l'étape n'est pas en cours (sauf question) |
+| `log DOSSIER ETAPE --kind choix\|hypothese\|question\|reponse --text T --why J --refs EF-001,A` | à chaque choix qui demande du jugement ; `reponse --refs D-xxx` : la réponse de l'utilisateur, qui close la question | l'étape n'est pas en cours (sauf question et réponse) ; une réponse ne cite aucune question ouverte |
 | `check DOSSIER ETAPE [--submit]` | descriptions de l'étape écrites, si sa définition a un champ `run` : tous ses contrôles en un appel ; avec `--submit`, soumission dans le même appel à zéro erreur | l'étape n'est pas démarrée, pas de `run` ; une erreur par contrôle en échec |
 | `submit DOSSIER ETAPE [--files F ...]` | livrables vérifiés par leurs scripts | l'étape n'est ni en cours ni en revue (une étape en revue se soumet à nouveau si ses livrables changent), fichier introuvable, livrable attendu par la définition absent |
 | `review DOSSIER ETAPE --decision valide\|retour --text "..."` | quand l'utilisateur a répondu | validation : étape pas en revue, ou fichiers modifiés depuis la soumission |
@@ -107,7 +107,10 @@ commencé.
   l'utilisateur (outil choisi, exigence déduite, phrase écartée, note
   attribuée, hypothèse), en une phrase, avec sa justification (`--why`) et
   les identifiants concernés (`--refs`). Une question que seul l'utilisateur
-  peut trancher se note `--kind question` et se pose à la revue.
+  peut trancher se note `--kind question` et se pose à la revue ; sa
+  réponse se note `--kind reponse --refs D-xxx` (ses mots), ce qui la close.
+  `status` ne compte que les questions ouvertes, et valider une étape qui en
+  a encore donne un avertissement.
 - **Fichiers figés** : `submit` enregistre l'empreinte de chaque fichier. Si
   un fichier validé change, `status` l'avertit : faites revoir l'étape
   (`review --decision retour`) plutôt que de continuer.

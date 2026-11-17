@@ -99,11 +99,11 @@
     },
     "decision": {
       "label": "Entrée du journal",
-      "description": "Choix, hypothèse, question, soumission, retour, validation ou annotation de l'utilisateur tracé par decision-log.",
+      "description": "Choix, hypothèse, question, réponse, soumission, retour, validation ou annotation de l'utilisateur tracé par decision-log.",
       "folder": "Décisions", "color": "#a855f7",
       "required": ["id", "nature", "etape", "par", "date"],
       "properties": {
-        "nature": {"enum": ["choix", "hypothese", "question", "soumission", "retour", "validation", "invalidation", "passage", "rapport", "saut", "annotation"]},
+        "nature": {"enum": ["choix", "hypothese", "question", "soumission", "retour", "validation", "invalidation", "passage", "rapport", "saut", "annotation", "reponse"]},
         "etape": {"type": "string"},
         "par": {"type": "string"}
       },

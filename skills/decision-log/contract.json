@@ -22,7 +22,7 @@
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
-        "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
+        "log DOSSIER ETAPE": "note un choix, une hypothèse, une question ou la réponse de l'utilisateur à une question (--kind reponse --refs D-xxx : la question est close) : --kind, --text, --why (justification), --refs, --by",
         "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
         "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
@@ -101,7 +101,8 @@
             },
             "questions": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "description": "Questions ouvertes : posées (log --kind question ou callout [!question]) et sans réponse (log --kind reponse)."
             },
             "memory": {
               "description": "Notes écrites dans le vault, ou null sans vault.",
@@ -521,7 +522,8 @@
                       "passage",
                       "rapport",
                       "saut",
-                      "annotation"
+                      "annotation",
+                      "reponse"
                     ]
                   },
                   "by": {
