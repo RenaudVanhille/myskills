@@ -45,48 +45,16 @@ critère `cout`.
 Commencez par le brouillon, sans recopier l'option :
 
 ```bash
-uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots decoupage.lots.json --lots decoupage-back.lots.json]
+uv run scripts/estimate_build.py chiffrage.json --draft [--option ID] [--infra couts.infra.json] [--lots decoupage.lots.json ...]
 ```
 
-Il écrit `chiffrage.json` (jamais par-dessus un fichier existant) : un lot
-par composant à construire ou à intégrer, les lots transverses (cadrage,
-recette, tests de sécurité, mise en production, formation), pilotage,
-provision et run aux valeurs usuelles (listées dans `_draft`), budget tiré
-des exigences de coût, lignes d'infrastructure de `cost_build.py --infra`,
-et, avec `--lots` (répétable, alias `--frontend`), les lots des experts à
-la place du lot global de chaque composant qu'ils couvrent : frontend
-(`ui_breakdown.py`, skill `mockup-to-html` : composants, motifs, écrans) et
-backend (`api_breakdown.py`, skill `api-contract`), charges d'abaque et
-réemploi à relire. Quand ces lots chiffrent toute la réalisation et
-l'intégration, les lots transverses reçoivent une charge par ratio de ces
-jours (`ratio` et `profile` des règles de `references/postes-attendus.json`,
-raison dans `note`) : à relire, pas à estimer ; un poste déjà couvert par un
-lot d'expert (plan de recette) n'est pas ajouté.
-Complétez-le : `effort` de chaque lot (vide), `rates`, hypothèses et
-exclusions ; ajoutez, découpez ou retirez un lot, et revoyez les valeurs
-usuelles, seulement quand vous avez une raison. La forme complète
-(`uv run scripts/estimate_build.py --schema`) :
-
-```json
-{
-  "title": "Chiffrage du portail de sinistres",
-  "rates": {"chef-de-projet": 850, "architecte": 950, "developpeur": 650},
-  "work": [
-    {"id": "L1", "name": "API des déclarations", "phase": "realisation", "component": "api",
-     "refs": ["EF-001", "EF-002"], "effort": {"developpeur": [25, 35, 55], "architecte": 3}}
-  ],
-  "overheads": [{"id": "P1", "name": "Pilotage", "percent": 12, "profile": "chef-de-projet"}],
-  "contingency": 10,
-  "infra": [
-    {"id": "I1", "name": "Conteneurs managés, 2 zones", "component": "api", "environment": "production",
-     "kind": "cloud", "quantity": 4, "unit_cost": 70, "period": "mois",
-     "basis": "hypothèse : 4 tâches 1 vCPU 2 Go, grille publique 2026"}
-  ],
-  "run": [{"id": "R1", "name": "Maintenance corrective et évolutive", "percent_of_build": 15}],
-  "budget": {"monthly": 8000, "refs": ["ENF-005"]},
-  "assumptions": ["L'outil de gestion expose une API de création de dossier."]
-}
-```
+Il écrit `chiffrage.json` (jamais par-dessus un fichier existant) : lots par
+composant et transverses, valeurs usuelles listées dans `_draft`, budget et
+infrastructure, lots des experts avec `--lots`. Complétez l'`effort` de
+chaque lot, `rates`, hypothèses et exclusions ; ne changez un lot ou une
+valeur usuelle qu'avec une raison. Forme complète :
+`uv run scripts/estimate_build.py --schema`. Options du brouillon, lots des
+experts et exemple complet : `references/brouillon.md`.
 
 Règles qui valent toujours :
 
@@ -97,14 +65,11 @@ Règles qui valent toujours :
 - **Aucun tarif cherché en ligne** : chaque ligne d'infrastructure a sa
   `basis` (grille datée, devis ou hypothèse à faire valider).
 - **Sans IA** : la charge saisie est celle d'une équipe sans IA ; le
-  script recalcule avec IA et en dev IA natif.
-- **Coût IA** : le script estime les jetons des agents qui développent
-  (médiane, P10-P90, par lot, `<nom>.ia.json`) depuis
-  `references/jetons-ia.json` ; un lot pilote mesuré se donne dans
-  `ai_cost` (`references/champs.md`).
+  script recalcule avec IA et en dev IA natif, et estime le coût IA du
+  développement (`references/jetons-ia.json`).
 
 Détail de chaque champ (phases, complexité, hébergeur, run, budget,
-facteurs IA, réemploi, hypothèses) : `references/champs.md`, à lire
+facteurs IA, coût IA, réemploi, parcours) : `references/champs.md`, à lire
 seulement si un champ pose question.
 
 ## 3. Construire
@@ -117,50 +82,18 @@ Dans un workflow avec un vault Obsidian, ajoutez `--vault VAULT --folder
 DOSSIER` : une note `chiffrage` (évalue l'option) et une note `lot` par lot
 (porte sur ses exigences) rejoignent la mémoire partagée.
 
-Produit `chiffrage.md` (revue, avec la comparaison des trois hypothèses),
-`chiffrage.csv` (lignes détaillées, ouvrable dans un tableur) et
-`chiffrage.hypotheses.csv` (lignes de chaque hypothèse), plus le plan de
-charge sans montant `chiffrage.charges.md` et `chiffrage.charges.csv`
-(chaque tâche avec sa complexité, ses jours et ses heures dans les trois
-hypothèses ; par phase et par profil). Sans `rates`, seul ce plan de
-charge est produit. Corrigez jusqu'à zéro erreur, puis traitez les
-avertissements : exigence qu'aucun lot ne porte (ajouter un lot ou des
-`refs`, ou l'exclure avec sa raison), composant sans chiffrage, estimation
-incertaine, poste attendu absent (`missing` : tests de sécurité, de
-charge, hors production, réseau, recette, mise en production, formation,
-sauvegarde, supervision, intégration, reprise de données, selon les
-exigences et les composants : lot, ligne, hypothèse ou exclusion), budget
-dépassé, valeurs d'hypothèse sans base. Livrez les chiffres du rapport, sans relire
-les fichiers.
+Produit `chiffrage.md` (revue), `chiffrage.csv`,
+`chiffrage.hypotheses.csv`, le plan de charge sans montant
+`chiffrage.charges.md` et `.csv`, `chiffrage.ia.json` et, avec `journeys`,
+`chiffrage.parcours.json`. Sans `rates`, seul le plan de charge est
+produit. Corrigez jusqu'à zéro erreur, puis traitez chaque avertissement et
+chaque point à challenger (`challenge`) : corriger, ou justifier dans
+`assumptions`. Livrez les chiffres du rapport, sans relire les fichiers.
 
-Les postes attendus sont des règles de complétude
-(`references/postes-attendus.json`), complétées par celles de
-l'utilisateur et de la mission (`references.regles` de mission.json) :
-un oubli relevé en revue devient une règle (`lessons.py`, decision-log).
-
-Dans une mission dont `mission.json` désigne des missions passées
-comparables (`analogues`), le rapport compare la part de chaque phase à
-leur fourchette (`analogy`) : une phase hors fourchette ou absente est un
-avertissement à justifier ou à corriger. Seuls les noms des missions
-sortent ; rien de leur contenu n'est recopié.
-
-**Points à challenger** (`challenge` du rapport, section du chiffrage) :
-marges cumulées (pilotage, provision, asymétrie des trois points), part de
-la réalisation et de l'intégration, lots trop gros, lots semblables sans
-réemploi, jours de lots par exigence. Les seuils viennent des abaques donnés
-avant le lancement (section `challenge` de `~/.myskills/abaques.json` ou
-`MYSKILLS_ABAQUES`, de `references.abaques` de mission.json, puis
-`--abaques`), sinon de valeurs par défaut à calibrer (`calibrated: false`).
-Chaque point se justifie (dans `assumptions`) ou se corrige.
-
-**Coût par parcours** : avec `journeys` (parcours utilisateurs : `id`,
-`title`, `persona`, `refs`, au besoin `screens`, `work`, `path`, `risks`),
-le chiffrage donne le coût de chaque parcours, poste par poste avec ses
-références ; les postes partagés sont répartis au prorata et la somme
-redonne la réalisation (contrôlé). Pour une restitution :
-`uv run scripts/journeys_view.py chiffrage.parcours.json --out parcours.md
---export png` (workflow, coût, points d'attention). Rattachement des lots :
-`references/champs.md`.
+Que faire de chaque avertissement (postes attendus, missions analogues,
+points à challenger et leurs seuils) et vue par parcours pour la
+restitution (`journeys_view.py`) : `references/controles.md`, à lire
+quand le rapport en signale.
 
 Si le coût obtenu contredit la note du critère `cout` d'une option dans
 `options.json`, signalez-le : la note se revoit avec `architecture-options`.
