@@ -308,6 +308,9 @@ def render_agent(contract: dict) -> str:
              "- **Produit** : " + " ; ".join(contract["produces"]) + "."]
     if contract.get("never"):
         lines.append("- **Ne fait jamais** : " + " ; ".join(contract["never"]) + ".")
+    lines.append("- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, "
+                 "`.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers "
+                 "de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.")
     lines += ["- **Passe la main** :", "", "| Agent | Quand | À transmettre |", "| --- | --- | --- |"]
     lines += [f"| `{h['to']}` | {h['when']} | {' ; '.join(h['send'])} |" for h in contract["handoffs"]]
     handoff, report = schema("handoff"), schema("agent-report")

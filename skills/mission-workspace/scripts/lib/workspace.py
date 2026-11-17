@@ -31,6 +31,9 @@ from spec_schema import check
 MISSION = "mission.json"
 STATE = "workflow.json"
 DEFAULTS = {"vault": "vault", "documents": "documents"}
+# Versions passées des livrables (chaque version validée, copies rangées par mission.py tidy) : dossier masqué
+# dans Obsidian, jamais de copie à côté d'un livrable.
+HISTORY = ".historique"
 WORKFLOWS = {"avant-vente": "avant-vente", "revue": "revue-dossier"}
 _HERE = Path(__file__).resolve().parent
 _SCHEMA = next((p for p in (_HERE / "mission.schema.json", _HERE.parent / "schemas" / "mission.schema.json")

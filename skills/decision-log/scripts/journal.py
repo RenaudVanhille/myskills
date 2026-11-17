@@ -24,6 +24,9 @@ Règles appliquées par le script, pas par le modèle :
   workflow.lock), pour que des étapes menées en parallèle ne perdent rien ;
 - une étape ne démarre pas si un livrable déjà validé a changé depuis ;
 - une validation ou un retour est toujours attribué à l'utilisateur ;
+- chaque version validée est gardée dans `.historique/ETAPE/DATE/` (dossier
+  masqué dans Obsidian) : une étape reprise se refait sur place, sans copie
+  de sauvegarde à côté des livrables ;
 - à une nouvelle soumission, les exigences, options et fichiers ajoutés,
   retirés ou modifiés depuis la version relue sont listés (revue
   différentielle).
@@ -160,6 +163,20 @@ def digest(path: Path) -> str:
         plain = unlink_notes(text)
         data = plain.encode("utf-8", errors="surrogateescape") if plain != text else data
     return hashlib.sha256(data).hexdigest()
+
+
+def archive(folder: Path, stage: dict) -> str | None:
+    """Garde la version validée des fichiers d'une étape dans .historique/ETAPE/DATE/ (une étape reprise se refait
+    sur place) ; rien si la dernière version gardée est la même. Rend le dossier écrit, relatif au workflow."""
+    base = folder / workspace.HISTORY / stage["id"]
+    last = max((d for d in base.glob("*") if d.is_dir()), default=None, key=lambda d: d.name)
+    if last and all((last / f).is_file() and digest(last / f) == sha for f, sha in stage["files"].items()):
+        return None
+    target = base / datetime.datetime.now().strftime("%Y-%m-%dT%H%M%S")
+    for rel in stage["files"]:
+        (target / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(folder / rel, target / rel)
+    return target.relative_to(folder).as_posix()
 
 
 def split(value: str | None) -> list[str]:
@@ -753,6 +770,7 @@ def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
                           "soumettez-les à nouveau")
             return None
         stage["status"] = "validee"
+        args.archived = archive(folder, stage)
         return add_entry(state, stage["id"], "validation", "utilisateur", args.text,
                          refs=split(args.refs), files=list(stage["files"]), via=via)
     if stage["status"] not in ("en-revue", "validee", "en-cours"):
@@ -976,7 +994,7 @@ def main() -> int:
     optional = {"entry": entry, "changes": getattr(args, "changes", None),
                 "stage": stage_definition(state, current_stage) if todo else None,
                 "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
-                "memory": memory, "checks": checks, "upgrade": upgraded,
+                "memory": memory, "checks": checks, "upgrade": upgraded, "archived": getattr(args, "archived", None),
                 "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},

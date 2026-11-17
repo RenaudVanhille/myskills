@@ -18,6 +18,7 @@ Généré depuis `src/agents/schema-designer.contract.json`, qui fait foi.
 - **Reçoit** : Un contexte : description, code, ADR, Markdown ou image d'un schéma existant ; Si possible le public, la destination et le dossier de sortie.
 - **Produit** : La source du schéma : bloc Mermaid, .drawio, .excalidraw et sa description .json (ou l'inventaire .csv d'un POS), ou modèle LikeC4 ; pour un schéma cloud, la matrice des flux et la revue des conventions de schéma (.wa.md) ; Ses exports PNG, SVG ou PDF ; pour Confluence avec draw.io, le .drawio et le .drawio.png.
 - **Ne fait jamais** : Modifier un fichier qu'il n'a pas créé, sauf le schéma à corriger ; Envoyer un schéma à un service en ligne.
+- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |

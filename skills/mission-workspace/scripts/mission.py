@@ -17,6 +17,7 @@ qu'on le leur donne.
     uv run scripts/mission.py status [DOSSIER]
     uv run scripts/mission.py check [DOSSIER] [--fail-on haute|moyenne|basse|aucune]
     uv run scripts/mission.py upgrade [DOSSIER] [--apply] [--keep-definition]
+    uv run scripts/mission.py tidy [DOSSIER] [--apply]
     uv run scripts/mission.py --schema
 
 - init crée mission.json, documents/, le vault (et code/ pour une revue),
@@ -39,10 +40,22 @@ qu'on le leur donne.
   étaient déjà installés, puis le point de status. À blanc par défaut : le
   rapport (`upgrade`) dit ce qui changerait et rien n'est écrit ; `--apply`
   l'écrit. Rejouable : une deuxième passe ne change plus rien.
+- tidy range ce qui encombre la mission hors des livrables : copies de
+  sauvegarde laissées à côté d'un livrable (chiffrage.avant-droits.csv,
+  presentation.v1-sans-tjm.pptx, revue.json.bak : un segment du nom marque
+  la version et l'original existe) et dossiers de travail (_tmp,
+  .myskills-tmp), déplacés dans .historique/rangement-DATE/ avec leur
+  chemin ; les fichiers soumis au journal, documents/, le vault et le code
+  ne sont jamais touchés. Les verrous Office (~$...) sont seulement
+  signalés. À blanc par défaut, --apply déplace. status, check et upgrade
+  disent combien il en reste.
 """
 
 import argparse
+import datetime
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -64,7 +77,7 @@ RULES = {
     "MIS-03": ("moyenne", "Exigence non fonctionnelle indispensable sans scénario de qualité",
                "Ajouter un scénario qui la cite (refs) dans revue.json."),
     "MIS-04": ("haute", "Livrable validé modifié depuis sa validation",
-               "Faire revoir l'étape (journal.py review ETAPE --decision retour) ou restaurer le fichier validé."),
+               "Faire revoir l'étape (journal.py review ETAPE --decision retour) ou restaurer le fichier validé (.historique/ETAPE/)."),
     "MIS-05": ("haute", "Livrable portant sur une autre option que celle retenue",
                "Refaire la revue ou le chiffrage sur l'option de decision.json."),
     "MIS-06": ("moyenne", "Dépôt de code introuvable",
@@ -79,6 +92,12 @@ RULES = {
 DELIVERABLES = ("exigences.json", "options.json", "decision.json", "revue.json", "chiffrage.json",
                 "dossier-architecture.md")
 NOTE = "Mission"
+# Segment du nom d'une copie de sauvegarde laissée à côté d'un livrable (chiffrage.avant-droits.csv,
+# presentation.v1-sans-tjm.pptx, revue.json.bak), et dossiers de travail : rangés par tidy dans .historique/.
+VERSION_MARK = re.compile(r"(avant|apres|before|after|old|ancien|bak|backup|orig|copie|sauvegarde|prev|v\d+)([-_].*)?",
+                          re.IGNORECASE)
+WORK_DIRS = ("_tmp", ".myskills-tmp", ".tmp")
+LOCK_MARKS = ("~$", ".~lock.")
 
 
 def read_json(path: Path, errors: list[str]) -> dict | None:
@@ -411,6 +430,64 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
     return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates}
 
 
+def original_of(path: Path) -> Path | None:
+    """Livrable dont ce fichier est une copie de sauvegarde (un segment du nom marque la version et le fichier
+    sans ce segment existe à côté), sinon None."""
+    parts = path.name.split(".")
+    for index in range(1, len(parts)):
+        if VERSION_MARK.fullmatch(parts[index]):
+            original = path.with_name(".".join(parts[:index] + parts[index + 1:]))
+            if original != path and original.is_file():
+                return original
+    return None
+
+
+def clutter(root: Path, mission: dict) -> dict:
+    """Copies de sauvegarde, dossiers de travail et verrous Office de la mission, chemins relatifs à la racine ;
+    jamais un fichier soumis au journal, ni documents/, le vault, le code ou un dossier masqué."""
+    kept, skipped = {workspace.MISSION, workspace.STATE}, set()
+    for flow in workspace.workflows(mission):
+        try:
+            state = json.loads((root / flow["folder"] / workspace.STATE).read_text(encoding="utf-8"))
+            kept |= {(Path(flow["folder"]) / f).as_posix().removeprefix("./")
+                     for stage in state["stages"] for f in stage.get("files", {})}
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    for key in ("vault", "documents"):
+        skipped.add(workspace.path_of(root, mission, key).resolve())
+    skipped |= {Path(r["root"]) for r in workspace.repos(root, mission)} | {(root / "code").resolve()}
+    found = {"copies": [], "work": [], "locks": []}
+    for top, dirs, files in os.walk(root):
+        here = Path(top)
+        for name in sorted(dirs):
+            if name in WORK_DIRS:
+                found["work"].append((here / name).relative_to(root).as_posix())
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in WORK_DIRS
+                         and (here / d).resolve() not in skipped)
+        for name in sorted(files):
+            rel = (here / name).relative_to(root).as_posix()
+            if name.startswith(LOCK_MARKS):
+                found["locks"].append(rel)
+            elif rel not in kept and original_of(here / name):
+                found["copies"].append(rel)
+    return found
+
+
+def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
+    """Range les copies de sauvegarde et les dossiers de travail dans .historique/rangement-DATE/ (à blanc sans
+    --apply) ; signale les verrous Office."""
+    found = clutter(root, mission)
+    target = Path(workspace.HISTORY) / f"rangement-{datetime.datetime.now().strftime('%Y-%m-%dT%H%M%S')}"
+    moved = found["copies"] + found["work"]
+    if args.apply and moved:
+        for rel in moved:
+            (root / target / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(root / rel), str(root / target / rel))
+    warnings += [f"verrou Office {rel} : fermez le document, puis supprimez ce fichier s'il reste"
+                 for rel in found["locks"]]
+    return {"applied": bool(args.apply), "history": target.as_posix() if moved else None, **found}
+
+
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
     return any(w["journal"] or w["links"] or w["vault"] or (w["definition"] or {}).get("changed")
@@ -440,9 +517,12 @@ def main() -> int:
     add_repo.add_argument("--url")
     add_repo.add_argument("--component", help="composant de l'architecture que le dépôt réalise")
     add_repo.add_argument("--alias", nargs="*", help="autres noms du service dans la configuration")
-    for name in ("freeze", "status", "check", "upgrade"):
+    for name in ("freeze", "status", "check", "upgrade", "tidy"):
         command = sub.add_parser(name)
         command.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
+        if name == "tidy":
+            command.add_argument("--apply", action="store_true",
+                                 help="déplacer dans .historique/ (défaut : à blanc, rien n'est déplacé)")
         if name == "upgrade":
             command.add_argument("--apply", action="store_true",
                                  help="écrire les changements (défaut : à blanc, rien n'est écrit)")
@@ -477,6 +557,15 @@ def main() -> int:
         report.update(repo(args, root, mission, errors))
     if mission and args.command == "freeze":
         report.update(freeze(root, mission, errors, warnings))
+    if mission and args.command == "tidy":
+        report["tidy"] = tidy(args, root, mission, warnings)
+        report.update({"mission": str(root / workspace.MISSION), "nature": mission["nature"],
+                       "vault": str(workspace.path_of(root, mission, "vault"))})
+        moved = len(report["tidy"]["copies"]) + len(report["tidy"]["work"])
+        report["next"] = ("montrer cette liste à l'utilisateur, puis relancer mission.py tidy --apply"
+                          if moved and not args.apply else "rien à ranger" if not moved else
+                          f"{moved} élément(s) rangé(s) dans {report['tidy']['history']}")
+        mission = None
     if mission and args.command == "upgrade":
         report["upgrade"] = upgrade(args, root, mission, errors, warnings)
         report["upgrade"]["pending"] = not report["upgrade"]["applied"] and pending(report["upgrade"])
@@ -514,6 +603,11 @@ def main() -> int:
                 if memory.get("to_share") and not current and not open_:
                     report["next"] = (f"proposer à l'utilisateur de verser {memory['to_share']} note(s) au référentiel du "
                                       "client : referentiel.py push (à blanc, à lui montrer), puis --apply avec son accord")
+        if args.command in ("status", "check", "upgrade"):
+            found = clutter(root, mission)
+            if found["copies"] or found["work"]:
+                warnings.append(f"{len(found['copies'])} copie(s) de sauvegarde et {len(found['work'])} dossier(s) de "
+                                "travail à ranger hors des livrables : mission.py tidy (à blanc, puis --apply)")
         if mission["nature"] == "revue" and not mission.get("repos"):
             warnings.append("revue sans dépôt : ajoutez le code avec mission.py repo (un par service)")
     failing = False
