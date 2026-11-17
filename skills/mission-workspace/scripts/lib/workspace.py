@@ -12,6 +12,8 @@ vault, le dossier des notes ni les dépôts de code à chaque appel.
     inside(racine, chemin)                   -> le chemin reste dans la mission
     rules("chiffrage", livrées, [entrées])   -> (règles de complétude, sources, erreurs)
     abaques([entrées], fichier)              -> (abaques fusionnés, sources, erreurs)
+    git_init(racine, mission)                -> dépôt git local de la mission (mission.py init)
+    git_commit(racine, mission, message)     -> commit de tout ce qui a changé (journal.py, à chaque validation)
 
 Cloisonnement : dans une mission, un script n'écrit que dans le vault de la
 mission ; un --vault qui en désigne un autre est refusé.
@@ -24,6 +26,8 @@ skill_paths.require_module, déclaré dans requires. Ne modifiez pas la copie.
 import json
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 from spec_schema import check
@@ -34,6 +38,12 @@ DEFAULTS = {"vault": "vault", "documents": "documents"}
 # Versions passées des livrables (chaque version validée, copies rangées par mission.py tidy) : dossier masqué
 # dans Obsidian, jamais de copie à côté d'un livrable.
 HISTORY = ".historique"
+# Dépôt git local de la mission (jamais poussé) : un commit par étape validée. Hors suivi : fichiers de travail,
+# verrous, état d'affichage d'Obsidian, copies rangées par tidy ; les dépôts de code de la mission s'y ajoutent.
+GIT_IGNORE = [".myskills-tmp/", "_tmp/", "workflow.lock", ".myskills-vault.lock", f"{HISTORY}/", "~$*", ".~lock.*",
+              ".obsidian/workspace*.json", ".trash/"]
+# Auteur des commits quand git n'en a pas de configuré.
+GIT_AUTHOR = ["-c", "user.name=myskills", "-c", "user.email=myskills@localhost"]
 WORKFLOWS = {"avant-vente": "avant-vente", "revue": "revue-dossier"}
 _HERE = Path(__file__).resolve().parent
 _SCHEMA = next((p for p in (_HERE / "mission.schema.json", _HERE.parent / "schemas" / "mission.schema.json")
@@ -254,3 +264,55 @@ def abaques(starts=(), explicit: Path | None = None) -> tuple[dict, list[str], l
             merged[key] = {**merged[key], **value} if isinstance(value, dict) and isinstance(merged.get(key), dict) \
                 else value
     return merged, [str(p) for p in files], errors
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, encoding="utf-8",
+                          errors="replace")
+
+
+def has_git(root: Path) -> bool:
+    """La mission a son propre dépôt git (.git à sa racine) et git est installé."""
+    return (Path(root) / ".git").exists() and shutil.which("git") is not None
+
+
+def _ignore(root: Path, mission: dict) -> None:
+    """.gitignore de la mission : lignes de GIT_IGNORE et dépôts de code de la mission, ajoutées si absentes."""
+    path = Path(root) / ".gitignore"
+    lines = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
+    wanted = GIT_IGNORE + [Path(r["root"]).relative_to(Path(root).resolve()).as_posix() + "/"
+                           for r in repos(root, mission) if inside(root, Path(r["root"]))]
+    if (Path(root) / "code").is_dir():
+        wanted.append("code/")
+    missing = [line for line in dict.fromkeys(wanted) if line not in lines]
+    if missing:
+        path.write_text("\n".join(lines + missing) + "\n", encoding="utf-8")
+
+
+def git_commit(root: Path, mission: dict, message: str) -> str | None:
+    """Commit local de tout ce qui a changé dans la mission (jamais poussé) ; rend son identifiant court, ou None
+    sans dépôt de la mission, sans changement ou si git échoue."""
+    if not has_git(root):
+        return None
+    _ignore(root, mission)
+    if _git(root, "add", "-A").returncode != 0 or _git(root, "diff", "--cached", "--quiet").returncode == 0:
+        return None
+    author = [] if _git(root, "config", "user.email").stdout.strip() else GIT_AUTHOR
+    if subprocess.run(["git", "-C", str(root), *author, "commit", "-q", "-m", message], capture_output=True,
+                      text=True, encoding="utf-8", errors="replace").returncode != 0:
+        return None
+    return _git(root, "rev-parse", "--short", "HEAD").stdout.strip() or None
+
+
+def git_init(root: Path, mission: dict) -> tuple[str | None, str | None]:
+    """Crée le dépôt git local de la mission et son premier commit. Rend (commit, avertissement) : rien si git
+    manque, ou si la mission est déjà dans un dépôt qui n'est pas le sien (il n'est pas touché)."""
+    if shutil.which("git") is None:
+        return None, "git introuvable : pas d'historique git de la mission (installez git : https://git-scm.com)"
+    if not (Path(root) / ".git").exists():
+        outer = _git(root, "rev-parse", "--show-toplevel")
+        if outer.returncode == 0 and outer.stdout.strip():
+            return None, f"mission dans le dépôt git {outer.stdout.strip()} : pas de dépôt propre à la mission"
+        if _git(root, "init", "-q").returncode != 0:
+            return None, "git init a échoué : pas d'historique git de la mission"
+    return git_commit(root, mission, f"init(mission): {mission.get('name', Path(root).name)}"), None

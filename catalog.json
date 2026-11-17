@@ -7765,7 +7765,7 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (une étape reprise se refait sur place, sans copie à côté). Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté). Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -8136,6 +8136,10 @@
                       "description": "Livrables Markdown qui reçoivent des liens."
                     }
                   }
+                },
+                "commit": {
+                  "type": "string",
+                  "description": "review --decision valide dans une mission qui a son dépôt git : commit local de la version validée, du journal et du vault (au lieu de .historique/) ; omis sinon."
                 },
                 "archived": {
                   "type": "string",
@@ -14421,10 +14425,10 @@
       "scripts": [
         {
           "name": "mission.py",
-          "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. upgrade remet une mission ouverte avec une version antérieure au niveau des scripts actuels, à blanc sauf --apply. tidy range les copies de sauvegarde laissées à côté des livrables et les dossiers de travail dans .historique/, à blanc sauf --apply.",
-          "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | upgrade [DOSSIER] [--apply] [--keep-definition] | tidy [DOSSIER] [--apply] | --schema",
+          "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. upgrade remet une mission ouverte avec une version antérieure au niveau des scripts actuels, à blanc sauf --apply. Crée en dernier le dépôt git local de la mission (jamais poussé), où journal.py fait un commit par étape validée. tidy range les copies de sauvegarde laissées à côté des livrables et les dossiers de travail dans .historique/, à blanc sauf --apply.",
+          "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] [--no-git] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | upgrade [DOSSIER] [--apply] [--keep-definition] | tidy [DOSSIER] [--apply] | --schema",
           "options": {
-            "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré",
+            "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré ; en dernier, dépôt git local de la mission (.gitignore, premier commit), jamais poussé",
             "--nature": "avant-vente ou revue",
             "--name": "nom court de la mission",
             "--client": "client",
@@ -14438,10 +14442,11 @@
             "--fail-on": "check : code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)",
             "DOSSIER": "dossier de la mission ou un de ses sous-dossiers (défaut : dossier courant)",
             "--schema": "affiche le schéma de mission.json sur une ligne",
-            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade), couleurs et modèles du vault s'ils y sont déjà, puis le point de status ; à blanc par défaut, rejouable",
+            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade), couleurs et modèles du vault s'ils y sont déjà, dépôt git de la mission s'il manque, puis le point de status ; à blanc par défaut, rejouable",
             "--apply": "upgrade : écrire les changements ; tidy : déplacer dans .historique/ (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "upgrade : garder les étapes et consignes d'origine de chaque workflow",
-            "tidy": "range ce qui encombre la mission hors des livrables : copies de sauvegarde (chiffrage.avant-droits.csv, presentation.v1-sans-tjm.pptx, revue.json.bak : original présent à côté) et dossiers de travail (_tmp, .myskills-tmp) déplacés dans .historique/rangement-DATE/ ; fichiers soumis au journal, documents/, vault et code jamais touchés ; verrous Office (~$) signalés"
+            "tidy": "range ce qui encombre la mission hors des livrables : copies de sauvegarde (chiffrage.avant-droits.csv, presentation.v1-sans-tjm.pptx, revue.json.bak : original présent à côté) et dossiers de travail (_tmp, .myskills-tmp) déplacés dans .historique/rangement-DATE/ ; fichiers soumis au journal, documents/, vault et code jamais touchés ; verrous Office (~$) signalés",
+            "--no-git": "init : sans dépôt git local de la mission (défaut : git init, puis un commit par étape validée par journal.py)"
           },
           "exit_codes": {
             "0": "commande appliquée (check : aucun contrôle ouvert au niveau de --fail-on)",
@@ -15010,7 +15015,8 @@
                     "workflows",
                     "style",
                     "templates",
-                    "pending"
+                    "pending",
+                    "git"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -15125,6 +15131,14 @@
                     "pending": {
                       "type": "boolean",
                       "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, vault déplacé)."
+                    },
+                    "git": {
+                      "enum": [
+                        "present",
+                        "absent",
+                        "cree"
+                      ],
+                      "description": "dépôt git propre à la mission : déjà là, absent (créé avec --apply), créé par cette passe."
                     }
                   }
                 },
@@ -15172,6 +15186,13 @@
                       "description": "verrous Office (~$, .~lock.), seulement signalés"
                     }
                   }
+                },
+                "git": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "init : commit initial du dépôt git local de la mission ; null sans git, dans un dépôt existant ou sans rien à commiter (avertissement)."
                 }
               }
             }

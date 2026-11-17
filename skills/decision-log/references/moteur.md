@@ -28,9 +28,11 @@ Sans outil de sous-agent, les mener l'une après l'autre.
 
 `review --decision retour` remet à reprendre elle et les suivantes :
 les reprendre dans l'ordre, chacune avec sa revue, par éditions ciblées en
-gardant les identifiants. Chaque version validée est gardée dans
-`.historique/ETAPE/DATE/` : les livrables se reprennent sur place, jamais
-de copie `.avant-*` ou `.v1` à côté.
+gardant les identifiants. Chaque version validée est gardée : dans
+une mission qui a son dépôt git, par le commit `valide(ETAPE)` (`git log`,
+`git diff` pour comparer) ; sinon dans `.historique/ETAPE/DATE/`. Les
+livrables se reprennent sur place, jamais de copie `.avant-*` ou `.v1` à
+côté. Ce dépôt reste local : ne le poussez jamais.
 
 ## Mission
 

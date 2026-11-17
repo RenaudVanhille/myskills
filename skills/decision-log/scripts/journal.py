@@ -24,9 +24,12 @@ Règles appliquées par le script, pas par le modèle :
   workflow.lock), pour que des étapes menées en parallèle ne perdent rien ;
 - une étape ne démarre pas si un livrable déjà validé a changé depuis ;
 - une validation ou un retour est toujours attribué à l'utilisateur ;
-- chaque version validée est gardée dans `.historique/ETAPE/DATE/` (dossier
-  masqué dans Obsidian) : une étape reprise se refait sur place, sans copie
-  de sauvegarde à côté des livrables ;
+- chaque version validée est gardée : dans une mission qui a son dépôt git
+  (mission.py init), par un commit local « valide(ETAPE): mots de
+  l'utilisateur » qui prend aussi journal et vault ; sinon dans
+  `.historique/ETAPE/DATE/` (dossier masqué dans Obsidian). Une étape
+  reprise se refait sur place, sans copie de sauvegarde à côté des
+  livrables ;
 - à une nouvelle soumission, les exigences, options et fichiers ajoutés,
   retirés ou modifiés depuis la version relue sont listés (revue
   différentielle).
@@ -177,6 +180,16 @@ def archive(folder: Path, stage: dict) -> str | None:
         (target / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(folder / rel, target / rel)
     return target.relative_to(folder).as_posix()
+
+
+def mission_git(folder: Path) -> tuple[Path, dict] | None:
+    """Racine et description de la mission du workflow, si elle a son dépôt git : la version validée y est
+    commitée au lieu d'être copiée dans .historique/."""
+    root = workspace.find(folder)
+    if root is None or not workspace.has_git(root):
+        return None
+    mission, invalid = workspace.load(root)
+    return (root, mission) if mission and not invalid else None
 
 
 def split(value: str | None) -> list[str]:
@@ -770,7 +783,7 @@ def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
                           "soumettez-les à nouveau")
             return None
         stage["status"] = "validee"
-        args.archived = archive(folder, stage)
+        args.archived = None if mission_git(folder) else archive(folder, stage)
         return add_entry(state, stage["id"], "validation", "utilisateur", args.text,
                          refs=split(args.refs), files=list(stage["files"]), via=via)
     if stage["status"] not in ("en-revue", "validee", "en-cours"):
@@ -958,6 +971,10 @@ def main() -> int:
                 if state and not errors and (args.command != "status" or getattr(args, "annotations", None)):
                     save(args.folder, state)
                 memory = synchronize(args.folder, state, warnings) if state and not errors else None
+                if args.command == "review" and args.decision == "valide" and entry and not errors \
+                        and (found := mission_git(args.folder)):
+                    # Après journal et vault : le commit prend la version validée et sa trace, jamais poussé.
+                    args.commit = workspace.git_commit(*found, f"valide({args.stage}): {args.text}")
         if args.command == "start" and getattr(args, "submit", False) and state and not errors:
             # Étape produite par ses seuls scripts : démarrage, contrôles et soumission en un appel.
             stage = stage_of(state, args.stage, errors)
@@ -995,6 +1012,7 @@ def main() -> int:
                 "stage": stage_definition(state, current_stage) if todo else None,
                 "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
                 "memory": memory, "checks": checks, "upgrade": upgraded, "archived": getattr(args, "archived", None),
+                "commit": getattr(args, "commit", None),
                 "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},

@@ -11,7 +11,7 @@ ses dépôts et ses référentiels ; les scripts des autres skills le trouvent e
 remontant depuis leurs fichiers et prennent alors le vault de la mission sans
 qu'on le leur donne.
 
-    uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json]
+    uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] [--no-git]
     uv run scripts/mission.py repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...]
     uv run scripts/mission.py freeze [DOSSIER]
     uv run scripts/mission.py status [DOSSIER]
@@ -27,6 +27,11 @@ qu'on le leur donne.
   `referentiel.path` de la description), ses notes sont copiées dans le
   vault (referentiel.py pull) ; status et check disent ensuite combien de
   notes de la mission restent à y verser (push à blanc, rien n'est écrit).
+  En dernier, init crée le dépôt git local de la mission (.gitignore pour
+  les fichiers de travail, verrous et dépôts de code) et son premier
+  commit ; journal.py y fait ensuite un commit par étape validée. Jamais
+  poussé. Sans git, ou dans un dépôt existant, un avertissement et rien
+  d'autre ; `--no-git` s'en passe.
 - repo ajoute ou met à jour un dépôt ; freeze note le commit courant de
   chaque dépôt (git) : la revue porte sur un commit connu.
 - status fait le point (workflows, étape courante, dépôts, référentiels,
@@ -37,7 +42,8 @@ qu'on le leur donne.
   des scripts actuels : chaque workflow (journal.py upgrade : définition
   livrée reprise sans perdre l'avancement, journal.md, liens des livrables,
   mémoire du vault refaite), couleurs et modèles de notes du vault s'ils y
-  étaient déjà installés, puis le point de status. À blanc par défaut : le
+  étaient déjà installés, dépôt git de la mission s'il manque, puis le
+  point de status. À blanc par défaut : le
   rapport (`upgrade`) dit ce qui changerait et rien n'est écrit ; `--apply`
   l'écrit. Rejouable : une deuxième passe ne change plus rien.
 - tidy range ce qui encombre la mission hors des livrables : copies de
@@ -427,7 +433,14 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
                 vault_ontology.write_style(onto, vault)
             if templates:
                 vault_ontology.write_templates(onto, vault, folder)
-    return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates}
+    git = "present" if workspace.has_git(root) else "absent"
+    if args.apply and not errors and git == "absent":
+        commit, warning = workspace.git_init(root, mission)
+        git = "cree" if commit or workspace.has_git(root) else "absent"
+        if warning:
+            warnings.append(warning)
+    return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates,
+            "git": git}
 
 
 def original_of(path: Path) -> Path | None:
@@ -490,8 +503,8 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
-    return any(w["journal"] or w["links"] or w["vault"] or (w["definition"] or {}).get("changed")
-               for w in done["workflows"])
+    return done.get("git") == "absent" or any(w["journal"] or w["links"] or w["vault"]
+                                              or (w["definition"] or {}).get("changed") for w in done["workflows"])
 
 
 def main() -> int:
@@ -510,6 +523,8 @@ def main() -> int:
     start.add_argument("--echeance", help="date de remise ou de comité, AAAA-MM-JJ")
     start.add_argument("--referentiel", help="dossier du référentiel du client, copié dans le vault (referentiel.py pull)")
     start.add_argument("--file", type=Path, help="description complète (mission.json), validée contre son schéma")
+    start.add_argument("--no-git", action="store_true",
+                       help="sans dépôt git local de la mission (défaut : git init, un commit par étape validée)")
     add_repo = sub.add_parser("repo", help="ajoute ou met à jour un dépôt de code")
     add_repo.add_argument("folder", type=Path, nargs="?", default=Path.cwd())
     add_repo.add_argument("--name", required=True)
@@ -610,6 +625,11 @@ def main() -> int:
                                 "travail à ranger hors des livrables : mission.py tidy (à blanc, puis --apply)")
         if mission["nature"] == "revue" and not mission.get("repos"):
             warnings.append("revue sans dépôt : ajoutez le code avec mission.py repo (un par service)")
+    if args.command == "init" and root is not None and not errors and not args.no_git:
+        # En dernier : le premier commit prend la mission entière (vault, note de mission, workflows).
+        report["git"], warning = workspace.git_init(root, mission)
+        if warning:
+            warnings.append(warning)
     failing = False
     if args.command == "check" and report["counts"] and args.fail_on != "aucune":
         limit = SEVERITIES.index(args.fail_on)

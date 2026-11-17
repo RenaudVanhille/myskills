@@ -20,7 +20,7 @@ Généré depuis `src/agents/document-extractor.contract.json`, qui fait foi.
 - **Reçoit** : Fichiers PDF, DOCX, PPTX, XLSX, images, ou un dossier ; La cible : Markdown ou vault Obsidian ; Un dossier de sortie (défaut : à côté du document).
 - **Produit** : Un Markdown par document et ses images dans attachments/ ; Ou des notes rangées dans le vault Obsidian.
 - **Ne fait jamais** : Produire du Word, du HTML ou une page de wiki ; Envoyer un document à un service en ligne.
-- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.
+- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée (commit du dépôt git de la mission, sinon `.historique/`). Les fichiers de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
