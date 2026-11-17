@@ -512,6 +512,14 @@
                       "pattern": "^[0-9a-f]{64}$"
                     },
                     "description": "Entrées lues au démarrage de l'étape : fichier d'une étape amont -> empreinte SHA-256 (champ inputs de la définition, sinon tous les fichiers des étapes de after). À la validation d'une étape reprise, seule une étape dont une entrée a changé est remise à reprendre."
+                  },
+                  "external": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "description": "Entrées prises hors du dossier du workflow (motifs ../ du champ inputs : livrables d'un workflow parent ou voisin) -> empreinte SHA-256, lues au démarrage ; une entrée modifiée depuis donne un avertissement (étape validée : à faire revoir)."
                   }
                 }
               }

@@ -35,6 +35,14 @@ réécrire leurs livrables (schémas compris). Chaque version validée est gard�
 `.historique/ETAPE/DATE/` : les livrables se reprennent sur place, jamais
 de copie `.avant-*` ou `.v1` à côté.
 
+## Entrées d'un autre workflow
+
+Un motif `../` du champ `inputs` (exigences ou options du workflow parent,
+lues par une restitution) est pris en empreinte au démarrage de l'étape.
+S'il change ensuite, `status` avertit (« fichiers extérieurs modifiés après
+validation », repris par `mission.py status`) : montrez-le à l'utilisateur,
+qui décide du retour.
+
 ## Mission
 
 - Nouvelle avant-vente ou revue hors mission : `mission.py init DOSSIER
