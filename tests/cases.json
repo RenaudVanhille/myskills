@@ -288,6 +288,17 @@
       "contains": {"p.drawio": ["\n        <mxCell id="]}
     },
     {
+      "id": "cloud-colonnes",
+      "skill": "cloud-architecture",
+      "_note": "Description d'option sans groupe (options_build.py) : services en colonnes dans le sens des flux, flèches de droite à gauche, pas tous sur une ligne.",
+      "steps": [
+        {"script": "{skills}/architecture-options/scripts/options_build.py", "args": ["{fixtures}/workflow/options-wa.json", "--out-dir", "{out}"], "exit": 0},
+        {"script": "{skills}/cloud-architecture/scripts/cloud_build.py", "args": ["{out}/schemas/option-a.cloud.json", "--out", "{out}/a.drawio"], "exit": 0, "report": {"errors": [], "warnings": [], "groups": 0, "services": 7}},
+        {"script": "{skills}/drawio-diagram/scripts/check_drawio.py", "args": ["{out}/a.drawio"], "exit": 0, "report": {"results.0.errors": [], "results.0.warnings": []}}
+      ],
+      "contains": {"a.drawio": ["exitX=1;exitY=0.5;entryX=0;entryY=0.5;", "value=\"HTTPS\"", "id=\"pieces\" value=\"Pièces jointes\""]}
+    },
+    {
       "id": "drawio-casse",
       "skill": "drawio-diagram",
       "steps": [

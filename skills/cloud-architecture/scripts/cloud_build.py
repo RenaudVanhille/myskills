@@ -404,11 +404,53 @@ def align(boxes: list, flows: list, y0: float, row: bool) -> None:
             changed = True
 
 
+def ranks(boxes: list, flows: list) -> list[list[dict]]:
+    """Colonnes d'une description sans groupe, dans le sens des flux : chaque service une colonne après le plus
+    lointain de ceux qui l'appellent (boucles ignorées) ; dans une colonne, ordre de ses appelants pour limiter
+    les croisements ; un service sans flux va dans la première colonne."""
+    ids = [bx["id"] for bx in boxes]
+    after = {i: [] for i in ids}
+    for flow in flows:
+        a, b = str(flow.get("from")), str(flow.get("to"))
+        if a in after and b in after and a != b and b not in after[a]:
+            after[a].append(b)
+    # Arcs qui reviennent en arrière (boucles) écartés par un parcours en profondeur depuis les sources.
+    callers = {i for targets in after.values() for i in targets}
+    state, forward = {}, []
+
+    def visit(node: str) -> None:
+        state[node] = "en-cours"
+        for nxt in after[node]:
+            if state.get(nxt) != "en-cours":
+                forward.append((node, nxt))
+                if nxt not in state:
+                    visit(nxt)
+        state[node] = "fait"
+    for i in [i for i in ids if i not in callers] + ids:
+        if i not in state:
+            visit(i)
+    rank = {i: 0 for i in ids}
+    for _ in ids:  # chemin le plus long : relâchement des arcs restants, sans boucle
+        for a, b in forward:
+            rank[b] = max(rank[b], rank[a] + 1)
+    columns: list[list[dict]] = [[] for _ in range(max(rank.values(), default=0) + 1)]
+    position: dict[str, float] = {}
+    for col, column in enumerate(columns):
+        members = [bx for bx in boxes if rank[bx["id"]] == col]
+        before = {bx["id"]: [position[a] for a in ids if bx["id"] in after[a] and a in position] for bx in members}
+        members.sort(key=lambda bx: sum(before[bx["id"]]) / len(before[bx["id"]]) if before[bx["id"]]
+                     else ids.index(bx["id"]))
+        for index, bx in enumerate(members):
+            position[bx["id"]] = index
+        column += members
+    return [c for c in columns if c]
+
+
 def flow_label(flow: dict) -> str:
     parts = [str(flow[k]) for k in ("protocol", "port") if flow.get(k)]
     head = " ".join(parts)
     text = str(flow.get("label", ""))
-    return f"{text} ({head})" if text and head else text or head
+    return f"{text} ({head})" if text and head and text != head else text or head
 
 
 def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -> tuple[ET.Element, Builder, list]:
@@ -432,18 +474,35 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
     if notes:
         y0 += 50
     x = 0.0
-    if top["layout"] == "column":
+    # Sans groupe ni disposition donnée (description tirée des options) : en colonnes dans le sens des flux,
+    # plutôt que tous les services sur une même ligne.
+    if "layout" not in spec and not spec.get("wrap") and len(boxes) > 3 \
+            and not any("children" in bx for bx in boxes) and spec.get("flows"):
+        top["layout"] = "flow"
+    if top["layout"] == "flow":
+        columns = ranks(boxes, spec.get("flows", []))
+        column_of = {bx["id"]: n for n, c in enumerate(columns) for bx in c}
+        heights = [sum(bx["h"] for bx in c) + 1.5 * GAP * (len(c) - 1) for c in columns]
+        for column, height in zip(columns, heights):
+            width = max(bx["w"] for bx in column)
+            y = y0 + (max(heights) - height) / 2
+            for bx in column:
+                bx["x"], bx["y"] = x + (width - bx["w"]) / 2, y
+                y += bx["h"] + 1.5 * GAP
+            x += width + 3 * GAP
+    elif top["layout"] == "column":
         y = y0
         width = max((bx["w"] for bx in boxes), default=0)
         for bx in boxes:
             bx["x"], bx["y"] = (width - bx["w"]) / 2, y
             y += bx["h"] + 2 * GAP
     else:
+        column_of = {}
         height = max((bx["h"] for bx in boxes), default=0)
         for bx in boxes:
             bx["x"], bx["y"] = x, y0 + (height - bx["h"]) / 2
             x += bx["w"] + 2.5 * GAP
-    align(boxes, spec.get("flows", []), y0, top["layout"] != "column")
+    align(boxes, spec.get("flows", []), y0, top["layout"] == "row")
     right = max((bx["x"] + bx["w"] for bx in boxes), default=400)
 
     title = spec.get("title")
@@ -483,6 +542,9 @@ def build_page(spec: dict, view: str, name: str, errors: list, warnings: list) -
         if flow.get("both"):
             style += "startArrow=block;startFill=1;"
         points = b.detour(source, target) if source in b.absolute and target in b.absolute else []
+        if not points and column_of.get(target, -1) > column_of.get(source, -1) >= 0:
+            # En colonnes : de la droite de l'appelant à la gauche de l'appelé, chaque flèche à part.
+            style += "exitX=1;exitY=0.5;entryX=0;entryY=0.5;"
         if points:
             # Sortie et entrée sur les côtés, sinon draw.io sort par le bas, à travers le libellé.
             rightward = points[0][0] < points[1][0]

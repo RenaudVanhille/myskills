@@ -5875,7 +5875,7 @@
       "scripts": [
         {
           "name": "cloud_build.py",
-          "role": "Construit le schéma draw.io (mise en page des groupes imbriqués, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
+          "role": "Construit le schéma draw.io (mise en page des groupes imbriqués ; sans groupe, en colonnes dans le sens des flux plutôt que sur une seule ligne, icônes officielles livrées dans draw.io, flux, titre, RPO/RTO, légende), puis le vérifie avec check_drawio.py du skill drawio-diagram s'il est installé.",
           "usage": "uv run scripts/cloud_build.py SUJET.json [--out SUJET.drawio] [--view deployment|network|kubernetes|dr|pipeline|threats] [--matrix] [--export png|svg] | --types [aws|azure|gcp|k8s|generic] | --schema",
           "options": {
             "SUJET.json": "description de l'architecture",
@@ -5942,7 +5942,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {
@@ -24232,7 +24233,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {
@@ -25828,7 +25830,8 @@
                 "layout": {
                   "enum": [
                     "row",
-                    "column"
+                    "column",
+                    "flow"
                   ]
                 },
                 "wrap": {
