@@ -78,7 +78,9 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    `--where`, `--related <note>`) plutôt que de lire notes ou livrables. Un
    champ `annotations` du rapport (écrites par l'utilisateur dans
    Obsidian) : réponds à chaque question, tiens compte de chaque retour dans
-   l'étape en cours, et trace-le (`log --refs D-xxx`).
+   l'étape en cours, et trace-le (`log --refs D-xxx`). Une réponse de
+   l'utilisateur à une question du journal se note `log --kind reponse --refs
+   D-xxx --by utilisateur --text "<ses mots>"` : la question est close.
 2. **Une revue en attente** : avec un vault, `review --from-vault` d'abord
    (l'utilisateur a pu valider dans sa note de revue). Sinon, sa réponse
    donne `review --decision valide|retour --text "<ses mots>"` ; après un
