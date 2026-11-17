@@ -58,7 +58,25 @@ ONTOLOGY = vault_ontology.load()
 KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Question", "soumission": "Soumission",
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
                "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée",
-               "annotation": "Annotation"}
+               "annotation": "Annotation", "reponse": "Réponse"}
+def answers(state: dict) -> dict[str, str]:
+    """Question -> première réponse (`reponse` dont les refs citent la question)."""
+    asked = {e["id"] for e in state["entries"] if e["kind"] == "question"}
+    found: dict[str, str] = {}
+    for entry in state["entries"]:
+        if entry["kind"] == "reponse":
+            for ref in entry.get("refs", []):
+                if ref in asked:
+                    found.setdefault(ref, entry["id"])
+    return found
+
+
+def open_questions(state: dict) -> list[dict]:
+    """Questions du journal sans réponse, dans l'ordre."""
+    answered = answers(state)
+    return [e for e in state["entries"] if e["kind"] == "question" and e["id"] not in answered]
+
+
 REVIEW_HELP = ["Pour valider, mettez la propriété **revue** à `validée`.",
                "Pour demander une reprise, mettez `retour` et écrivez votre retour sous « Votre retour ».",
                "L'agent lit cette note (`journal.py review --from-vault`) : seules la propriété revue et cette "
@@ -428,6 +446,7 @@ class _Sync:
                        {"extrait-de": self.linked("doc:" + doc for doc in _cited(entry))}, tags=["glossaire"])
 
     def entry_notes(self) -> None:
+        answered = answers(self.state)
         for entry in self.state["entries"]:
             refs = [self.link(r) for r in entry.get("refs", [])]
             body = [f"# {entry['id']} {KIND_LABELS[entry['kind']]}", "", entry["text"], "", self.up, ""]
@@ -437,6 +456,10 @@ class _Sync:
                 body += ["**Concerne** : " + ", ".join(refs), ""]
             if entry.get("files"):
                 body += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"])]
+            if entry["kind"] == "question":
+                body += ([f"**Réponse** : {self.link(answered[entry['id']])}", ""] if entry["id"] in answered
+                         else vault_ontology.callout("question", "Question ouverte", [
+                             "Répondez sous « Mes notes », ou à l'agent à la prochaine revue."]))
             if entry.get("via") == "obsidian":
                 body += ["", "Écrite par l'utilisateur sous « Mes notes » dans Obsidian." if entry["kind"] in
                          ("annotation", "question")
@@ -613,6 +636,10 @@ class _Sync:
         if self.reviews:
             body += [""] + vault_ontology.callout("todo", "Revues en attente", [
                 f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in self.reviews])[:-1]
+        waiting = open_questions(state)
+        if waiting:
+            body += [""] + vault_ontology.callout("question", "Questions ouvertes", [
+                f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}) : {e['text']}" for e in waiting])[:-1]
         requirements = self.catalog.get("requirements", [])
         if requirements:
             body += ["", "## Exigences", "", "| Exigence | Priorité | Statut |", "| --- | --- | --- |"]
