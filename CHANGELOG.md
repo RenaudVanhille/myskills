@@ -1,5 +1,26 @@
 # Journal des versions
 
+## [2.1.0](https://github.com/RenaudVanhille/myskills/compare/v2.0.0...v2.1.0) (2026-11-17)
+
+
+### Ajouts
+
+* **architecture-dossier:** restitution lisible par un client, un PO ou un BA ([#122](https://github.com/RenaudVanhille/myskills/issues/122)) ([41d5e7a](https://github.com/RenaudVanhille/myskills/commit/41d5e7a924b1bae657944f833a86ca90fc364f5e))
+* **orientation:** lancement du sous-agent choisi au modèle de son niveau ([#117](https://github.com/RenaudVanhille/myskills/issues/117)) ([bd67a9f](https://github.com/RenaudVanhille/myskills/commit/bd67a9f75896ea14af41348a66c5f53ec3693ba6))
+* **orientation:** lancement du sous-agent choisi au modèle de son niveau ([#117](https://github.com/RenaudVanhille/myskills/issues/117)) ([3824c22](https://github.com/RenaudVanhille/myskills/commit/3824c2291a69538919df775c7a6ba51b2930beea))
+* **solution-estimate:** coût IA du développement en fourchette avec taux de confiance ([#118](https://github.com/RenaudVanhille/myskills/issues/118)) ([55a2774](https://github.com/RenaudVanhille/myskills/commit/55a27740aea1ade76819187309e3f5d305bf92ac))
+* **solution-estimate:** coût par parcours utilisateur et vue de restitution par parcours ([#121](https://github.com/RenaudVanhille/myskills/issues/121)) ([94f7779](https://github.com/RenaudVanhille/myskills/commit/94f77791aa6beeec9def092514806622ec5996c6))
+
+
+### Corrections
+
+* **spec-pack:** architecture validée seule et schéma complet du modèle de données ([#120](https://github.com/RenaudVanhille/myskills/issues/120)) ([5702225](https://github.com/RenaudVanhille/myskills/commit/57022251f444defaaabc0c7d70a30716011d5d20))
+
+
+### Coût et performances
+
+* **solution-estimate:** SKILL.md allégé, brouillon et contrôles dans references/ ([#123](https://github.com/RenaudVanhille/myskills/issues/123)) ([3fe73b1](https://github.com/RenaudVanhille/myskills/commit/3fe73b15ec3fca82ad078a52cb54918d2503cb43))
+
 ## [2.0.0](https://github.com/RenaudVanhille/myskills/compare/v1.0.0...v2.0.0) (2026-11-16)
 
 
