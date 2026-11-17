@@ -17,14 +17,14 @@
   "scripts": [
     {
       "name": "journal.py",
-      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape et celles qui en dépendent), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté). Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+      "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté). Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
       "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
       "options": {
         "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
         "start DOSSIER ETAPE": "démarre l'étape si toutes les précédentes sont validées et que leurs livrables n'ont pas changé depuis",
         "log DOSSIER ETAPE": "note un choix, une hypothèse ou une question : --kind, --text, --why (justification), --refs, --by",
         "submit DOSSIER ETAPE": "soumet les livrables à la revue : --files, chemins relatifs au dossier ; avec une définition, --files est facultatif (livrables pris dans la définition) et chaque livrable attendu doit être présent ; à une nouvelle soumission, liste dans changes les éléments ajoutés, retirés, modifiés et les fichiers changés",
-        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs",
+        "review DOSSIER ETAPE": "réponse de l'utilisateur : --decision valide|retour et --text (ses mots), ou --from-vault (propriété revue et section « Votre retour » de sa note de revue dans le vault) ; --refs ; un retour ne remet à reprendre que l'étape ; sa nouvelle validation remet à reprendre les étapes commencées qui en dépendent dont une entrée (fichier lu d'une étape amont) a changé, les autres restent validées (impacts)",
         "status DOSSIER": "état, étape courante, prochaine action, fichiers validés modifiés",
         "--schema": "affiche le schéma de workflow.json sur une ligne",
         "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
@@ -37,7 +37,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived) sont omis.",
+        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived, impacts) sont omis.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -396,6 +396,29 @@
             "archived": {
               "type": "string",
               "description": "review --decision valide : dossier où la version validée est gardée (.historique/ETAPE/DATE, relatif au workflow) ; omis si cette version y est déjà."
+            },
+            "impacts": {
+              "type": "object",
+              "required": [
+                "redo",
+                "kept"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "redo": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "kept": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "description": "review --decision valide d'une étape reprise : étapes commencées qui en dépendent, remises à reprendre parce qu'une de leurs entrées a changé (redo) ou laissées telles quelles (kept) ; omis sinon."
             }
           }
         }
@@ -485,6 +508,14 @@
                       }
                     },
                     "description": "Livrable JSON -> identifiant d'élément -> empreinte, pour la revue différentielle."
+                  },
+                  "inputs": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "description": "Entrées lues au démarrage de l'étape : fichier d'une étape amont -> empreinte SHA-256 (champ inputs de la définition, sinon tous les fichiers des étapes de after). À la validation d'une étape reprise, seule une étape dont une entrée a changé est remise à reprendre."
                   }
                 }
               }
@@ -637,7 +668,7 @@
                           "type": "string",
                           "minLength": 1
                         },
-                        "description": "fichiers lus (motifs relatifs au dossier)"
+                        "description": "fichiers lus (motifs relatifs au dossier) ; ceux des étapes amont sont les entrées de l'étape : elle n'est remise à reprendre après le retour sur une étape amont que si l'un d'eux a changé"
                       },
                       "deliverables": {
                         "type": "array",

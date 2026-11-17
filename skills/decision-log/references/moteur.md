@@ -26,13 +26,17 @@ Sans outil de sous-agent, les mener l'une après l'autre.
 
 ## Retour sur une étape validée
 
-`review --decision retour` remet à reprendre elle et les suivantes :
-les reprendre dans l'ordre, chacune avec sa revue, par éditions ciblées en
-gardant les identifiants. Chaque version validée est gardée : dans
-une mission qui a son dépôt git, par le commit `valide(ETAPE)` (`git log`,
-`git diff` pour comparer) ; sinon dans `.historique/ETAPE/DATE/`. Les
-livrables se reprennent sur place, jamais de copie `.avant-*` ou `.v1` à
-côté. Ce dépôt reste local : ne le poussez jamais.
+`review --decision retour` remet à reprendre l'étape seule : la reprendre
+par éditions ciblées en gardant les identifiants, puis la soumettre. À sa
+validation, `impacts.redo` liste les étapes dont une entrée a changé, déjà
+remises à reprendre : les reprendre dans l'ordre, chacune avec sa revue.
+Les étapes de `impacts.kept` restent validées : ne pas les relancer ni
+réécrire leurs livrables (schémas compris). Chaque version validée est
+gardée : dans une mission qui a son dépôt git, par le commit
+`valide(ETAPE)` (`git log`, `git diff` pour comparer) ; sinon dans
+`.historique/ETAPE/DATE/`. Les livrables se reprennent sur place, jamais de
+copie `.avant-*` ou `.v1` à côté. Ce dépôt reste local : ne le poussez
+jamais.
 
 ## Mission
 

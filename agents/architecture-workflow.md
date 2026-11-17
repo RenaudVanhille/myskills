@@ -115,9 +115,11 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    attend sa décision. Termine par le rapport final JSON, `status` à
    `partiel`, « revue de l'étape <étape> » dans `todo`.
 6. **Retour sur une étape validée** : `review --decision retour`, puis
-   suis `references/moteur.md` (skill `decision-log`). La version validée est déjà gardée (commit `valide(ETAPE)` du
-   dépôt git de la mission, sinon `.historique/ETAPE/`) : reprends les
-   livrables sur place.
+   suis `references/moteur.md` (skill `decision-log`). La version validée
+   est déjà gardée (commit `valide(ETAPE)` du dépôt git de la mission,
+   sinon `.historique/ETAPE/`) : reprends les livrables sur place.
+   Ne relance que les étapes de `impacts.redo` ; celles de `impacts.kept`
+   restent validées, sans rien réécrire.
 7. **Fin** : quand `status` dit que tout est validé, livre le rapport final
    (`status` à `ok`, tous les livrables et `journal.md` dans `files`). Pour
    un dossier Word, Confluence ou une présentation PowerPoint, `next`

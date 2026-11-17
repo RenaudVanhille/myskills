@@ -292,8 +292,8 @@
     },
     {
       "name": "check_drawio.py",
-      "role": "Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image).",
-      "usage": "uv run scripts/check_drawio.py SCHEMA.drawio [...]",
+      "role": "Vérifie un fichier draw.io avant export : structure, charte, chevauchements, et lisibilité estimée sans rendu (libellé trop long pour sa forme, flèches qui se croisent, flèche sous une forme) ; dit s'il faut relire l'image exportée (review_image). Signale un fichier compressé ou écrit sur une seule ligne ; avec --pretty, le réécrit en XML clair et indenté, seulement s'il change.",
+      "usage": "uv run scripts/check_drawio.py [--pretty] SCHEMA.drawio [...]",
       "report": {
         "format": "json",
         "description": "Objet : results (un objet par fichier, une ligne chacun), errors et warnings. Un objet par fichier.",
@@ -347,6 +347,10 @@
                   "review_image": {
                     "type": "boolean",
                     "description": "Lisibilité douteuse (avertissement de lisibilité ou chevauchement) : ouvrir l'image exportée ; sinon, ne pas l'ouvrir."
+                  },
+                  "reformatted": {
+                    "type": "boolean",
+                    "description": "Avec --pretty : le fichier a été réécrit en XML indenté (il était compressé, sur une ligne ou autrement mis en forme)."
                   }
                 }
               }
@@ -371,6 +375,9 @@
       "exit_codes": {
         "0": "aucune erreur",
         "1": "au moins un fichier a une erreur"
+      },
+      "options": {
+        "--pretty": "réécrit chaque fichier en XML clair et indenté (pages compressées décompressées), comme drawio_build.py, seulement s'il change : un même schéma donne toujours le même fichier"
       }
     },
     {

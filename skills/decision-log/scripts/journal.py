@@ -18,8 +18,13 @@ Règles appliquées par le script, pas par le modèle :
   peuvent se faire en parallèle ;
 - seule une étape en revue peut être validée, et seulement si ses fichiers
   n'ont pas changé depuis la soumission ;
-- un retour sur une étape remet à reprendre cette étape et toutes celles qui
-  en dépendent, déjà commencées ;
+- un retour sur une étape ne remet à reprendre qu'elle ; à sa nouvelle
+  validation, chaque étape commencée qui en dépend compare ses entrées
+  (empreintes, au démarrage, des fichiers des étapes amont qu'elle lit :
+  champ `inputs` de la définition, sinon tous ceux des étapes de `after`)
+  à celles du moment : seules celles dont une entrée a changé sont remises
+  à reprendre (rapport `impacts`), les autres restent telles quelles, sans
+  rien réécrire ;
 - les commandes d'un même dossier passent l'une après l'autre (verrou
   workflow.lock), pour que des étapes menées en parallèle ne perdent rien ;
 - une étape ne démarre pas si un livrable déjà validé a changé depuis ;
@@ -330,6 +335,42 @@ def ancestors(state: dict, name: str) -> list[str]:
 def dependents(state: dict, name: str) -> list[str]:
     """Étapes qui dépendent, directement ou non, d'une étape."""
     return [s["id"] for s in state["stages"] if name in ancestors(state, s["id"])]
+
+
+def consumed(state: dict, name: str) -> dict[str, str]:
+    """Entrées d'une étape : fichiers des étapes amont qu'elle lit, avec leur empreinte enregistrée. Avec un champ
+    `inputs` dans la définition, ceux des étapes amont qui y correspondent (une étape de `after` dont aucun
+    fichier n'y correspond compte en entier) ; sans, tous ceux des étapes dont elle dépend directement."""
+    records = {s["id"]: s for s in state["stages"]}
+    patterns = (stage_definition(state, name) or {}).get("inputs")
+    direct, own = requires(state, name), records[name].get("files", {})
+    found = {}
+    for up in (ancestors(state, name) if patterns else direct):
+        files = records[up].get("files", {})
+        hit = {f: h for f, h in files.items() if any(fnmatch.fnmatch(f, p) for p in patterns)} if patterns else {}
+        found.update(hit or (files if up in direct else {}))
+    return {f: found[f] for f in sorted(found) if f not in own}
+
+
+def impacts(state: dict, stage: dict, entry: str) -> dict:
+    """À la validation d'une étape reprise : remet à reprendre les étapes commencées qui en dépendent et dont une
+    entrée a changé depuis leur démarrage ; les autres restent telles quelles."""
+    result = {"redo": [], "kept": []}
+    for later in (s for s in state["stages"] if s["id"] in dependents(state, stage["id"])):
+        if later["status"] not in ("en-cours", "en-revue", "validee"):
+            continue
+        now, before = consumed(state, later["id"]), later.get("inputs")
+        moved = sorted(f for f in now.keys() | (before or {}).keys() if now.get(f) != (before or {}).get(f))
+        if before is not None and not moved:
+            result["kept"].append(later["id"])
+            continue
+        later["status"] = "a-reprendre"
+        result["redo"].append(later["id"])
+        add_entry(state, later["id"], "invalidation", "agent",
+                  f"à reprendre après la validation {entry} de {stage['id']} : entrées modifiées : "
+                  + (", ".join(moved) or "inconnues (étape commencée avant le suivi des entrées)"),
+                  refs=[entry], files=moved or None)
+    return result
 
 
 def ready(state: dict) -> list[str]:
@@ -699,6 +740,7 @@ def start_or_skip(args, folder: Path, state: dict, stage: dict, errors: list[str
         return add_entry(state, stage["id"], "saut", "utilisateur", args.text)
     else:
         stage["status"] = "en-cours"
+        stage["inputs"] = consumed(state, stage["id"])
     return None
 
 
@@ -784,20 +826,22 @@ def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
             return None
         stage["status"] = "validee"
         args.archived = None if mission_git(folder) else archive(folder, stage)
-        return add_entry(state, stage["id"], "validation", "utilisateur", args.text,
-                         refs=split(args.refs), files=list(stage["files"]), via=via)
+        entry = add_entry(state, stage["id"], "validation", "utilisateur", args.text,
+                          refs=split(args.refs), files=list(stage["files"]), via=via)
+        found = impacts(state, stage, entry)
+        args.impacts = found if found["redo"] or found["kept"] else None
+        return entry
     if stage["status"] not in ("en-revue", "validee", "en-cours"):
         errors.append(f"{stage['id']} est {STATUS_LABELS[stage['status']]} : rien à reprendre")
         return None
     stage["status"] = "a-reprendre"
-    entry = add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs), via=via)
+    # Les étapes qui en dépendent ne bougent pas : à la nouvelle validation, seules celles dont une entrée a
+    # changé sont remises à reprendre (impacts). Une étape commencée avant le suivi des entrées les reçoit ici,
+    # telles qu'elle les a lues (les fichiers de l'étape reprise n'ont pas encore été soumis à nouveau).
     for later in (s for s in state["stages"] if s["id"] in dependents(state, stage["id"])):
-        # Une étape sautée le reste : l'utilisateur y a renoncé, le retour n'y change rien.
-        if later["status"] not in ("a-faire", "sautee"):
-            later["status"] = "a-reprendre"
-            add_entry(state, later["id"], "invalidation", "agent",
-                      f"à reprendre après le retour {entry} sur {stage['id']}", refs=[entry])
-    return entry
+        if later["status"] in ("en-cours", "en-revue", "validee") and "inputs" not in later:
+            later["inputs"] = consumed(state, later["id"])
+    return add_entry(state, stage["id"], "retour", "utilisateur", args.text, refs=split(args.refs), via=via)
 
 
 def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple[dict | None, dict | None]:
@@ -1013,6 +1057,7 @@ def main() -> int:
                 "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
                 "memory": memory, "checks": checks, "upgrade": upgraded, "archived": getattr(args, "archived", None),
                 "commit": getattr(args, "commit", None),
+                "impacts": getattr(args, "impacts", None),
                 "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},
