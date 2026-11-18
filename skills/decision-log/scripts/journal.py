@@ -271,6 +271,45 @@ def supersede(state: dict, stage: str, closing: str) -> list[str]:
     return [e["id"] for e in moved]
 
 
+def denoise(state: dict) -> int:
+    """Workflow tenu avant la séparation décisions / événements : retire le bruit (validations, soumissions,
+    passages et rapports d'agent d'avant, archives comprises) et ne garde, par étape, que les événements dont le
+    moteur a besoin (dernière soumission, dernière validation ou invalidation), renumérotés E-xxx. Les références
+    (refs, superseded_by) suivent. Rend le nombre d'entrées retirées."""
+    entries, archive = state["entries"], state.get("archive", [])
+    keep: set[str] = set()
+    for stage in state["stages"]:
+        own = [e for e in entries if e["stage"] == stage["id"]]
+        for kinds in (("soumission",), ("validation", "invalidation")):
+            last = next((e["id"] for e in reversed(own) if e["kind"] in kinds), None)
+            if last:
+                keep.add(last)
+    noise = {e["id"] for e in entries + archive if e["kind"] in EVENTS and e["id"] not in keep}
+    closing = {e["stage"]: e["id"] for e in entries if e["id"] in keep and e["kind"] != "soumission"}
+    if not noise and not any(e["id"].startswith("D-") for e in entries if e["id"] in keep):
+        return 0
+    known = [e for e in entries + archive if e["id"] not in noise]
+    count = max((int(e["id"][2:]) for e in known if e["id"].startswith("E-")), default=0)
+    renamed = {}
+    for entry in sorted((e for e in entries if e["id"] in keep and e["id"].startswith("D-")), key=lambda e: e["date"]):
+        count += 1
+        renamed[entry["id"]] = f"E-{count:03d}"
+    state["entries"] = [e for e in entries if e["id"] not in noise]
+    if archive:
+        state["archive"] = [e for e in archive if e["id"] not in noise]
+    for entry in state["entries"] + state.get("archive", []):
+        entry["id"] = renamed.get(entry["id"], entry["id"])
+        if entry.get("refs"):
+            entry["refs"] = [renamed.get(r, r) for r in entry["refs"] if r not in noise] or None
+            if entry["refs"] is None:
+                del entry["refs"]
+        if entry.get("superseded_by"):
+            target = entry["superseded_by"]
+            target = closing.get(entry["stage"], target) if target in noise else target
+            entry["superseded_by"] = renamed.get(target, target)
+    return len(noise)
+
+
 def items_of(path: Path) -> dict[str, str]:
     """Empreinte de chaque élément identifié (exigence, option...) d'un livrable JSON."""
     if path.suffix.lower() != ".json":
@@ -953,7 +992,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
     info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0,
-            "external": 0}
+            "noise": 0, "external": 0}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -977,6 +1016,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
                         and e["kind"] == ("validation" if stage["status"] == "validee" else "saut")), None)
         if stage["status"] in DONE and closing:
             info["superseded"] += len(supersede(state, stage["id"], closing))
+    info["noise"] = denoise(state)
     memory = state.get("memory")
     if memory and not Path(memory["vault"]).is_dir():
         vault = workspace.vault_target(None, None, [folder], default_folder=None)[0]
@@ -1175,7 +1215,7 @@ def main() -> int:
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
                                                  or upgraded["journal"] or upgraded["links"]
-                                                 or upgraded["superseded"]):
+                                                 or upgraded["superseded"] or upgraded["noise"]):
         action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors

@@ -8057,10 +8057,16 @@
                     "journal",
                     "links",
                     "superseded",
+                    "noise",
                     "external"
                   ],
                   "additionalProperties": false,
                   "properties": {
+                    "noise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Événements d'avant la séparation décisions / événements retirés du journal (validations, soumissions, passages, rapports), sauf la dernière soumission et la dernière validation ou invalidation de chaque étape, renumérotées E-xxx ; l'état d'avant reste dans le commit git de la mission."
+                    },
                     "superseded": {
                       "type": "integer",
                       "minimum": 0,
@@ -15154,6 +15160,7 @@
                           "journal",
                           "links",
                           "superseded",
+                          "noise",
                           "external",
                           "notes"
                         ],
@@ -15245,6 +15252,11 @@
                             "type": "integer",
                             "minimum": 0,
                             "description": "Entrées des versions remplacées passées à l'archive."
+                          },
+                          "noise": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Événements retirés du journal (validations, soumissions, passages, rapports d'avant la séparation décisions / événements)."
                           },
                           "external": {
                             "type": "integer",

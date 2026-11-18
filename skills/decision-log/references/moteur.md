@@ -45,6 +45,10 @@ validations, invalidations, passages de main et rapports d'agent sont des
 événements E-xxx, gardés dans workflow.json (statuts, empreintes, retours
 y renvoient) et listés dans la section repliée « Historique des étapes ».
 Ne notez pas de `log` pour une simple validation ou un message de suivi.
+Un journal tenu avant cette règle perd ce bruit à `upgrade --apply`
+(`upgrade.noise`, repris par `mission.py upgrade`) : seules restent, par
+étape, la dernière soumission et la dernière validation ou invalidation,
+renumérotées E-xxx ; l'état d'avant reste dans le commit git de la mission.
 
 Le journal reste compact sur un workflow rejoué : à la validation (ou au
 saut) d'une étape, les entrées de ses versions précédentes (choix,
