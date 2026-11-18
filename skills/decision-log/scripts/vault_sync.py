@@ -122,6 +122,11 @@ def review_note(target: str, stage: str) -> str:
     return f"{safe_folder(target)}/Revues/Revue {safe_name(stage)}"
 
 
+def stage_note(base: str, labels: dict[str, str], stage: str) -> str:
+    """Chemin (sans .md) de la note d'une étape dans le vault : ses livrables et ses décisions."""
+    return f"{base}/Étapes/{safe_name(labels.get(stage, stage))}"
+
+
 def user_part(path: Path, submission: str) -> tuple[str, str]:
     """Propriété revue et section « Votre retour » déjà remplies par l'utilisateur pour cette soumission."""
     if not path.is_file():
@@ -256,11 +261,12 @@ class _Sync:
         self.uses = {g["term"]: [r["id"] for r in kept
                                  if mentions(f"{r['title']} {r['text']}", [g["term"], *g.get("aliases", [])])]
                      for g in self.glossary}
-        for entry in decisions_of(state):
-            names[entry["id"]] = f"{base}/Décisions/{entry['id']}"
-            titles[entry["id"]] = f"{entry['id']} {KIND_LABELS[entry['kind']]}"
         self.index = f"{base}/{safe_name(state['title'])}"
         self.labels = {s["id"]: s.get("label") or s["id"] for s in (self.definition or {}).get("stages", [])}
+        for entry in decisions_of(state):
+            # Une décision n'a pas sa note : c'est une section de la note de son étape (titre « D-001 »).
+            names[entry["id"]] = f"{stage_note(base, self.labels, entry['stage'])}#{entry['id']}"
+            titles[entry["id"]] = f"{entry['id']} {KIND_LABELS[entry['kind']]}"
         self.adr = self.data / self.memory["adr"] if self.memory.get("adr") else None
         if self.adr and self.adr.exists():
             names["ADR"] = f"{base}/ADR architecture"
@@ -349,7 +355,6 @@ class _Sync:
         self.document_notes()
         self.option_notes()
         self.glossary_notes()
-        self.entry_notes()
         self.adr_note()
         self.stage_notes_()
         self.option_pictures()
@@ -455,29 +460,33 @@ class _Sync:
             self.typed(self.names["terme:" + entry["term"]], "terme", {"aliases": entry.get("aliases", [])}, body,
                        {"extrait-de": self.linked("doc:" + doc for doc in _cited(entry))}, tags=["glossaire"])
 
-    def entry_notes(self) -> None:
+    def entry_lines(self, stage: str) -> list[str]:
+        """Section « Décisions » de la note d'une étape : une sous-section par décision du journal (choix, hypothèse,
+        question, réponse, retour, saut, annotation), liée par son identifiant (« [[Étapes/X#D-001]] »)."""
         answered = answers(self.state)
-        for entry in decisions_of(self.state):
-            refs = [self.link(r) for r in entry.get("refs", [])]
-            body = [f"# {entry['id']} {KIND_LABELS[entry['kind']]}", "", entry["text"], "", self.up, ""]
+        found = [e for e in decisions_of(self.state) if e["stage"] == stage]
+        if not found:
+            return []
+        lines = ["", "## Décisions", ""]
+        for entry in found:
+            lines += [f"### {entry['id']}", "", f"**{KIND_LABELS[entry['kind']]}** ({entry['by']}, "
+                      f"{entry['date'][:10]}) : {entry['text']}", ""]
             if entry.get("why"):
-                body += [f"**Justification** : {entry['why']}", ""]
+                lines += [f"**Justification** : {entry['why']}", ""]
+            refs = [self.link(r) for r in entry.get("refs", [])]
             if refs:
-                body += ["**Concerne** : " + ", ".join(refs), ""]
+                lines += ["**Concerne** : " + ", ".join(refs), ""]
             if entry.get("files"):
-                body += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"])]
+                lines += ["**Fichiers** : " + ", ".join(f"`{f}`" for f in entry["files"]), ""]
             if entry["kind"] == "question":
-                body += ([f"**Réponse** : {self.link(answered[entry['id']])}", ""] if entry["id"] in answered
-                         else vault_ontology.callout("question", "Question ouverte", [
-                             "Répondez sous « Mes notes », ou à l'agent à la prochaine revue."]))
+                lines += ([f"**Réponse** : {self.link(answered[entry['id']])}", ""] if entry["id"] in answered
+                          else vault_ontology.callout("question", "Question ouverte", [
+                              "Répondez sous « Mes notes », ou à l'agent à la prochaine revue."]))
             if entry.get("via") == "obsidian":
-                body += ["", "Écrite par l'utilisateur sous « Mes notes » dans Obsidian." if entry["kind"] in
-                         ("annotation", "question")
-                         else "Décision prise par l'utilisateur dans sa note de revue Obsidian."]
-            self.typed(self.names[entry["id"]], "decision",
-                       {"id": entry["id"], "nature": entry["kind"], "etape": entry["stage"],
-                        "par": entry["by"], "date": entry["date"]}, body,
-                       {"concerne": self.linked(entry.get("refs", []))})
+                lines += ["Écrite par l'utilisateur sous « Mes notes » dans Obsidian." if entry["kind"] in
+                          ("annotation", "question") else "Décision prise par l'utilisateur dans sa note de revue "
+                          "Obsidian.", ""]
+        return lines[:-1]
 
     def adr_note(self) -> None:
         if "ADR" not in self.names:
@@ -597,12 +606,14 @@ class _Sync:
         """Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés."""
         labels, files_dir = self.labels, self.files_dir
         for stage in self.state["stages"]:
-            if not stage.get("files"):
+            decided = self.entry_lines(stage["id"])
+            if not stage.get("files") and not decided:
                 continue
-            rel = f"{self.base}/Étapes/{safe_name(labels.get(stage['id'], stage['id']))}"
+            rel = stage_note(self.base, labels, stage["id"])
             body = [f"# {labels.get(stage['id'], stage['id'])}", "", self.up, "",
-                    f"Statut : **{STATUS_LABELS[stage['status']]}**.", "", "## Livrables", ""]
-            for file in stage["files"]:
+                    f"Statut : **{STATUS_LABELS[stage['status']]}**."] + (["", "## Livrables", ""]
+                                                                          if stage.get("files") else [])
+            for file in stage.get("files", {}):
                 source = self.folder / file
                 embedded = source.suffix.lower() in EMBEDDED and source.is_file() and not self.document_of(file)
                 if embedded and source.suffix.lower() != ".md":
@@ -612,7 +623,11 @@ class _Sync:
                     body += [f"### {file}", "", f"![[{files_dir}/{file}]]", ""]
                 else:
                     body.append(f"- {self.file_link(file, rel)}")
-            self.typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body)
+            # Relation typée « concerne » : ce que citent les décisions de l'étape (exigences, options...).
+            refs = list(dict.fromkeys(r for e in decisions_of(self.state) if e["stage"] == stage["id"]
+                                      for r in e.get("refs", [])))
+            self.typed(rel, "etape", {"etape": stage["id"], "statut": stage["status"]}, body + decided,
+                       {"concerne": self.linked(refs)} if refs else None)
             self.stage_notes.append(rel)
 
 

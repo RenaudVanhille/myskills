@@ -10,8 +10,10 @@ chaque commande réécrit dans le vault une note par exigence
 (`Exigences/EF-001`, liée à son document source : relation `extrait-de` et
 lien vers la section citée), par document des sources (`Documents/`), par
 terme du glossaire (`Glossaire/Sinistre`), par option (`Options/Option A`),
-par entrée du journal (`Décisions/D-001`), l'ADR et une note d'index,
-reliées par des wikilinks. Le frontmatter suit l'ontologie du vault (skill
+par étape commencée (`Étapes/<étape>` : livrables et décisions du journal,
+une section `### D-001` chacune, liée par `[[Étapes/<étape>#D-001]]`,
+relation `concerne` vers ce qu'elles citent), l'ADR et une note d'index
+qui s'ouvre sur « À faire maintenant », reliées par des wikilinks. Le frontmatter suit l'ontologie du vault (skill
 markdown-to-obsidian) : `type`, propriétés (`priorite`, `etape`, `par`...),
 relations typées en wikilinks (`workflow`, `concerne`, `termes`, `ecarts`,
 `option`...) et tags normalisés (`type/exigence`, `priorite/indispensable`) ;
