@@ -38,6 +38,17 @@ gardée : dans une mission qui a son dépôt git, par le commit
 copie `.avant-*` ou `.v1` à côté. Ce dépôt reste local : ne le poussez
 jamais.
 
+Le journal reste compact sur un workflow rejoué : à la validation (ou au
+saut) d'une étape, les entrées de ses versions précédentes (choix,
+hypothèses, passages, soumissions, retour ou invalidation qui l'a rouverte)
+et ses soumissions remplacées passent à `archive` dans `workflow.json`, avec
+l'entrée qui les remplace (`superseded_by`, rapport `superseded`). Rien
+n'est supprimé : `journal.md` les range dans une section « Archives »
+repliée, le vault n'en garde pas de note, `lessons.py` en lit toujours les
+retours. Une question ouverte, ou dont la réponse est active, reste active.
+Les identifiants ne sont jamais réattribués. Un journal
+rejoué avant cette règle s'allège par `upgrade DOSSIER --apply`.
+
 ## Entrées d'un autre workflow
 
 Un motif `../` du champ `inputs` (exigences ou options du workflow parent,

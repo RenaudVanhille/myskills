@@ -7766,7 +7766,7 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté) ; à sa validation, les entrées des versions remplacées passent à l'archive (section repliée de journal.md). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -7779,7 +7779,7 @@
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
             "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
             "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit",
-            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
+            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
             "--apply": "avec upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "avec upgrade : garder les étapes et consignes d'origine du workflow (refusé si l'ancienne définition n'est plus valide)",
             "--definition": "avec init : workflow livré ou fichier de définition ; avec upgrade : définition à suivre désormais (défaut : celle livrée du même nom)"
@@ -8055,10 +8055,16 @@
                     "definition",
                     "vault",
                     "journal",
-                    "links"
+                    "links",
+                    "superseded"
                   ],
                   "additionalProperties": false,
                   "properties": {
+                    "superseded": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Entrées des versions remplacées des étapes franchies passées à l'archive (workflow rejoué avant l'archivage)."
+                    },
                     "applied": {
                       "type": "boolean"
                     },
@@ -8150,6 +8156,11 @@
                 "archived": {
                   "type": "string",
                   "description": "review --decision valide : dossier où la version validée est gardée (.historique/ETAPE/DATE, relatif au workflow) ; omis si cette version y est déjà."
+                },
+                "superseded": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "review --decision valide ou skip : entrées des versions remplacées de l'étape passées à l'archive de workflow.json (section repliée Archives de journal.md, sans note dans le vault)."
                 },
                 "impacts": {
                   "type": "object",
@@ -8285,106 +8296,14 @@
                 "entries": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "required": [
-                      "id",
-                      "date",
-                      "stage",
-                      "kind",
-                      "by",
-                      "text"
-                    ],
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "pattern": "^D-[0-9]{3,}$"
-                      },
-                      "date": {
-                        "type": "string"
-                      },
-                      "stage": {
-                        "type": "string"
-                      },
-                      "kind": {
-                        "enum": [
-                          "choix",
-                          "hypothese",
-                          "question",
-                          "soumission",
-                          "retour",
-                          "validation",
-                          "invalidation",
-                          "passage",
-                          "rapport",
-                          "saut",
-                          "annotation",
-                          "reponse"
-                        ]
-                      },
-                      "by": {
-                        "enum": [
-                          "agent",
-                          "utilisateur"
-                        ]
-                      },
-                      "text": {
-                        "type": "string",
-                        "minLength": 1
-                      },
-                      "why": {
-                        "type": "string"
-                      },
-                      "refs": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "files": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "via": {
-                        "enum": [
-                          "obsidian"
-                        ],
-                        "description": "Décision lue dans la note de revue du vault, ou annotation écrite par l'utilisateur sous « Mes notes »."
-                      },
-                      "changes": {
-                        "type": "object",
-                        "description": "Soumission d'une étape déjà relue : exigences, options ou éléments ajoutés, retirés, modifiés et fichiers changés depuis la version relue ; montrés en tête de la note de revue du vault.",
-                        "additionalProperties": false,
-                        "properties": {
-                          "added": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "removed": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "modified": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "files": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          }
-                        }
-                      }
-                    }
+                    "$ref": "#/$defs/entry"
+                  }
+                },
+                "archive": {
+                  "type": "array",
+                  "description": "Entrées des versions remplacées des étapes (choix, soumissions, retours... notés avant leur dernière validation ou leur saut), retirées du journal actif sans être supprimées.",
+                  "items": {
+                    "$ref": "#/$defs/entry"
                   }
                 },
                 "definition": {
@@ -8392,6 +8311,113 @@
                 }
               },
               "$defs": {
+                "entry": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "date",
+                    "stage",
+                    "kind",
+                    "by",
+                    "text"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^D-[0-9]{3,}$"
+                    },
+                    "date": {
+                      "type": "string"
+                    },
+                    "stage": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "choix",
+                        "hypothese",
+                        "question",
+                        "soumission",
+                        "retour",
+                        "validation",
+                        "invalidation",
+                        "passage",
+                        "rapport",
+                        "saut",
+                        "annotation",
+                        "reponse"
+                      ]
+                    },
+                    "by": {
+                      "enum": [
+                        "agent",
+                        "utilisateur"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "why": {
+                      "type": "string"
+                    },
+                    "refs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "via": {
+                      "enum": [
+                        "obsidian"
+                      ],
+                      "description": "Décision lue dans la note de revue du vault, ou annotation écrite par l'utilisateur sous « Mes notes »."
+                    },
+                    "superseded_by": {
+                      "type": "string",
+                      "pattern": "^D-[0-9]{3,}$",
+                      "description": "Entrée d'archive : validation (ou saut) de l'étape qui a remplacé la version où l'entrée a été notée."
+                    },
+                    "changes": {
+                      "type": "object",
+                      "description": "Soumission d'une étape déjà relue : exigences, options ou éléments ajoutés, retirés, modifiés et fichiers changés depuis la version relue ; montrés en tête de la note de revue du vault.",
+                      "additionalProperties": false,
+                      "properties": {
+                        "added": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "removed": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "modified": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
                 "definition": {
                   "type": "object",
                   "required": [

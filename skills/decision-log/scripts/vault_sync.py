@@ -688,6 +688,10 @@ class _Sync:
             body += ["", "## Journal", ""] + ([f"{journal} (journal.md, identifiants liés aux notes).", ""]
                                               if journal else []) + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
                                              f"{e['text']}" for e in state["entries"]]
+            archived = len(state.get("archive", []))
+            if archived:
+                body += ["", f"{vault_ontology.count(archived, 'entrée')} des versions remplacées des étapes, sans "
+                         "note ici : archivée" + ("s" if archived > 1 else "") + " dans journal.md (section Archives)."]
         self.typed(self.index, "workflow", {}, body)
 
     # Contrôle et écriture
