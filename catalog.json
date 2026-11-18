@@ -8348,6 +8348,37 @@
                           "obsidian"
                         ],
                         "description": "Décision lue dans la note de revue du vault, ou annotation écrite par l'utilisateur sous « Mes notes »."
+                      },
+                      "changes": {
+                        "type": "object",
+                        "description": "Soumission d'une étape déjà relue : exigences, options ou éléments ajoutés, retirés, modifiés et fichiers changés depuis la version relue ; montrés en tête de la note de revue du vault.",
+                        "additionalProperties": false,
+                        "properties": {
+                          "added": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "removed": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "modified": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "files": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
                       }
                     }
                   }

@@ -110,7 +110,7 @@ from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa:
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
-from lib.workflow_chart import progress_chart  # noqa: E402
+from lib.workflow_chart import causes, progress_chart  # noqa: E402
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
 from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, answers, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
@@ -502,7 +502,7 @@ def next_action(state: dict) -> tuple[str | None, str]:
 def chart(state: dict) -> list[str]:
     """Schéma Mermaid des étapes : obligatoire ou facultative, statut, dépendances."""
     stages = [stage_definition(state, s["id"]) or {"id": s["id"]} for s in state["stages"]]
-    return progress_chart(stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"])
+    return progress_chart(stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"], causes(state))
 
 
 def md_link(text: str, target: Path, folder: Path) -> str:
@@ -798,8 +798,11 @@ def submit(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
     if changes is not None:
         text += f" ; depuis la version relue : {describe(changes)}"
         args.changes = changes
-    return add_entry(state, stage["id"], "soumission", "agent", text, files=files,
-                     refs=(changes["added"] + changes["modified"]) if changes else None)
+    entry = add_entry(state, stage["id"], "soumission", "agent", text, files=files,
+                      refs=(changes["added"] + changes["modified"]) if changes else None)
+    if changes and any(changes.values()):
+        state["entries"][-1]["changes"] = changes  # repris par la note de revue du vault : relire l'écart d'abord
+    return entry
 
 
 def review_from_vault(args, state: dict, stage: dict, errors: list[str]) -> None:
