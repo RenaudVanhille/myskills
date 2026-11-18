@@ -94,7 +94,8 @@ uv run scripts/mission.py upgrade DOSSIER --apply
 `--apply` garde d'abord l'état d'avant (commit `before` du dépôt git de la
 mission, créé s'il manque, sinon copie dans `.historique/upgrade-DATE/`),
 puis fait le commit de l'état d'après (`commit`) : donnez à l'utilisateur
-`upgrade.summary` et, pour revenir, `git -C DOSSIER revert --no-edit COMMIT`.
+`upgrade.summary` et, pour revenir, `git -C DOSSIER revert --no-edit COMMIT`. Elle range aussi la mission comme
+`tidy` (`upgrade.tidy`).
 L'avancement, les fichiers validés et le journal sont gardés ;
 `--keep-definition` garde les étapes et consignes d'origine. Rejouable.
 

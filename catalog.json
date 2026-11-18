@@ -14558,7 +14558,7 @@
             "--fail-on": "check : code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)",
             "DOSSIER": "dossier de la mission ou un de ses sous-dossiers (défaut : dossier courant)",
             "--schema": "affiche le schéma de mission.json sur une ligne",
-            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade : définition, archive, empreintes ../, journal, liens), couleurs et modèles du vault s'ils y sont déjà, dépôt git de la mission s'il manque, puis le point de status ; à blanc par défaut, rejouable ; --apply garde d'abord l'état d'avant (commit git, sinon .historique/upgrade-DATE/) et fait le commit de l'état d'après",
+            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade : définition, archive, empreintes ../, journal, liens), couleurs et modèles du vault s'ils y sont déjà, dépôt git de la mission s'il manque, puis le point de status ; à blanc par défaut, rejouable ; --apply garde d'abord l'état d'avant (commit git, sinon .historique/upgrade-DATE/) et fait le commit de l'état d'après ; range aussi la mission comme tidy (copies de sauvegarde et dossiers de travail dans .historique/rangement-DATE/)",
             "--apply": "upgrade : écrire les changements ; tidy : déplacer dans .historique/ (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "upgrade : garder les étapes et consignes d'origine de chaque workflow",
             "tidy": "range ce qui encombre la mission hors des livrables : copies de sauvegarde (chiffrage.avant-droits.csv, presentation.v1-sans-tjm.pptx, revue.json.bak : original présent à côté) et dossiers de travail (_tmp, .myskills-tmp) déplacés dans .historique/rangement-DATE/ ; fichiers soumis au journal, documents/, vault et code jamais touchés ; verrous Office (~$) signalés",
@@ -15134,7 +15134,8 @@
                     "pending",
                     "git",
                     "before",
-                    "summary"
+                    "summary",
+                    "tidy"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -15260,7 +15261,7 @@
                     },
                     "pending": {
                       "type": "boolean",
-                      "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, archive, empreintes ../, vault déplacé, dépôt git)."
+                      "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, archive, empreintes ../, vault déplacé, dépôt git, copies ou dossiers de travail à ranger)."
                     },
                     "git": {
                       "enum": [
@@ -15287,6 +15288,28 @@
                     "summary": {
                       "type": "string",
                       "description": "Une phrase : ce qui change (à blanc) ou a changé (--apply), par workflow."
+                    },
+                    "tidy": {
+                      "type": "object",
+                      "required": [
+                        "moved",
+                        "history"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "moved": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Copies de sauvegarde et dossiers de travail à ranger (à blanc) ou rangés (--apply), comme tidy."
+                        },
+                        "history": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "--apply : dossier .historique/rangement-DATE/ où ils sont rangés ; null à blanc ou sans rien à ranger."
+                        }
+                      }
                     }
                   }
                 },

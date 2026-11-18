@@ -48,7 +48,9 @@ qu'on le leur donne.
   `summary`) dit ce qui changerait et rien n'est écrit ; `--apply` garde
   d'abord l'état d'avant (commit `before` du dépôt git de la mission, créé
   s'il manque, sinon copie dans .historique/upgrade-DATE/), écrit, puis
-  fait le commit de l'état d'après : la mise à niveau se défait. Rejouable :
+  fait le commit de l'état d'après : la mise à niveau se défait. Elle range
+  aussi la mission comme tidy (copies de sauvegarde et dossiers de travail
+  dans .historique/rangement-DATE/). Rejouable :
   une deuxième passe ne change plus rien.
 - tidy range ce qui encombre la mission hors des livrables : copies de
   sauvegarde laissées à côté d'un livrable (chiffrage.avant-droits.csv,
@@ -458,6 +460,10 @@ def summary(done: dict) -> str:
     if done["git"] != "present":
         parts.append("dépôt git de la mission " + ("créé" if done["git"] == "cree" else "à créer"
                                                     if not done["applied"] else "absent"))
+    if done["tidy"]["moved"]:
+        what = count(done["tidy"]["moved"], "copie ou dossier de travail", "copies ou dossiers de travail")
+        parts.append(f"{what} rangé{'s' if done['tidy']['moved'] > 1 else ''} dans {done['tidy']['history']}"
+                     if done["tidy"]["history"] else f"{what} à ranger dans .historique/")
     return " ; ".join(parts) or "rien à changer"
 
 
@@ -488,6 +494,11 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
     folder = vault_ontology.templates_folder(vault)
     templates = bool(folder) and any(vault_ontology.TEMPLATE_MARK in note.read_text(encoding="utf-8", errors="replace")
                                      for note in (vault / folder).glob("*.md"))
+    found = clutter(root, mission)
+    moved = len(found["copies"]) + len(found["work"])
+    history = None
+    if args.apply and not errors and moved:
+        history = tidy(args, root, mission, warnings)["history"]
     if args.apply and not errors and vault.is_dir():
         onto = vault_ontology.load()
         with vault_ontology.vault_lock(vault):
@@ -496,7 +507,7 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
             if templates:
                 vault_ontology.write_templates(onto, vault, folder)
     return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates,
-            "git": git, "before": before}
+            "git": git, "before": before, "tidy": {"moved": moved, "history": history}}
 
 
 def original_of(path: Path) -> Path | None:
@@ -559,7 +570,7 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
-    return done.get("git") == "absent" or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
+    return done.get("git") == "absent" or done["tidy"]["moved"] > 0 or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
                                               or w["external"] or (w["definition"] or {}).get("changed")
                                               for w in done["workflows"])
 

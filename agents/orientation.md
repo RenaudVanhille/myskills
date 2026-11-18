@@ -64,7 +64,8 @@ workflow, la commande les trace aussi au journal.
    ouverte avec une version antérieure de myskills. Mets-la à niveau
    sans rien demander : `mission.py upgrade <root> --apply` garde d'abord
    l'état d'avant (commit `before` du dépôt git de la mission, sinon copie
-   dans `.historique/`), puis fait le commit de l'état d'après (`commit`).
+   dans `.historique/`), range la mission comme `mission.py tidy`, puis
+   fait le commit de l'état d'après (`commit`).
    Dis-le en une phrase : son `summary`, et pour revenir en arrière `git
    -C <root> revert --no-edit <commit>` (sans dépôt git : la copie
    `before`). En cas d'erreur, donne-la et continue sans mise à niveau.

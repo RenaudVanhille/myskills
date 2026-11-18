@@ -198,7 +198,8 @@ Après une mise à jour de myskills, l'agent `orientation` remet à niveau la
 mission où il entre (`mission.py upgrade DOSSIER --apply`, à blanc sans
 `--apply`) : workflows suivant leur définition actuelle sans perdre
 l'avancement, `journal.md`, liens des livrables, archive et mémoire du vault
-refaits ; l'état d'avant reste dans le dépôt git de la mission (commit
+refaits, copies de sauvegarde et dossiers de travail rangés dans `.historique/` ;
+l'état d'avant reste dans le dépôt git de la mission (commit
 `before`, `git revert` du commit `upgrade(mission)` pour revenir).
 Une seule version de chaque livrable à la racine : `journal.py` garde chaque
 version validée dans `.historique/ETAPE/DATE/`, et `mission.py tidy DOSSIER`
