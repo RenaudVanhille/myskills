@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import source_docs  # noqa: E402
-from lib.workflow_chart import causes, progress_chart  # noqa: E402
+from lib.workflow_chart import causes, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from skill_paths import require_module, schema_of  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
@@ -655,19 +655,29 @@ class _Sync:
 
     def index_note(self) -> None:
         state, names, labels, link, decision = self.state, self.names, self.labels, self.link, self.decision
-        body = [f"# {state['title']}", ""] + GENERATED + ["## Étapes", "", "| Étape | Statut |", "| --- | --- |"]
+        reviews = {stage_id: rel for stage_id in labels if (rel := review_note(self.target, stage_id)) in self.reviews}
+        body = [f"# {state['title']}", ""] + GENERATED
+        body += vault_ontology.callout("todo", "À faire maintenant", steps_lines(next_steps(state), lambda step: (
+            f"{step['text']} : [[{reviews[step['stage']]}|note de revue]]" if step["stage"] in reviews
+            else f"{step['text']} (ci-dessous)" if step["stage"] is None else None)))
+        body += ["## Étapes", "", "| N° | Étape | Statut |", "| --- | --- | --- |"]
         stage_rel = {rel.rsplit("/", 1)[-1]: rel for rel in self.stage_notes}
-        for s in state["stages"]:
+        aside = []  # étapes facultatives pas choisies ou sautées : repliées, hors du tableau
+        for number, s in enumerate(state["stages"], 1):
             name = labels.get(s["id"], s["id"])
             shown = f"[[{stage_rel[safe_name(name)]}\\|{_alias(name)}]]" if safe_name(name) in stage_rel else name
-            body.append(f"| {shown} | {STATUS_LABELS[s['status']]} |")
+            if optional(state, s["id"]) and s["status"] in ("a-faire", "sautee"):
+                aside.append(f"- {number}. {name} : {shown_status(state, s)}")
+                continue
+            body.append(f"| {number} | {shown} | {shown_status(state, s)} |")
+        if aside:
+            body += [""] + vault_ontology.callout("note", vault_ontology.count(
+                len(aside), "étape facultative à décider ou sautée", "étapes facultatives à décider ou sautées"),
+                aside, folded=True)[:-1]
         stages = [next((d for d in (self.definition or {}).get("stages", []) if d["id"] == s["id"]),
                        {"id": s["id"]}) for s in state["stages"]]
         body += ["", "## Avancement", ""] + progress_chart(
             stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"], causes(state))
-        if self.reviews:
-            body += [""] + vault_ontology.callout("todo", "Revues en attente", [
-                f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in self.reviews])[:-1]
         waiting = open_questions(state)
         if waiting:
             body += [""] + vault_ontology.callout("question", "Questions ouvertes", [
