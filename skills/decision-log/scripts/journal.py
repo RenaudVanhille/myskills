@@ -626,6 +626,33 @@ def linker(folder: Path, state: dict):
     return link
 
 
+def decision_tables(state: dict, link) -> list[str]:
+    """Décisions groupées par étape, dans l'ordre du workflow : un tableau par étape, sans les colonnes vides
+    (justification, éléments concernés) ; « Par » seulement quand l'utilisateur y a écrit."""
+    found = decisions_of(state)
+    if not found:
+        return ["Aucune décision pour l'instant."]
+    numbers = {s["id"]: i for i, s in enumerate(state["stages"], 1)}
+    lines: list[str] = []
+    for stage in sorted({e["stage"] for e in found}, key=lambda s: numbers.get(s, 10 ** 6)):
+        rows = [e for e in found if e["stage"] == stage]
+        columns = [("ID", lambda e: link(e["id"])), ("Date", lambda e: e["date"][:10]),
+                   ("Type", lambda e: KIND_LABELS[e["kind"]]), ("Texte", lambda e: e["text"])]
+        if any(e["by"] != "agent" for e in rows):
+            columns.insert(3, ("Par", lambda e: e["by"]))
+        if any(e.get("why") for e in rows):
+            columns.append(("Justification", lambda e: e.get("why", "")))
+        if any(e.get("refs") for e in rows):
+            columns.append(("Concerne", lambda e: ", ".join(link(ref) for ref in e.get("refs", []))))
+        title = f"{numbers[stage]}. {label_of(state, stage)}" if stage in numbers else stage
+        lines += [f"### {title}", "", "| " + " | ".join(c for c, _ in columns) + " |",
+                  "|" + " --- |" * len(columns)]
+        lines += ["| " + " | ".join(" ".join(str(get(e)).split()).replace("|", "\\|") if name != "ID" and name != "Concerne"
+                                    else get(e) for name, get in columns) + " |" for e in rows]
+        lines.append("")
+    return lines[:-1]
+
+
 def render(state: dict, folder: Path | None = None) -> str:
     link = linker(folder, state) if folder else (lambda ref, code=False: f"`{ref}`" if code else ref)
     lines = [f"# Journal : {state['title']}", "",
@@ -646,15 +673,7 @@ def render(state: dict, folder: Path | None = None) -> str:
         lines += ["", f"> [!note]- {len(aside)} étape{'s' if len(aside) > 1 else ''} facultative"
                   f"{'s' if len(aside) > 1 else ''} à décider ou sautée{'s' if len(aside) > 1 else ''}", ">"] + aside
     lines += ["", "## Avancement", ""] + chart(state)
-    lines += ["", "## Décisions", "",
-              "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
-    for entry in decisions_of(state):
-        cells = [entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
-                 entry["by"], entry["text"], entry.get("why", "")]
-        cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
-            + [", ".join(link(ref) for ref in entry.get("refs", [])).replace("\n", " ")]
-        lines.append("| " + " | ".join(cells) + " |")
+    lines += ["", "## Décisions", ""] + decision_tables(state, link)
     waiting = open_questions(state)
     if waiting:
         lines += ["", "## Questions ouvertes", ""]

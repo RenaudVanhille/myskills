@@ -253,6 +253,7 @@ def workflow_rows(root: Path, mission: dict, warnings: list[str]) -> list[dict]:
         row["modified"] = [w for w in report.get("warnings", []) if "modifiés après validation" in w]
         state = json.loads((folder / workspace.STATE).read_text(encoding="utf-8"))
         row["title"] = state.get("title")
+        row["labels"] = {s["id"]: s.get("label") or s["id"] for s in (state.get("definition") or {}).get("stages", [])}
         memory = state.get("memory") or {}
         if memory.get("folder"):
             row["index"] = f"{memory['folder']}/{index_name(Path(memory['vault']), memory['folder'])}"
@@ -319,7 +320,13 @@ def coherence(root: Path, mission: dict, flows: list[dict], repos: list[dict], e
                 if nonfunctional and req.get("priority") == "indispensable" and req["id"] not in tested:
                     add("MIS-03", where + req["id"], f"{req['id']} ({req.get('title', '')}) sans scénario dans revue.json")
         for line in flow["modified"]:
-            add("MIS-04", where + line.split(" :", 1)[0], line)
+            # « etape : fichiers [extérieurs ]modifiés après validation : a, b ; faites-les revoir... » : l'étape
+            # par son libellé et les fichiers seuls, le titre de la règle disant déjà le reste.
+            stage, _, rest = line.partition(" : ")
+            outside = "extérieurs " in rest.split(" : ", 1)[0]
+            files = rest.split(" : ", 1)[-1].split(" ;")[0].split(" (")[0]
+            add("MIS-04", where + stage, f"« {flow.get('labels', {}).get(stage, stage)} » : "
+                + ("entrées d'un autre workflow " if outside else "") + files)
     for row in repos:
         if not row["present"]:
             add("MIS-06", row["name"], f"{row['path']} absent")
@@ -342,6 +349,11 @@ def counts(findings: list[dict]) -> dict:
     result = {s: sum(1 for f in findings if f["severity"] == s and not f["accepted"]) for s in SEVERITIES}
     result["acceptés"] = sum(1 for f in findings if f["accepted"])
     return result
+
+
+def cell(text: str) -> str:
+    """Texte d'une cellule de tableau Markdown."""
+    return " ".join(str(text).split()).replace("|", "\\|")
 
 
 def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], findings: list[dict],
@@ -383,13 +395,16 @@ def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], 
     if mission.get("references"):
         body += ["", "## Référentiels", ""] + [f"- {k} : `{v}`" for k, v in mission["references"].items()]
     body += ["", "## Contrôles de cohérence", ""]
-    if findings:
-        body += ["| Règle | Gravité | Élément | Constat |", "| --- | --- | --- | --- |"]
-        body += [f"| {f['rule']} | {f['severity'] if not f['accepted'] else 'accepté'} | {f['element']} | "
-                 f"{f['message']}" + (f" (accepté : {f['accepted']})" if f["accepted"] else "") + " |"
-                 for f in findings]
+    if opened:
+        # Une ligne par constat ouvert : ce qui ne va pas et quoi faire ; la règle en fin, pour l'accepter.
+        body += ["| Gravité | Constat | À faire |", "| --- | --- | --- |"]
+        body += [f"| {f['severity']} | {cell(f['message'])} ({f['rule']}) | {cell(f['fix'])} |" for f in opened]
     else:
-        body.append("Aucun écart entre les livrables.")
+        body.append("Aucun écart ouvert entre les livrables.")
+    accepted = [f for f in findings if f["accepted"]]
+    if accepted:
+        body += [""] + v.callout("note", v.count(len(accepted), "écart accepté", "écarts acceptés"), [
+            f"- {f['message']} ({f['rule']}) : {f['accepted']}" for f in accepted], folded=True)[:-1]
     relations = {"workflows": [(f["index"], f.get("title") or f["definition"]) for f in flows if f["index"]]}
     notes.add(NOTE, "mission", props, relations, body)
     written = notes.write(errors)
