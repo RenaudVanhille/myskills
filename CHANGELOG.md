@@ -1,5 +1,12 @@
 # Journal des versions
 
+## [2.3.0](https://github.com/RenaudVanhille/myskills/compare/v2.2.0...v2.3.0) (2026-11-18)
+
+
+### Ajouts
+
+* **decision-log:** seules les décisions numérotées D-xxx, soumissions et validations en événements ([#135](https://github.com/RenaudVanhille/myskills/issues/135)) ([0a77df9](https://github.com/RenaudVanhille/myskills/commit/0a77df9554629610036796251f763d26d3f5fbc0))
+
 ## [2.2.0](https://github.com/RenaudVanhille/myskills/compare/v2.1.0...v2.2.0) (2026-11-18)
 
 
