@@ -276,7 +276,8 @@ def render_skill(contract: dict, full: bool = False) -> str:
     if contract["scripts"] and not full:
         lines.append("- **Lancement** : `uv run \"<dossier du skill>/scripts/<script>\" ...`, chemin complet écrit "
                      "dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent "
-                     "y est vide) ; rapport JSON lu tel quel, sans tube.")
+                     "y est vide) ; rapport JSON lu tel quel, sans tube ; fichiers de travail dans `.myskills-tmp/` du "
+                     "dossier de travail, jamais dans le dossier temporaire du système.")
     if not contract["scripts"]:
         lines.append("- **Scripts** : aucun ; la validation passe par le skill suivant.")
     for need in contract.get("requires", []):
@@ -311,7 +312,10 @@ def render_agent(contract: dict) -> str:
     lines.append("- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, "
                  "`.v1-*`, `.before-*`) : `journal.py` garde chaque version validée (commit du dépôt git de la mission, "
                  "sinon `.historique/`). Les fichiers "
-                 "de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.")
+                 "de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du "
+                 "dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du "
+                 "dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; "
+                 "sinon, supprime-le avant de rendre la main.")
     lines += ["- **Passe la main** :", "", "| Agent | Quand | À transmettre |", "| --- | --- | --- |"]
     lines += [f"| `{h['to']}` | {h['when']} | {' ; '.join(h['send'])} |" for h in contract["handoffs"]]
     handoff, report = schema("handoff"), schema("agent-report")
