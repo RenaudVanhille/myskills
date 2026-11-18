@@ -8,7 +8,7 @@
   ],
   "produces": [
     "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
-    "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
+    "Mission d'un ancien format (route.py : mission.upgrade) : mise à niveau par mission.py upgrade --apply, sans question (l'état d'avant est gardé : commit git ou .historique/), résumée en une phrase avec la commande pour revenir en arrière",
     "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints, niveau recommandé dans level), validé par check_message.py",
     "L'agent choisi lancé comme sous-agent, au modèle de son niveau, et ses questions ou portes de revue relayées à l'utilisateur ; repli : l'agent à lancer et son niveau donnés à l'utilisateur quand l'outil ne permet pas de sous-agent",
     "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
@@ -18,7 +18,7 @@
     "Poser plus d'une question à l'utilisateur",
     "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats",
     "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)",
-    "Mettre à niveau une mission sans l'accord de l'utilisateur"
+    "Mettre à niveau une mission sans garder l'état d'avant (mission.py upgrade --apply le fait) ni le dire à l'utilisateur"
   ],
   "handoffs": [
     {

@@ -223,7 +223,7 @@
                         "boolean",
                         "null"
                       ],
-                      "description": "true : mission ouverte avec une version antérieure de myskills, à proposer de mettre à niveau (mission.py upgrade) ; null : non évalué."
+                      "description": "true : mission ouverte avec une version antérieure de myskills, à mettre à niveau (mission.py upgrade --apply, qui garde l'état d'avant) ; null : non évalué."
                     }
                   }
                 }
@@ -249,7 +249,7 @@
     {
       "skill": "mission-workspace",
       "script": "mission.py",
-      "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour proposer sa mise à niveau",
+      "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour la mettre à niveau",
       "optional": true
     }
   ],

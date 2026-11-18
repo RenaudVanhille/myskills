@@ -315,7 +315,7 @@
       ],
       "produces": [
         "Au démarrage d'une avant-vente ou d'une revue d'architecture : la mission ouverte (mission.json, documents/ avec les documents fournis, vault, code/ et dépôts pour une revue, workflow de sa nature démarré), par mission.py init",
-        "Mission d'un ancien format (route.py : mission.upgrade) : sa mise à niveau proposée à l'utilisateur, puis faite par mission.py upgrade --apply s'il l'accepte",
+        "Mission d'un ancien format (route.py : mission.upgrade) : mise à niveau par mission.py upgrade --apply, sans question (l'état d'avant est gardé : commit git ou .historique/), résumée en une phrase avec la commande pour revenir en arrière",
         "passage.json : le message de passage vers l'agent choisi (workflow nommé dans constraints, niveau recommandé dans level), validé par check_message.py",
         "L'agent choisi lancé comme sous-agent, au modèle de son niveau, et ses questions ou portes de revue relayées à l'utilisateur ; repli : l'agent à lancer et son niveau donnés à l'utilisateur quand l'outil ne permet pas de sous-agent",
         "Une phrase qui dit quel agent ou quel workflow est choisi et pourquoi"
@@ -325,7 +325,7 @@
         "Poser plus d'une question à l'utilisateur",
         "Lire catalog.json ou les SKILL.md : route.py donne la liste des candidats",
         "Ouvrir une mission dans une mission existante, ou hors d'une avant-vente ou d'une revue d'architecture (simple conversion, schéma ou publication)",
-        "Mettre à niveau une mission sans l'accord de l'utilisateur"
+        "Mettre à niveau une mission sans garder l'état d'avant (mission.py upgrade --apply le fait) ni le dire à l'utilisateur"
       ],
       "handoffs": [
         {
@@ -814,7 +814,7 @@
                             "boolean",
                             "null"
                           ],
-                          "description": "true : mission ouverte avec une version antérieure de myskills, à proposer de mettre à niveau (mission.py upgrade) ; null : non évalué."
+                          "description": "true : mission ouverte avec une version antérieure de myskills, à mettre à niveau (mission.py upgrade --apply, qui garde l'état d'avant) ; null : non évalué."
                         }
                       }
                     }
@@ -840,7 +840,7 @@
         {
           "skill": "mission-workspace",
           "script": "mission.py",
-          "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour proposer sa mise à niveau",
+          "why": "savoir si la mission est dans un ancien format (upgrade à blanc), pour la mettre à niveau",
           "optional": true
         }
       ],
@@ -8056,7 +8056,8 @@
                     "vault",
                     "journal",
                     "links",
-                    "superseded"
+                    "superseded",
+                    "external"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -8142,6 +8143,11 @@
                       "type": "integer",
                       "minimum": 0,
                       "description": "Livrables Markdown qui reçoivent des liens."
+                    },
+                    "external": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Étapes commencées avant le suivi des entrées extérieures (../) qui reçoivent leur empreinte de départ."
                     }
                   }
                 },
@@ -14535,7 +14541,7 @@
       "scripts": [
         {
           "name": "mission.py",
-          "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. upgrade remet une mission ouverte avec une version antérieure au niveau des scripts actuels, à blanc sauf --apply. Crée en dernier le dépôt git local de la mission (jamais poussé), où journal.py fait un commit par étape validée. tidy range les copies de sauvegarde laissées à côté des livrables et les dossiers de travail dans .historique/, à blanc sauf --apply.",
+          "role": "Ouvre une mission dans un dossier (mission.json, documents/, vault, code/ pour une revue, workflow de sa nature lancé avec son vault ; refusé dans une mission existante), ajoute ses dépôts et fige leur commit, fait le point (workflows, étape courante, dépôts, référentiels) et contrôle sans modèle la cohérence entre livrables : exigence indispensable hors de l'option retenue, composant non chiffré, exigence non fonctionnelle indispensable sans scénario de revue, livrable validé modifié, revue ou chiffrage d'une autre option, dépôt absent ou hors du commit figé, référentiel introuvable. Réécrit la note Mission du vault, vérifiée contre l'ontologie. upgrade remet une mission ouverte avec une version antérieure au niveau des scripts actuels, à blanc sauf --apply, qui garde l'état d'avant (commit git ou .historique/) : la mise à niveau se défait. Crée en dernier le dépôt git local de la mission (jamais poussé), où journal.py fait un commit par étape validée. tidy range les copies de sauvegarde laissées à côté des livrables et les dossiers de travail dans .historique/, à blanc sauf --apply.",
           "usage": "uv run scripts/mission.py init DOSSIER --nature avant-vente|revue --name NOM [--client C] [--echeance AAAA-MM-JJ] [--referentiel DOSSIER] [--file MISSION.json] [--no-git] | repo [DOSSIER] --name NOM [--path P] [--url U] [--component C] [--alias A...] | freeze [DOSSIER] | status [DOSSIER] | check [DOSSIER] [--fail-on haute|moyenne|basse|aucune] | upgrade [DOSSIER] [--apply] [--keep-definition] | tidy [DOSSIER] [--apply] | --schema",
           "options": {
             "init DOSSIER": "ouvre la mission : mission.json, documents/, vault/, code/ (revue), workflow architecture (avant-vente) ou revue-dossier (revue) démarré ; en dernier, dépôt git local de la mission (.gitignore, premier commit), jamais poussé",
@@ -14552,7 +14558,7 @@
             "--fail-on": "check : code 1 dès un contrôle ouvert de cette gravité ou plus (défaut : haute)",
             "DOSSIER": "dossier de la mission ou un de ses sous-dossiers (défaut : dossier courant)",
             "--schema": "affiche le schéma de mission.json sur une ligne",
-            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade), couleurs et modèles du vault s'ils y sont déjà, dépôt git de la mission s'il manque, puis le point de status ; à blanc par défaut, rejouable",
+            "upgrade": "remet la mission au niveau des scripts actuels : chaque workflow (journal.py upgrade : définition, archive, empreintes ../, journal, liens), couleurs et modèles du vault s'ils y sont déjà, dépôt git de la mission s'il manque, puis le point de status ; à blanc par défaut, rejouable ; --apply garde d'abord l'état d'avant (commit git, sinon .historique/upgrade-DATE/) et fait le commit de l'état d'après ; range aussi la mission comme tidy (copies de sauvegarde et dossiers de travail dans .historique/rangement-DATE/)",
             "--apply": "upgrade : écrire les changements ; tidy : déplacer dans .historique/ (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "upgrade : garder les étapes et consignes d'origine de chaque workflow",
             "tidy": "range ce qui encombre la mission hors des livrables : copies de sauvegarde (chiffrage.avant-droits.csv, presentation.v1-sans-tjm.pptx, revue.json.bak : original présent à côté) et dossiers de travail (_tmp, .myskills-tmp) déplacés dans .historique/rangement-DATE/ ; fichiers soumis au journal, documents/, vault et code jamais touchés ; verrous Office (~$) signalés",
@@ -15126,7 +15132,10 @@
                     "style",
                     "templates",
                     "pending",
-                    "git"
+                    "git",
+                    "before",
+                    "summary",
+                    "tidy"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -15143,6 +15152,8 @@
                           "vault",
                           "journal",
                           "links",
+                          "superseded",
+                          "external",
                           "notes"
                         ],
                         "additionalProperties": false,
@@ -15228,6 +15239,16 @@
                               "null"
                             ],
                             "description": "Notes réécrites dans le vault (--apply), null à blanc."
+                          },
+                          "superseded": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Entrées des versions remplacées passées à l'archive."
+                          },
+                          "external": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Étapes qui reçoivent l'empreinte de leurs entrées ../."
                           }
                         }
                       }
@@ -15240,7 +15261,7 @@
                     },
                     "pending": {
                       "type": "boolean",
-                      "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, vault déplacé)."
+                      "description": "À blanc : la mission est dans un ancien format, --apply changerait quelque chose (définition, journal.md, liens, archive, empreintes ../, vault déplacé, dépôt git, copies ou dossiers de travail à ranger)."
                     },
                     "git": {
                       "enum": [
@@ -15249,6 +15270,46 @@
                         "cree"
                       ],
                       "description": "dépôt git propre à la mission : déjà là, absent (créé avec --apply), créé par cette passe."
+                    },
+                    "before": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "--apply : état d'avant la mise à niveau, commit du dépôt git de la mission ou dossier .historique/upgrade-DATE/ ; null à blanc."
+                    },
+                    "commit": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "--apply : commit de l'état d'après (null sans dépôt git ou sans changement)."
+                    },
+                    "summary": {
+                      "type": "string",
+                      "description": "Une phrase : ce qui change (à blanc) ou a changé (--apply), par workflow."
+                    },
+                    "tidy": {
+                      "type": "object",
+                      "required": [
+                        "moved",
+                        "history"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "moved": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "description": "Copies de sauvegarde et dossiers de travail à ranger (à blanc) ou rangés (--apply), comme tidy."
+                        },
+                        "history": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "--apply : dossier .historique/rangement-DATE/ où ils sont rangés ; null à blanc ou sans rien à ranger."
+                        }
+                      }
                     }
                   }
                 },

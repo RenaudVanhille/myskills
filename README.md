@@ -194,10 +194,13 @@ Un répertoire = une mission : `mission.py init DOSSIER --nature avant-vente|rev
 (et `code/` pour une revue) et démarre le workflow de sa nature ; l'agent `orientation`
 le fait au démarrage. Les skills restent
 installés une fois pour toutes ; seules les données vivent dans la mission.
-Après une mise à jour de myskills, `mission.py upgrade DOSSIER` (à blanc, puis
-`--apply`) remet une mission existante à niveau : workflows suivant leur
-définition actuelle sans perdre l'avancement, `journal.md`, liens des
-livrables et mémoire du vault refaits.
+Après une mise à jour de myskills, l'agent `orientation` remet à niveau la
+mission où il entre (`mission.py upgrade DOSSIER --apply`, à blanc sans
+`--apply`) : workflows suivant leur définition actuelle sans perdre
+l'avancement, `journal.md`, liens des livrables, archive et mémoire du vault
+refaits, copies de sauvegarde et dossiers de travail rangés dans `.historique/` ;
+l'état d'avant reste dans le dépôt git de la mission (commit
+`before`, `git revert` du commit `upgrade(mission)` pour revenir).
 Une seule version de chaque livrable à la racine : `journal.py` garde chaque
 version validée dans `.historique/ETAPE/DATE/`, et `mission.py tidy DOSSIER`
 (à blanc, puis `--apply`) y range les copies de sauvegarde (`.avant-*`,
