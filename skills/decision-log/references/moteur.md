@@ -31,9 +31,12 @@ par éditions ciblées en gardant les identifiants, puis la soumettre. À sa
 validation, `impacts.redo` liste les étapes dont une entrée a changé, déjà
 remises à reprendre : les reprendre dans l'ordre, chacune avec sa revue.
 Les étapes de `impacts.kept` restent validées : ne pas les relancer ni
-réécrire leurs livrables (schémas compris). Chaque version validée est gardée dans
-`.historique/ETAPE/DATE/` : les livrables se reprennent sur place, jamais
-de copie `.avant-*` ou `.v1` à côté.
+réécrire leurs livrables (schémas compris). Chaque version validée est
+gardée : dans une mission qui a son dépôt git, par le commit
+`valide(ETAPE)` (`git log`, `git diff` pour comparer) ; sinon dans
+`.historique/ETAPE/DATE/`. Les livrables se reprennent sur place, jamais de
+copie `.avant-*` ou `.v1` à côté. Ce dépôt reste local : ne le poussez
+jamais.
 
 ## Mission
 
