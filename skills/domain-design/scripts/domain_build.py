@@ -42,7 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, find_script, require_module, run_script, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
-from text_tools import near as hint, slash_cell as cell  # noqa: E402
+from text_tools import beside, from_data, near as hint, slash_cell as cell  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -88,7 +88,7 @@ def load_ref(base: Path, spec: dict, key: str, skill: str, script: str, errors: 
     """Fichier d'un autre skill cité par la description (exigences, modèle de données), validé par son schéma."""
     if not spec.get(key):
         return None
-    path = base / spec[key]
+    path = from_data(base, spec[key])
     data = load_json(path, key, errors)
     if data is None:
         return None
@@ -595,7 +595,7 @@ def main() -> int:
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md = out_dir / f"{stem}.md"
+    md = beside(out_dir / f"{stem}.md")
     md.write_text(markdown(spec, found), encoding="utf-8")
     data = out_dir / f"{stem}.styles.json"
     data.write_text(json.dumps({"recommended": found["style"]["recommended"], "styles": skeletons},
@@ -609,7 +609,7 @@ def main() -> int:
         desc = out_dir / f"{stem}.carte.json"
         desc.write_text(json.dumps(carte(spec), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         built = run_script("drawio-diagram", "drawio_build.py",
-                           [desc, "--out", out_dir / f"{stem}.carte.drawio"] + (["--export", args.export]
+                           [desc, "--out", beside(out_dir / f"{stem}.carte.drawio")] + (["--export", args.export]
                                                                                  if args.export else []))
         errors += [f"carte : {e}" for e in built.get("errors", [])]
         report["warnings"] += [f"carte : {w}" for w in built.get("warnings", [])]

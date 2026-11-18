@@ -31,6 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, find_script, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 
 STATUS = {"POST": 201, "DELETE": 204}
 
@@ -50,11 +51,11 @@ def read_json(path: Path, errors: list[str], what: str):
 def sequences(spec: dict, base: Path, errors: list[str]) -> list[dict]:
     labels, titles = {}, {}
     if spec.get("source"):
-        options = read_json(base / spec["source"]["options"], errors, "source")
+        options = read_json(from_data(base, spec["source"]["options"]), errors, "source")
         chosen = next((o for o in (options or {}).get("options", []) if o.get("id") == spec["source"]["option"]), {})
         labels = {c["id"]: c.get("label", c["id"]) for c in chosen.get("components", [])}
     if spec.get("requirements"):
-        catalog = read_json(base / spec["requirements"], errors, "requirements")
+        catalog = read_json(from_data(base, spec["requirements"]), errors, "requirements")
         titles = {r["id"]: r.get("title", "") for r in (catalog or {}).get("requirements", [])}
     ops, events = spec.get("operations", []), spec.get("events", [])
     service = next((o["component"] for o in ops if o.get("component")), "api")
@@ -155,7 +156,7 @@ def main() -> int:
         for path in outputs:
             path.unlink(missing_ok=True)
         return done(1)
-    index = out_dir / f"{stem}.sequences.md"
+    index = beside(out_dir / f"{stem}.sequences.md")
     index.write_text("\n".join(sections), encoding="utf-8")
     warnings.append("rendu non vérifié ici : diagram-export --check sur les .mmd si une image est demandée")
     report.update(outputs=[str(p) for p in [*outputs, index]], diagrams=len(outputs),

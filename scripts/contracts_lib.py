@@ -23,10 +23,12 @@ LIB_USERS = {"local_tools.py": ["check-prerequisites", "diagram-export", "markdo
              "script_report.py": ["architecture-dossier", "doc-to-markdown", "diagram-export", "markdown-publish", "markdown-to-obsidian",
                                   "drawio-diagram", "mockup-to-html"],
              "external_skill.py": ["check-prerequisites", "markdown-publish", "architecture-review"],
-             "text_tools.py": ["architecture-dossier", "architecture-options", "architecture-review", "data-model", "decision-log",
-                               "domain-design", "markdown-publish", "meeting-notes", "operations-dossier", "process-diagram", "requirements-catalog",
-                               "solution-estimate", "tender-response", "test-plan", "threat-model",
-                               "well-architected-review"],
+             "text_tools.py": ["api-contract", "architecture-deck", "architecture-dossier", "architecture-options", "architecture-review",
+                               "c4-architecture", "capacity-sizing", "cloud-cost", "data-model", "data-protection", "decision-log",
+                               "design-system", "domain-design", "markdown-publish", "meeting-notes", "migration-assessment",
+                               "mission-workspace", "mockup-to-html", "operations-dossier", "process-diagram", "requirements-catalog",
+                               "solution-estimate", "spec-pack", "tender-response", "test-plan", "threat-model",
+                               "transition-roadmap", "well-architected-review"],
              "workflow_chart.py": ["decision-log"],
              "drawio_xml.py": ["drawio-diagram", "cloud-architecture", "urbanization-map", "process-diagram"]}
 # Modules et données partagés à source unique : une seule copie, dans le skill porteur ; les autres skills

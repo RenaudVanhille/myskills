@@ -39,7 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, schema_option, validate  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import beside, cell, from_data  # noqa: E402
 
 MONTHS = {"janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
           "septembre": 9, "octobre": 10, "novembre": 11, "decembre": 12}
@@ -271,7 +271,7 @@ def draft(path: Path, sources_name: str) -> dict:
     if path.exists():
         errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
         return report
-    folder = path.parent / sources_name
+    folder = from_data(path.parent, sources_name)
     sources = load_sources(folder) if folder.is_dir() else {}
     if not sources:
         errors.append(f"sources : aucun fichier .md dans {folder}")
@@ -299,7 +299,7 @@ def fmt(value) -> str:
 
 
 def check(spec: dict, base: Path, today: date, errors: list[str], warnings: list[str]) -> dict:
-    folder = (base / spec.get("sources", "sources")).resolve()
+    folder = from_data(base, spec.get("sources", "sources")).resolve()
     sources = load_sources(folder) if folder.is_dir() else {}
     if not sources:
         errors.append(f"sources : aucun fichier .md dans {folder}")
@@ -473,7 +473,7 @@ def main() -> int:
     if errors:
         print(json.dumps(report, ensure_ascii=False))
         return 1
-    out = (args.out_dir or args.spec.resolve().parent) / f"{args.spec.stem}.md"
+    out = beside((args.out_dir or args.spec.resolve().parent) / f"{args.spec.stem}.md")
     out.parent.mkdir(parents=True, exist_ok=True)
     text = render(spec, today)
     out.write_text(text, encoding="utf-8", newline="\n")

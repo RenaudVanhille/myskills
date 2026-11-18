@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import skill_paths  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 DEFAULTS = {
     "colors": {"primary": "#2563eb", "secondary": "#475569", "background": "#ffffff", "text": "#0f172a",
@@ -418,8 +419,9 @@ def main() -> int:
         guide["tokens"] = str(args.tokens.resolve())
     files[f"{stem}.styleguide.json"] = json.dumps(guide, ensure_ascii=False, indent=2) + "\n"
     for name, text in files.items():
-        (out_dir / name).write_text(text, encoding="utf-8")
-        report["outputs"].append(str(out_dir / name))
+        path = beside(out_dir / name)
+        path.write_text(text, encoding="utf-8")
+        report["outputs"].append(str(path))
     if args.render and skill_paths.find_script("mockup-to-html", "page_build.py") is None:
         warnings.append(f"styleguide non rendu : {skill_paths.absent('mockup-to-html', 'page_build.py')}")
     elif args.render:

@@ -32,7 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec  # noqa: E402
-from text_tools import slash_cell as cell  # noqa: E402
+from text_tools import from_data, slash_cell as cell  # noqa: E402
 
 STATUS = {"a-traiter": "à traiter", "traitee": "traitée", "acceptee": "acceptée", "ecartee": "écartée"}
 CATEGORIES = {"S": "Usurpation d'identité", "T": "Altération", "R": "Répudiation",
@@ -92,7 +92,7 @@ def main() -> int:
     spec, report["errors"] = read_spec(args.spec, __file__)
     if report["errors"]:
         return stop()
-    model_path = (args.spec.parent / spec["model"]).resolve()
+    model_path = (from_data(args.spec.parent, spec["model"])).resolve()
     try:
         model = json.loads(model_path.read_text(encoding="utf-8"))
         threats = {t["id"]: t for t in model["threats"]}

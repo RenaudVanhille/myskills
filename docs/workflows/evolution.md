@@ -55,12 +55,12 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | Étape | Niveau | Menée par | Skills | Livrables | Après |
 | --- | --- | --- | --- | --- | --- |
 | 1. Demande en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Écart d'exigences | moyen | `architecture-workflow` | `requirements-catalog` | `exigences.json`, `exigences.md`, `ecarts-exigences.md` | 1 |
-| 3. Écart de contrat d'interface (facultative) | moyen | `architecture-workflow` | `api-contract` | `api.json`, `ecarts-api.md` | 2 |
-| 4. Modèle de données modifié (facultative) | moyen | `architecture-workflow` | `data-model` | `modele.json`, `modele.md` | 2 |
-| 5. Options de mise en œuvre (facultative) | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `options.json`, `options.md` | 2 |
-| 6. Décision (facultative) | simple | `architecture-workflow` | `architecture-options` | `decision.json`, `adr-architecture.md` | 5 |
-| 7. Chiffrage du changement (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `chiffrage.json`, `chiffrage.md` | 6, 3, 4 |
+| 2. Écart d'exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `ecarts-exigences.md` | 1 |
+| 3. Écart de contrat d'interface (facultative) | moyen | `architecture-workflow` | `api-contract` | `donnees/api.json`, `ecarts-api.md` | 2 |
+| 4. Modèle de données modifié (facultative) | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 2 |
+| 5. Options de mise en œuvre (facultative) | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 2 |
+| 6. Décision (facultative) | simple | `architecture-workflow` | `architecture-options` | `donnees/decision.json`, `adr-architecture.md` | 5 |
+| 7. Chiffrage du changement (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6, 3, 4 |
 | 8. Dossier d'évolution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-evolution.md` | 7 |
 
 ### 1. Demande en Markdown
@@ -73,56 +73,56 @@ Documents de la demande de changement (évolution, nouvelle réglementation, ret
 
 ### 2. Écart d'exigences
 
-- **Entrées** : `sources/*.md`, `../exigences.json`, `../domaines.json`
-- **Livrables** : `exigences.json`, `exigences.md`, `ecarts-exigences.md`
-- **Livrables possibles** : `exigences.csv`
-- **Contrôle** : requirements-catalog : req_diff.py ../exigences.json exigences.json --start (copie de travail), puis req_build.py exigences.json et req_diff.py ../exigences.json exigences.json --out ecarts-exigences.md, avec --domains ../domaines.json si le dossier a un découpage
+- **Entrées** : `sources/*.md`, `../donnees/exigences.json`, `../donnees/domaines.json`
+- **Livrables** : `donnees/exigences.json`, `exigences.md`, `ecarts-exigences.md`
+- **Livrables possibles** : `donnees/exigences.csv`
+- **Contrôle** : requirements-catalog : req_diff.py ../donnees/exigences.json donnees/exigences.json --start (copie de travail), puis req_build.py donnees/exigences.json et req_diff.py ../donnees/exigences.json donnees/exigences.json --out ecarts-exigences.md, avec --domains ../donnees/domaines.json si le dossier a un découpage
 
-Ne jamais modifier ../exigences.json, validé. Dans la copie de travail : chaque exigence ajoutée cite la demande (sources/), chaque modification garde son identifiant, une exigence abandonnée passe en status écartée avec sa raison. À la revue, présenter l'écart (ajoutées, modifiées, retirées) et les contextes touchés ; une exigence ajoutée sans contexte se rattache à un contexte ou se signale comme nouveau périmètre.
+Ne jamais modifier ../donnees/exigences.json, validé. Dans la copie de travail : chaque exigence ajoutée cite la demande (sources/), chaque modification garde son identifiant, une exigence abandonnée passe en status écartée avec sa raison. À la revue, présenter l'écart (ajoutées, modifiées, retirées) et les contextes touchés ; une exigence ajoutée sans contexte se rattache à un contexte ou se signale comme nouveau périmètre.
 
 ### 3. Écart de contrat d'interface
 
-- **Entrées** : `ecarts-exigences.md`, `../api.json`, `../api/api.json`
-- **Livrables** : `api.json`, `ecarts-api.md`
-- **Livrables possibles** : `api.openapi.yaml`, `api.asyncapi.yaml`, `api.api.md`
-- **Contrôle** : api-contract : api_diff.py <contrat validé : ../api.json ou ../api/api.json> api.json --start, puis api_build.py api.json et api_diff.py <contrat validé> api.json --out ecarts-api.md (ruptures et version à monter)
+- **Entrées** : `ecarts-exigences.md`, `../donnees/api.json`, `../api/api.json`
+- **Livrables** : `donnees/api.json`, `ecarts-api.md`
+- **Livrables possibles** : `donnees/api.openapi.yaml`, `donnees/api.asyncapi.yaml`, `api.api.md`
+- **Contrôle** : api-contract : api_diff.py <contrat validé : ../donnees/api.json ou ../api/api.json> donnees/api.json --start, puis api_build.py donnees/api.json et api_diff.py <contrat validé> donnees/api.json --out ecarts-api.md (ruptures et version à monter)
 
-Étape facultative, proposée si le dossier a un contrat d'interface et que la demande touche une exigence portée par une opération ou un événement : l'utilisateur dit s'il la veut (start) ou non (skip). Dans la copie, requirements vise exigences.json (la copie de travail) et source.options ../options.json. Une rupture s'évite d'abord (opération ajoutée, champ facultatif, ancienne version gardée) ; une rupture gardée se justifie au journal et la version majeure monte.
+Étape facultative, proposée si le dossier a un contrat d'interface et que la demande touche une exigence portée par une opération ou un événement : l'utilisateur dit s'il la veut (start) ou non (skip). Dans la copie, requirements vise donnees/exigences.json (la copie de travail) et source.options ../donnees/options.json. Une rupture s'évite d'abord (opération ajoutée, champ facultatif, ancienne version gardée) ; une rupture gardée se justifie au journal et la version majeure monte.
 
 ### 4. Modèle de données modifié
 
-- **Entrées** : `ecarts-exigences.md`, `../modele.json`, `../domaines.json`
-- **Livrables** : `modele.json`, `modele.md`
-- **Livrables possibles** : `modele.mmd`, `modele.sql`
-- **Contrôle** : data-model : model_build.py modele.json (copie du modèle validé modifiée ; avec domains, aucune clé étrangère entre contextes)
+- **Entrées** : `ecarts-exigences.md`, `../donnees/modele.json`, `../donnees/domaines.json`
+- **Livrables** : `donnees/modele.json`, `modele.md`
+- **Livrables possibles** : `donnees/modele.mmd`, `donnees/modele.sql`
+- **Contrôle** : data-model : model_build.py donnees/modele.json (copie du modèle validé modifiée ; avec domains, aucune clé étrangère entre contextes)
 
-Étape facultative, proposée si la demande ajoute ou change des données : l'utilisateur dit s'il la veut (start) ou non (skip). Copier le modèle validé (python -c "import shutil; shutil.copy('../modele.json', 'modele.json')"), puis ne changer que les entités et champs de la demande, chacun avec la référence de son exigence ; requirements vise exigences.json et domains ../domaines.json. Une donnée personnelle nouvelle se signale à la revue (registre, AIPD : data-protection).
+Étape facultative, proposée si la demande ajoute ou change des données : l'utilisateur dit s'il la veut (start) ou non (skip). Copier le modèle validé (python -c "import shutil; shutil.copy('../donnees/modele.json', 'donnees/modele.json')"), puis ne changer que les entités et champs de la demande, chacun avec la référence de son exigence ; requirements vise donnees/exigences.json et domains ../donnees/domaines.json. Une donnée personnelle nouvelle se signale à la revue (registre, AIPD : data-protection).
 
 ### 5. Options de mise en œuvre
 
-- **Entrées** : `exigences.json`, `ecarts-exigences.md`, `../options.json`, `../decision.json`, `documents/pos*`
-- **Livrables** : `options.json`, `options.md`
+- **Entrées** : `donnees/exigences.json`, `ecarts-exigences.md`, `../donnees/options.json`, `../donnees/decision.json`, `documents/pos*`
+- **Livrables** : `donnees/options.json`, `options.md`
 - **Livrables possibles** : `tracabilite.md`, `schemas/pos-option-*.json`
-- **Contrôle** : architecture-options : options_build.py options.json (placement dans le POS si le dossier en a un)
+- **Contrôle** : architecture-options : options_build.py donnees/options.json (placement dans le POS si le dossier en a un)
 
-Étape facultative, proposée quand le changement peut se faire de plusieurs façons (faire évoluer un composant existant, ajouter un service, acheter) : l'utilisateur dit s'il la veut (start) ou non (skip). 2 options au plus, chacune partant des composants de l'option retenue (../options.json, ../decision.json) avec ce qui change ; requirements vise exigences.json. Critères tirés des exigences ajoutées ou modifiées, plus l'effort de non-régression. À la revue, présenter l'option recommandée et le choix à faire.
+Étape facultative, proposée quand le changement peut se faire de plusieurs façons (faire évoluer un composant existant, ajouter un service, acheter) : l'utilisateur dit s'il la veut (start) ou non (skip). 2 options au plus, chacune partant des composants de l'option retenue (../donnees/options.json, ../donnees/decision.json) avec ce qui change ; requirements vise donnees/exigences.json. Critères tirés des exigences ajoutées ou modifiées, plus l'effort de non-régression. À la revue, présenter l'option recommandée et le choix à faire.
 
 ### 6. Décision
 
-- **Entrées** : `options.json`
-- **Livrables** : `decision.json`, `adr-architecture.md`
-- **Livrables possibles** : `tracabilite.md`, `tracabilite.csv`
-- **Contrôle** : architecture-options : options_build.py options.json --decision decision.json
+- **Entrées** : `donnees/options.json`
+- **Livrables** : `donnees/decision.json`, `adr-architecture.md`
+- **Livrables possibles** : `tracabilite.md`, `donnees/tracabilite.csv`
+- **Contrôle** : architecture-options : options_build.py donnees/options.json --decision donnees/decision.json
 
-decision.json reprend le choix fait par l'utilisateur à la revue des options : option, by, ses mots dans why, date, refs. Sautée si l'étape options l'a été.
+donnees/decision.json reprend le choix fait par l'utilisateur à la revue des options : option, by, ses mots dans why, date, refs. Sautée si l'étape options l'a été.
 
 ### 7. Chiffrage du changement
 
-- **Entrées** : `exigences.json`, `ecarts-exigences.md`, `ecarts-api.md`, `options.json`, `decision.json`
-- **Livrables** : `chiffrage.json`, `chiffrage.md`
-- **Livrables possibles** : `chiffrage.csv`, `couts.json`, `couts.md`, `couts.csv`
-- **Contrôle** : cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)
-- **Contrôle** : solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)
+- **Entrées** : `donnees/exigences.json`, `ecarts-exigences.md`, `ecarts-api.md`, `donnees/options.json`, `donnees/decision.json`
+- **Livrables** : `donnees/chiffrage.json`, `chiffrage.md`
+- **Livrables possibles** : `donnees/chiffrage.csv`, `donnees/couts.json`, `couts.md`, `donnees/couts.csv`
+- **Contrôle** : cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)
+- **Contrôle** : solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)
 
 Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Seul le changement se chiffre : un lot par exigence ajoutée ou modifiée et par rupture de contrat à gérer (ancienne version gardée, clients à migrer), plus la recette de non-régression ; les exigences inchangées n'entrent pas. Demander une seule fois les taux journaliers ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage et les estimations à trois points passent à solution-estimator ; totaux et fourchette sont calculés par le script.
 
@@ -139,7 +139,7 @@ decision.json reprend le choix fait par l'utilisateur à la revue des options : 
 
 Fichiers que le moteur reporte dans le vault Obsidian, quand le workflow en a un :
 
-- requirements : `exigences.json`
-- options : `options.json`
-- decision : `decision.json`
+- requirements : `donnees/exigences.json`
+- options : `donnees/options.json`
+- decision : `donnees/decision.json`
 - adr : `adr-architecture.md`

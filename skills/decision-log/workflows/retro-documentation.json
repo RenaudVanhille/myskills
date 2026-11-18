@@ -17,7 +17,7 @@
     "reprise de l'existant"
   ],
   "memory": {
-    "requirements": "exigences.json"
+    "requirements": "donnees/exigences.json"
   },
   "stages": [
     {
@@ -52,18 +52,18 @@
         "code/**/*"
       ],
       "deliverables": [
-        "c4.json",
+        "donnees/c4.json",
         "c4/**/*.png"
       ],
       "checks": [
-        "c4-architecture : c4_build.py c4.json --draft graphify-out/graph.json (brouillon), puis c4_build.py c4.json --out-dir c4 --export png"
+        "c4-architecture : c4_build.py donnees/c4.json --draft graphify-out/graph.json (brouillon), puis c4_build.py donnees/c4.json --out-dir c4 --export png"
       ],
       "run": [
         {
           "skill": "c4-architecture",
           "script": "c4_build.py",
           "args": [
-            "c4.json",
+            "donnees/c4.json",
             "--out-dir",
             "c4",
             "--export",
@@ -125,22 +125,22 @@
         "base/**/*.sql"
       ],
       "deliverables": [
-        "modele.json",
+        "donnees/modele.json",
         "modele.md"
       ],
       "optional": [
-        "modele.mmd",
-        "modele.sql"
+        "donnees/modele.mmd",
+        "donnees/modele.sql"
       ],
       "checks": [
-        "data-model : model_import.py base --out modele.json (brouillon tiré du DDL), puis model_build.py modele.json"
+        "data-model : model_import.py base --out donnees/modele.json (brouillon tiré du DDL), puis model_build.py donnees/modele.json"
       ],
       "run": [
         {
           "skill": "data-model",
           "script": "model_build.py",
           "args": [
-            "modele.json"
+            "donnees/modele.json"
           ]
         }
       ],
@@ -160,7 +160,7 @@
       ],
       "agent": "schema-designer",
       "inputs": [
-        "c4.json",
+        "donnees/c4.json",
         "graphify-out/graph.json",
         "code/**/*"
       ],
@@ -199,47 +199,47 @@
         "data-model"
       ],
       "inputs": [
-        "c4.json",
-        "modele.json",
-        "exigences.json"
+        "donnees/c4.json",
+        "donnees/modele.json",
+        "donnees/exigences.json"
       ],
       "deliverables": [
-        "domaines.json",
+        "donnees/domaines.json",
         "domaines.md",
-        "domaines.styles.json",
+        "donnees/domaines.styles.json",
         "domaines.carte.drawio"
       ],
       "optional": [
-        "domaines.carte.json",
+        "donnees/domaines.carte.json",
         "domaines.carte.drawio.png",
-        "modele.json",
+        "donnees/modele.json",
         "modele.md",
-        "modele.mmd",
-        "modele.sql"
+        "donnees/modele.mmd",
+        "donnees/modele.sql"
       ],
       "checks": [
-        "data-model : model_build.py modele.json (modèle actuel de l'étape donnees, s'il existe)",
-        "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
+        "data-model : model_build.py donnees/modele.json (modèle actuel de l'étape donnees, s'il existe)",
+        "domain-design : domain_build.py donnees/domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
       ],
       "run": [
         {
           "skill": "data-model",
           "script": "model_build.py",
           "args": [
-            "modele.json"
+            "donnees/modele.json"
           ],
-          "if": "modele.json"
+          "if": "donnees/modele.json"
         },
         {
           "skill": "domain-design",
           "script": "domain_build.py",
           "args": [
-            "domaines.json"
+            "donnees/domaines.json"
           ],
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de domaines.json et se note au journal.",
+      "instructions": "Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : donnees/modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de donnees/domaines.json et se note au journal.",
       "after": [
         "constat",
         "donnees"
@@ -261,14 +261,14 @@
       ],
       "agent": "architecture-reviewer",
       "inputs": [
-        "c4.json",
+        "donnees/c4.json",
         "graphify-out/graph.json",
         "schemas/infrastructure.json",
-        "modele.json",
-        "domaines.json"
+        "donnees/modele.json",
+        "donnees/domaines.json"
       ],
       "deliverables": [
-        "revue.json",
+        "donnees/revue.json",
         "revue.md"
       ],
       "optional": [
@@ -276,7 +276,7 @@
         "schemas/infrastructure.wa.md"
       ],
       "checks": [
-        "architecture-review : arch_review.py revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (code comparé à l'architecture : règles CODE- ; avec domaines.json, règles DOM-)",
+        "architecture-review : arch_review.py donnees/revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (code comparé à l'architecture : règles CODE- ; avec donnees/domaines.json, règles DOM-)",
         "si l'infrastructure est décrite et que l'utilisateur veut les menaces : threat-model : stride.py schemas/infrastructure.json ; well-architected-review : wa_check.py schemas/infrastructure.json --out schemas/infrastructure.wa.md"
       ],
       "run": [
@@ -284,12 +284,12 @@
           "skill": "architecture-review",
           "script": "arch_review.py",
           "args": [
-            "revue.json"
+            "donnees/revue.json"
           ],
           "vault": true
         }
       ],
-      "instructions": "revue.json reprend les conteneurs et relations de c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
+      "instructions": "donnees/revue.json reprend les conteneurs et relations de donnees/c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal."
     },
     {
       "id": "trajectoire",
@@ -304,30 +304,30 @@
       ],
       "inputs": [
         "revue.md",
-        "domaines.json",
-        "domaines.styles.json"
+        "donnees/domaines.json",
+        "donnees/domaines.styles.json"
       ],
       "deliverables": [
-        "feuille-de-route.json",
+        "donnees/feuille-de-route.json",
         "feuille-de-route.md"
       ],
       "optional": [
-        "feuille-de-route.csv",
+        "donnees/feuille-de-route.csv",
         "feuille-de-route-*.png"
       ],
       "checks": [
-        "transition-roadmap : roadmap_build.py feuille-de-route.json (zéro erreur ; chemin critique et échéance)"
+        "transition-roadmap : roadmap_build.py donnees/feuille-de-route.json (zéro erreur ; chemin critique et échéance)"
       ],
       "run": [
         {
           "skill": "transition-roadmap",
           "script": "roadmap_build.py",
           "args": [
-            "feuille-de-route.json"
+            "donnees/feuille-de-route.json"
           ]
         }
       ],
-      "instructions": "Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse."
+      "instructions": "Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (donnees/domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse."
     },
     {
       "id": "dossier",
@@ -358,7 +358,7 @@
       ],
       "optional": [
         "plan-actions.md",
-        "plan-actions.csv"
+        "donnees/plan-actions.csv"
       ],
       "checks": [
         "architecture-dossier : actions.py . (plan d'actions tiré de la revue)",
@@ -372,7 +372,7 @@
           "args": [
             "."
           ],
-          "if": "revue.json"
+          "if": "donnees/revue.json"
         },
         {
           "skill": "architecture-dossier",

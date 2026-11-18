@@ -34,7 +34,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
-from text_tools import cell, near  # noqa: E402
+from text_tools import beside, cell, near  # noqa: E402
 
 AUDIENCES = {"metier": "les métiers", "direction": "la direction", "comite": "le comité", "mixte": "un public mixte",
              "technique": "un public technique"}
@@ -115,7 +115,7 @@ def main() -> int:
         return 0
     if not args.spec:
         parser.error("synthese.json attendu")
-    out = args.out or args.spec.parent / "synthese.md"
+    out = args.out or beside(args.spec.parent / "synthese.md")
     report = {"input": str(args.spec), "output": None, "words": 0, "benefits": 0, "risks": 0, "decisions": 0,
               "journeys": 0, "requirements": [], "errors": [], "warnings": []}
     errors, warnings = report["errors"], report["warnings"]

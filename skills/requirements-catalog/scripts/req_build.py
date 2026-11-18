@@ -45,7 +45,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import check as check_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import beside, cell, from_data  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -185,7 +185,7 @@ def draft(path: Path, sources_name: str) -> dict:
     if path.exists():
         errors.append(f"{path} existe déjà : --draft ne réécrit pas une description")
         return report
-    folder = path.parent / sources_name
+    folder = from_data(path.parent, sources_name)
     sources = load_sources(folder) if folder.is_dir() else {}
     if not sources:
         errors.append(f"sources : aucun fichier .md dans {folder}")
@@ -324,7 +324,7 @@ def write_csv(path: Path, items: list[dict]) -> None:
 def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
           triage: dict | None = None,
           candidates_out: Path | None = None) -> tuple[list, list, dict]:
-    folder = (base / spec.get("sources", "sources")).resolve()
+    folder = from_data(base, spec.get("sources", "sources")).resolve()
     if not folder.is_dir():
         errors.append(f"sources : dossier introuvable {folder}")
         return [], [], {}
@@ -522,11 +522,11 @@ def main() -> int:
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
+    md, table = beside(out_dir / f"{stem}.md"), out_dir / f"{stem}.csv"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
-        folder = (args.spec.parent / spec.get("sources", "sources")).resolve()
+        folder = from_data(args.spec.parent, spec.get("sources", "sources")).resolve()
         handle.write(render_md(spec, items, ignored, counts.get("glossary"),
-                               source_links(load_sources(folder), folder, out_dir.resolve())))
+                               source_links(load_sources(folder), folder, md.parent.resolve())))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

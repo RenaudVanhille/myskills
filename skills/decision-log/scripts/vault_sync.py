@@ -38,6 +38,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import source_docs  # noqa: E402
+from lib.text_tools import data_file  # noqa: E402
 from lib.workflow_chart import causes, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from skill_paths import require_module, schema_of  # noqa: E402
 
@@ -224,13 +225,13 @@ class _Sync:
         data = self.data = data or folder
         self.definition = state.get("definition")
         memory = self.memory = self.definition.get("memory", {}) if self.definition else DEFAULT_MEMORY
-        self.catalog = checked(data / memory["requirements"], schema_for("requirements"), errors, warnings) or {} \
+        self.catalog = checked(data_file(data, memory["requirements"]), schema_for("requirements"), errors, warnings) or {} \
             if memory.get("requirements") else {}
         options_schema = schema_for("options") if memory.get("options") else None
-        self.options = checked(data / memory["options"], options_schema, errors, warnings) or {} \
+        self.options = checked(data_file(data, memory["options"]), options_schema, errors, warnings) or {} \
             if memory.get("options") else {}
         decision_schema = options_schema["properties"]["decision"] if options_schema else None
-        self.decision = (checked(data / memory["decision"], decision_schema, errors, warnings)
+        self.decision = (checked(data_file(data, memory["decision"]), decision_schema, errors, warnings)
                          if memory.get("decision") else None) or self.options.get("decision")
         self.base = safe_folder(target)
         self.files_dir = f"{self.base}/Fichiers"

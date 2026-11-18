@@ -46,25 +46,25 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 | Étape | Niveau | Menée par | Skills | Livrables | Après |
 | --- | --- | --- | --- | --- | --- |
-| 1. Catalogue des exigences | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `exigences.json`, `exigences.md` | début |
+| 1. Catalogue des exigences | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `donnees/exigences.json`, `exigences.md` | début |
 | 2. Description cloud | moyen | `architecture-workflow` | `cloud-architecture`, `diagram-export` | `schemas/architecture.json`, `schemas/architecture.drawio`, `schemas/*.png` | début |
 | 3. Menaces STRIDE et qualification de l'hébergement | complexe | `architecture-reviewer` | `threat-model`, `well-architected-review` | `schemas/architecture.threats.md`, `schemas/architecture.wa.md` | 1, 2 |
-| 4. Registre des traitements et AIPD | complexe | `architecture-reviewer` | `data-protection` | `aipd.json`, `aipd.registre.md`, `aipd.aipd.md` | 3 |
+| 4. Registre des traitements et AIPD | complexe | `architecture-reviewer` | `data-protection` | `donnees/aipd.json`, `aipd.registre.md`, `aipd.aipd.md` | 3 |
 | 5. Plan d'actions et dossier de conformité | moyen | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `plan-actions.md`, `dossier-conformite.md` | 4 |
 
 ### 1. Catalogue des exigences
 
 - **Entrées** : `documents/*`, `sources/*.md`
-- **Livrables** : `exigences.json`, `exigences.md`
-- **Livrables possibles** : `exigences.candidats.json`, `exigences.csv`, `exigences.tri.json`, `sources/*.md`
+- **Livrables** : `donnees/exigences.json`, `exigences.md`
+- **Livrables possibles** : `donnees/exigences.candidats.json`, `donnees/exigences.csv`, `donnees/exigences.tri.json`, `sources/*.md`
 - **Contrôle** : doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)
-- **Contrôle** : requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise
+- **Contrôle** : requirements-catalog : req_build.py donnees/exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (donnees/exigences.tri.json), puis req_build.py donnees/exigences.json : zéro erreur et zéro phrase d'exigence non reprise
 
-Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json (req_build.py exigences.json --draft en donne le brouillon, une exigence par phrase normative, à trier) en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal.
+Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire donnees/exigences.json (req_build.py donnees/exigences.json --draft en donne le brouillon, une exigence par phrase normative, à trier) en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal.
 
 ### 2. Description cloud
 
-- **Entrées** : `schemas/architecture.json`, `infra/**/*`, `exigences.json`
+- **Entrées** : `schemas/architecture.json`, `infra/**/*`, `donnees/exigences.json`
 - **Livrables** : `schemas/architecture.json`, `schemas/architecture.drawio`, `schemas/*.png`
 - **Contrôle** : cloud-architecture : iac_import.py <sources> --out schemas/architecture.json (seulement sans description fournie)
 - **Contrôle** : cloud-architecture : cloud_build.py schemas/architecture.json --matrix --export png (construit, vérifie et exporte en un appel), puis relire l'image une fois
@@ -73,7 +73,7 @@ Reprendre la description fournie, ou celle tirée du code, et la compléter : h�
 
 ### 3. Menaces STRIDE et qualification de l'hébergement
 
-- **Entrées** : `schemas/architecture.json`, `exigences.json`
+- **Entrées** : `schemas/architecture.json`, `donnees/exigences.json`
 - **Livrables** : `schemas/architecture.threats.md`, `schemas/architecture.wa.md`
 - **Livrables possibles** : `schemas/architecture.decisions.json`
 - **Contrôle** : threat-model : stride.py schemas/architecture.json, avec --vault <vault> --folder <dossier> si le workflow a un vault
@@ -84,18 +84,18 @@ Garder les menaces pertinentes et leur mesure ; une qualification exigée que l'
 
 ### 4. Registre des traitements et AIPD
 
-- **Entrées** : `exigences.json`, `schemas/architecture.json`, `schemas/architecture.threats.md`
-- **Livrables** : `aipd.json`, `aipd.registre.md`, `aipd.aipd.md`
-- **Contrôle** : data-protection : dpia_build.py aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)
+- **Entrées** : `donnees/exigences.json`, `schemas/architecture.json`, `schemas/architecture.threats.md`
+- **Livrables** : `donnees/aipd.json`, `aipd.registre.md`, `aipd.aipd.md`
+- **Contrôle** : data-protection : dpia_build.py donnees/aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)
 
-aipd.json reprend l'hébergeur de la description, requirements (exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL).
+donnees/aipd.json reprend l'hébergeur de la description, requirements (donnees/exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL).
 
 ### 5. Plan d'actions et dossier de conformité
 
 - **Entrées** : `schemas/architecture.threats.md`, `schemas/architecture.wa.md`, `aipd.aipd.md`, `journal.md`
 - **Livrables** : `synthese.md`, `plan-actions.md`, `dossier-conformite.md`
-- **Livrables possibles** : `plan-actions.csv`
-- **Contrôle** : architecture-dossier : actions.py . (plan-actions.md et plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)
+- **Livrables possibles** : `donnees/plan-actions.csv`
+- **Contrôle** : architecture-dossier : actions.py . (plan-actions.md et donnees/plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)
 - **Contrôle** : architecture-dossier : dossier_build.py . --template conformite --out dossier-conformite.md --strict (sections obligatoires présentes, liens et images vérifiés)
 - **Contrôle** : si l'utilisateur veut un Word ou un PDF : passer dossier-conformite.md à document-publisher
 
@@ -105,4 +105,4 @@ plan-actions.md se construit avec actions.py, sans relire les revues : une actio
 
 Fichiers que le moteur reporte dans le vault Obsidian, quand le workflow en a un :
 
-- requirements : `exigences.json`
+- requirements : `donnees/exigences.json`

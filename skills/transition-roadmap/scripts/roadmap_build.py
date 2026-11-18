@@ -32,6 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 LONG = 26
 
@@ -161,7 +162,7 @@ def write(spec: dict, items: list[dict], plan: dict, out_dir: Path, stem: str) -
             days = round(it["weeks"] * 7)
             lines.append(f"  {label(it['name'])} :{', '.join(tags + [ident])}, {early[it['id']][0]}, {days}d")
     lines += ["```", ""]
-    md = out_dir / f"{stem}.md"
+    md = beside(out_dir / f"{stem}.md")
     md.write_text("\n".join(lines), encoding="utf-8", newline="\n")
     path = out_dir / f"{stem}.csv"
     with open(path, "w", encoding="utf-8", newline="") as handle:

@@ -36,7 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec  # noqa: E402
-from text_tools import cell, near as hint  # noqa: E402
+from text_tools import beside, cell, from_data, near as hint  # noqa: E402
 
 SQL = {"uuid": "uuid", "string": "varchar(255)", "text": "text", "integer": "integer", "number": "double precision",
        "decimal": "numeric(14,2)", "boolean": "boolean", "date": "date", "datetime": "timestamptz", "json": "jsonb",
@@ -156,7 +156,7 @@ def check_contexts(spec: dict, base: Path, report: dict) -> None:
         if placed:
             warnings.append("context des entités sans découpage (domains) : contextes non vérifiés")
         return
-    path = base / spec["domains"]
+    path = from_data(base, spec["domains"])
     try:
         domains = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -289,7 +289,7 @@ def main() -> int:
         warnings += [f"entité « {n} » reliée à aucune autre" for n in names if n not in linked]
     if spec.get("requirements"):
         try:
-            catalog = json.loads((args.spec.parent / spec["requirements"]).read_text(encoding="utf-8"))
+            catalog = json.loads((from_data(args.spec.parent, spec["requirements"])).read_text(encoding="utf-8"))
             ids = {r["id"] for r in catalog["requirements"]}
             for i, e in enumerate(spec["entities"]):
                 errors += [f"entities/{i}/refs : exigence « {ref} » absente de {spec['requirements']}"
@@ -318,7 +318,7 @@ def main() -> int:
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    files = {out_dir / f"{stem}.mmd": diagram, out_dir / f"{stem}.md": markdown(spec, diagram),
+    files = {out_dir / f"{stem}.mmd": diagram, beside(out_dir / f"{stem}.md"): markdown(spec, diagram),
              out_dir / f"{stem}.sql": ddl(spec, warnings)}
     for path, text in files.items():
         path.write_text(text, encoding="utf-8")

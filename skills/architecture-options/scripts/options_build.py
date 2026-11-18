@@ -60,7 +60,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module, require_file, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, read_spec, schema_option  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import beside, cell, from_data, readable_dir  # noqa: E402
 
 # Position des options dans le POS du SI (skill urbanization-map), déclaré dans requires.
 POS = load_module("urbanization-map", "pos_impact.py")
@@ -86,7 +86,7 @@ def nature(req: dict) -> str | None:
 
 
 def load_catalog(base: Path, spec: dict, errors: list[str], warnings: list[str]) -> dict[str, dict]:
-    path = base / spec.get("requirements", "exigences.json")
+    path = from_data(base, spec.get("requirements", "exigences.json"))
     try:
         catalog = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -617,7 +617,7 @@ def main() -> int:
         return 0
     (out_dir / "schemas").mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md, diagrams = out_dir / f"{stem}.md", out_dir / "schemas" / "architectures.json"
+    md, diagrams = beside(out_dir / f"{stem}.md"), readable_dir(out_dir) / "schemas" / "architectures.json"
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(render_md(spec, criteria, ranking, catalog, impacts, idx, reviews, wa))
     pages = [{"name": f"Option {o['id']}", "title": f"Option {o['id']} : {o['name']}", "elements": layout(o)}

@@ -35,7 +35,10 @@ réécrire leurs livrables (schémas compris). Chaque version validée est
 gardée : dans une mission qui a son dépôt git, par le commit
 `valide(ETAPE)` (`git log`, `git diff` pour comparer) ; sinon dans
 `.historique/ETAPE/DATE/`. Les livrables se reprennent sur place, jamais de
-copie `.avant-*` ou `.v1` à côté. Ce dépôt reste local : ne le poussez
+copie `.avant-*` ou `.v1` à côté. Les fichiers machine (JSON, CSV, Mermaid,
+SQL, YAML) s'écrivent dans `donnees/` comme le dit la définition ; les
+scripts mettent leurs sorties lisibles (`.md`, `.drawio`, `.png`...) à la
+racine du workflow. Ce dépôt reste local : ne le poussez
 jamais.
 
 Seules les décisions sont numérotées D-xxx et ont une ligne du tableau

@@ -41,8 +41,8 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | --- | --- | --- | --- | --- | --- |
 | 1. Design system | moyen | `ui-designer` | `design-system` | `design-system.json` | début |
 | 2. Pages HTML comparées aux maquettes | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `pages/*.json`, `pages/*.html`, `pages/*.css` | 1 |
-| 3. Revue UX et accessibilité | moyen | `ui-designer` | `mockup-to-html` | `revue-ux.json`, `pages/*.ux.md` | 2 |
-| 4. Découpage et lots du chiffrage frontend | moyen | `ui-designer` | `mockup-to-html` | `decoupage.md`, `decoupage.lots.json` | 3 |
+| 3. Revue UX et accessibilité | moyen | `ui-designer` | `mockup-to-html` | `donnees/revue-ux.json`, `pages/*.ux.md` | 2 |
+| 4. Découpage et lots du chiffrage frontend | moyen | `ui-designer` | `mockup-to-html` | `decoupage.md`, `donnees/decoupage.lots.json` | 3 |
 
 ### 1. Design system
 
@@ -66,16 +66,16 @@ Une description par écran dans pages/ (les analyses restent dans analyses/), pa
 ### 3. Revue UX et accessibilité
 
 - **Entrées** : `pages/*.json`
-- **Livrables** : `revue-ux.json`, `pages/*.ux.md`
-- **Contrôle** : mockup-to-html : ux_review.py revue-ux.json (contrôles WCAG sur le rendu, puis constats de jugement validés : heuristique, gravité, nœud)
+- **Livrables** : `donnees/revue-ux.json`, `pages/*.ux.md`
+- **Contrôle** : mockup-to-html : ux_review.py donnees/revue-ux.json (contrôles WCAG sur le rendu, puis constats de jugement validés : heuristique, gravité, nœud)
 
-Premier passage avec findings vide pour les contrôles mécaniques, puis constats de jugement (heuristiques de Nielsen h1 à h10, a11y), un par problème, gravité 1 à 4, rattachés au nœud. L'utilisateur retient ou écarte les constats à la revue : ceux qui restent dans revue-ux.json sont chiffrés à l'étape suivante.
+Premier passage avec findings vide pour les contrôles mécaniques, puis constats de jugement (heuristiques de Nielsen h1 à h10, a11y), un par problème, gravité 1 à 4, rattachés au nœud. L'utilisateur retient ou écarte les constats à la revue : ceux qui restent dans donnees/revue-ux.json sont chiffrés à l'étape suivante.
 
 ### 4. Découpage et lots du chiffrage frontend
 
-- **Entrées** : `pages/*.json`, `revue-ux.json`
-- **Livrables** : `decoupage.md`, `decoupage.lots.json`
-- **Livrables possibles** : `decoupage.json`, `decoupage.csv`
-- **Contrôle** : mockup-to-html : ui_breakdown.py pages/*.json --out decoupage --ux revue-ux.json, avec --target et --component si connus (lots contrôlés contre le schéma de solution-estimate)
+- **Entrées** : `pages/*.json`, `donnees/revue-ux.json`
+- **Livrables** : `decoupage.md`, `donnees/decoupage.lots.json`
+- **Livrables possibles** : `donnees/decoupage.json`, `donnees/decoupage.csv`
+- **Contrôle** : mockup-to-html : ui_breakdown.py pages/*.json --out donnees/decoupage --ux donnees/revue-ux.json, avec --target et --component si connus (lots contrôlés contre le schéma de solution-estimate)
 
-Relire les lots : réemploi d'un écran qui ne ressemble pas à sa source à retirer, réemploi manquant à ajouter avec sa base ; toute correction a sa note au journal. Si calibrated est faux, dire que les charges viennent d'abaques par défaut. Pour un chiffrage complet, decoupage.lots.json passe à solution-estimate (estimate_build.py --draft --lots decoupage.lots.json).
+Relire les lots : réemploi d'un écran qui ne ressemble pas à sa source à retirer, réemploi manquant à ajouter avec sa base ; toute correction a sa note au journal. Si calibrated est faux, dire que les charges viennent d'abaques par défaut. Pour un chiffrage complet, donnees/decoupage.lots.json passe à solution-estimate (estimate_build.py --draft --lots donnees/decoupage.lots.json).

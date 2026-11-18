@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, schema_option  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import cell, readable_dir  # noqa: E402
 
 FIELDS = {"text": "texte", "priority": "priorité", "metric": "mesure", "category": "catégorie",
           "nature": "nature", "domain": "domaine", "title": "titre"}
@@ -123,8 +123,8 @@ def main() -> int:
                 report["output"] = str(args.copy)
                 # Les citations des exigences reprises restent vérifiables : leurs documents vont dans les
                 # sources de la copie, à côté de ceux de la demande.
-                src = args.reference.parent / old.get("sources", "sources")
-                dst = args.copy.parent / old.get("sources", "sources")
+                src = readable_dir(args.reference.parent) / old.get("sources", "sources")
+                dst = readable_dir(args.copy.parent) / old.get("sources", "sources")
                 cited = sorted({s["doc"] for r in old["requirements"] for s in r.get("sources", [])})
                 for doc in cited:
                     if (src / doc).is_file() and not (dst / doc).exists():

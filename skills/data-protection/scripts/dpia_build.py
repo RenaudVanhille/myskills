@@ -50,6 +50,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 from skill_paths import require_file, require_module  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
@@ -118,14 +119,14 @@ def known_refs(spec: dict, base: Path, errors: list[str], warnings: list[str]) -
     if spec.get("requirements"):
         given = True
         try:
-            catalog = json.loads((base / spec["requirements"]).read_text(encoding="utf-8"))
+            catalog = json.loads((from_data(base, spec["requirements"])).read_text(encoding="utf-8"))
             refs |= {r["id"] for r in catalog.get("requirements", [])}
         except (OSError, ValueError, KeyError, TypeError) as error:
             errors.append(f"requirements : {spec['requirements']} illisible ({error})")
     if spec.get("threats"):
         given = True
         try:
-            refs |= set(re.findall(r"\|\s*(M\d{3})\s*\|", (base / spec["threats"]).read_text(encoding="utf-8")))
+            refs |= set(re.findall(r"\|\s*(M\d{3})\s*\|", (from_data(base, spec["threats"])).read_text(encoding="utf-8")))
         except OSError as error:
             errors.append(f"threats : {spec['threats']} illisible ({error})")
     return refs if given else None
@@ -135,7 +136,7 @@ def threat_rows(spec: dict, base: Path) -> list[dict]:
     """Menaces de stride.py (.threats.json) avec la mesure retenue et le statut du .threats.md relu."""
     if not spec.get("threats"):
         return []
-    md = base / spec["threats"]
+    md = from_data(base, spec["threats"])
     try:
         items = json.loads(md.with_suffix(".json").read_text(encoding="utf-8"))["threats"]
         text = md.read_text(encoding="utf-8")
@@ -167,7 +168,7 @@ def proposal(spec: dict, base: Path) -> dict:
     requirements = []
     if spec.get("requirements"):
         try:
-            catalog = json.loads((base / spec["requirements"]).read_text(encoding="utf-8"))
+            catalog = json.loads((from_data(base, spec["requirements"])).read_text(encoding="utf-8"))
             requirements = [r for r in catalog.get("requirements", []) if r.get("status") != "retiree"]
         except (OSError, ValueError, TypeError):
             pass
@@ -481,7 +482,7 @@ def main() -> int:
         return 1
     out_dir.mkdir(parents=True, exist_ok=True)
     for suffix, text in ((".registre.md", registre(spec)), (".aipd.md", aipd(spec, result))):
-        path = out_dir / f"{stem}{suffix}"
+        path = beside(out_dir / f"{stem}{suffix}")
         with open(path, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(text)
         report["outputs"].append(str(path))

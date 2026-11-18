@@ -62,13 +62,13 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | Étape | Niveau | Menée par | Skills | Livrables | Après |
 | --- | --- | --- | --- | --- | --- |
 | 1. Graphe du code | simple | `architecture-workflow` | aucun | `graphify-out/graph.json` | début |
-| 2. Architecture constatée | moyen | `schema-designer` | `c4-architecture` | `c4.json`, `c4/**/*.png` | 1 |
+| 2. Architecture constatée | moyen | `schema-designer` | `c4-architecture` | `donnees/c4.json`, `c4/**/*.png` | 1 |
 | 3. Hébergement tiré de son code (facultative) | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/infrastructure.json` | 1 |
-| 4. Modèle de données actuel (facultative) | moyen | `architecture-workflow` | `data-model` | `modele.json`, `modele.md` | 1 |
+| 4. Modèle de données actuel (facultative) | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 1 |
 | 5. Processus métier (facultative) | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 2 |
-| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `domaines.json`, `domaines.md`, `domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
-| 7. Revue de l'existant | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `revue.json`, `revue.md` | 2, 3, 6 |
-| 8. Trajectoire de modernisation (facultative) | moyen | `architecture-workflow` | `transition-roadmap` | `feuille-de-route.json`, `feuille-de-route.md` | 7 |
+| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
+| 7. Revue de l'existant | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 2, 3, 6 |
+| 8. Trajectoire de modernisation (facultative) | moyen | `architecture-workflow` | `transition-roadmap` | `donnees/feuille-de-route.json`, `feuille-de-route.md` | 7 |
 | 9. Dossier de l'existant (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-existant.md` | 7, 8, 4, 5 |
 
 ### 1. Graphe du code
@@ -82,8 +82,8 @@ Graphe du code produit en local par graphify, sans lire le code soi-même ; grap
 ### 2. Architecture constatée
 
 - **Entrées** : `graphify-out/graph.json`, `code/**/*`
-- **Livrables** : `c4.json`, `c4/**/*.png`
-- **Contrôle** : c4-architecture : c4_build.py c4.json --draft graphify-out/graph.json (brouillon), puis c4_build.py c4.json --out-dir c4 --export png
+- **Livrables** : `donnees/c4.json`, `c4/**/*.png`
+- **Contrôle** : c4-architecture : c4_build.py donnees/c4.json --draft graphify-out/graph.json (brouillon), puis c4_build.py donnees/c4.json --out-dir c4 --export png
 
 Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, regrouper ou séparer les dossiers, ajouter personnes, bases, files et systèmes externes lus dans la configuration (connexions, clients HTTP, files de messages). Chaque élément ou relation ajouté sans trace dans le code se note au journal comme hypothèse ; à la revue, présenter ce qui est constaté et ce qui est déduit.
 
@@ -99,15 +99,15 @@ Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, reg
 ### 4. Modèle de données actuel
 
 - **Entrées** : `base/**/*.sql`
-- **Livrables** : `modele.json`, `modele.md`
-- **Livrables possibles** : `modele.mmd`, `modele.sql`
-- **Contrôle** : data-model : model_import.py base --out modele.json (brouillon tiré du DDL), puis model_build.py modele.json
+- **Livrables** : `donnees/modele.json`, `modele.md`
+- **Livrables possibles** : `donnees/modele.mmd`, `donnees/modele.sql`
+- **Contrôle** : data-model : model_import.py base --out donnees/modele.json (brouillon tiré du DDL), puis model_build.py donnees/modele.json
 
 Étape facultative, proposée si le schéma SQL de la base est fourni : l'utilisateur dit s'il la veut (start) ou non (skip). Ne pas réécrire le modèle : relire le brouillon (libellés, données personnelles devinées, clés composées ou absentes, références vers des tables hors du fichier) et noter chaque correction au journal.
 
 ### 5. Processus métier
 
-- **Entrées** : `c4.json`, `graphify-out/graph.json`, `code/**/*`
+- **Entrées** : `donnees/c4.json`, `graphify-out/graph.json`, `code/**/*`
 - **Livrables** : `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md`
 - **Livrables possibles** : `processus/*.drawio.png`
 - **Contrôle** : process-diagram : process_build.py processus/<processus>.json --export png pour chaque processus (zéro erreur : ni impasse ni décision sans libellé ; fiche du déroulé écrite), puis relire l'image une fois
@@ -116,38 +116,38 @@ Partir du brouillon tiré du graphe : nommer chaque conteneur par son rôle, reg
 
 ### 6. Domaines et style d'architecture
 
-- **Entrées** : `c4.json`, `modele.json`, `exigences.json`
-- **Livrables** : `domaines.json`, `domaines.md`, `domaines.styles.json`, `domaines.carte.drawio`
-- **Livrables possibles** : `domaines.carte.json`, `domaines.carte.drawio.png`, `modele.json`, `modele.md`, `modele.mmd`, `modele.sql`
-- **Contrôle** : data-model : model_build.py modele.json (modèle actuel de l'étape donnees, s'il existe)
-- **Contrôle** : domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)
+- **Entrées** : `donnees/c4.json`, `donnees/modele.json`, `donnees/exigences.json`
+- **Livrables** : `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio`
+- **Livrables possibles** : `donnees/domaines.carte.json`, `domaines.carte.drawio.png`, `donnees/modele.json`, `modele.md`, `donnees/modele.mmd`, `donnees/modele.sql`
+- **Contrôle** : data-model : model_build.py donnees/modele.json (modèle actuel de l'étape donnees, s'il existe)
+- **Contrôle** : domain-design : domain_build.py donnees/domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)
 
-Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de domaines.json et se note au journal.
+Étape facultative, proposée quand l'existant couvre plusieurs domaines fonctionnels ou que la question est de le moderniser (monolithe à découper, microservices à regrouper) : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Découpage cible tiré des processus métier et du langage, pas des tables ; le modèle actuel (model : donnees/modele.json, étape donnees) mesure le couplage réel du découpage proposé, et les conteneurs du C4 montrent où passe le code aujourd'hui. Un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé, les contextes à extraire, le couplage mesuré et la carte ; le style retenu va dans decision de donnees/domaines.json et se note au journal.
 
 ### 7. Revue de l'existant
 
-- **Entrées** : `c4.json`, `graphify-out/graph.json`, `schemas/infrastructure.json`, `modele.json`, `domaines.json`
-- **Livrables** : `revue.json`, `revue.md`
+- **Entrées** : `donnees/c4.json`, `graphify-out/graph.json`, `schemas/infrastructure.json`, `donnees/modele.json`, `donnees/domaines.json`
+- **Livrables** : `donnees/revue.json`, `revue.md`
 - **Livrables possibles** : `schemas/infrastructure.threats.md`, `schemas/infrastructure.wa.md`
-- **Contrôle** : architecture-review : arch_review.py revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (code comparé à l'architecture : règles CODE- ; avec domaines.json, règles DOM-)
+- **Contrôle** : architecture-review : arch_review.py donnees/revue.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (code comparé à l'architecture : règles CODE- ; avec donnees/domaines.json, règles DOM-)
 - **Contrôle** : si l'infrastructure est décrite et que l'utilisateur veut les menaces : threat-model : stride.py schemas/infrastructure.json ; well-architected-review : wa_check.py schemas/infrastructure.json --out schemas/infrastructure.wa.md
 
-revue.json reprend les conteneurs et relations de c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal.
+donnees/revue.json reprend les conteneurs et relations de donnees/c4.json en components et flows, avec le motif code de chaque composant (dossier du brouillon) et code.graph vers graphify-out/graph.json : le script compare le code à l'architecture (dépendance non déclarée, cycle, fichier sans composant). Les scénarios de qualité, risques et dette demandent du jugement et passent à architecture-reviewer. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal.
 
 ### 8. Trajectoire de modernisation
 
-- **Entrées** : `revue.md`, `domaines.json`, `domaines.styles.json`
-- **Livrables** : `feuille-de-route.json`, `feuille-de-route.md`
-- **Livrables possibles** : `feuille-de-route.csv`, `feuille-de-route-*.png`
-- **Contrôle** : transition-roadmap : roadmap_build.py feuille-de-route.json (zéro erreur ; chemin critique et échéance)
+- **Entrées** : `revue.md`, `donnees/domaines.json`, `donnees/domaines.styles.json`
+- **Livrables** : `donnees/feuille-de-route.json`, `feuille-de-route.md`
+- **Livrables possibles** : `donnees/feuille-de-route.csv`, `feuille-de-route-*.png`
+- **Contrôle** : transition-roadmap : roadmap_build.py donnees/feuille-de-route.json (zéro erreur ; chemin critique et échéance)
 
-Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse.
+Étape facultative, proposée quand une cible existe (domaines retenus) ou que la revue appelle des corrections lourdes : l'utilisateur dit s'il la veut (start) ou non (skip). Un chantier par contexte à extraire (donnees/domaines.styles.json : du plus autonome au plus couplé), plus les chantiers de dette tirés des constats de la revue et les jalons ; chaque durée prise sans source se note au journal comme hypothèse.
 
 ### 9. Dossier de l'existant
 
 - **Entrées** : `c4/**/*.png`, `processus/*.processus.md`, `modele.md`, `revue.md`, `domaines.md`, `feuille-de-route.md`, `journal.md`
 - **Livrables** : `synthese.md`, `dossier-existant.md`
-- **Livrables possibles** : `plan-actions.md`, `plan-actions.csv`
+- **Livrables possibles** : `plan-actions.md`, `donnees/plan-actions.csv`
 - **Contrôle** : architecture-dossier : actions.py . (plan d'actions tiré de la revue)
 - **Contrôle** : architecture-dossier : dossier_build.py . --template existant --out dossier-existant.md --strict
 - **Contrôle** : si l'utilisateur veut un Word ou un PDF : passer dossier-existant.md à document-publisher
@@ -158,4 +158,4 @@ revue.json reprend les conteneurs et relations de c4.json en components et flows
 
 Fichiers que le moteur reporte dans le vault Obsidian, quand le workflow en a un :
 
-- requirements : `exigences.json`
+- requirements : `donnees/exigences.json`

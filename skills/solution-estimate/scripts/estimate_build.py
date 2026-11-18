@@ -82,6 +82,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, require_file, require_module, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 from estimate_checks import (  # noqa: E402
     applies,
     apply_reuse,
@@ -125,7 +126,7 @@ STALE_DAYS = 180  # catalogue des hébergeurs plus ancien : qualifications à re
 def load_json(base: Path, name: str, field: str, skill: str, script: str,
               errors: list[str], warnings: list[str]) -> dict | None:
     """Fichier d'un autre skill, validé contre le schéma d'entrée de son script s'il est installé."""
-    path = base / name
+    path = from_data(base, name)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -145,7 +146,7 @@ def load_providers(base: Path, spec: dict, errors: list[str], warnings: list[str
     """Catalogue des hébergeurs du skill, complété par celui du projet (champ providers), validés."""
     schema = input_schema(__file__)
     providers, checked = {}, None
-    for path in [PROVIDERS] + ([base / spec["providers"]] if spec.get("providers") else []):
+    for path in [PROVIDERS] + ([from_data(base, spec["providers"])] if spec.get("providers") else []):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError) as error:
@@ -903,8 +904,8 @@ def main() -> int:
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md, table, hypo = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.hypotheses.csv"
-    charge_md, charge_table = out_dir / f"{stem}.charges.md", out_dir / f"{stem}.charges.csv"
+    md, table, hypo = beside(out_dir / f"{stem}.md"), out_dir / f"{stem}.csv", out_dir / f"{stem}.hypotheses.csv"
+    charge_md, charge_table = beside(out_dir / f"{stem}.charges.md"), out_dir / f"{stem}.charges.csv"
     if priced:
         with open(md, "w", encoding="utf-8", newline="\n") as handle:
             handle.write(render_md(spec, option, status, found, providers).replace(
