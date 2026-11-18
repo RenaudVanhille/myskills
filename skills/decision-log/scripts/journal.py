@@ -105,6 +105,7 @@ import contextlib
 import datetime
 import difflib
 import fnmatch
+import glob
 import hashlib
 import json
 import os
@@ -390,6 +391,25 @@ def consumed(state: dict, name: str) -> dict[str, str]:
         hit = {f: h for f, h in files.items() if any(fnmatch.fnmatch(f, p) for p in patterns)} if patterns else {}
         found.update(hit or (files if up in direct else {}))
     return {f: found[f] for f in sorted(found) if f not in own}
+
+
+def external(folder: Path, state: dict, name: str) -> dict[str, str]:
+    """Entrées d'une étape prises hors du dossier du workflow (motifs `../` du champ `inputs` : livrables d'un
+    workflow parent, d'un autre workflow de la mission) -> empreinte, lues au démarrage. Le suivi des `inputs` ne
+    les voit pas : aucune étape du workflow ne les produit."""
+    found = {}
+    for pattern in (stage_definition(state, name) or {}).get("inputs") or []:
+        if pattern.startswith("../"):
+            for match in sorted(glob.glob(str(folder / pattern))):
+                if Path(match).is_file():
+                    found[Path(os.path.relpath(match, folder)).as_posix()] = digest(Path(match))
+    return found
+
+
+def external_changes(folder: Path, stage: dict) -> list[str]:
+    """Entrées extérieures d'une étape modifiées ou disparues depuis son démarrage."""
+    return [f for f, sha in stage.get("external", {}).items()
+            if not (folder / f).is_file() or digest(folder / f) != sha]
 
 
 def impacts(state: dict, stage: dict, entry: str) -> dict:
@@ -800,6 +820,9 @@ def start_or_skip(args, folder: Path, state: dict, stage: dict, errors: list[str
     else:
         stage["status"] = "en-cours"
         stage["inputs"] = consumed(state, stage["id"])
+        stage.pop("external", None)
+        if found := external(folder, state, stage["id"]):
+            stage["external"] = found
     return None
 
 
@@ -951,6 +974,10 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         written = (folder / JOURNAL).read_text(encoding="utf-8")
     except OSError:
         written = None
+    for stage in state["stages"]:  # étapes commencées avant le suivi des entrées extérieures : point de départ
+        if stage["status"] in ("en-cours", "en-revue", "validee") and "external" not in stage \
+                and (found := external(folder, state, stage["id"])):
+            stage["external"] = found
     info["journal"] = render(state, folder) != written
     info["links"] = link_deliverables(folder, state, write=False)
     return state, info
@@ -990,6 +1017,13 @@ def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str
             if changed:
                 warnings.append(f"{stage['id']} : fichiers modifiés après validation : {', '.join(changed)} ; "
                                 "faites-les revoir (review --decision retour)")
+        moved = external_changes(folder, stage) if stage["status"] in ("en-revue", "validee") else []
+        if moved:
+            warnings.append(f"{stage['id']} : fichiers extérieurs modifiés après validation : {', '.join(moved)} "
+                            "(entrées d'un autre workflow, lues au démarrage) ; faites revoir l'étape "
+                            "(review --decision retour)" if stage["status"] == "validee" else
+                            f"{stage['id']} : entrées extérieures modifiées depuis le démarrage : {', '.join(moved)} ; "
+                            "dites-le à l'utilisateur avant sa revue")
     if args.command == "status":
         return state, None
 
