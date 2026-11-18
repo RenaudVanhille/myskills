@@ -32,6 +32,9 @@ Règles appliquées par le script, pas par le modèle :
 - chaque version validée est gardée dans `.historique/ETAPE/DATE/` (dossier
   masqué dans Obsidian) : une étape reprise se refait sur place, sans copie
   de sauvegarde à côté des livrables ;
+- quand plus aucune étape n'est en cours, `submit` vide `.myskills-tmp/`
+  (fichiers de travail des agents, jamais dans le dossier temporaire du
+  système) du dossier et de ses sous-dossiers directs ;
 - à une nouvelle soumission, les exigences, options et fichiers ajoutés,
   retirés ou modifiés depuis la version relue sont listés (revue
   différentielle).
@@ -121,6 +124,8 @@ DONE = ("validee", "sautee")
 VAULT_DECISIONS = {"validée": "valide", "validee": "valide", "valide": "valide", "ok": "valide",
                    "retour": "retour", "à reprendre": "retour", "a reprendre": "retour"}
 STATE, JOURNAL, LOCK = "workflow.json", "journal.md", "workflow.lock"
+# Dossier des fichiers de travail des agents (jamais le dossier temporaire du système, hors du dossier de travail).
+WORK = ".myskills-tmp"
 # Erreurs d'un contrôle reprises dans le rapport de check, au plus.
 MAX_CHECK_ERRORS = 5
 # Attente maximale du verrou, et âge au-delà duquel un verrou est abandonné (commande interrompue).
@@ -887,6 +892,17 @@ def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str 
         return None, None
 
 
+def clear_work(folder: Path) -> int:
+    """Vide les dossiers de travail des agents (`.myskills-tmp/` du dossier et de ses sous-dossiers directs) une fois
+    toutes les étapes en cours soumises : l'agent n'a rien à supprimer lui-même. Rend le nombre de fichiers retirés."""
+    count = 0
+    for work in [folder / WORK] + [d / WORK for d in folder.iterdir() if d.is_dir() and not d.name.startswith(".")]:
+        if work.is_dir():
+            count += sum(1 for f in work.rglob("*") if f.is_file())
+            shutil.rmtree(work, ignore_errors=True)
+    return count
+
+
 def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
     folder: Path = args.folder
     if args.command == "init":
@@ -924,6 +940,8 @@ def _run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str
             entry = add_entry(state, stage["id"], args.kind, args.by, args.text, args.why or "", split(args.refs))
     elif args.command == "submit":
         entry = submit(args, folder, state, stage, errors)
+        if entry and not any(s["status"] == "en-cours" for s in state["stages"]):
+            args.cleaned = clear_work(folder)
     elif args.command == "review":
         entry = review(args, folder, state, stage, errors)
         waiting = [e["id"] for e in open_questions(state) if e["stage"] == stage["id"]]
@@ -1053,6 +1071,7 @@ def main() -> int:
                 "stage": stage_definition(state, current_stage) if todo else None,
                 "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
                 "memory": memory, "checks": checks, "upgrade": upgraded, "archived": getattr(args, "archived", None),
+                "cleaned": getattr(args, "cleaned", None) or None,
                 "impacts": getattr(args, "impacts", None),
                 "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,

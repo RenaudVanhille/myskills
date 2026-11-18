@@ -161,6 +161,12 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   Chaque agent classe aussi ses actions avec une grille et adapte son
   effort ; un sous-agent seulement pour un lot ou une étape d'un autre
   niveau, avec le modèle de ce niveau.
+- Fichiers de travail (descriptions provisoires, rendus et sorties de
+  vérification) dans `.myskills-tmp/` du dossier de travail, jamais dans le
+  dossier temporaire du système : hors du dossier, chaque écriture demande
+  une approbation. `journal.py submit` le vide ; un script garde `tempfile`
+  pour ce qu'il crée et supprime lui-même. La consigne des agents et des
+  `SKILL.md` est générée par `build.py`.
 - Import et export dans des agents séparés : `document-extractor` importe,
   `document-publisher` exporte **(vérifiée)**. Un moteur de workflow peut
   lancer une conversion mécanique (script) ; tout travail de vision ou de

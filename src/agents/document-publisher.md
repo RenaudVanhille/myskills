@@ -20,7 +20,7 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 - **Reçoit** : Des fichiers Markdown ou des notes Obsidian (et le vault) ; L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki ; Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe.
 - **Produit** : Des fichiers .docx, .pptx, .html, .xwiki et ses images ; En option un PDF.
 - **Ne fait jamais** : Publier en ligne : l'utilisateur importe lui-même les fichiers.
-- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers de travail vont dans `.myskills-tmp/`, supprimé avant de rendre la main.
+- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; sinon, supprime-le avant de rendre la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
