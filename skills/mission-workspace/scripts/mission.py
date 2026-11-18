@@ -445,6 +445,8 @@ def summary(done: dict) -> str:
                 found.append(f"{count(len(definition[key]), one, many)} ({', '.join(definition[key])})")
         if row["superseded"]:
             found.append(f"{count(row['superseded'], 'entrée archivée', 'entrées archivées')}")
+        if row["noise"]:
+            found.append(f"{count(row['noise'], 'événement retiré', 'événements retirés')} du journal (validations, soumissions...)")
         if row["external"]:
             found.append(f"entrées ../ suivies pour {count(row['external'], 'étape')}")
         if row["vault"]:
@@ -487,7 +489,7 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
             done = report["upgrade"]
             rows.append({"folder": flow["folder"], "definition": done["definition"], "vault": done["vault"],
                          "journal": done["journal"], "links": done["links"],
-                         "superseded": done.get("superseded", 0), "external": done.get("external", 0),
+                         "superseded": done.get("superseded", 0), "noise": done.get("noise", 0), "external": done.get("external", 0),
                          "notes": (report.get("memory") or {}).get("notes")})
     vault = workspace.path_of(root, mission, "vault")
     style = (vault / ".obsidian" / "snippets" / f"{vault_ontology.SNIPPET}.css").is_file()
@@ -571,7 +573,7 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
     return done.get("git") == "absent" or done["tidy"]["moved"] > 0 or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
-                                              or w["external"] or (w["definition"] or {}).get("changed")
+                                              or w["noise"] or w["external"] or (w["definition"] or {}).get("changed")
                                               for w in done["workflows"])
 
 

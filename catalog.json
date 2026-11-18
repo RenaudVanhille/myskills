@@ -7766,7 +7766,7 @@
       "scripts": [
         {
           "name": "journal.py",
-          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note chaque choix, hypothèse, question, soumission, retour et validation, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté) ; à sa validation, les entrées des versions remplacées passent à l'archive (section repliée de journal.md). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
+          "role": "Fait respecter l'ordre des étapes et les portes de revue (démarrage seulement après validation des étapes dont l'étape dépend, la précédente ou celles de son champ after, validation seulement d'une étape en revue dont les fichiers n'ont pas changé, retour qui remet à reprendre l'étape, puis, à sa nouvelle validation, les seules étapes qui en dépendent dont une entrée a changé), donne les étapes prêtes à mener en parallèle (ready), sérialise les commandes d'un même dossier (verrou), note comme décisions (D-xxx) chaque choix, hypothèse, question, réponse, retour et saut, et comme événements d'étape (E-xxx, historique replié, sans note dans le vault) soumissions, validations, passages et rapports, et détecte un fichier validé modifié depuis ; chaque version validée est gardée dans .historique/ETAPE/DATE/ (dans une mission avec son dépôt git, un commit local valide(ETAPE) à la place ; une étape reprise se refait sur place, sans copie à côté) ; à sa validation, les entrées des versions remplacées passent à l'archive (section repliée de journal.md). Quand plus aucune étape n'est en cours, submit vide .myskills-tmp/ (fichiers de travail des agents) du dossier et de ses sous-dossiers directs. Avec un vault, réécrit après chaque commande la mémoire partagée dans Obsidian (vault_sync.py). upgrade remet un workflow ouvert avec une version antérieure au niveau des scripts actuels (définition livrée reprise sans perdre l'avancement, vault de la mission retrouvé, journal.md, liens des livrables, mémoire), à blanc sauf --apply.",
           "usage": "uv run scripts/journal.py init|start|skip|log|submit|review|check|status|upgrade DOSSIER [ETAPE] [--title T] [--stages a,b | --definition NOM|DEF.json] [--vault VAULT] [--folder F] [--kind choix|hypothese|question] [--text T] [--why J] [--refs A,B] [--by agent|utilisateur] [--files F ...] [--decision valide|retour] [--from-vault] [--submit] [--apply] [--keep-definition] | --schema",
           "options": {
             "init DOSSIER": "crée workflow.json ; --definition (nom d'un workflow livré dans workflows/ : architecture, cloud-existant, revue-dossier, conformite, migration-cloud ; ou fichier JSON de définition : étapes, skills, livrables, contrôles) ou --stages (défaut : documents,exigences,architectures,schemas), --title, --vault (vault Obsidian de la mémoire partagée) et --folder (dossier des notes, défaut Workflows/<titre>)",
@@ -8057,10 +8057,16 @@
                     "journal",
                     "links",
                     "superseded",
+                    "noise",
                     "external"
                   ],
                   "additionalProperties": false,
                   "properties": {
+                    "noise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Événements d'avant la séparation décisions / événements retirés du journal (validations, soumissions, passages, rapports), sauf la dernière soumission et la dernière validation ou invalidation de chaque étape, renumérotées E-xxx ; l'état d'avant reste dans le commit git de la mission."
+                    },
                     "superseded": {
                       "type": "integer",
                       "minimum": 0,
@@ -8331,7 +8337,8 @@
                   "properties": {
                     "id": {
                       "type": "string",
-                      "pattern": "^D-[0-9]{3,}$"
+                      "pattern": "^[DE]-[0-9]{3,}$",
+                      "description": "D-xxx : décision (choix, hypothèse, question, réponse, retour, saut, annotation) ; E-xxx : événement d'étape (soumission, validation, invalidation, passage, rapport), hors du tableau des décisions et sans note dans le vault."
                     },
                     "date": {
                       "type": "string"
@@ -8388,7 +8395,7 @@
                     },
                     "superseded_by": {
                       "type": "string",
-                      "pattern": "^D-[0-9]{3,}$",
+                      "pattern": "^[DE]-[0-9]{3,}$",
                       "description": "Entrée d'archive : validation (ou saut) de l'étape qui a remplacé la version où l'entrée a été notée."
                     },
                     "changes": {
@@ -15153,6 +15160,7 @@
                           "journal",
                           "links",
                           "superseded",
+                          "noise",
                           "external",
                           "notes"
                         ],
@@ -15244,6 +15252,11 @@
                             "type": "integer",
                             "minimum": 0,
                             "description": "Entrées des versions remplacées passées à l'archive."
+                          },
+                          "noise": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "Événements retirés du journal (validations, soumissions, passages, rapports d'avant la séparation décisions / événements)."
                           },
                           "external": {
                             "type": "integer",

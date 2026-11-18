@@ -59,6 +59,16 @@ KIND_LABELS = {"choix": "Choix", "hypothese": "Hypothèse", "question": "Questio
                "retour": "Retour", "validation": "Validation", "invalidation": "Invalidation",
                "passage": "Passage de main", "rapport": "Rapport d'agent", "saut": "Étape sautée",
                "annotation": "Annotation", "reponse": "Réponse"}
+# Événements d'étape : tracés (E-xxx) mais pas des décisions, ni ligne du tableau des décisions ni note du vault.
+EVENTS = ("soumission", "validation", "invalidation", "passage", "rapport")
+
+
+def decisions_of(state: dict) -> list[dict]:
+    """Entrées actives qui décident quelque chose : choix, hypothèses, questions et réponses, retours, sauts,
+    annotations ; pas les événements d'étape."""
+    return [e for e in state["entries"] if e["kind"] not in EVENTS]
+
+
 def answers(state: dict) -> dict[str, str]:
     """Question -> première réponse (`reponse` dont les refs citent la question)."""
     asked = {e["id"] for e in state["entries"] if e["kind"] == "question"}
@@ -246,7 +256,7 @@ class _Sync:
         self.uses = {g["term"]: [r["id"] for r in kept
                                  if mentions(f"{r['title']} {r['text']}", [g["term"], *g.get("aliases", [])])]
                      for g in self.glossary}
-        for entry in state["entries"]:
+        for entry in decisions_of(state):
             names[entry["id"]] = f"{base}/Décisions/{entry['id']}"
             titles[entry["id"]] = f"{entry['id']} {KIND_LABELS[entry['kind']]}"
         self.index = f"{base}/{safe_name(state['title'])}"
@@ -255,7 +265,7 @@ class _Sync:
         if self.adr and self.adr.exists():
             names["ADR"] = f"{base}/ADR architecture"
         self.by_ref: dict[str, list[dict]] = {}
-        for entry in state["entries"]:
+        for entry in decisions_of(state):
             for ref in entry.get("refs", []):
                 self.by_ref.setdefault(ref, []).append(entry)
         self.gaps = {(g, o["id"]): v for o in self.options.get("options", []) for g, v in o.get("gaps", {}).items()}
@@ -447,7 +457,7 @@ class _Sync:
 
     def entry_notes(self) -> None:
         answered = answers(self.state)
-        for entry in self.state["entries"]:
+        for entry in decisions_of(self.state):
             refs = [self.link(r) for r in entry.get("refs", [])]
             body = [f"# {entry['id']} {KIND_LABELS[entry['kind']]}", "", entry["text"], "", self.up, ""]
             if entry.get("why"):
@@ -548,7 +558,7 @@ class _Sync:
             ref = meta.get("id")
             if isinstance(ref, str) and re.fullmatch(r"[A-Za-z][\w.]*[-_.]?\d[\w.-]*", ref):
                 ids[ref] = None if ref in ids else rel
-        own = [r["id"] for r in self.catalog.get("requirements", [])] + [e["id"] for e in self.state["entries"]]
+        own = [r["id"] for r in self.catalog.get("requirements", [])] + [e["id"] for e in decisions_of(self.state)]
         ids.update({ref: self.names[ref] for ref in own})
         return {ref: rel for ref, rel in ids.items() if rel}
 
@@ -687,7 +697,7 @@ class _Sync:
                 if (self.folder / "journal.md").is_file() else None
             body += ["", "## Journal", ""] + ([f"{journal} (journal.md, identifiants liés aux notes).", ""]
                                               if journal else []) + [f"- {link(e['id'])} ({labels.get(e['stage'], e['stage'])}, {e['by']}) : "
-                                             f"{e['text']}" for e in state["entries"]]
+                                             f"{e['text']}" for e in decisions_of(state)]
             archived = len(state.get("archive", []))
             if archived:
                 body += ["", f"{vault_ontology.count(archived, 'entrée')} des versions remplacées des étapes, sans "

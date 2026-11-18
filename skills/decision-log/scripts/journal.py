@@ -5,10 +5,13 @@
 
 Un seul fichier d'état, `workflow.json`, dans le dossier du workflow : les
 étapes dans un ordre fixe, leur statut, l'empreinte (SHA-256) des fichiers
-soumis à la revue, et chaque entrée du journal (choix, hypothèse, question,
-soumission, retour, validation, invalidation) avec son auteur et les
-exigences ou options qu'elle concerne. `journal.md` en est la version
-lisible, réécrite à chaque commande.
+soumis à la revue, et chaque entrée du journal avec son auteur et les
+exigences ou options qu'elle concerne : les décisions (D-xxx : choix,
+hypothèse, question, réponse, retour, saut, annotation) et les événements
+d'étape (E-xxx : soumission, validation, invalidation, passage, rapport),
+tracés sans être des décisions. `journal.md` en est la version lisible,
+réécrite à chaque commande : tableau des décisions, historique des étapes
+replié.
 
 Règles appliquées par le script, pas par le modèle :
 - une étape ne démarre que si toutes celles dont elle dépend sont validées
@@ -123,7 +126,7 @@ from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import causes, progress_chart  # noqa: E402
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
-from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, answers, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -227,8 +230,10 @@ def stage_of(state: dict, name: str, errors: list[str]) -> dict | None:
 
 def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str = "",
               refs: list[str] | None = None, files: list[str] | None = None, via: str | None = None) -> str:
-    # Numérotation continue, archive comprise : un identifiant n'est jamais réattribué.
-    entry_id = f"D-{len(state['entries']) + len(state.get('archive', [])) + 1:03d}"
+    # Décisions D-xxx, événements d'étape E-xxx (soumission, validation...) : deux numérotations continues, archive
+    # comprise ; un identifiant n'est jamais réattribué.
+    prefix = "E" if kind in EVENTS else "D"
+    entry_id = f"{prefix}-{1 + max((int(e['id'][2:]) for e in state['entries'] + state.get('archive', []) if e['id'][0] == prefix), default=0):03d}"
     entry = {"id": entry_id, "date": now(), "stage": stage, "kind": kind, "by": by, "text": text}
     if why:
         entry["why"] = why
@@ -264,6 +269,45 @@ def supersede(state: dict, stage: str, closing: str) -> list[str]:
     state["entries"] = [e for e in entries if e["id"] not in chosen]
     state["archive"] = sorted(state.get("archive", []) + moved, key=lambda e: int(e["id"][2:]))
     return [e["id"] for e in moved]
+
+
+def denoise(state: dict) -> int:
+    """Workflow tenu avant la séparation décisions / événements : retire le bruit (validations, soumissions,
+    passages et rapports d'agent d'avant, archives comprises) et ne garde, par étape, que les événements dont le
+    moteur a besoin (dernière soumission, dernière validation ou invalidation), renumérotés E-xxx. Les références
+    (refs, superseded_by) suivent. Rend le nombre d'entrées retirées."""
+    entries, archive = state["entries"], state.get("archive", [])
+    keep: set[str] = set()
+    for stage in state["stages"]:
+        own = [e for e in entries if e["stage"] == stage["id"]]
+        for kinds in (("soumission",), ("validation", "invalidation")):
+            last = next((e["id"] for e in reversed(own) if e["kind"] in kinds), None)
+            if last:
+                keep.add(last)
+    noise = {e["id"] for e in entries + archive if e["kind"] in EVENTS and e["id"] not in keep}
+    closing = {e["stage"]: e["id"] for e in entries if e["id"] in keep and e["kind"] != "soumission"}
+    if not noise and not any(e["id"].startswith("D-") for e in entries if e["id"] in keep):
+        return 0
+    known = [e for e in entries + archive if e["id"] not in noise]
+    count = max((int(e["id"][2:]) for e in known if e["id"].startswith("E-")), default=0)
+    renamed = {}
+    for entry in sorted((e for e in entries if e["id"] in keep and e["id"].startswith("D-")), key=lambda e: e["date"]):
+        count += 1
+        renamed[entry["id"]] = f"E-{count:03d}"
+    state["entries"] = [e for e in entries if e["id"] not in noise]
+    if archive:
+        state["archive"] = [e for e in archive if e["id"] not in noise]
+    for entry in state["entries"] + state.get("archive", []):
+        entry["id"] = renamed.get(entry["id"], entry["id"])
+        if entry.get("refs"):
+            entry["refs"] = [renamed.get(r, r) for r in entry["refs"] if r not in noise] or None
+            if entry["refs"] is None:
+                del entry["refs"]
+        if entry.get("superseded_by"):
+            target = entry["superseded_by"]
+            target = closing.get(entry["stage"], target) if target in noise else target
+            entry["superseded_by"] = renamed.get(target, target)
+    return len(noise)
 
 
 def items_of(path: Path) -> dict[str, str]:
@@ -568,7 +612,7 @@ def linker(folder: Path, state: dict):
     ou une option vers sa note du vault quand le workflow en a un."""
     memory = state.get("memory") or {}
     base = Path(memory["vault"]) / safe_folder(memory["folder"]) if memory.get("vault") else None
-    entries = {e["id"] for e in state["entries"]}
+    entries = {e["id"] for e in decisions_of(state)}  # seules les décisions ont une note
 
     def link(ref: str, code: bool = False) -> str:
         shown = f"`{ref}`" if code else ref.replace("|", "\\|")
@@ -591,10 +635,10 @@ def render(state: dict, folder: Path | None = None) -> str:
         files = ", ".join(link(f, code=True) for f in stage.get("files", {})) or "-"
         lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
     lines += ["", "## Avancement", ""] + chart(state)
-    lines += ["", "## Décisions et revues", "",
+    lines += ["", "## Décisions", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
-    for entry in state["entries"]:
+    for entry in decisions_of(state):
         cells = [entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
                  entry["by"], entry["text"], entry.get("why", "")]
         cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
@@ -610,6 +654,14 @@ def render(state: dict, folder: Path | None = None) -> str:
         lines += ["", "## Questions répondues", ""]
         lines += [f"- **{link(q)}** ({texts[q]['stage']}) : {texts[q]['text']} ; réponse {link(r)} : "
                   f"{texts[r]['text']}" for q, r in answered.items()]
+    events = [e for e in state["entries"] if e["kind"] in EVENTS]
+    if events:
+        # Soumissions, validations, passages... : la trace des étapes, repliée, hors des décisions.
+        lines += ["", "## Historique des étapes", "",
+                  f"> [!note]- {len(events)} événement{'s' if len(events) > 1 else ''} (soumissions, validations, "
+                  "passages de main, rapports d'agent)", ">"]
+        lines += [f"> - {e['id']} {e['date'][:16].replace('T', ' ')} ({e['stage']}, {KIND_LABELS[e['kind']].lower()}"
+                  f", {e['by']}) : {' '.join(e['text'].split())}" for e in events]
     archived = state.get("archive", [])
     if archived:
         # Section repliée dans Obsidian (callout « - ») : traçabilité gardée, journal actif compact.
@@ -940,7 +992,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
     info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0,
-            "external": 0}
+            "noise": 0, "external": 0}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -964,6 +1016,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
                         and e["kind"] == ("validation" if stage["status"] == "validee" else "saut")), None)
         if stage["status"] in DONE and closing:
             info["superseded"] += len(supersede(state, stage["id"], closing))
+    info["noise"] = denoise(state)
     memory = state.get("memory")
     if memory and not Path(memory["vault"]).is_dir():
         vault = workspace.vault_target(None, None, [folder], default_folder=None)[0]
@@ -1162,7 +1215,7 @@ def main() -> int:
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
                                                  or upgraded["journal"] or upgraded["links"]
-                                                 or upgraded["superseded"]):
+                                                 or upgraded["superseded"] or upgraded["noise"]):
         action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
