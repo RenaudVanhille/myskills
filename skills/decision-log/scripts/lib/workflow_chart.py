@@ -56,11 +56,35 @@ def flowchart(stages: list[dict], title: str, detail, classes: list[tuple[str, s
     return "\n".join(lines + ["```"])
 
 
-def progress_chart(stages: list[dict], status: dict[str, str], title: str) -> list[str]:
-    """Lignes Markdown du schéma d'avancement : chaque étape obligatoire ou facultative, avec son statut."""
+def causes(state: dict) -> dict[str, str]:
+    """Pourquoi chaque étape à reprendre l'est, d'après sa dernière entrée de retour ou d'invalidation du journal :
+    retour de l'utilisateur sur l'étape, ou entrée modifiée par la nouvelle validation d'une étape amont."""
+    entries = {e["id"]: e for e in state.get("entries", [])}
+    found = {}
+    for stage in state.get("stages", []):
+        if stage.get("status") != "a-reprendre":
+            continue
+        last = next((e for e in reversed(state.get("entries", []))
+                     if e.get("stage") == stage["id"] and e.get("kind") in ("retour", "invalidation")), None)
+        if last is None:
+            continue
+        if last["kind"] == "retour":
+            found[stage["id"]] = f"retour {last['id']}"
+            continue
+        origin = entries.get((last.get("refs") or [""])[0], {})
+        found[stage["id"]] = (f"entrée modifiée : {origin['stage']}" if origin.get("kind") == "validation"
+                              else f"après le retour sur {origin['stage']}" if origin.get("stage") else "invalidée")
+    return found
+
+
+def progress_chart(stages: list[dict], status: dict[str, str], title: str,
+                   why: dict[str, str] | None = None) -> list[str]:
+    """Lignes Markdown du schéma d'avancement : chaque étape obligatoire ou facultative, avec son statut et, pour
+    une étape à reprendre, sa cause (`why`, voir causes)."""
     def detail(stage: dict) -> str:
         kind = "facultative" if stage.get("facultative") else "obligatoire"
-        return f"{kind} · {PROGRESS_LABELS[status[stage['id']]]}"
+        cause = (why or {}).get(stage["id"])
+        return f"{kind} · {PROGRESS_LABELS[status[stage['id']]]}" + (f" · {cause}" if cause else "")
 
     classes = [(name.replace("-", "_"), style, [s["id"] for s in stages if status[s["id"]] == name])
                for name, style in PROGRESS.items()]
