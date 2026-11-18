@@ -775,8 +775,11 @@ def submit(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
     if changes is not None:
         text += f" ; depuis la version relue : {describe(changes)}"
         args.changes = changes
-    return add_entry(state, stage["id"], "soumission", "agent", text, files=files,
-                     refs=(changes["added"] + changes["modified"]) if changes else None)
+    entry = add_entry(state, stage["id"], "soumission", "agent", text, files=files,
+                      refs=(changes["added"] + changes["modified"]) if changes else None)
+    if changes and any(changes.values()):
+        state["entries"][-1]["changes"] = changes  # repris par la note de revue du vault : relire l'écart d'abord
+    return entry
 
 
 def review_from_vault(args, state: dict, stage: dict, errors: list[str]) -> None:
