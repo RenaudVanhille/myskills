@@ -5,10 +5,13 @@
 
 Un seul fichier d'état, `workflow.json`, dans le dossier du workflow : les
 étapes dans un ordre fixe, leur statut, l'empreinte (SHA-256) des fichiers
-soumis à la revue, et chaque entrée du journal (choix, hypothèse, question,
-soumission, retour, validation, invalidation) avec son auteur et les
-exigences ou options qu'elle concerne. `journal.md` en est la version
-lisible, réécrite à chaque commande.
+soumis à la revue, et chaque entrée du journal avec son auteur et les
+exigences ou options qu'elle concerne : les décisions (D-xxx : choix,
+hypothèse, question, réponse, retour, saut, annotation) et les événements
+d'étape (E-xxx : soumission, validation, invalidation, passage, rapport),
+tracés sans être des décisions. `journal.md` en est la version lisible,
+réécrite à chaque commande : tableau des décisions, historique des étapes
+replié.
 
 Règles appliquées par le script, pas par le modèle :
 - une étape ne démarre que si toutes celles dont elle dépend sont validées
@@ -123,7 +126,7 @@ from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import causes, progress_chart  # noqa: E402
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
-from vault_sync import DEFAULT_MEMORY, KIND_LABELS, STATUS_LABELS, answers, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -227,8 +230,10 @@ def stage_of(state: dict, name: str, errors: list[str]) -> dict | None:
 
 def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str = "",
               refs: list[str] | None = None, files: list[str] | None = None, via: str | None = None) -> str:
-    # Numérotation continue, archive comprise : un identifiant n'est jamais réattribué.
-    entry_id = f"D-{len(state['entries']) + len(state.get('archive', [])) + 1:03d}"
+    # Décisions D-xxx, événements d'étape E-xxx (soumission, validation...) : deux numérotations continues, archive
+    # comprise ; un identifiant n'est jamais réattribué.
+    prefix = "E" if kind in EVENTS else "D"
+    entry_id = f"{prefix}-{1 + max((int(e['id'][2:]) for e in state['entries'] + state.get('archive', []) if e['id'][0] == prefix), default=0):03d}"
     entry = {"id": entry_id, "date": now(), "stage": stage, "kind": kind, "by": by, "text": text}
     if why:
         entry["why"] = why
@@ -568,7 +573,7 @@ def linker(folder: Path, state: dict):
     ou une option vers sa note du vault quand le workflow en a un."""
     memory = state.get("memory") or {}
     base = Path(memory["vault"]) / safe_folder(memory["folder"]) if memory.get("vault") else None
-    entries = {e["id"] for e in state["entries"]}
+    entries = {e["id"] for e in decisions_of(state)}  # seules les décisions ont une note
 
     def link(ref: str, code: bool = False) -> str:
         shown = f"`{ref}`" if code else ref.replace("|", "\\|")
@@ -591,10 +596,10 @@ def render(state: dict, folder: Path | None = None) -> str:
         files = ", ".join(link(f, code=True) for f in stage.get("files", {})) or "-"
         lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
     lines += ["", "## Avancement", ""] + chart(state)
-    lines += ["", "## Décisions et revues", "",
+    lines += ["", "## Décisions", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
-    for entry in state["entries"]:
+    for entry in decisions_of(state):
         cells = [entry["date"][:16].replace("T", " "), entry["stage"], KIND_LABELS[entry["kind"]],
                  entry["by"], entry["text"], entry.get("why", "")]
         cells = [link(entry["id"])] + [c.replace("|", "\\|").replace("\n", " ") for c in cells] \
@@ -610,6 +615,14 @@ def render(state: dict, folder: Path | None = None) -> str:
         lines += ["", "## Questions répondues", ""]
         lines += [f"- **{link(q)}** ({texts[q]['stage']}) : {texts[q]['text']} ; réponse {link(r)} : "
                   f"{texts[r]['text']}" for q, r in answered.items()]
+    events = [e for e in state["entries"] if e["kind"] in EVENTS]
+    if events:
+        # Soumissions, validations, passages... : la trace des étapes, repliée, hors des décisions.
+        lines += ["", "## Historique des étapes", "",
+                  f"> [!note]- {len(events)} événement{'s' if len(events) > 1 else ''} (soumissions, validations, "
+                  "passages de main, rapports d'agent)", ">"]
+        lines += [f"> - {e['id']} {e['date'][:16].replace('T', ' ')} ({e['stage']}, {KIND_LABELS[e['kind']].lower()}"
+                  f", {e['by']}) : {' '.join(e['text'].split())}" for e in events]
     archived = state.get("archive", [])
     if archived:
         # Section repliée dans Obsidian (callout « - ») : traçabilité gardée, journal actif compact.

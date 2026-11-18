@@ -38,6 +38,14 @@ gardée : dans une mission qui a son dépôt git, par le commit
 copie `.avant-*` ou `.v1` à côté. Ce dépôt reste local : ne le poussez
 jamais.
 
+Seules les décisions sont numérotées D-xxx et ont une ligne du tableau
+« Décisions » de journal.md et une note dans le vault : choix, hypothèses,
+questions et réponses, retours, sauts, annotations. Les soumissions,
+validations, invalidations, passages de main et rapports d'agent sont des
+événements E-xxx, gardés dans workflow.json (statuts, empreintes, retours
+y renvoient) et listés dans la section repliée « Historique des étapes ».
+Ne notez pas de `log` pour une simple validation ou un message de suivi.
+
 Le journal reste compact sur un workflow rejoué : à la validation (ou au
 saut) d'une étape, les entrées de ses versions précédentes (choix,
 hypothèses, passages, soumissions, retour ou invalidation qui l'a rouverte)
