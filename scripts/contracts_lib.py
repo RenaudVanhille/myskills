@@ -310,7 +310,8 @@ def render_agent(contract: dict) -> str:
     if contract.get("never"):
         lines.append("- **Ne fait jamais** : " + " ; ".join(contract["never"]) + ".")
     lines.append("- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, "
-                 "`.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers "
+                 "`.v1-*`, `.before-*`) : `journal.py` garde chaque version validée (commit du dépôt git de la mission, "
+                 "sinon `.historique/`). Les fichiers "
                  "de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du "
                  "dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du "
                  "dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; "
