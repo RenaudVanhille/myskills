@@ -15,7 +15,7 @@ def merge_definition(state: dict, new: dict, stage_keys) -> tuple[dict, dict]:
     old = state.get("definition") or {}
     old_stages = {s["id"]: s for s in old.get("stages", []) if isinstance(s, dict) and "id" in s}
     records = {s["id"]: s for s in state.get("stages", [])}
-    used = {e.get("stage") for e in state.get("entries", [])}
+    used = {e.get("stage") for e in state.get("entries", []) + state.get("archive", [])}
     definition = copy.deepcopy(new)
     stages = definition["stages"]
     new_ids = [s["id"] for s in stages]

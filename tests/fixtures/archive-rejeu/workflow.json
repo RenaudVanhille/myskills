@@ -1,0 +1,103 @@
+{
+  "title": "Rejeu",
+  "created": "2026-11-10T10:00:00+01:00",
+  "stages": [
+    {
+      "id": "a",
+      "status": "validee",
+      "files": {
+        "a.md": "18d22deb5ce3dc7869530ab0eedba91425121d340f677ee2b7bcdc1de66ee72d"
+      }
+    },
+    {
+      "id": "b",
+      "status": "a-faire"
+    }
+  ],
+  "entries": [
+    {
+      "id": "D-001",
+      "date": "2026-11-11T10:00:00+01:00",
+      "stage": "a",
+      "kind": "choix",
+      "by": "agent",
+      "text": "choix de la version 1"
+    },
+    {
+      "id": "D-002",
+      "date": "2026-11-12T10:00:00+01:00",
+      "stage": "a",
+      "kind": "soumission",
+      "by": "agent",
+      "text": "1 fichier soumis à la revue",
+      "files": [
+        "a.md"
+      ]
+    },
+    {
+      "id": "D-003",
+      "date": "2026-11-13T10:00:00+01:00",
+      "stage": "a",
+      "kind": "retour",
+      "by": "utilisateur",
+      "text": "retour 1 : à corriger"
+    },
+    {
+      "id": "D-004",
+      "date": "2026-11-14T10:00:00+01:00",
+      "stage": "a",
+      "kind": "choix",
+      "by": "agent",
+      "text": "choix de la version 2"
+    },
+    {
+      "id": "D-005",
+      "date": "2026-11-15T10:00:00+01:00",
+      "stage": "a",
+      "kind": "soumission",
+      "by": "agent",
+      "text": "1 fichier soumis à la revue",
+      "files": [
+        "a.md"
+      ]
+    },
+    {
+      "id": "D-006",
+      "date": "2026-11-16T10:00:00+01:00",
+      "stage": "a",
+      "kind": "retour",
+      "by": "utilisateur",
+      "text": "retour 2 : à corriger"
+    },
+    {
+      "id": "D-007",
+      "date": "2026-11-17T10:00:00+01:00",
+      "stage": "a",
+      "kind": "choix",
+      "by": "agent",
+      "text": "choix de la version 3"
+    },
+    {
+      "id": "D-008",
+      "date": "2026-11-18T10:00:00+01:00",
+      "stage": "a",
+      "kind": "soumission",
+      "by": "agent",
+      "text": "1 fichier soumis à la revue",
+      "files": [
+        "a.md"
+      ]
+    },
+    {
+      "id": "D-009",
+      "date": "2026-11-19T10:00:00+01:00",
+      "stage": "a",
+      "kind": "validation",
+      "by": "utilisateur",
+      "text": "ok",
+      "files": [
+        "a.md"
+      ]
+    }
+  ]
+}

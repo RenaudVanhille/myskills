@@ -37,7 +37,14 @@ Règles appliquées par le script, pas par le modèle :
   système) du dossier et de ses sous-dossiers directs ;
 - à une nouvelle soumission, les exigences, options et fichiers ajoutés,
   retirés ou modifiés depuis la version relue sont listés (revue
-  différentielle).
+  différentielle) ;
+- à la validation (ou au saut) d'une étape reprise, les entrées de ses
+  versions précédentes (choix, hypothèses, soumissions, retours, passages...)
+  et ses soumissions remplacées passent du journal actif à `archive` de
+  `workflow.json`, avec l'entrée qui les remplace : rien n'est supprimé,
+  journal.md les range dans une section repliée et le vault n'en garde pas de
+  note ; une question ouverte, ou dont la réponse reste active, reste active.
+  Les identifiants ne sont jamais réattribués.
 
 Avec `init --vault VAULT`, chaque commande écrit aussi la mémoire partagée
 dans le vault Obsidian (vault_sync.py) : une note par exigence, option et
@@ -62,7 +69,8 @@ que ses scripts produisent entièrement à partir des étapes validées
 (support de soutenance) : démarrée, contrôlée et soumise en un appel.
 
 `upgrade DOSSIER` remet un workflow ouvert avec une version antérieure au
-niveau des scripts actuels, sans rien perdre : la définition gardée dans
+niveau des scripts actuels, sans rien perdre (les entrées des versions
+remplacées des étapes validées passent à l'archive) : la définition gardée dans
 `workflow.json` à `init` est remplacée par celle livrée aujourd'hui (étapes
 nouvelles « à faire » à leur place, étapes retirées gardées si elles ont
 servi, statuts, fichiers et entrées intacts ; `--keep-definition` pour ne
@@ -128,6 +136,8 @@ STATE, JOURNAL, LOCK = "workflow.json", "journal.md", "workflow.lock"
 WORK = ".myskills-tmp"
 # Erreurs d'un contrôle reprises dans le rapport de check, au plus.
 MAX_CHECK_ERRORS = 5
+# Entrées qui ferment une version d'étape : ce qui les précède dans l'étape est remplacé par la version suivante.
+CLOSING = ("retour", "validation", "invalidation", "saut")
 # Attente maximale du verrou, et âge au-delà duquel un verrou est abandonné (commande interrompue).
 LOCK_WAIT, LOCK_STALE = 30, 120
 
@@ -203,7 +213,8 @@ def stage_of(state: dict, name: str, errors: list[str]) -> dict | None:
 
 def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str = "",
               refs: list[str] | None = None, files: list[str] | None = None, via: str | None = None) -> str:
-    entry_id = f"D-{len(state['entries']) + 1:03d}"
+    # Numérotation continue, archive comprise : un identifiant n'est jamais réattribué.
+    entry_id = f"D-{len(state['entries']) + len(state.get('archive', [])) + 1:03d}"
     entry = {"id": entry_id, "date": now(), "stage": stage, "kind": kind, "by": by, "text": text}
     if why:
         entry["why"] = why
@@ -215,6 +226,30 @@ def add_entry(state: dict, stage: str, kind: str, by: str, text: str, why: str =
         entry["via"] = via
     state["entries"].append(entry)
     return entry_id
+
+
+def supersede(state: dict, stage: str, closing: str) -> list[str]:
+    """À la validation (ou au saut) `closing` d'une étape : ses entrées des versions précédentes (jusqu'à la dernière
+    entrée qui a fermé une version : retour, validation, invalidation, saut) et ses soumissions remplacées dans la
+    version courante passent à `archive`, avec l'entrée qui les remplace. Une question ouverte, ou dont la réponse
+    reste active, reste active, comme une réponse dont la question l'est. Rend les identifiants archivés."""
+    entries = state["entries"]
+    own = [e for e in entries if e["stage"] == stage and e["id"] != closing]
+    last = max((i for i, e in enumerate(own) if e["kind"] in CLOSING), default=-1)
+    submission = next((e["id"] for e in reversed(own[last + 1:]) if e["kind"] == "soumission"), None)
+    chosen = {e["id"] for i, e in enumerate(own)
+              if i <= last or (e["kind"] == "soumission" and e["id"] != submission)}
+    answered = answers(state)
+    # Une question part avec sa réponse, jamais seule : ouverte ou répondue dans la version active, elle reste.
+    chosen -= {q for q in chosen if next((e for e in entries if e["id"] == q))["kind"] == "question"
+               and answered.get(q) not in chosen}
+    chosen -= {r for q, r in answered.items() if q not in chosen}
+    if not chosen:
+        return []
+    moved = [dict(e, superseded_by=closing) for e in entries if e["id"] in chosen]
+    state["entries"] = [e for e in entries if e["id"] not in chosen]
+    state["archive"] = sorted(state.get("archive", []) + moved, key=lambda e: int(e["id"][2:]))
+    return [e["id"] for e in moved]
 
 
 def items_of(path: Path) -> dict[str, str]:
@@ -542,6 +577,14 @@ def render(state: dict, folder: Path | None = None) -> str:
         lines += ["", "## Questions répondues", ""]
         lines += [f"- **{link(q)}** ({texts[q]['stage']}) : {texts[q]['text']} ; réponse {link(r)} : "
                   f"{texts[r]['text']}" for q, r in answered.items()]
+    archived = state.get("archive", [])
+    if archived:
+        # Section repliée dans Obsidian (callout « - ») : traçabilité gardée, journal actif compact.
+        lines += ["", "## Archives", "",
+                  f"> [!note]- {len(archived)} entrée{'s' if len(archived) > 1 else ''} des versions remplacées des "
+                  "étapes", "> Gardées pour la traçabilité, remplacées par la validation citée.", ">"]
+        lines += [f"> - {e['id']} ({e['stage']}, {KIND_LABELS[e['kind']].lower()}, {e['by']}) : "
+                  f"{' '.join(e['text'].split())} ; remplacée par {link(e['superseded_by'])}" for e in archived]
     return "\n".join(lines) + "\n"
 
 
@@ -573,7 +616,8 @@ def pick_annotations(state: dict) -> list[dict]:
     memory = state.get("memory")
     if not memory or not Path(memory["vault"]).is_dir():
         return []
-    seen = {((e.get("refs") or [""])[0], e["text"]) for e in state["entries"] if e.get("via") == "obsidian"}
+    seen = {((e.get("refs") or [""])[0], e["text"]) for e in state["entries"] + state.get("archive", [])
+            if e.get("via") == "obsidian"}
     stage = next_action(state)[0] or state["stages"][-1]["id"]
     added = []
     for found in vault_ontology.vault_annotations(Path(memory["vault"]), memory["folder"]):
@@ -605,7 +649,9 @@ def link_deliverables(folder: Path, state: dict, write: bool = True) -> int:
     sa note du vault (`write` faux : compte seulement) : les fichiers du dossier du workflow se lisent liés dans Obsidian ouvert à la racine du
     projet. Les documents sources et le texte ne changent pas ; l'empreinte des fichiers non plus (digest) et
     l'export les retire (markdown-publish). Rend le nombre de fichiers réécrits."""
-    memory = state["memory"]
+    memory = state.get("memory")
+    if not memory:
+        return 0  # sans vault, pas de note à lier
     definition = state.get("definition")
     names = (definition.get("memory", {}) if definition else DEFAULT_MEMORY).get("requirements")
     try:
@@ -735,7 +781,9 @@ def start_or_skip(args, folder: Path, state: dict, stage: dict, errors: list[str
                       + ("démarrer" if args.command == "start" else "sauter"))
     elif args.command == "skip":
         stage["status"] = "sautee"
-        return add_entry(state, stage["id"], "saut", "utilisateur", args.text)
+        entry = add_entry(state, stage["id"], "saut", "utilisateur", args.text)
+        args.superseded = len(supersede(state, stage["id"], entry)) or None
+        return entry
     else:
         stage["status"] = "en-cours"
         stage["inputs"] = consumed(state, stage["id"])
@@ -829,6 +877,7 @@ def review(args, folder: Path, state: dict, stage: dict, errors: list[str]) -> s
         args.archived = archive(folder, stage)
         entry = add_entry(state, stage["id"], "validation", "utilisateur", args.text,
                           refs=split(args.refs), files=list(stage["files"]), via=via)
+        args.superseded = len(supersede(state, stage["id"], entry)) or None
         found = impacts(state, stage, entry)
         args.impacts = found if found["redo"] or found["kept"] else None
         return entry
@@ -854,7 +903,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
     except (OSError, ValueError) as error:
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
-    info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0}
+    info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -872,6 +921,12 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
     if invalid:
         errors += [e.replace("description :", f"{STATE} :", 1) for e in invalid]
         return None, None
+    # Workflow rejoué avant l'archivage : chaque étape validée ne garde active que sa dernière version.
+    for stage in state["stages"]:
+        closing = next((e["id"] for e in reversed(state["entries"]) if e["stage"] == stage["id"]
+                        and e["kind"] == ("validation" if stage["status"] == "validee" else "saut")), None)
+        if stage["status"] in DONE and closing:
+            info["superseded"] += len(supersede(state, stage["id"], closing))
     memory = state.get("memory")
     if memory and not Path(memory["vault"]).is_dir():
         vault = workspace.vault_target(None, None, [folder], default_folder=None)[0]
@@ -1053,7 +1108,8 @@ def main() -> int:
         errors.append(str(error))
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
-                                                 or upgraded["journal"] or upgraded["links"]):
+                                                 or upgraded["journal"] or upgraded["links"]
+                                                 or upgraded["superseded"]):
         action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
@@ -1075,6 +1131,7 @@ def main() -> int:
                 "ask": ((state.get("definition") or {}).get("ask") or None) if state and args.command == "init" else None,
                 "memory": memory, "checks": checks, "upgrade": upgraded, "archived": getattr(args, "archived", None),
                 "cleaned": getattr(args, "cleaned", None) or None,
+                "superseded": getattr(args, "superseded", None),
                 "impacts": getattr(args, "impacts", None),
                 "annotations": getattr(args, "annotations", None) or None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,

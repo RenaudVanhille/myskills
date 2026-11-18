@@ -35,6 +35,17 @@ réécrire leurs livrables (schémas compris). Chaque version validée est gard�
 `.historique/ETAPE/DATE/` : les livrables se reprennent sur place, jamais
 de copie `.avant-*` ou `.v1` à côté.
 
+Le journal reste compact sur un workflow rejoué : à la validation (ou au
+saut) d'une étape, les entrées de ses versions précédentes (choix,
+hypothèses, passages, soumissions, retour ou invalidation qui l'a rouverte)
+et ses soumissions remplacées passent à `archive` dans `workflow.json`, avec
+l'entrée qui les remplace (`superseded_by`, rapport `superseded`). Rien
+n'est supprimé : `journal.md` les range dans une section « Archives »
+repliée, le vault n'en garde pas de note, `lessons.py` en lit toujours les
+retours. Une question ouverte, ou dont la réponse est active, reste active.
+Les identifiants ne sont jamais réattribués. Un journal
+rejoué avant cette règle s'allège par `upgrade DOSSIER --apply`.
+
 ## Mission
 
 - Nouvelle avant-vente ou revue hors mission : `mission.py init DOSSIER

@@ -103,7 +103,8 @@ def collect(folders: list[Path], errors: list[str], warnings: list[str]) -> list
                 errors.append(f"{directory / STATE} illisible : {error}")
                 continue
             stages = {s["id"]: s for s in (state.get("definition") or {}).get("stages", [])}
-            for entry in state.get("entries", []):
+            # Les retours des versions remplacées (archive) restent des leçons.
+            for entry in sorted(state.get("entries", []) + state.get("archive", []), key=lambda e: e.get("date", "")):
                 if entry.get("kind") != "retour":
                     continue
                 skills = stages.get(entry.get("stage"), {}).get("skills", [])
