@@ -19,8 +19,8 @@ PROGRESS = {"a-faire": "fill:#f3f4f6,stroke:#6b7280,color:#1f2937",
             "sautee": "fill:#ffffff,stroke:#d1d5db,color:#6b7280"}
 PROGRESS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "réalisée, en revue",
                    "validee": "validée", "a-reprendre": "à reprendre", "sautee": "sautée"}
-LEGEND = ("Bordure en tirets : étape facultative. Gris : à faire ; bleu : en cours ; orange : réalisée, "
-          "en revue ; vert : validée ; rouge : à reprendre ; blanc : sautée.")
+LEGEND = ("Bordure en tirets : étape facultative. Gris : à faire (à décider pour une facultative) ; bleu : en "
+          "cours ; orange : réalisée, en revue ; vert : validée ; rouge : à reprendre ; blanc : sautée.")
 
 
 def node(stage_id: str) -> str:
@@ -84,9 +84,76 @@ def progress_chart(stages: list[dict], status: dict[str, str], title: str,
     def detail(stage: dict) -> str:
         kind = "facultative" if stage.get("facultative") else "obligatoire"
         cause = (why or {}).get(stage["id"])
-        return f"{kind} · {PROGRESS_LABELS[status[stage['id']]]}" + (f" · {cause}" if cause else "")
+        shown = "à décider" if stage.get("facultative") and status[stage["id"]] == "a-faire" \
+            else PROGRESS_LABELS[status[stage["id"]]]
+        return f"{kind} · {shown}" + (f" · {cause}" if cause else "")
 
     classes = [(name.replace("-", "_"), style, [s["id"] for s in stages if status[s["id"]] == name])
                for name, style in PROGRESS.items()]
     classes.append(("facultative", OPTIONAL.split(" ", 2)[2], [s["id"] for s in stages if s.get("facultative")]))
     return [flowchart(stages, title, detail, classes), "", LEGEND]
+
+
+def label_of(state: dict, stage_id: str) -> str:
+    """Libellé d'une étape (sa définition), sinon son identifiant."""
+    found = next((s for s in (state.get("definition") or {}).get("stages", []) if s["id"] == stage_id), {})
+    return found.get("label") or stage_id
+
+
+def optional(state: dict, stage_id: str) -> bool:
+    return any(s["id"] == stage_id and s.get("facultative") for s in (state.get("definition") or {}).get("stages", []))
+
+
+def shown_status(state: dict, stage: dict) -> str:
+    """Statut lisible : une étape facultative pas encore choisie est « à décider », pas « à faire »."""
+    if stage["status"] == "a-faire" and optional(state, stage["id"]):
+        return "à décider"
+    return PROGRESS_LABELS[stage["status"]].replace("réalisée, ", "")
+
+
+def next_steps(state: dict) -> list[dict]:
+    """Ce qui fait avancer le workflow maintenant, dans l'ordre des étapes : qui (« vous » ou « agent »), l'étape et
+    une phrase courte. Une étape ne compte que si toutes celles dont elle dépend sont validées ou sautées."""
+    definitions = {d["id"]: d for d in (state.get("definition") or {}).get("stages", [])}
+    stages = [{**definitions.get(s["id"], {}), "id": s["id"]} for s in state.get("stages", [])]
+    status = {s["id"]: s["status"] for s in state.get("stages", [])}
+    needs = {s["id"]: requires(stages, i) for i, s in enumerate(stages)}
+
+    def free(stage_id: str, seen: frozenset = frozenset()) -> bool:
+        return all(status.get(n) in ("validee", "sautee") and n not in seen and free(n, seen | {stage_id})
+                   for n in needs.get(stage_id, []))
+
+    why = causes(state)
+    steps = []
+    for stage in state.get("stages", []):
+        name, current = stage["id"], stage["status"]
+        label = f"« {label_of(state, name)} »"
+        if current == "en-revue":
+            steps.append({"who": "vous", "stage": name, "text": f"relire et valider {label}"})
+        elif current == "en-cours":
+            steps.append({"who": "agent", "stage": name, "text": f"produire {label}"})
+        elif current in ("a-faire", "a-reprendre") and free(name):
+            if current == "a-reprendre":
+                cause = f" ({why[name]})" if name in why else ""
+                steps.append({"who": "agent", "stage": name, "text": f"reprendre {label}{cause}"})
+            elif optional(state, name):
+                steps.append({"who": "vous", "stage": name, "text": f"dire si vous voulez l'étape facultative {label}"})
+            else:
+                steps.append({"who": "agent", "stage": name, "text": f"démarrer {label}"})
+    entries = state.get("entries", [])
+    answered = {r for e in entries if e.get("kind") == "reponse" for r in e.get("refs", [])}
+    waiting = sum(1 for e in entries if e.get("kind") == "question" and e["id"] not in answered)
+    if waiting:
+        steps.append({"who": "vous", "stage": None, "text": "répondre à " + (
+            "la question ouverte" if waiting == 1 else f"{waiting} questions ouvertes")})
+    return steps
+
+
+def steps_lines(steps: list[dict], link=None) -> list[str]:
+    """Liste Markdown des prochaines étapes, celles de l'utilisateur d'abord ; `link(step)` peut remplacer le
+    texte d'une étape (note de revue, fichiers soumis)."""
+    if not steps:
+        return ["- Workflow terminé : toutes les étapes sont validées ou sautées."]
+    ordered = [s for s in steps if s["who"] == "vous"] + [s for s in steps if s["who"] != "vous"]
+    return [f"- **{'À vous' if s['who'] == 'vous' else 'Agent'}** : {(link(s) if link else None) or s['text']}"
+            for s in ordered]

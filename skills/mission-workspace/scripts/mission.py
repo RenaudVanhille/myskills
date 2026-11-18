@@ -247,6 +247,7 @@ def workflow_rows(root: Path, mission: dict, warnings: list[str]) -> list[dict]:
         report = run_script("decision-log", "journal.py", ["status", folder])
         warnings += [f"{flow['folder']} : {e}" for e in report.get("errors", [])]
         row["current"], row["questions"] = report.get("current"), report.get("questions", 0)
+        row["todo"] = report.get("todo", [])
         for status in report.get("stages", {}).values():
             row["stages"][status] = row["stages"].get(status, 0) + 1
         row["modified"] = [w for w in report.get("warnings", []) if "modifiés après validation" in w]
@@ -363,12 +364,18 @@ def write_note(root: Path, mission: dict, flows: list[dict], repos: list[dict], 
                                  v.count(len(opened), "contrôle de cohérence ouvert", "contrôles de cohérence ouverts")
                                  + (f", dont {v.number(high)} de gravité haute" if high else ""),
                                  ["Détail dans la section « Contrôles de cohérence »."])[:-1]
-    body += ["", "## Workflows", "", "| Workflow | Dossier | Étape courante | Étapes | Questions |",
-             "| --- | --- | --- | --- | --- |"]
+    # Ce qui fait avancer la mission, en tête : qui fait quoi, avec les libellés des étapes (journal.py status).
+    todo = [f"- {flow.get('title') or flow['definition']} : {line}" if len(flows) > 1 else f"- {line}"
+            for flow in flows for line in flow.get("todo", [])]
+    if todo:
+        body += [""] + v.callout("todo", "À faire maintenant", todo)[:-1]
+    nested = any(flow["folder"] != "." for flow in flows)  # la colonne Dossier n'apprend rien si tout est à la racine
+    body += ["", "## Workflows", "", "| Workflow |" + (" Dossier |" if nested else "") + " Étapes |",
+             "| --- |" + (" --- |" if nested else "") + " --- |"]
     for flow in flows:
         name = f"[[{flow['index']}\\|{flow.get('title') or flow['definition']}]]" if flow["index"] else flow["definition"]
         stages = ", ".join(f"{n} {v.label(notes.onto, s)}" for s, n in sorted(flow["stages"].items())) or "non démarré"
-        body.append(f"| {name} | {flow['folder']} | {flow['current'] or '-'} | {stages} | {flow['questions']} |")
+        body.append(f"| {name} |" + (f" {flow['folder']} |" if nested else "") + f" {stages} |")
     if repos:
         body += ["", "## Dépôts", "", "| Dépôt | Composant | Commit figé | Commit actuel |", "| --- | --- | --- | --- |"]
         body += [f"| {r['name']} | {r['component'] or '-'} | {(r['commit'] or '-')[:12]} | "

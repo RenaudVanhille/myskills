@@ -124,7 +124,7 @@ from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa:
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
-from lib.workflow_chart import causes, progress_chart  # noqa: E402
+from lib.workflow_chart import causes, label_of, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
 from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
 
@@ -630,10 +630,21 @@ def render(state: dict, folder: Path | None = None) -> str:
     link = linker(folder, state) if folder else (lambda ref, code=False: f"`{ref}`" if code else ref)
     lines = [f"# Journal : {state['title']}", "",
              "Fichier généré par `journal.py` depuis `workflow.json`, qui fait foi.", "",
-             "## Étapes", "", "| Étape | Statut | Fichiers soumis |", "| --- | --- | --- |"]
-    for stage in state["stages"]:
-        files = ", ".join(link(f, code=True) for f in stage.get("files", {})) or "-"
-        lines.append(f"| {stage['id']} | {STATUS_LABELS[stage['status']]} | {files} |")
+             "## À faire maintenant", ""]
+    files_of = {s["id"]: ", ".join(link(f, code=True) for f in s.get("files", {})) for s in state["stages"]}
+    lines += steps_lines(next_steps(state), lambda step: f"{step['text']} : {files_of[step['stage']]}"
+                         if step["stage"] and files_of[step["stage"]] and step["who"] == "vous" else None)
+    lines += ["", "## Étapes", "", "| N° | Étape | Statut | Fichiers soumis |", "| --- | --- | --- | --- |"]
+    aside = []  # étapes facultatives pas choisies ou sautées : repliées, hors du tableau
+    for number, stage in enumerate(state["stages"], 1):
+        label, status = label_of(state, stage["id"]).replace("|", "\\|"), shown_status(state, stage)
+        if optional(state, stage["id"]) and stage["status"] in ("a-faire", "sautee"):
+            aside.append(f"> - {number}. {label} : {status}")
+            continue
+        lines.append(f"| {number} | {label} | {status} | {files_of[stage['id']] or '-'} |")
+    if aside:
+        lines += ["", f"> [!note]- {len(aside)} étape{'s' if len(aside) > 1 else ''} facultative"
+                  f"{'s' if len(aside) > 1 else ''} à décider ou sautée{'s' if len(aside) > 1 else ''}", ">"] + aside
     lines += ["", "## Avancement", ""] + chart(state)
     lines += ["", "## Décisions", "",
               "| ID | Date | Étape | Type | Par | Texte | Justification | Concerne |",
@@ -1240,7 +1251,10 @@ def main() -> int:
                 "cleaned": getattr(args, "cleaned", None) or None,
                 "superseded": getattr(args, "superseded", None),
                 "impacts": getattr(args, "impacts", None),
-                "annotations": getattr(args, "annotations", None) or None}
+                "annotations": getattr(args, "annotations", None) or None,
+                # Pour l'utilisateur (Mission.md, réponse de l'agent) : qui fait quoi maintenant, avec les libellés.
+                "todo": [line[2:] for line in steps_lines(next_steps(state))]
+                if state and args.command == "status" else None}
     report = {"workflow": str(args.folder / STATE), "command": args.command,
               "stages": {s["id"]: s["status"] for s in state["stages"]} if state else {},
               "current": current, "next": action, "ready": startable,

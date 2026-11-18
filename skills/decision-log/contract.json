@@ -37,7 +37,7 @@
       },
       "report": {
         "format": "json",
-        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived, impacts) sont omis.",
+        "description": "Statut de chaque étape, étape courante, prochaine action attendue, entrée créée, nombre de questions, annotations de l'utilisateur relues dans le vault, erreurs (ordre des étapes ou porte de revue non respectés) et avertissements (fichier validé modifié). Les champs sans valeur (entry, changes, stage, ask, memory, checks, annotations, archived, impacts, todo) sont omis. Pour status, todo dit qui fait quoi maintenant, avec les libellés des étapes.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
@@ -447,6 +447,11 @@
                 }
               },
               "description": "review --decision valide d'une étape reprise : étapes commencées qui en dépendent, remises à reprendre parce qu'une de leurs entrées a changé (redo) ou laissées telles quelles (kept) ; omis sinon."
+            },
+            "todo": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "status seulement : ce qui fait avancer le workflow maintenant, avec les libellés des étapes (« **À vous** : relire et valider « Catalogue des exigences » », « **Agent** : démarrer … »), celles de l'utilisateur d'abord."
             }
           }
         }
