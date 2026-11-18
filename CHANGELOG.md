@@ -1,5 +1,25 @@
 # Journal des versions
 
+## [2.2.0](https://github.com/RenaudVanhille/myskills/compare/v2.1.0...v2.2.0) (2026-11-18)
+
+
+### Ajouts
+
+* **decision-log:** après un retour, ne reprendre que les étapes dont une entrée a changé ([#126](https://github.com/RenaudVanhille/myskills/issues/126)) ([c8e6ef0](https://github.com/RenaudVanhille/myskills/commit/c8e6ef02051a731dd203d76c0d20a27fd167ae17))
+* **decision-log:** archive des entrées des versions remplacées d'une étape rejouée ([#133](https://github.com/RenaudVanhille/myskills/issues/133)) ([7151993](https://github.com/RenaudVanhille/myskills/commit/71519932c49972ad0e6ee1398971dd41805963e3))
+* **decision-log:** cause d'une étape à reprendre dans le schéma d'avancement ([#132](https://github.com/RenaudVanhille/myskills/issues/132)) ([16db928](https://github.com/RenaudVanhille/myskills/commit/16db928ab5e7db6411972ccd1838f9af0a9f6825))
+* **decision-log:** écart avec la version relue en tête de la note de revue du vault ([#130](https://github.com/RenaudVanhille/myskills/issues/130)) ([2180628](https://github.com/RenaudVanhille/myskills/commit/218062832d81a7ad722ad45cb559f9c333926bed))
+* **decision-log:** questions du journal closes par une réponse ([#128](https://github.com/RenaudVanhille/myskills/issues/128)) ([2f73e83](https://github.com/RenaudVanhille/myskills/commit/2f73e8351855bbb9c2707e3b20b0f3a0c9d7ba6b))
+* **decision-log:** suivi des entrées venues d'un autre workflow (../) ([#131](https://github.com/RenaudVanhille/myskills/issues/131)) ([e3a4216](https://github.com/RenaudVanhille/myskills/commit/e3a42164de69deef14343dea3a246175ff6cf46e))
+* **mission-workspace:** dépôt git local par mission, un commit par étape validée ([#129](https://github.com/RenaudVanhille/myskills/issues/129)) ([5f2c00d](https://github.com/RenaudVanhille/myskills/commit/5f2c00d31237ab8e3d855923cd387fe4ec68a179))
+* **mission-workspace:** versions validées dans .historique et rangement des copies (tidy) ([#124](https://github.com/RenaudVanhille/myskills/issues/124)) ([29b22bc](https://github.com/RenaudVanhille/myskills/commit/29b22bcae985cad5191fb8dd98fe4814442969ce))
+* **orientation:** mise à niveau et rangement des missions sans question, état d'avant gardé ([#134](https://github.com/RenaudVanhille/myskills/issues/134)) ([032f741](https://github.com/RenaudVanhille/myskills/commit/032f7419f169e50be2fdbf0b5a7498987280a11c))
+
+
+### Coût et performances
+
+* **decision-log:** fichiers de travail dans .myskills-tmp de la mission, vidé à la soumission ([#127](https://github.com/RenaudVanhille/myskills/issues/127)) ([e26a4cd](https://github.com/RenaudVanhille/myskills/commit/e26a4cdc8e2771c26a32c051e5e26f0e9ee1d9c2))
+
 ## [2.1.0](https://github.com/RenaudVanhille/myskills/compare/v2.0.0...v2.1.0) (2026-11-17)
 
 
