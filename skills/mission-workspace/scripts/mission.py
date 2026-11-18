@@ -41,11 +41,15 @@ qu'on le leur donne.
 - upgrade remet une mission ouverte avec une version antérieure au niveau
   des scripts actuels : chaque workflow (journal.py upgrade : définition
   livrée reprise sans perdre l'avancement, journal.md, liens des livrables,
-  mémoire du vault refaite), couleurs et modèles de notes du vault s'ils y
+  mémoire du vault refaite, entrées des versions remplacées archivées,
+  empreinte des entrées ../), couleurs et modèles de notes du vault s'ils y
   étaient déjà installés, dépôt git de la mission s'il manque, puis le
-  point de status. À blanc par défaut : le
-  rapport (`upgrade`) dit ce qui changerait et rien n'est écrit ; `--apply`
-  l'écrit. Rejouable : une deuxième passe ne change plus rien.
+  point de status. À blanc par défaut : le rapport (`upgrade`, phrase
+  `summary`) dit ce qui changerait et rien n'est écrit ; `--apply` garde
+  d'abord l'état d'avant (commit `before` du dépôt git de la mission, créé
+  s'il manque, sinon copie dans .historique/upgrade-DATE/), écrit, puis
+  fait le commit de l'état d'après : la mise à niveau se défait. Rejouable :
+  une deuxième passe ne change plus rien.
 - tidy range ce qui encombre la mission hors des livrables : copies de
   sauvegarde laissées à côté d'un livrable (chiffrage.avant-droits.csv,
   presentation.v1-sans-tjm.pptx, revue.json.bak : un segment du nom marque
@@ -404,9 +408,66 @@ def shared(root: Path, mission: dict, command: str, warnings: list[str]) -> dict
             "conflicts": len(found.get("conflicts", []))}
 
 
+def snapshot(root: Path, mission: dict, warnings: list[str]) -> tuple[str | None, str]:
+    """Garde l'état d'avant la mise à niveau : commit du dépôt git de la mission (créé s'il manque), sinon copie de
+    mission.json et de l'état de chaque workflow dans .historique/. Rend (commit ou dossier, état du dépôt)."""
+    if workspace.has_git(root):
+        workspace.git_commit(root, mission, "avant(upgrade): état avant la mise à niveau")
+        return workspace._git(root, "rev-parse", "--short", "HEAD").stdout.strip() or None, "present"
+    commit, warning = workspace.git_init(root, mission)
+    if commit or workspace.has_git(root):
+        return commit, "cree"
+    if warning:
+        warnings.append(warning)
+    target = Path(workspace.HISTORY) / f"upgrade-{datetime.datetime.now().strftime('%Y-%m-%dT%H%M%S')}"
+    kept = [Path(workspace.MISSION)] + [Path(f["folder"]) / name for f in workspace.workflows(mission)
+                                        for name in (workspace.STATE, "journal.md")]
+    for rel in kept:
+        if (root / rel).is_file():
+            (root / target / rel).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(root / rel, root / target / rel)
+    return target.as_posix(), "absent"
+
+
+def summary(done: dict) -> str:
+    """Une phrase : ce que la mise à niveau change (à blanc) ou a changé (--apply)."""
+    count = vault_ontology.count
+    parts = []
+    for row in done["workflows"]:
+        found = []
+        definition = row["definition"] or {}
+        for key, one, many in (("added", "étape ajoutée", "étapes ajoutées"),
+                               ("removed", "étape retirée", "étapes retirées"),
+                               ("updated", "étape mise à jour", "étapes mises à jour")):
+            if definition.get(key):
+                found.append(f"{count(len(definition[key]), one, many)} ({', '.join(definition[key])})")
+        if row["superseded"]:
+            found.append(f"{count(row['superseded'], 'entrée archivée', 'entrées archivées')}")
+        if row["external"]:
+            found.append(f"entrées ../ suivies pour {count(row['external'], 'étape')}")
+        if row["vault"]:
+            found.append("vault retrouvé")
+        if row["links"]:
+            found.append(f"{count(row['links'], 'livrable lié', 'livrables liés')}")
+        if row["journal"]:
+            found.append("journal.md réécrit")
+        if found:
+            where = "" if row["folder"] == "." else f" ({row['folder']})"
+            name = f" {definition['name']}" if definition.get("name") else ""
+            parts.append(f"workflow{name}{where} : {', '.join(found)}")
+    if done["git"] != "present":
+        parts.append("dépôt git de la mission " + ("créé" if done["git"] == "cree" else "à créer"
+                                                    if not done["applied"] else "absent"))
+    return " ; ".join(parts) or "rien à changer"
+
+
 def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[str]) -> dict:
     """Mise à niveau de chaque workflow de la mission (journal.py upgrade) puis, avec --apply, des couleurs et
-    des modèles de notes du vault quand ils y sont déjà (jamais installés d'office)."""
+    des modèles de notes du vault quand ils y sont déjà (jamais installés d'office). Avec --apply, l'état d'avant
+    est gardé d'abord (snapshot) et l'état d'après fait l'objet d'un commit : la mise à niveau se défait."""
+    before, git = None, "present" if workspace.has_git(root) else "absent"
+    if args.apply:
+        before, git = snapshot(root, mission, warnings)
     rows = []
     for flow in workspace.workflows(mission):
         folder = root / flow["folder"]
@@ -420,6 +481,7 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
             done = report["upgrade"]
             rows.append({"folder": flow["folder"], "definition": done["definition"], "vault": done["vault"],
                          "journal": done["journal"], "links": done["links"],
+                         "superseded": done.get("superseded", 0), "external": done.get("external", 0),
                          "notes": (report.get("memory") or {}).get("notes")})
     vault = workspace.path_of(root, mission, "vault")
     style = (vault / ".obsidian" / "snippets" / f"{vault_ontology.SNIPPET}.css").is_file()
@@ -433,14 +495,8 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
                 vault_ontology.write_style(onto, vault)
             if templates:
                 vault_ontology.write_templates(onto, vault, folder)
-    git = "present" if workspace.has_git(root) else "absent"
-    if args.apply and not errors and git == "absent":
-        commit, warning = workspace.git_init(root, mission)
-        git = "cree" if commit or workspace.has_git(root) else "absent"
-        if warning:
-            warnings.append(warning)
     return {"applied": bool(args.apply and not errors), "workflows": rows, "style": style, "templates": templates,
-            "git": git}
+            "git": git, "before": before}
 
 
 def original_of(path: Path) -> Path | None:
@@ -503,8 +559,9 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
-    return done.get("git") == "absent" or any(w["journal"] or w["links"] or w["vault"]
-                                              or (w["definition"] or {}).get("changed") for w in done["workflows"])
+    return done.get("git") == "absent" or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
+                                              or w["external"] or (w["definition"] or {}).get("changed")
+                                              for w in done["workflows"])
 
 
 def main() -> int:
@@ -584,11 +641,12 @@ def main() -> int:
     if mission and args.command == "upgrade":
         report["upgrade"] = upgrade(args, root, mission, errors, warnings)
         report["upgrade"]["pending"] = not report["upgrade"]["applied"] and pending(report["upgrade"])
+        report["upgrade"]["summary"] = summary(report["upgrade"])
         if not report["upgrade"]["applied"]:  # à blanc : le point de status écrirait dans le vault
             report.update({"mission": str(root / workspace.MISSION), "nature": mission["nature"],
                            "vault": str(workspace.path_of(root, mission, "vault"))})
             if not errors:
-                report["next"] = ("montrer ces changements à l'utilisateur, puis relancer mission.py upgrade --apply"
+                report["next"] = ("mission.py upgrade --apply : l'état d'avant est gardé (commit git, sinon .historique/)"
                                   if report["upgrade"]["pending"] else
                                   "mission à niveau ; mission.py upgrade --apply refait quand même la mémoire du vault")
             mission = None
@@ -623,6 +681,9 @@ def main() -> int:
             if found["copies"] or found["work"]:
                 warnings.append(f"{len(found['copies'])} copie(s) de sauvegarde et {len(found['work'])} dossier(s) de "
                                 "travail à ranger hors des livrables : mission.py tidy (à blanc, puis --apply)")
+        if args.command == "upgrade" and report["upgrade"]["applied"]:
+            # En dernier : le commit prend la mission mise à niveau, note et mémoire comprises.
+            report["upgrade"]["commit"] = workspace.git_commit(root, mission, "upgrade(mission): mise à niveau myskills")
         if mission["nature"] == "revue" and not mission.get("repos"):
             warnings.append("revue sans dépôt : ajoutez le code avec mission.py repo (un par service)")
     if args.command == "init" and root is not None and not errors and not args.no_git:

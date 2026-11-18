@@ -307,7 +307,8 @@
                 "vault",
                 "journal",
                 "links",
-                "superseded"
+                "superseded",
+                "external"
               ],
               "additionalProperties": false,
               "properties": {
@@ -393,6 +394,11 @@
                   "type": "integer",
                   "minimum": 0,
                   "description": "Livrables Markdown qui reçoivent des liens."
+                },
+                "external": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Étapes commencées avant le suivi des entrées extérieures (../) qui reçoivent leur empreinte de départ."
                 }
               }
             },

@@ -50,7 +50,7 @@ a-faire --start--> en-cours --submit--> en-revue --review valide--> validee
 | `handoff DOSSIER --file M.json` | avant d'envoyer un message de passage | message non conforme, fichier introuvable |
 | `report DOSSIER --file R.json` | avant de rendre le rapport final d'un agent | rapport non conforme, fichier introuvable |
 | `status DOSSIER` | pour reprendre un workflow | - |
-| `upgrade DOSSIER [--apply] [--keep-definition]` | workflow d'une version antérieure : à blanc, puis `--apply` si l'utilisateur accepte | définition introuvable ou invalide |
+| `upgrade DOSSIER [--apply] [--keep-definition]` | workflow d'une version antérieure : à blanc, puis `--apply` (dans une mission : `mission.py upgrade`, qui garde l'état d'avant) | définition introuvable ou invalide |
 
 Le rapport donne toujours `current` (étape courante) et `next` (prochaine
 action) : suivez `next`, ne le déduisez pas vous-même. À une nouvelle

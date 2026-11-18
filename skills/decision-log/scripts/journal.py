@@ -939,7 +939,8 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
     except (OSError, ValueError) as error:
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
-    info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0}
+    info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0,
+            "external": 0}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -978,6 +979,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         if stage["status"] in ("en-cours", "en-revue", "validee") and "external" not in stage \
                 and (found := external(folder, state, stage["id"])):
             stage["external"] = found
+            info["external"] += 1
     info["journal"] = render(state, folder) != written
     info["links"] = link_deliverables(folder, state, write=False)
     return state, info
