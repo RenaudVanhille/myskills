@@ -1,0 +1,8 @@
+{
+  "name": "enfant",
+  "title": "Restitution d'un dossier validé",
+  "description": "Workflow enfant qui lit les exigences du workflow parent.",
+  "stages": [
+    {"id": "messages", "label": "Messages clés", "level": "simple", "inputs": ["../exigences.json"], "deliverables": ["messages.md"]}
+  ]
+}
