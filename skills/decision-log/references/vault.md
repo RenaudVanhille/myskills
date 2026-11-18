@@ -25,7 +25,10 @@ Pour choisir le dossier, lisez d'abord le profil du vault
 Une étape soumise a sa note de revue (`Revues/Revue <étape>`) : l'utilisateur
 y met la propriété `revue` à `validée` ou `retour` et écrit son retour sous
 « Votre retour » ; `review --from-vault` la lit et trace la décision comme
-prise dans Obsidian.
+prise dans Obsidian. Après un retour, elle s'ouvre sur « Ce qui a changé
+depuis la version relue » : le retour traité, les éléments ajoutés, modifiés
+(liés à leur note) et retirés, et les fichiers changés, pour ne relire que
+l'écart.
 
 Les autres notes sont générées (`genere: decision-log`) et réécrites à chaque
 passage, sauf leur section « Mes notes », toujours gardée : l'utilisateur y

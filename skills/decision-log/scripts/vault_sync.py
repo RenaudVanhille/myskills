@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import source_docs  # noqa: E402
-from lib.workflow_chart import progress_chart  # noqa: E402
+from lib.workflow_chart import causes, progress_chart  # noqa: E402
 from skill_paths import require_module, schema_of  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
@@ -562,6 +562,27 @@ class _Sync:
             return None
         return "doc:" + doc if doc in self.docs else None
 
+    def change_lines(self, stage: dict, submission: dict, rel: str) -> list[str]:
+        """Écart avec la version relue, en tête de la note de revue : le retour qu'il traite, puis les éléments
+        ajoutés, modifiés et retirés (liés à leur note) et les fichiers changés, pour ne relire que lui."""
+        changes = submission.get("changes")
+        if not changes:
+            return []
+        lines = ["## Ce qui a changé depuis la version relue", ""]
+        before = self.state["entries"][:self.state["entries"].index(submission)]
+        feedback = next((e for e in reversed(before) if e["stage"] == stage["id"] and e["kind"] == "retour"), None)
+        if feedback:
+            lines += vault_ontology.callout("quote", f"Votre retour {self.link(feedback['id'])}", [feedback["text"]])
+        for key, label in (("added", "Ajoutés"), ("modified", "Modifiés")):
+            if changes.get(key):
+                lines.append(f"- **{label}** : " + ", ".join(self.link(i) for i in changes[key]))
+        if changes.get("removed"):
+            lines.append("- **Retirés** : " + ", ".join(changes["removed"]))
+        if changes.get("files"):
+            lines.append("- **Fichiers changés** : " + ", ".join(
+                self.file_link(f, rel) if (self.folder / f).is_file() else f"`{f}`" for f in changes["files"]))
+        return lines + [""]
+
     def stage_notes_(self) -> None:
         """Une note par étape soumise : ses livrables, images et Markdown copiés dans Fichiers/ et intégrés."""
         labels, files_dir = self.labels, self.files_dir
@@ -614,6 +635,7 @@ class _Sync:
                      or f"{files_dir}/{f}" in self.copies else f"`{f}`" for f in stage.get("files", {})]
             body = [f"# Revue de l'étape {labels.get(stage['id'], stage['id'])}", "", self.up, ""]
             body += vault_ontology.callout("todo", "À vous de relire", REVIEW_HELP)
+            body += self.change_lines(stage, submission, rel)
             body += [f"Soumission {self.link(submission['id'])} : {submission['text']}.", "", "**Fichiers** : "
                      + ", ".join(shown), "", "## Votre retour", "", feedback]
             self.typed(rel, "revue", {"etape": stage["id"], "soumission": submission["id"]}, body)
@@ -632,7 +654,7 @@ class _Sync:
         stages = [next((d for d in (self.definition or {}).get("stages", []) if d["id"] == s["id"]),
                        {"id": s["id"]}) for s in state["stages"]]
         body += ["", "## Avancement", ""] + progress_chart(
-            stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"])
+            stages, {s["id"]: s["status"] for s in state["stages"]}, state["title"], causes(state))
         if self.reviews:
             body += [""] + vault_ontology.callout("todo", "Revues en attente", [
                 f"- [[{rel}|{rel.rsplit('/', 1)[-1]}]]" for rel in self.reviews])[:-1]
