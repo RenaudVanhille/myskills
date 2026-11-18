@@ -27,7 +27,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 - **Reçoit** : Un dossier de projet : documents/ (cahiers des charges, comptes rendus, spécifications en PDF, Office, Markdown ou images), ou le dossier d'une mission (mission.json, skill mission-workspace) avec son vault, ses documents et ses dépôts ; Le workflow à suivre (architecture par défaut, ou une définition de skills/decision-log/workflows/) et ce que son champ ask demande (vault Obsidian, POS du SI...) ; À chaque porte de revue, la réponse de l'utilisateur : validation ou retour.
 - **Produit** : Les livrables de chaque étape de la définition, contrôlés par ses checks (par défaut : sources/*.md, catalogue d'exigences, 2 ou 3 options et la décision, schémas, puis au choix revue, chiffrage et dossier d'architecture technique) ; workflow.json et journal.md : état des étapes, choix, questions, retours et validations ; Dans le vault Obsidian, mémoire partagée : les notes de chaque étape et une note d'index, reliées par des wikilinks.
 - **Ne fait jamais** : Démarrer une étape avant la validation explicite, par l'utilisateur, de celles dont elle dépend (ou son renoncement à une étape facultative) ; Valider une étape à la place de l'utilisateur ; Modifier les documents d'origine de documents/ ; Écrire workflow.json, journal.md, les catalogues Markdown ou le XML draw.io à la main.
-- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée dans `.historique/`. Les fichiers de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; sinon, supprime-le avant de rendre la main.
+- **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée (commit du dépôt git de la mission, sinon `.historique/`). Les fichiers de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; sinon, supprime-le avant de rendre la main.
 - **Passe la main** :
 
 | Agent | Quand | À transmettre |
@@ -118,7 +118,8 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
    `partiel`, « revue de l'étape <étape> » dans `todo`.
 6. **Retour sur une étape validée** : `review --decision retour`, puis
    suis `references/moteur.md` (skill `decision-log`). La version validée
-   est déjà dans `.historique/ETAPE/` : reprends les livrables sur place.
+   est déjà gardée (commit `valide(ETAPE)` du dépôt git de la mission,
+   sinon `.historique/ETAPE/`) : reprends les livrables sur place.
    Ne relance que les étapes de `impacts.redo` ; celles de `impacts.kept`
    restent validées, sans rien réécrire.
 7. **Fin** : quand `status` dit que tout est validé, livre le rapport final
