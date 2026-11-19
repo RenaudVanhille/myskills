@@ -1,5 +1,15 @@
 # Journal des versions
 
+## [2.4.0](https://github.com/RenaudVanhille/myskills/compare/v2.3.0...v2.4.0) (2026-11-19)
+
+
+### Ajouts
+
+* **decision-log:** « À faire maintenant » en tête du journal et de la mission, étapes par libellé ([#137](https://github.com/RenaudVanhille/myskills/issues/137)) ([523b334](https://github.com/RenaudVanhille/myskills/commit/523b33498b4b53469e0fd1fbf8c2265def952b2d))
+* **decision-log:** décisions du journal dans la note de leur étape du vault, plus de note par décision ([#139](https://github.com/RenaudVanhille/myskills/issues/139)) ([1cf60c2](https://github.com/RenaudVanhille/myskills/commit/1cf60c209dcdf9d27b3b477071f9a45490e71fb7))
+* **decision-log:** décisions du journal groupées par étape, constats de la mission courts ([#138](https://github.com/RenaudVanhille/myskills/issues/138)) ([d62ce9c](https://github.com/RenaudVanhille/myskills/commit/d62ce9c7aa31cc2aed39ca1f0b482ac9192c899b))
+* **decision-log:** fichiers machine des missions rangés dans donnees/ ([#140](https://github.com/RenaudVanhille/myskills/issues/140)) ([39d9139](https://github.com/RenaudVanhille/myskills/commit/39d9139b1ab26b0161c72f962b0c0560ed9da908))
+
 ## [2.3.0](https://github.com/RenaudVanhille/myskills/compare/v2.2.0...v2.3.0) (2026-11-18)
 
 
