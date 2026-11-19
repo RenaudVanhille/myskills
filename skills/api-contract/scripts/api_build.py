@@ -47,6 +47,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, schema_option, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 
 TYPES = {"string": {"type": "string"}, "integer": {"type": "integer"}, "number": {"type": "number"},
          "boolean": {"type": "boolean"}, "date": {"type": "string", "format": "date"},
@@ -285,7 +286,7 @@ def requirements(spec: dict, base: Path, errors: list[str], warnings: list[str])
             warnings.append("exigences citées sans requirements (exigences.json) : non vérifiées")
         return None
     try:
-        data = json.loads((base / spec["requirements"]).read_text(encoding="utf-8"))
+        data = json.loads((from_data(base, spec["requirements"])).read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         errors.append(f"requirements : {spec['requirements']} illisible ({error})")
         return None
@@ -580,7 +581,7 @@ def main() -> int:
             errors.append(f"{path.name} : relecture différente du document écrit")
         errors += [f"{path.name} : $ref « {ref} » sans cible" for ref in refs_of(reread or {}, []) if not resolve(reread, ref)]
         outputs.append(path)
-    summary = out_dir / f"{stem}.api.md"
+    summary = beside(out_dir / f"{stem}.api.md")
     summary.write_text(markdown(spec, covered, uncovered, outputs), encoding="utf-8")
     report["outputs"] = [str(p) for p in [*outputs, summary]]
     print(json.dumps(report, ensure_ascii=False))

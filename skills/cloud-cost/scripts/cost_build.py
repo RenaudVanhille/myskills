@@ -38,6 +38,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, require_file, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 GRID = HERE.parent / "references" / "prix.json"
@@ -60,7 +61,7 @@ def money(value: float, currency: str) -> str:
 
 
 def load_grid(spec: dict, base: Path, errors: list[str]) -> dict | None:
-    path = (base / spec["prices"]) if spec.get("prices") else GRID
+    path = (from_data(base, spec["prices"])) if spec.get("prices") else GRID
     try:
         grid = json.loads(path.read_text(encoding="utf-8"))
         grid["services"], grid["providers"]  # noqa: B018 - forme minimale
@@ -271,7 +272,7 @@ def main() -> int:
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.name.removesuffix(".json")
-    md, table = out_dir / f"{stem}.md", out_dir / f"{stem}.csv"
+    md, table = beside(out_dir / f"{stem}.md"), out_dir / f"{stem}.csv"
     md.write_text(render(spec, results, currency), encoding="utf-8")
     write_csv(table, results)
     report["errors"] = verify_csv(table, results)

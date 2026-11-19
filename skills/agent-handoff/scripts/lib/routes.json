@@ -293,13 +293,13 @@
     "document"
    ],
    "inputs": [
-    "../options.json",
-    "../decision.json",
-    "../exigences.json",
+    "../donnees/options.json",
+    "../donnees/decision.json",
+    "../donnees/exigences.json",
     "../adr-architecture.md",
     "../chiffrage.md",
     "../revue.md",
-    "../*.parcours.json"
+    "../donnees/*.parcours.json"
    ],
    "match": "Décision attendue et messages architecture-dossier diagram-brief Schémas pour le public visé Support de présentation architecture-deck Vue par parcours utilisateur solution-estimate Document de restitution architecture-dossier comité de direction décideurs présentation public non technique option retenue client PO BA lisible métier"
   },

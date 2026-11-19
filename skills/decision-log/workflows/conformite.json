@@ -8,7 +8,7 @@
     "le responsable du traitement et le délégué à la protection des données (sans réponse : à compléter au registre)"
   ],
   "memory": {
-    "requirements": "exigences.json"
+    "requirements": "donnees/exigences.json"
   },
   "stages": [
     {
@@ -24,29 +24,29 @@
         "sources/*.md"
       ],
       "deliverables": [
-        "exigences.json",
+        "donnees/exigences.json",
         "exigences.md"
       ],
       "optional": [
-        "exigences.candidats.json",
-        "exigences.csv",
-        "exigences.tri.json",
+        "donnees/exigences.candidats.json",
+        "donnees/exigences.csv",
+        "donnees/exigences.tri.json",
         "sources/*.md"
       ],
       "checks": [
         "doc-to-markdown : convert.py <documents> --out sources, puis validate.py sources (documents hors Markdown seulement)",
-        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
+        "requirements-catalog : req_build.py donnees/exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (donnees/exigences.tri.json), puis req_build.py donnees/exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
       ],
       "run": [
         {
           "skill": "requirements-catalog",
           "script": "req_build.py",
           "args": [
-            "exigences.json"
+            "donnees/exigences.json"
           ]
         }
       ],
-      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire exigences.json (req_build.py exigences.json --draft en donne le brouillon, une exigence par phrase normative, à trier) en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
+      "instructions": "Convertir d'abord les documents qui ne sont pas en Markdown (vision ou plus de 5 documents : document-extractor). Écrire donnees/exigences.json (req_build.py donnees/exigences.json --draft en donne le brouillon, une exigence par phrase normative, à trier) en gardant les exigences de sécurité, de protection des données, d'hébergement et de réversibilité avec leur numérotation ; chaque exigence déduite se note au journal."
     },
     {
       "id": "description",
@@ -60,7 +60,7 @@
       "inputs": [
         "schemas/architecture.json",
         "infra/**/*",
-        "exigences.json"
+        "donnees/exigences.json"
       ],
       "deliverables": [
         "schemas/architecture.json",
@@ -100,7 +100,7 @@
       "agent": "architecture-reviewer",
       "inputs": [
         "schemas/architecture.json",
-        "exigences.json"
+        "donnees/exigences.json"
       ],
       "deliverables": [
         "schemas/architecture.threats.md",
@@ -153,29 +153,29 @@
       ],
       "agent": "architecture-reviewer",
       "inputs": [
-        "exigences.json",
+        "donnees/exigences.json",
         "schemas/architecture.json",
         "schemas/architecture.threats.md"
       ],
       "deliverables": [
-        "aipd.json",
+        "donnees/aipd.json",
         "aipd.registre.md",
         "aipd.aipd.md"
       ],
       "checks": [
-        "data-protection : dpia_build.py aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)"
+        "data-protection : dpia_build.py donnees/aipd.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; mesures reliées aux exigences et aux menaces)"
       ],
       "run": [
         {
           "skill": "data-protection",
           "script": "dpia_build.py",
           "args": [
-            "aipd.json"
+            "donnees/aipd.json"
           ],
           "vault": true
         }
       ],
-      "instructions": "aipd.json reprend l'hébergeur de la description, requirements (exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL)."
+      "instructions": "donnees/aipd.json reprend l'hébergeur de la description, requirements (donnees/exigences.json) et threats (schemas/architecture.threats.md) ; un traitement par finalité, avec ses flux. Les critères du CEPD, la gravité et la vraisemblance demandent du jugement : chacun se justifie dans la description. Un risque résiduel élevé reste ouvert et se note au journal --kind question (consultation préalable de la CNIL)."
     },
     {
       "id": "plan",
@@ -196,10 +196,10 @@
         "dossier-conformite.md"
       ],
       "optional": [
-        "plan-actions.csv"
+        "donnees/plan-actions.csv"
       ],
       "checks": [
-        "architecture-dossier : actions.py . (plan-actions.md et plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)",
+        "architecture-dossier : actions.py . (plan-actions.md et donnees/plan-actions.csv tirés des menaces, constats et risques ; --assign pour les responsables et échéances donnés par l'utilisateur)",
         "architecture-dossier : dossier_build.py . --template conformite --out dossier-conformite.md --strict (sections obligatoires présentes, liens et images vérifiés)",
         "si l'utilisateur veut un Word ou un PDF : passer dossier-conformite.md à document-publisher"
       ],

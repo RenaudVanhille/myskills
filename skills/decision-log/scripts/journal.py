@@ -123,7 +123,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from lib import source_docs  # noqa: E402
-from lib.text_tools import unlink_notes  # noqa: E402
+from lib.text_tools import DATA_DIR, data_file, unlink_notes  # noqa: E402
 from lib.workflow_chart import causes, label_of, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
 from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, stage_note, sync, vault_ontology  # noqa: E402,E501
@@ -774,7 +774,7 @@ def link_deliverables(folder: Path, state: dict, write: bool = True) -> int:
     definition = state.get("definition")
     names = (definition.get("memory", {}) if definition else DEFAULT_MEMORY).get("requirements")
     try:
-        catalog = json.loads((folder / names).read_text(encoding="utf-8")) if names else {}
+        catalog = json.loads(data_file(folder, names).read_text(encoding="utf-8")) if names else {}
         notes = Path(memory["vault"]) / safe_folder(memory["folder"]) / "Exigences"
         ids = {r["id"]: notes / f"{r['id']}.md" for r in catalog.get("requirements", [])}
         sources = (folder / catalog.get("sources", "sources")).resolve()
@@ -865,6 +865,8 @@ def init_workflow(args, folder: Path, errors: list[str]) -> dict:
              "stages": [{"id": s, "status": "a-faire"} for s in stages], "entries": []}
     if definition:
         state["definition"] = definition
+        if DATA_DIR + "/" in json.dumps(definition, ensure_ascii=False):
+            (folder / DATA_DIR).mkdir(exist_ok=True)
     # Dans une mission (mission.json au-dessus du dossier), son vault par défaut, et aucun autre.
     args.vault, _, scoped = workspace.vault_target(args.vault, None, [folder], default_folder=None)
     if scoped:
@@ -1026,7 +1028,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
     info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0,
-            "noise": 0, "external": 0}
+            "noise": 0, "external": 0, "moved": []}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -1062,6 +1064,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         written = (folder / JOURNAL).read_text(encoding="utf-8")
     except OSError:
         written = None
+    info["moved"] = to_data(folder, state)
     for stage in state["stages"]:  # étapes commencées avant le suivi des entrées extérieures : point de départ
         if stage["status"] in ("en-cours", "en-revue", "validee") and "external" not in stage \
                 and (found := external(folder, state, stage["id"])):
@@ -1070,6 +1073,35 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
     info["journal"] = render(state, folder) != written
     info["links"] = link_deliverables(folder, state, write=False)
     return state, info
+
+
+MACHINE = (".json", ".csv", ".mmd", ".sql", ".yaml")
+KEEP_AT_ROOT = (STATE, "mission.json")
+
+
+def to_data(folder: Path, state: dict) -> list[str]:
+    """Workflow ouvert avant donnees/ : fichiers machine de la racine (JSON, CSV...) à ranger dans donnees/, avec
+    les chemins de workflow.json qui les citent (fichiers des étapes, entrées extérieures ../, entrées du journal).
+    Seulement si la définition suivie range ses fichiers dans donnees/. Rend les noms ; main les déplace."""
+    if f"{DATA_DIR}/" not in json.dumps(state.get("definition") or {}, ensure_ascii=False):
+        return []
+    names = sorted(p.name for p in folder.iterdir() if p.is_file() and p.suffix.lower() in MACHINE
+                   and p.name not in KEEP_AT_ROOT and not p.name.startswith("design-system."))
+
+    def moved(path: str) -> str:
+        head, _, name = path.rpartition("/")
+        if head in ("", "..") and name in names or head == ".." and Path(name).suffix.lower() in MACHINE \
+                and name not in KEEP_AT_ROOT and not name.startswith("design-system."):
+            return f"{head + '/' if head else ''}{DATA_DIR}/{name}"
+        return path
+    for stage in state["stages"]:
+        for key in ("files", "external", "inputs"):
+            if isinstance(stage.get(key), dict):
+                stage[key] = {moved(k): v for k, v in stage[key].items()}
+    for entry in state.get("entries", []) + state.get("archive", []):
+        if entry.get("files"):
+            entry["files"] = [moved(f) for f in entry["files"]]
+    return names
 
 
 def run(args, errors: list[str], warnings: list[str]) -> tuple[dict | None, str | None]:
@@ -1209,6 +1241,10 @@ def main() -> int:
                 state, upgraded = upgrade(args, args.folder, errors, warnings)
                 entry = None
                 if state and args.apply:
+                    if upgraded["moved"]:
+                        (args.folder / DATA_DIR).mkdir(exist_ok=True)
+                        for name in upgraded["moved"]:
+                            (args.folder / name).replace(args.folder / DATA_DIR / name)
                     save(args.folder, state)
                     upgraded["links"] = link_deliverables(args.folder, state)
                     if state.get("memory") and Path(state["memory"]["vault"]).is_dir():
@@ -1249,7 +1285,8 @@ def main() -> int:
     current, action = next_action(state) if state else (None, "corriger l'erreur")
     if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
                                                  or upgraded["journal"] or upgraded["links"]
-                                                 or upgraded["superseded"] or upgraded["noise"]):
+                                                 or upgraded["superseded"] or upgraded["noise"]
+                                                 or upgraded["moved"]):
         action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors

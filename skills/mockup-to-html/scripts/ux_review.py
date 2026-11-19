@@ -38,6 +38,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import page_build  # noqa: E402
 import script_report  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 HEURISTICS = {
     "h1": "Visibilité de l'état du système",
@@ -279,7 +280,7 @@ def review(path: Path, out_arg: Path | None, level: str, findings: list[dict], s
     result["issue_count"] = len(issues)
     result["issues"] = [{k: i[k] for k in ("kind", "node", "severity", "message")} for i in issues[:MAX_ISSUES]]
     result["findings"] = len(mine)
-    md = out_dir / f"{stem}.ux.md"
+    md = beside(out_dir / f"{stem}.ux.md")
     md.write_text(markdown(spec["title"], level, issues, mine, summary, result["rendered"]), encoding="utf-8")
     result["outputs"].append(str(md))
     if result["severity"]["4"] or result["severity"]["3"]:

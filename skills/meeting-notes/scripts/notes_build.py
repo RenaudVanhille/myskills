@@ -31,7 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import cell, from_data  # noqa: E402
 
 KINDS = {"atelier": "Atelier", "kick-off": "Réunion de lancement", "comite": "Comité", "point": "Point d'avancement",
          "entretien": "Entretien", "soutenance": "Soutenance"}
@@ -128,7 +128,7 @@ def main() -> int:
             warnings.append(f"actions/{i} ({act['id']}) : sans échéance")
     transcript = None
     if spec.get("source"):
-        path = (args.spec.parent / spec["source"])
+        path = (from_data(args.spec.parent, spec["source"]))
         try:
             transcript = plain(path.read_text(encoding="utf-8"))
         except OSError as error:

@@ -41,7 +41,7 @@ from xml.sax.saxutils import escape
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import beside, cell, from_data  # noqa: E402
 
 STATUSES = ["conforme", "partiel", "non-conforme", "sans-objet"]
 FROM_GAP = {"partiel": "partiel", "non": "non-conforme"}
@@ -54,7 +54,7 @@ WIDTHS = [12, 40, 16, 14, 22, 60, 30, 24]
 def load(base: Path, name: str, field: str, skill: str, script: str,
          errors: list[str], warnings: list[str]) -> dict | None:
     """Fichier d'un autre skill, validé contre le schéma d'entrée de son script s'il est installé."""
-    path = base / name
+    path = from_data(base, name)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -302,7 +302,7 @@ def main() -> int:
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.spec.stem
-    md, csv_path, xlsx = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.xlsx"
+    md, csv_path, xlsx = beside(out_dir / f"{stem}.md"), out_dir / f"{stem}.csv", beside(out_dir / f"{stem}.xlsx")
     c = report["counts"]
     lines = [f"# {spec.get('title') or 'Matrice de conformité'}", "",
              f"Fichier généré par `compliance_build.py` depuis `{args.spec.name}`, qui fait foi. "

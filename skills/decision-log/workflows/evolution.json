@@ -14,9 +14,9 @@
     "impact du changement"
   ],
   "memory": {
-    "requirements": "exigences.json",
-    "options": "options.json",
-    "decision": "decision.json",
+    "requirements": "donnees/exigences.json",
+    "options": "donnees/options.json",
+    "decision": "donnees/decision.json",
     "adr": "adr-architecture.md"
   },
   "stages": [
@@ -51,40 +51,40 @@
       ],
       "inputs": [
         "sources/*.md",
-        "../exigences.json",
-        "../domaines.json"
+        "../donnees/exigences.json",
+        "../donnees/domaines.json"
       ],
       "deliverables": [
-        "exigences.json",
+        "donnees/exigences.json",
         "exigences.md",
         "ecarts-exigences.md"
       ],
       "optional": [
-        "exigences.csv"
+        "donnees/exigences.csv"
       ],
       "checks": [
-        "requirements-catalog : req_diff.py ../exigences.json exigences.json --start (copie de travail), puis req_build.py exigences.json et req_diff.py ../exigences.json exigences.json --out ecarts-exigences.md, avec --domains ../domaines.json si le dossier a un découpage"
+        "requirements-catalog : req_diff.py ../donnees/exigences.json donnees/exigences.json --start (copie de travail), puis req_build.py donnees/exigences.json et req_diff.py ../donnees/exigences.json donnees/exigences.json --out ecarts-exigences.md, avec --domains ../donnees/domaines.json si le dossier a un découpage"
       ],
       "run": [
         {
           "skill": "requirements-catalog",
           "script": "req_build.py",
           "args": [
-            "exigences.json"
+            "donnees/exigences.json"
           ]
         },
         {
           "skill": "requirements-catalog",
           "script": "req_diff.py",
           "args": [
-            "../exigences.json",
-            "exigences.json",
+            "../donnees/exigences.json",
+            "donnees/exigences.json",
             "--out",
             "ecarts-exigences.md"
           ]
         }
       ],
-      "instructions": "Ne jamais modifier ../exigences.json, validé. Dans la copie de travail : chaque exigence ajoutée cite la demande (sources/), chaque modification garde son identifiant, une exigence abandonnée passe en status écartée avec sa raison. À la revue, présenter l'écart (ajoutées, modifiées, retirées) et les contextes touchés ; une exigence ajoutée sans contexte se rattache à un contexte ou se signale comme nouveau périmètre."
+      "instructions": "Ne jamais modifier ../donnees/exigences.json, validé. Dans la copie de travail : chaque exigence ajoutée cite la demande (sources/), chaque modification garde son identifiant, une exigence abandonnée passe en status écartée avec sa raison. À la revue, présenter l'écart (ajoutées, modifiées, retirées) et les contextes touchés ; une exigence ajoutée sans contexte se rattache à un contexte ou se signale comme nouveau périmètre."
     },
     {
       "id": "contrats",
@@ -99,31 +99,31 @@
       ],
       "inputs": [
         "ecarts-exigences.md",
-        "../api.json",
+        "../donnees/api.json",
         "../api/api.json"
       ],
       "deliverables": [
-        "api.json",
+        "donnees/api.json",
         "ecarts-api.md"
       ],
       "optional": [
-        "api.openapi.yaml",
-        "api.asyncapi.yaml",
+        "donnees/api.openapi.yaml",
+        "donnees/api.asyncapi.yaml",
         "api.api.md"
       ],
       "checks": [
-        "api-contract : api_diff.py <contrat validé : ../api.json ou ../api/api.json> api.json --start, puis api_build.py api.json et api_diff.py <contrat validé> api.json --out ecarts-api.md (ruptures et version à monter)"
+        "api-contract : api_diff.py <contrat validé : ../donnees/api.json ou ../api/api.json> donnees/api.json --start, puis api_build.py donnees/api.json et api_diff.py <contrat validé> donnees/api.json --out ecarts-api.md (ruptures et version à monter)"
       ],
       "run": [
         {
           "skill": "api-contract",
           "script": "api_build.py",
           "args": [
-            "api.json"
+            "donnees/api.json"
           ]
         }
       ],
-      "instructions": "Étape facultative, proposée si le dossier a un contrat d'interface et que la demande touche une exigence portée par une opération ou un événement : l'utilisateur dit s'il la veut (start) ou non (skip). Dans la copie, requirements vise exigences.json (la copie de travail) et source.options ../options.json. Une rupture s'évite d'abord (opération ajoutée, champ facultatif, ancienne version gardée) ; une rupture gardée se justifie au journal et la version majeure monte."
+      "instructions": "Étape facultative, proposée si le dossier a un contrat d'interface et que la demande touche une exigence portée par une opération ou un événement : l'utilisateur dit s'il la veut (start) ou non (skip). Dans la copie, requirements vise donnees/exigences.json (la copie de travail) et source.options ../donnees/options.json. Une rupture s'évite d'abord (opération ajoutée, champ facultatif, ancienne version gardée) ; une rupture gardée se justifie au journal et la version majeure monte."
     },
     {
       "id": "donnees",
@@ -138,30 +138,30 @@
       ],
       "inputs": [
         "ecarts-exigences.md",
-        "../modele.json",
-        "../domaines.json"
+        "../donnees/modele.json",
+        "../donnees/domaines.json"
       ],
       "deliverables": [
-        "modele.json",
+        "donnees/modele.json",
         "modele.md"
       ],
       "optional": [
-        "modele.mmd",
-        "modele.sql"
+        "donnees/modele.mmd",
+        "donnees/modele.sql"
       ],
       "checks": [
-        "data-model : model_build.py modele.json (copie du modèle validé modifiée ; avec domains, aucune clé étrangère entre contextes)"
+        "data-model : model_build.py donnees/modele.json (copie du modèle validé modifiée ; avec domains, aucune clé étrangère entre contextes)"
       ],
       "run": [
         {
           "skill": "data-model",
           "script": "model_build.py",
           "args": [
-            "modele.json"
+            "donnees/modele.json"
           ]
         }
       ],
-      "instructions": "Étape facultative, proposée si la demande ajoute ou change des données : l'utilisateur dit s'il la veut (start) ou non (skip). Copier le modèle validé (python -c \"import shutil; shutil.copy('../modele.json', 'modele.json')\"), puis ne changer que les entités et champs de la demande, chacun avec la référence de son exigence ; requirements vise exigences.json et domains ../domaines.json. Une donnée personnelle nouvelle se signale à la revue (registre, AIPD : data-protection)."
+      "instructions": "Étape facultative, proposée si la demande ajoute ou change des données : l'utilisateur dit s'il la veut (start) ou non (skip). Copier le modèle validé (python -c \"import shutil; shutil.copy('../donnees/modele.json', 'donnees/modele.json')\"), puis ne changer que les entités et champs de la demande, chacun avec la référence de son exigence ; requirements vise donnees/exigences.json et domains ../donnees/domaines.json. Une donnée personnelle nouvelle se signale à la revue (registre, AIPD : data-protection)."
     },
     {
       "id": "options",
@@ -177,14 +177,14 @@
         "well-architected-review"
       ],
       "inputs": [
-        "exigences.json",
+        "donnees/exigences.json",
         "ecarts-exigences.md",
-        "../options.json",
-        "../decision.json",
+        "../donnees/options.json",
+        "../donnees/decision.json",
         "documents/pos*"
       ],
       "deliverables": [
-        "options.json",
+        "donnees/options.json",
         "options.md"
       ],
       "optional": [
@@ -192,18 +192,18 @@
         "schemas/pos-option-*.json"
       ],
       "checks": [
-        "architecture-options : options_build.py options.json (placement dans le POS si le dossier en a un)"
+        "architecture-options : options_build.py donnees/options.json (placement dans le POS si le dossier en a un)"
       ],
       "run": [
         {
           "skill": "architecture-options",
           "script": "options_build.py",
           "args": [
-            "options.json"
+            "donnees/options.json"
           ]
         }
       ],
-      "instructions": "Étape facultative, proposée quand le changement peut se faire de plusieurs façons (faire évoluer un composant existant, ajouter un service, acheter) : l'utilisateur dit s'il la veut (start) ou non (skip). 2 options au plus, chacune partant des composants de l'option retenue (../options.json, ../decision.json) avec ce qui change ; requirements vise exigences.json. Critères tirés des exigences ajoutées ou modifiées, plus l'effort de non-régression. À la revue, présenter l'option recommandée et le choix à faire."
+      "instructions": "Étape facultative, proposée quand le changement peut se faire de plusieurs façons (faire évoluer un composant existant, ajouter un service, acheter) : l'utilisateur dit s'il la veut (start) ou non (skip). 2 options au plus, chacune partant des composants de l'option retenue (../donnees/options.json, ../donnees/decision.json) avec ce qui change ; requirements vise donnees/exigences.json. Critères tirés des exigences ajoutées ou modifiées, plus l'effort de non-régression. À la revue, présenter l'option recommandée et le choix à faire."
     },
     {
       "id": "decision",
@@ -217,31 +217,31 @@
         "architecture-options"
       ],
       "inputs": [
-        "options.json"
+        "donnees/options.json"
       ],
       "deliverables": [
-        "decision.json",
+        "donnees/decision.json",
         "adr-architecture.md"
       ],
       "optional": [
         "tracabilite.md",
-        "tracabilite.csv"
+        "donnees/tracabilite.csv"
       ],
       "checks": [
-        "architecture-options : options_build.py options.json --decision decision.json"
+        "architecture-options : options_build.py donnees/options.json --decision donnees/decision.json"
       ],
       "run": [
         {
           "skill": "architecture-options",
           "script": "options_build.py",
           "args": [
-            "options.json",
+            "donnees/options.json",
             "--decision",
-            "decision.json"
+            "donnees/decision.json"
           ]
         }
       ],
-      "instructions": "decision.json reprend le choix fait par l'utilisateur à la revue des options : option, by, ses mots dans why, date, refs. Sautée si l'étape options l'a été."
+      "instructions": "donnees/decision.json reprend le choix fait par l'utilisateur à la revue des options : option, by, ses mots dans why, date, refs. Sautée si l'étape options l'a été."
     },
     {
       "id": "chiffrage",
@@ -259,40 +259,40 @@
       ],
       "agent": "solution-estimator",
       "inputs": [
-        "exigences.json",
+        "donnees/exigences.json",
         "ecarts-exigences.md",
         "ecarts-api.md",
-        "options.json",
-        "decision.json"
+        "donnees/options.json",
+        "donnees/decision.json"
       ],
       "deliverables": [
-        "chiffrage.json",
+        "donnees/chiffrage.json",
         "chiffrage.md"
       ],
       "optional": [
-        "chiffrage.csv",
-        "couts.json",
+        "donnees/chiffrage.csv",
+        "donnees/couts.json",
         "couts.md",
-        "couts.csv"
+        "donnees/couts.csv"
       ],
       "checks": [
-        "cloud-cost : cost_build.py couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de chiffrage.json)",
-        "solution-estimate : estimate_build.py chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
+        "cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)",
+        "solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
       ],
       "run": [
         {
           "skill": "cloud-cost",
           "script": "cost_build.py",
           "args": [
-            "couts.json"
+            "donnees/couts.json"
           ],
-          "if": "couts.json"
+          "if": "donnees/couts.json"
         },
         {
           "skill": "solution-estimate",
           "script": "estimate_build.py",
           "args": [
-            "chiffrage.json"
+            "donnees/chiffrage.json"
           ],
           "vault": true
         }

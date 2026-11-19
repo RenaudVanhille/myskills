@@ -55,14 +55,14 @@
       "skills": ["mockup-to-html"],
       "agent": "ui-designer",
       "inputs": ["pages/*.json"],
-      "deliverables": ["revue-ux.json", "pages/*.ux.md"],
+      "deliverables": ["donnees/revue-ux.json", "pages/*.ux.md"],
       "checks": [
-        "mockup-to-html : ux_review.py revue-ux.json (contrôles WCAG sur le rendu, puis constats de jugement validés : heuristique, gravité, nœud)"
+        "mockup-to-html : ux_review.py donnees/revue-ux.json (contrôles WCAG sur le rendu, puis constats de jugement validés : heuristique, gravité, nœud)"
       ],
       "run": [
-        {"skill": "mockup-to-html", "script": "ux_review.py", "args": ["revue-ux.json"]}
+        {"skill": "mockup-to-html", "script": "ux_review.py", "args": ["donnees/revue-ux.json"]}
       ],
-      "instructions": "Premier passage avec findings vide pour les contrôles mécaniques, puis constats de jugement (heuristiques de Nielsen h1 à h10, a11y), un par problème, gravité 1 à 4, rattachés au nœud. L'utilisateur retient ou écarte les constats à la revue : ceux qui restent dans revue-ux.json sont chiffrés à l'étape suivante."
+      "instructions": "Premier passage avec findings vide pour les contrôles mécaniques, puis constats de jugement (heuristiques de Nielsen h1 à h10, a11y), un par problème, gravité 1 à 4, rattachés au nœud. L'utilisateur retient ou écarte les constats à la revue : ceux qui restent dans donnees/revue-ux.json sont chiffrés à l'étape suivante."
     },
     {
       "id": "decoupage",
@@ -70,16 +70,16 @@
       "level": "moyen",
       "skills": ["mockup-to-html"],
       "agent": "ui-designer",
-      "inputs": ["pages/*.json", "revue-ux.json"],
-      "deliverables": ["decoupage.md", "decoupage.lots.json"],
-      "optional": ["decoupage.json", "decoupage.csv"],
+      "inputs": ["pages/*.json", "donnees/revue-ux.json"],
+      "deliverables": ["decoupage.md", "donnees/decoupage.lots.json"],
+      "optional": ["donnees/decoupage.json", "donnees/decoupage.csv"],
       "checks": [
-        "mockup-to-html : ui_breakdown.py pages/*.json --out decoupage --ux revue-ux.json, avec --target et --component si connus (lots contrôlés contre le schéma de solution-estimate)"
+        "mockup-to-html : ui_breakdown.py pages/*.json --out donnees/decoupage --ux donnees/revue-ux.json, avec --target et --component si connus (lots contrôlés contre le schéma de solution-estimate)"
       ],
       "run": [
-        {"skill": "mockup-to-html", "script": "ui_breakdown.py", "args": ["pages/*.json", "--out", "decoupage", "--ux", "revue-ux.json"]}
+        {"skill": "mockup-to-html", "script": "ui_breakdown.py", "args": ["pages/*.json", "--out", "donnees/decoupage", "--ux", "donnees/revue-ux.json"]}
       ],
-      "instructions": "Relire les lots : réemploi d'un écran qui ne ressemble pas à sa source à retirer, réemploi manquant à ajouter avec sa base ; toute correction a sa note au journal. Si calibrated est faux, dire que les charges viennent d'abaques par défaut. Pour un chiffrage complet, decoupage.lots.json passe à solution-estimate (estimate_build.py --draft --lots decoupage.lots.json)."
+      "instructions": "Relire les lots : réemploi d'un écran qui ne ressemble pas à sa source à retirer, réemploi manquant à ajouter avec sa base ; toute correction a sa note au journal. Si calibrated est faux, dire que les charges viennent d'abaques par défaut. Pour un chiffrage complet, donnees/decoupage.lots.json passe à solution-estimate (estimate_build.py --draft --lots donnees/decoupage.lots.json)."
     }
   ]
 }

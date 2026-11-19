@@ -47,6 +47,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import pack_bundle  # noqa: E402
+from text_tools import data_file  # noqa: E402
 import pack_model  # noqa: E402
 import pack_render  # noqa: E402
 import pack_ux  # noqa: E402
@@ -115,7 +116,7 @@ def load_pieces(folder: Path, errors: list[str], warnings: list[str]) -> tuple[d
     """Livrables présents, chacun validé contre le schéma d'entrée du script qui l'a construit."""
     pieces, used = {}, []
     for key, (names, skill, script) in PIECES.items():
-        path = next((folder / name for name in names if (folder / name).is_file()), None)
+        path = next((data_file(folder, n) for n in names if data_file(folder, n).is_file()), None)
         data = read_json(path, errors) if path else None
         if data is None:
             continue
@@ -128,7 +129,7 @@ def load_pieces(folder: Path, errors: list[str], warnings: list[str]) -> tuple[d
             continue
         pieces[key] = data
         used.append(path.relative_to(folder).as_posix())
-    decision = folder / "decision.json"
+    decision = data_file(folder, "decision.json")
     if decision.is_file() and "options" in pieces:
         data, schema = read_json(decision, errors), schema_of("architecture-options", "options_build.py")
         invalid = check(data, schema["properties"]["decision"]) if data is not None and schema else []
@@ -174,7 +175,7 @@ def load_screens(folder: Path, pieces: dict, used: list[str], errors: list[str],
         if data is not None and not invalid:
             pieces.setdefault("pages", []).append((path.stem, data))
             used.append(f"pages/{path.name}")
-    breakdown = read_json(folder / "decoupage.json", errors) if (folder / "decoupage.json").is_file() else None
+    breakdown = read_json(data_file(folder, "decoupage.json"), errors) if data_file(folder, "decoupage.json").is_file() else None
     if isinstance(breakdown, dict):
         pieces["breakdown"] = {**breakdown, "versions": pinned_versions(folder)}
         used.append("decoupage.json")
@@ -203,7 +204,7 @@ def mission_of(folder: Path) -> tuple[Path | None, dict]:
 def workflow_folder(folder: Path, root: Path | None, mission: dict) -> Path:
     """Dossier qui porte exigences.json : celui reçu, sinon celui d'un workflow de la mission."""
     candidates = [folder] + [root / flow["folder"] for flow in mission.get("workflows", [])]
-    return next((c.resolve() for c in candidates if (c / "exigences.json").is_file()), folder)
+    return next((c.resolve() for c in candidates if data_file(c, "exigences.json").is_file()), folder)
 
 
 def place(paths: list[Path], base: Path, store: str, copies: list, root: Path | None = None) -> list[str]:
@@ -440,11 +441,11 @@ def main() -> int:
         return done(1 if found else 0)
     root, mission = mission_of(args.folder.resolve())
     folder = workflow_folder(args.folder.resolve(), root, mission)
-    if not (folder / "exigences.json").is_file():
+    if not data_file(folder, "exigences.json").is_file():
         errors.append(f"exigences.json introuvable dans {args.folder} : menez d'abord l'étape des exigences "
                       "(requirements-catalog : req_build.py exigences.json)")
         return done(1)
-    spec_path = args.file or folder / "specs.json"
+    spec_path = args.file or data_file(folder, "specs.json")
     extra = (read_json(spec_path, errors) if spec_path.is_file() else None) or {}
     if args.file and not spec_path.is_file():
         errors.append(f"{args.file} introuvable")

@@ -32,6 +32,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 DEFAULT_RPS = {"web": 150, "api": 100, "worker": 20, "db": 300, "cache": 2000, "queue": 1000}
 COMPUTE = {"web", "api", "worker"}
@@ -196,7 +197,7 @@ def main() -> int:
     if errors:
         return done(1)
     calc = result.pop("_calc")
-    files[out_dir / f"{stem}.md"] = markdown(spec, {**result, "_calc": calc})
+    files[beside(out_dir / f"{stem}.md")] = markdown(spec, {**result, "_calc": calc})
     files[out_dir / f"{stem}.result.json"] = json.dumps(result, ensure_ascii=False, indent=1) + "\n"
     out_dir.mkdir(parents=True, exist_ok=True)
     for path, text in files.items():

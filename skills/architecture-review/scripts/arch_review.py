@@ -56,6 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
 from skill_paths import absent, load_module, require_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 from review_code import cycles, glob_regex, longest_sync, service_calls  # noqa: E402
 from review_common import ATTRIBUTES, RULES, SEVERITIES, count_of  # noqa: E402
 from review_render import accept, expected, list_rules, markdown, principles, verdict_of  # noqa: E402
@@ -121,7 +122,7 @@ def load_source(base: Path, spec: dict, errors: list[str], warnings: list[str]) 
         errors.append(f"source/option : option « {source['option']} » absente de {path.name} ({ids})")
     elif not spec.get("requirements"):
         # Même catalogue que les options (exigences.json à côté d'options.json par défaut).
-        found["_catalog"] = path.parent / options.get("requirements", "exigences.json")
+        found["_catalog"] = from_data(path.parent, options.get("requirements", "exigences.json"))
     return found
 
 
@@ -335,7 +336,7 @@ def domain_review(spec: dict, base: Path, comps: list[dict], flows: list[dict], 
     if module is None:
         warnings.append("domains : découpage non contrôlé : " + absent("domain-design", "domain_build.py"))
         return None
-    path = base / spec["domains"]
+    path = from_data(base, spec["domains"])
     described = load_json(path, "domains", errors)
     if described is None:
         return None
@@ -447,7 +448,7 @@ def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
         ids = ", ".join(str(o.get("id")) for o in options.get("options", []))
         errors.append(f"--option : option « {wanted} » absente de options.json ({ids})")
         return report
-    catalog_path = path.parent / options.get("requirements", "exigences.json")
+    catalog_path = from_data(path.parent, options.get("requirements", "exigences.json"))
     catalog = load_catalog(catalog_path, errors, warnings) if catalog_path.is_file() else {}
     if errors:
         return report
@@ -685,7 +686,7 @@ def cloud_review(spec: dict, base: Path, findings: list[dict], errors: list[str]
         warnings.append("cloud : revue Well-Architected non faite : "
                         + absent("well-architected-review", "wa_check.py") + " (et cloud-architecture)")
         return None, 0
-    path = base / spec["cloud"]
+    path = from_data(base, spec["cloud"])
     described = load_json(path, "cloud", errors)
     invalid = wa.validate(described, wa.__file__) if described is not None else []
     errors += [f"cloud : {path.name} : {e}" for e in invalid]
@@ -714,7 +715,7 @@ def review(spec: dict, base: Path, out_dir: Path, rules: list[dict] | None = Non
                          "message": f"{title} : {message}", "fix": fix, "ref": ref, "accepted": None})
 
     source = load_source(base, spec, errors, warnings)
-    path = base / spec["requirements"] if spec.get("requirements") else (source or {}).get("_catalog")
+    path = from_data(base, spec["requirements"]) if spec.get("requirements") else (source or {}).get("_catalog")
     catalog = load_catalog(path, errors, warnings)
     comps, flows = merge(source, spec)
     if not comps:
@@ -880,7 +881,7 @@ def main() -> int:
         print(json.dumps({"input": str(args.spec), "errors": invalid + wrong, "warnings": []}, ensure_ascii=False))
         return 1
     stem = args.spec.name.removesuffix(".json")
-    out = args.out or args.spec.with_name(stem + (".md" if stem.endswith("revue") else ".revue.md"))
+    out = args.out or beside(args.spec.with_name(stem + (".md" if stem.endswith("revue") else ".revue.md")))
     found = review(spec, args.spec.parent, out.parent, rules, client)
     if "findings" not in found:
         print(json.dumps({"input": str(args.spec), "errors": found["errors"], "warnings": found["warnings"]},

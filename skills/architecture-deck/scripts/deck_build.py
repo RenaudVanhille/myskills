@@ -31,6 +31,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 from skill_paths import absent, find_script, load_module  # noqa: E402
 from spec_schema import check, input_schema, validate  # noqa: E402
+from text_tools import data_file, from_data  # noqa: E402
 
 # Mêmes scores, contrôles et libellés que la comparaison validée (skill architecture-options).
 OPTIONS = load_module("architecture-options", "options_build.py")
@@ -183,7 +184,7 @@ def build(folder: Path, spec: dict, criteria: list[dict], ranking: list[dict], c
 
 def catalog_glossary(folder: Path, spec: dict) -> list[dict]:
     try:
-        return json.loads((folder / spec.get("requirements", "exigences.json")).read_text(encoding="utf-8")) \
+        return json.loads(from_data(data_file(folder, "options.json").parent, spec.get("requirements", "exigences.json")).read_text(encoding="utf-8")) \
             .get("glossary", [])
     except (OSError, ValueError):
         return []
@@ -203,7 +204,7 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return code
 
-    source = args.folder / "options.json"
+    source = data_file(args.folder, "options.json")
     try:
         spec = json.loads(source.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -214,7 +215,7 @@ def main() -> int:
         report["errors"].append(absent("architecture-options", "options_build.py"))
         return done(1)
     report["errors"] += [f"options.json : {e}" for e in validate(spec, options_script)]
-    decision_file = args.folder / "decision.json"
+    decision_file = data_file(args.folder, "decision.json")
     if decision_file.is_file() and not report["errors"]:
         try:
             spec["decision"] = json.loads(decision_file.read_text(encoding="utf-8"))
@@ -225,7 +226,7 @@ def main() -> int:
                              check(spec["decision"], input_schema(options_script)["properties"]["decision"])]
     if report["errors"]:
         return done(1)
-    found = OPTIONS.analyse(spec, args.folder)
+    found = OPTIONS.analyse(spec, source.parent)
     criteria, ranking, catalog, errors, warnings = (found[k] for k in
                                                     ("criteria", "ranking", "catalog", "errors", "warnings"))
     report["errors"] += errors

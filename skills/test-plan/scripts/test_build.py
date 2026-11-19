@@ -35,7 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, validate  # noqa: E402
-from text_tools import cell  # noqa: E402
+from text_tools import beside, cell, from_data  # noqa: E402
 
 KIND_OF = {"performance": "performance", "disponibilite": "exploitation", "securite": "securite",
            "conformite": "securite", "exploitabilite": "exploitation", "utilisabilite": "accessibilite",
@@ -175,7 +175,7 @@ def main() -> int:
         return done(1)
     rules = {**DEFAULT_RULES, **{k: ({**DEFAULT_RULES[k], **v} if isinstance(v, dict) else v)
                                  for k, v in spec.get("rules", {}).items()}}
-    reqs = load_requirements(args.plan.parent / spec["requirements"], errors)
+    reqs = load_requirements(from_data(args.plan.parent, spec["requirements"]), errors)
     if reqs is None:
         return done(1)
     ids, coverage = set(), {}
@@ -215,7 +215,7 @@ def main() -> int:
     out_dir = args.out_dir or args.plan.parent
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.plan.name.removesuffix(".json")
-    md, csv_path, lots_path = out_dir / f"{stem}.md", out_dir / f"{stem}.csv", out_dir / f"{stem}.lots.json"
+    md, csv_path, lots_path = beside(out_dir / f"{stem}.md"), out_dir / f"{stem}.csv", out_dir / f"{stem}.lots.json"
     md.write_text(markdown(spec, reqs, coverage, uncovered, total), encoding="utf-8")
     rows = [["id", "titre", "type", "priorite", "preconditions", "etapes", "resultat_attendu", "exigences", "automatise"]]
     rows += [[c["id"], c["title"], c["kind"], c["priority"], c.get("preconditions", ""), " / ".join(c["steps"]),

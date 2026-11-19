@@ -40,9 +40,6 @@ flowchart LR
   d2 --> w_restitution
   d3 --> w_maquettes
   d4 --> w_retro_documentation
-  w_architecture -.-> d2
-  w_avant_vente -.-> d2
-  w_cadrage -.-> d2
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef depart fill:#f3f4f6,stroke:#6b7280,color:#1f2937
   class w_architecture,w_avant_vente,w_cadrage,w_cloud_existant,w_conformite,w_documentation,w_evolution,w_maquettes,w_migration_cloud,w_restitution,w_retro_documentation,w_revue_dossier moteur

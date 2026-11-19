@@ -34,7 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, validate  # noqa: E402
-from text_tools import cell, near  # noqa: E402
+from text_tools import beside, cell, from_data, near  # noqa: E402
 
 SEVERITIES = ("haute", "moyenne", "basse")
 RULES = {
@@ -276,7 +276,7 @@ def main() -> int:
         return done(1)
     reqs = None
     if spec.get("requirements"):
-        path = args.spec.parent / spec["requirements"]
+        path = from_data(args.spec.parent, spec["requirements"])
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             reqs = {r["id"]: r for r in data["requirements"] if r.get("status") != "retiree"}
@@ -295,7 +295,7 @@ def main() -> int:
     report["findings"] = [{k: f[k] for k in ("rule", "severity", "element", "text")} for f in findings]
     out_dir = args.out_dir or args.spec.parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / (args.spec.name.removesuffix(".json") + ".md")
+    out = beside(out_dir / (args.spec.name.removesuffix(".json") + ".md"))
     out.write_text(markdown(spec, findings), encoding="utf-8")
     report["output"] = str(out)
     return done(1 if args.strict and report["counts"]["haute"] else 0)

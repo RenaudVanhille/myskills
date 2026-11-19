@@ -39,6 +39,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 
 KINDS = {"HYP": "hypothese", "EXC": "exclusion", "PRE": "prerequis", "QUE": "question"}
 TITLES = {"hypothese": "Hypothèses", "exclusion": "Exclusions", "prerequis": "Prérequis"}
@@ -124,7 +125,7 @@ def known_refs(base: Path, spec: dict, warnings: list[str]) -> dict[bool, set[st
     """Identifiants connus, par source : éléments du dépouillement (True), exigences (False) ; None si absente."""
     known: dict[bool, set[str] | None] = {}
     for tender, field, name in ((False, "requirements", "exigences.json"), (True, "tender", "ao.json")):
-        path = base / spec.get(field, name)
+        path = from_data(base, spec.get(field, name))
         data = read(path)
         if data is None:
             known[tender] = None
@@ -139,7 +140,7 @@ def known_refs(base: Path, spec: dict, warnings: list[str]) -> dict[bool, set[st
 
 
 def deadline(base: Path, spec: dict) -> dict | None:
-    data = read(base / spec.get("tender", "ao.json")) or {}
+    data = read(from_data(base, spec.get("tender", "ao.json"))) or {}
     dated = [d for d in data.get("dates", []) if isinstance(d, dict) and d.get("kind") == "questions"]
     if not dated:
         return None
@@ -233,13 +234,13 @@ def main() -> int:
     refs = lambda i: f" ({', '.join(i['refs'])})" if i.get("refs") else ""  # noqa: E731
     open_questions = [i for i in items if i["kind"] == "question" and i.get("status", "a-envoyer") in ("a-envoyer", "envoyee")]
     when = f" avant le {limit['date']}" + (f" à {limit['time']}" if limit and limit.get("time") else "") if limit else ""
-    questions_md = out_dir / "questions-client.md"
+    questions_md = beside(out_dir / "questions-client.md")
     lines = ["# Questions au client", "", f"Fichier généré par `assumptions.py` depuis `{args.spec.name}`. "
              f"{len(open_questions)} question(s) à poser{when}.", ""]
     lines += [f"{n}. {i['text']}{refs(i)}" + (" *(envoyée)*" if i.get("status") == "envoyee" else "")
               for n, i in enumerate(open_questions, 1)] or ["Aucune question en attente."]
     questions_md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-    register_md = out_dir / f"{args.spec.stem}.md"
+    register_md = beside(out_dir / f"{args.spec.stem}.md")
     lines = [f"# {spec.get('title') or 'Hypothèses, exclusions et prérequis'}", "",
              f"Fichier généré par `assumptions.py` depuis `{args.spec.name}`, qui fait foi : à reprendre dans l'offre."]
     for kind, title in TITLES.items():

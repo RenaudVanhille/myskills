@@ -49,6 +49,7 @@ import react  # noqa: E402
 import templates  # noqa: E402
 import skill_paths  # noqa: E402
 from spec_schema import check, input_schema, print_schema, validate  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 workspace = skill_paths.require_module("mission-workspace", "lib/workspace.py")
 
@@ -342,7 +343,7 @@ def write(result: dict, base: Path) -> list[Path]:
            "Reprise dans le chiffrage : `estimate_build.py chiffrage.json --draft --lots "
            f"{base.name}.lots.json` (solution-estimate).", ""]
     paths = {base.with_suffix(".json"): json.dumps(result, ensure_ascii=False, indent=1) + "\n",
-             base.with_suffix(".md"): "\n".join(md),
+             beside(base.with_suffix(".md")): "\n".join(md),
              base.parent / f"{base.name}.lots.json": json.dumps(result["lots"], ensure_ascii=False, indent=1) + "\n"}
     for path, text in paths.items():
         path.write_text(text, encoding="utf-8")

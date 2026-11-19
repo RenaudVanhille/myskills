@@ -53,6 +53,7 @@ import templates  # noqa: E402
 import skill_paths  # noqa: E402
 import ui_analyze  # noqa: E402
 from spec_schema import print_schema, validate  # noqa: E402
+from text_tools import from_data  # noqa: E402
 
 COMMON = {"type", "id", "align", "background", "color", "padding"}
 PROPS = {
@@ -932,7 +933,7 @@ def prepare(spec_path: Path | None, out_arg: Path | None, report: dict) -> dict 
     base = spec_path.parent
     tokens = {}
     if spec.get("tokens"):
-        path = base / spec["tokens"]
+        path = from_data(base, spec["tokens"])
         report["tokens"] = str(path)
         try:
             tokens = json.loads(path.read_text(encoding="utf-8"))
@@ -949,7 +950,7 @@ def prepare(spec_path: Path | None, out_arg: Path | None, report: dict) -> dict 
     if spec.get("mockup"):
         try:
             from PIL import Image
-            mockup = Image.open(base / spec["mockup"])
+            mockup = Image.open(from_data(base, spec["mockup"]))
             mockup.load()
         except ImportError:
             report["errors"].append("Pillow manquant : lancez ce script avec `uv run`")

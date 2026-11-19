@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, run_script  # noqa: E402
 from spec_schema import check, input_schema, print_schema, schema_option, validate  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 
 GRID = Path(__file__).resolve().parent.parent / "references" / "grille-qualification.json"
 CHOICES = {"go": "Go", "go-conditions": "Go sous conditions", "no-go": "No-go"}
@@ -50,7 +51,7 @@ def read(path: Path) -> dict | None:
 
 
 def load_grid(base: Path, spec: dict, errors: list[str]) -> dict | None:
-    path = base / spec["grid"] if spec.get("grid") else GRID
+    path = from_data(base, spec["grid"]) if spec.get("grid") else GRID
     grid = read(path)
     if grid is None:
         errors.append(f"grid : grille illisible {path}")
@@ -208,7 +209,7 @@ def main() -> int:
 
     out_dir = args.out_dir or base
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"{args.spec.stem}.md"
+    out = beside(out_dir / f"{args.spec.stem}.md")
     lines = [f"# {spec.get('title') or 'Qualification go / no-go'}", "",
              f"Fichier généré par `qualify.py` depuis `{args.spec.name}`, qui fait foi. {grid.get('scale', '')}", "",
              "| Critère | Poids | Note | Points | Raison |", "| --- | --- | --- | --- | --- |"]

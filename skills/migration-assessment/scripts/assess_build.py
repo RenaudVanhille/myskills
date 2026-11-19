@@ -37,6 +37,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import print_schema, read_spec, schema_option  # noqa: E402
+from text_tools import beside, from_data  # noqa: E402
 from skill_paths import require_file  # noqa: E402
 
 PROVIDERS = require_file("cloud-architecture", "lib/providers.json")
@@ -131,7 +132,7 @@ def check(spec: dict, base: Path, today: date, errors: list[str], warnings: list
                                 "des lois extraterritoriales ; à couvrir par l'analyse d'impact (data-protection)")
     if spec.get("requirements"):
         try:
-            known = {r["id"] for r in json.loads((base / spec["requirements"]).read_text(encoding="utf-8"))
+            known = {r["id"] for r in json.loads((from_data(base, spec["requirements"])).read_text(encoding="utf-8"))
                      .get("requirements", [])}
         except (OSError, ValueError, KeyError, TypeError) as error:
             errors.append(f"requirements : {spec['requirements']} illisible ({error})")
@@ -195,7 +196,7 @@ def write(spec: dict, plan: list[list[dict]], out_dir: Path, stem: str, warnings
         lines += [f"- {app_id} : {b}" for app_id, b in blockers]
         lines += [f"- {w}" for w in warnings]
     outputs = []
-    md = out_dir / f"{stem}.md"
+    md = beside(out_dir / f"{stem}.md")
     md.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     outputs.append(str(md))
     path = out_dir / f"{stem}.csv"

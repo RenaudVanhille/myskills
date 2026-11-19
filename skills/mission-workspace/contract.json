@@ -729,6 +729,11 @@
                         "type": "integer",
                         "minimum": 0,
                         "description": "Étapes qui reçoivent l'empreinte de leurs entrées ../."
+                      },
+                      "moved": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Fichiers machine de la racine du workflow (JSON, CSV...) rangés dans donnees/."
                       }
                     }
                   }

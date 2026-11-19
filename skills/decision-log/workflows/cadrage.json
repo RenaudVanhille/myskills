@@ -6,8 +6,8 @@
     "le vault Obsidian qui sert de mémoire partagée (sans réponse : workflow sans vault)"
   ],
   "memory": {
-    "requirements": "exigences.json",
-    "options": "options.json"
+    "requirements": "donnees/exigences.json",
+    "options": "donnees/options.json"
   },
   "stages": [
     {
@@ -118,26 +118,26 @@
         "comptes-rendus/*.md"
       ],
       "deliverables": [
-        "exigences.json",
+        "donnees/exigences.json",
         "exigences.md",
-        "exigences.csv"
+        "donnees/exigences.csv"
       ],
       "checks": [
-        "requirements-catalog : req_build.py exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (exigences.tri.json), puis req_build.py exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
+        "requirements-catalog : req_build.py donnees/exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (donnees/exigences.tri.json), puis req_build.py donnees/exigences.json : zéro erreur et zéro phrase d'exigence non reprise"
       ],
       "run": [
         {
           "skill": "requirements-catalog",
           "script": "req_build.py",
           "args": [
-            "exigences.json"
+            "donnees/exigences.json"
           ]
         }
       ],
-      "instructions": "req_build.py exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source.",
+      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source.",
       "optional": [
-        "exigences.candidats.json",
-        "exigences.tri.json"
+        "donnees/exigences.candidats.json",
+        "donnees/exigences.tri.json"
       ],
       "after": [
         "documents",
@@ -153,32 +153,32 @@
         "domain-design"
       ],
       "inputs": [
-        "exigences.json"
+        "donnees/exigences.json"
       ],
       "deliverables": [
-        "domaines.json",
+        "donnees/domaines.json",
         "domaines.md",
-        "domaines.styles.json",
+        "donnees/domaines.styles.json",
         "domaines.carte.drawio"
       ],
       "optional": [
-        "domaines.carte.json",
+        "donnees/domaines.carte.json",
         "domaines.carte.drawio.png"
       ],
       "checks": [
-        "domain-design : domain_build.py domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
+        "domain-design : domain_build.py donnees/domaines.json --export png, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; style recommandé, contextes à extraire et confiance)"
       ],
       "run": [
         {
           "skill": "domain-design",
           "script": "domain_build.py",
           "args": [
-            "domaines.json"
+            "donnees/domaines.json"
           ],
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : le modèle de données de chaque contexte vient après, à l'étape modele-donnees ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de domaines.json et se note au journal.",
+      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : le modèle de données de chaque contexte vient après, à l'étape modele-donnees ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de donnees/domaines.json et se note au journal.",
       "after": [
         "exigences"
       ]
@@ -195,28 +195,28 @@
         "data-model"
       ],
       "inputs": [
-        "exigences.json",
-        "domaines.json"
+        "donnees/exigences.json",
+        "donnees/domaines.json"
       ],
       "deliverables": [
-        "modele.json",
-        "modele.mmd",
+        "donnees/modele.json",
+        "donnees/modele.mmd",
         "modele.md",
-        "modele.sql"
+        "donnees/modele.sql"
       ],
       "checks": [
-        "data-model : model_build.py modele.json (clés, relations, contexte de chaque entité si domaines.json existe, liens entre contextes, données personnelles et de santé signalées, diagramme relu)"
+        "data-model : model_build.py donnees/modele.json (clés, relations, contexte de chaque entité si donnees/domaines.json existe, liens entre contextes, données personnelles et de santé signalées, diagramme relu)"
       ],
       "run": [
         {
           "skill": "data-model",
           "script": "model_build.py",
           "args": [
-            "modele.json"
+            "donnees/modele.json"
           ]
         }
       ],
-      "instructions": "Après le découpage : avec domaines.json (étape domaines menée), domains dans modele.json et le context de chaque entité, un schéma par contexte et aucune clé étrangère entre contextes ; un lien entre contextes sans relation de la carte se corrige dans le découpage (retour à domaines) ou se justifie au journal. Sans découpage, un seul modèle. Entités tirées du glossaire et des exigences fonctionnelles, refs vers les exigences ; champs personnels marqués. Une donnée de santé ou une entité sans exigence se note au journal."
+      "instructions": "Après le découpage : avec donnees/domaines.json (étape domaines menée), domains dans donnees/modele.json et le context de chaque entité, un schéma par contexte et aucune clé étrangère entre contextes ; un lien entre contextes sans relation de la carte se corrige dans le découpage (retour à domaines) ou se justifie au journal. Sans découpage, un seul modèle. Entités tirées du glossaire et des exigences fonctionnelles, refs vers les exigences ; champs personnels marqués. Une donnée de santé ou une entité sans exigence se note au journal."
     },
     {
       "id": "architectures",
@@ -232,35 +232,35 @@
         "well-architected-review"
       ],
       "inputs": [
-        "exigences.json",
+        "donnees/exigences.json",
         "documents/pos*",
-        "domaines.json",
-        "domaines.styles.json"
+        "donnees/domaines.json",
+        "donnees/domaines.styles.json"
       ],
       "deliverables": [
-        "options.json",
+        "donnees/options.json",
         "options.md"
       ],
       "optional": [
         "tracabilite.md",
-        "tracabilite.csv",
+        "donnees/tracabilite.csv",
         "schemas/option-*.cloud.json",
         "schemas/option-*.wa.md",
         "schemas/pos-option-*.json"
       ],
       "checks": [
-        "architecture-options : options_build.py options.json --draft d'abord (critères, qualifications exigées, hébergeurs qualifiés), puis options_build.py options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
+        "architecture-options : options_build.py donnees/options.json --draft d'abord (critères, qualifications exigées, hébergeurs qualifiés), puis options_build.py donnees/options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)"
       ],
       "run": [
         {
           "skill": "architecture-options",
           "script": "options_build.py",
           "args": [
-            "options.json"
+            "donnees/options.json"
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
     },
     {
       "id": "dimensionnement",
@@ -274,27 +274,27 @@
         "cloud-cost"
       ],
       "inputs": [
-        "exigences.json",
-        "options.json"
+        "donnees/exigences.json",
+        "donnees/options.json"
       ],
       "deliverables": [
-        "dimensionnement.json",
+        "donnees/dimensionnement.json",
         "dimensionnement.md",
-        "dimensionnement.result.json"
+        "donnees/dimensionnement.result.json"
       ],
       "optional": [
-        "dimensionnement.couts.json",
+        "donnees/dimensionnement.couts.json",
         "dimensionnement.couts.md"
       ],
       "checks": [
-        "capacity-sizing : size_build.py dimensionnement.json, avec --provider et --option pour une option cloud (couts.json contrôlé contre le schéma de cloud-cost)"
+        "capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)"
       ],
       "run": [
         {
           "skill": "capacity-sizing",
           "script": "size_build.py",
           "args": [
-            "dimensionnement.json"
+            "donnees/dimensionnement.json"
           ]
         }
       ],
@@ -313,36 +313,36 @@
         "mermaid-diagram"
       ],
       "inputs": [
-        "exigences.json",
-        "options.json",
-        "modele.json"
+        "donnees/exigences.json",
+        "donnees/options.json",
+        "donnees/modele.json"
       ],
       "deliverables": [
-        "api.json",
-        "api.openapi.yaml",
+        "donnees/api.json",
+        "donnees/api.openapi.yaml",
         "api.api.md",
         "api.sequences.md"
       ],
       "optional": [
-        "api.asyncapi.yaml",
-        "api.seq-*.mmd"
+        "donnees/api.asyncapi.yaml",
+        "donnees/api.seq-*.mmd"
       ],
       "checks": [
-        "api-contract : api_build.py api.json --draft --requirements exigences.json --options options.json --option <retenue>, puis api_build.py api.json et api_sequences.py api.json"
+        "api-contract : api_build.py donnees/api.json --draft --requirements donnees/exigences.json --options donnees/options.json --option <retenue>, puis api_build.py donnees/api.json et api_sequences.py donnees/api.json"
       ],
       "run": [
         {
           "skill": "api-contract",
           "script": "api_build.py",
           "args": [
-            "api.json"
+            "donnees/api.json"
           ]
         },
         {
           "skill": "api-contract",
           "script": "api_sequences.py",
           "args": [
-            "api.json"
+            "donnees/api.json"
           ]
         }
       ],
@@ -359,29 +359,29 @@
         "test-plan"
       ],
       "inputs": [
-        "exigences.json"
+        "donnees/exigences.json"
       ],
       "deliverables": [
-        "recette.json",
+        "donnees/recette.json",
         "recette.md",
-        "recette.csv"
+        "donnees/recette.csv"
       ],
       "optional": [
-        "recette.lots.json"
+        "donnees/recette.lots.json"
       ],
       "checks": [
-        "test-plan : test_build.py recette.json --draft --requirements exigences.json, puis test_build.py recette.json (toute exigence indispensable couverte, lots de recette au format de solution-estimate)"
+        "test-plan : test_build.py donnees/recette.json --draft --requirements donnees/exigences.json, puis test_build.py donnees/recette.json (toute exigence indispensable couverte, lots de recette au format de solution-estimate)"
       ],
       "run": [
         {
           "skill": "test-plan",
           "script": "test_build.py",
           "args": [
-            "recette.json"
+            "donnees/recette.json"
           ]
         }
       ],
-      "instructions": "Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. recette.lots.json passe au chiffrage (estimate_build.py --draft --lots recette.lots.json)."
+      "instructions": "Un cas par exigence au départ, étapes et données décrites ensuite ; une exigence importante non couverte se note au journal avec sa raison. donnees/recette.lots.json passe au chiffrage (estimate_build.py --draft --lots donnees/recette.lots.json)."
     },
     {
       "id": "developpement",
@@ -397,11 +397,11 @@
         "spec-pack"
       ],
       "inputs": [
-        "exigences.json",
-        "options.json",
-        "modele.json",
-        "api.json",
-        "recette.json"
+        "donnees/exigences.json",
+        "donnees/options.json",
+        "donnees/modele.json",
+        "donnees/api.json",
+        "donnees/recette.json"
       ],
       "deliverables": [
         "specs/README.md",
@@ -410,7 +410,7 @@
         "specs/livraison.md"
       ],
       "optional": [
-        "specs.json",
+        "donnees/specs.json",
         "specs/ux.md",
         "specs/architecture.md"
       ],
@@ -426,7 +426,7 @@
           ]
         }
       ],
-      "instructions": "Étape facultative, à faire si l'équipe passe au développement (sinon skip, avec les mots de l'utilisateur). Le script écrit un dossier de spécifications autonome (fonctionnel, UX, architecture, tests, livraison, index de traçabilité) depuis les livrables validés, utilisable par n'importe quel outil de développement IA ; n'écrire specs.json (vision, utilisateurs, parcours, indicateurs, versions) que si l'utilisateur veut des spécifications complètes et que les sources le disent. Pour le transmettre ailleurs, --out vers le dossier voulu puis --check sur la copie. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal."
+      "instructions": "Étape facultative, à faire si l'équipe passe au développement (sinon skip, avec les mots de l'utilisateur). Le script écrit un dossier de spécifications autonome (fonctionnel, UX, architecture, tests, livraison, index de traçabilité) depuis les livrables validés, utilisable par n'importe quel outil de développement IA ; n'écrire donnees/specs.json (vision, utilisateurs, parcours, indicateurs, versions) que si l'utilisateur veut des spécifications complètes et que les sources le disent. Pour le transmettre ailleurs, --out vers le dossier voulu puis --check sur la copie. Une option seulement recommandée s'exporte comme hypothèse : le noter au journal."
     }
   ]
 }

@@ -309,10 +309,16 @@
                 "links",
                 "superseded",
                 "noise",
-                "external"
+                "external",
+                "moved"
               ],
               "additionalProperties": false,
               "properties": {
+                "moved": {
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "description": "Fichiers machine de la racine (JSON, CSV, Mermaid, SQL, YAML) rangés dans donnees/ : workflow ouvert avant ce rangement, définition qui le suit ; chemins de workflow.json mis à jour."
+                },
                 "noise": {
                   "type": "integer",
                   "minimum": 0,

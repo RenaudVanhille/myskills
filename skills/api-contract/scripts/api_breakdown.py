@@ -38,6 +38,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / "lib"))
 import skill_paths  # noqa: E402
 from spec_schema import check, input_schema, print_schema  # noqa: E402
+from text_tools import beside  # noqa: E402
 
 workspace = skill_paths.require_module("mission-workspace", "lib/workspace.py")
 
@@ -194,7 +195,7 @@ def net(task: dict) -> list[float]:
 
 def write(spec: dict, work: list[dict], base: Path, sources: list[str], meta: dict) -> list[Path]:
     total = [round(sum(net(w)[i] for w in work), 2) for i in range(3)]
-    lots, md = base.with_name(base.name + ".lots.json"), base.with_name(base.name + ".md")
+    lots, md = base.with_name(base.name + ".lots.json"), beside(base.with_name(base.name + ".md"))
     lots.write_text(json.dumps({"domain": "backend", "source": meta["input"], "abaques": sources,
                                 "work": work}, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     origin = "abaques fournis (" + ", ".join(Path(s).name for s in sources) + ")" if sources \
