@@ -126,7 +126,7 @@ from lib import source_docs  # noqa: E402
 from lib.text_tools import unlink_notes  # noqa: E402
 from lib.workflow_chart import causes, label_of, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
-from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, sync, vault_ontology  # noqa: E402,E501
+from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, stage_note, sync, vault_ontology  # noqa: E402,E501
 
 workspace = require_module("mission-workspace", "lib/workspace.py")
 
@@ -612,7 +612,8 @@ def linker(folder: Path, state: dict):
     ou une option vers sa note du vault quand le workflow en a un."""
     memory = state.get("memory") or {}
     base = Path(memory["vault"]) / safe_folder(memory["folder"]) if memory.get("vault") else None
-    entries = {e["id"] for e in decisions_of(state)}  # seules les décisions ont une note
+    entries = {e["id"]: e["stage"] for e in decisions_of(state)}  # décisions : dans la note de leur étape
+    labels = {s["id"]: label_of(state, s["id"]) for s in state["stages"]}
 
     def link(ref: str, code: bool = False) -> str:
         shown = f"`{ref}`" if code else ref.replace("|", "\\|")
@@ -620,8 +621,11 @@ def linker(folder: Path, state: dict):
             return md_link(shown, folder / ref, folder)
         if not base or ref != safe_name(ref):
             return shown
-        notes = [base / "Décisions" / f"{ref}.md"] if ref in entries else \
-            [n for n in (base / "Exigences" / f"{ref}.md", base / "Options" / f"Option {ref}.md") if n.is_file()]
+        if ref in entries:  # section « D-001 » de la note de son étape, écrite par la synchronisation qui suit
+            note = Path(memory["vault"]) / (stage_note(safe_folder(memory["folder"]), labels, entries[ref]) + ".md")
+            linked = md_link(shown, note, folder)
+            return linked[:-1] + f"#{ref})" if linked.endswith(")") else linked
+        notes = [n for n in (base / "Exigences" / f"{ref}.md", base / "Options" / f"Option {ref}.md") if n.is_file()]
         return md_link(shown, notes[0], folder) if notes else shown
     return link
 

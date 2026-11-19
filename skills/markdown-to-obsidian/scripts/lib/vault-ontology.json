@@ -286,7 +286,7 @@
   },
   "relations": {
     "workflow": {"label": "fait partie du workflow", "from": ["*"], "to": ["workflow"], "many": false},
-    "concerne": {"label": "concerne", "from": ["decision"], "to": ["*"], "many": true},
+    "concerne": {"label": "concerne", "from": ["decision", "etape"], "to": ["*"], "many": true},
     "termes": {"label": "emploie le terme", "from": ["exigence"], "to": ["terme"], "many": true},
     "ecarts": {"label": "couvre mal l'exigence", "from": ["option-architecture"], "to": ["exigence"], "many": true},
     "applications": {"label": "place l'application", "from": ["option-architecture"], "to": ["application"], "many": true},

@@ -11,7 +11,7 @@
     "workflow.json : étapes dans l'ordre (d'une définition JSON : un workflow livré de workflows/ ou fournie), statut, empreintes SHA-256 des fichiers soumis, entrées du journal",
     "journal.md : version lisible (étapes, schéma Mermaid d'avancement avec chaque étape obligatoire ou facultative et son statut, décisions et revues, questions), réécrite à chaque commande ; fichiers soumis, entrées, exigences et options y sont des liens Markdown vers le fichier ou la note du vault",
     "Livrables Markdown soumis (options.md, chiffrage.md, tracabilite.md...) : chaque identifiant d'exigence y devient un lien Markdown vers sa note du vault, sans changer le texte ni l'empreinte du fichier ; markdown-publish retire ces liens à l'export",
-    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/, Documents/, Glossaire/, Options/, Décisions/, l'ADR et Étapes/<étape>.md avec ses livrables (vault dans le dossier du projet : liens vers les originaux, une seule version de chaque fichier ; sinon copies dans Fichiers/)",
+    "Avec un vault Obsidian : VAULT/<dossier>/ avec une note d'index, Exigences/, Documents/, Glossaire/, Options/, l'ADR et Étapes/<étape>.md avec ses livrables et ses décisions (sections D-xxx) (vault dans le dossier du projet : liens vers les originaux, une seule version de chaque fichier ; sinon copies dans Fichiers/)",
     "lecons.md et lecons.json : leçons par mission et par étape, retours récurrents entre missions, règles de complétude proposées (postes attendus du chiffrage, scénarios attendus de la revue) ; avec --apply, les règles retenues ajoutées au fichier de règles de la mission ou de l'utilisateur"
   ],
   "scripts": [
