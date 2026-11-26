@@ -42,7 +42,7 @@ metadata:
   labels: {{- include "myskills.labels" $ | nindent 4 }}
 spec:
   hard:
-    pods: {{ add .maxSessions 3 | quote }}
+    pods: {{ add .maxSessions .nodes 3 | quote }}
     persistentvolumeclaims: {{ mul .maxSessions 5 | quote }}
     requests.storage: {{ .storage }}
     limits.memory: {{ .memory }}

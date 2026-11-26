@@ -1,0 +1,46 @@
+{{- if .Values.prepull.enabled }}
+# Préchargement de l'image des sessions sur chaque nœud : le conteneur d'initialisation la tire (et
+# s'arrête aussitôt), puis un conteneur pause garde le pod. Un nouveau tag relance le préchargement.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "myskills.name" . }}-prepull
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels: {app: myskills-prepull, app.kubernetes.io/instance: {{ .Release.Name }}}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 100%}
+  template:
+    metadata:
+      labels: {app: myskills-prepull, app.kubernetes.io/instance: {{ .Release.Name }}}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prepull.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prepull.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: session-image
+          image: {{ include "myskills.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["true"]
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 1m, memory: 8Mi}, limits: {memory: 32Mi}}
+      containers:
+        - name: pause
+          image: {{ .Values.prepull.pauseImage }}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 1m, memory: 8Mi}, limits: {memory: 16Mi}}
+{{- end }}

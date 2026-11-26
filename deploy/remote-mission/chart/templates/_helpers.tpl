@@ -8,6 +8,7 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end }}
 
 {{- define "myskills.image" -}}{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- end }}
+{{- define "myskills.serviceImage" -}}{{ .Values.serviceImage.repository }}:{{ .Values.serviceImage.tag }}{{- end }}
 
 {{/* Nom d'hôte d'une URL, sans port. */}}
 {{- define "myskills.host" -}}{{ (urlParse .).host | splitList ":" | first }}{{- end }}
@@ -76,9 +77,10 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{/* Montage de l'autorité interne et fichier des autorités (image + interne), construit au démarrage. */}}
 {{- define "myskills.caInit" -}}
 - name: ca-bundle
-  image: {{ include "myskills.image" . }}
+  image: {{ include "myskills.serviceImage" . }}
   command: ["sh", "-c", "cat /etc/ssl/certs/ca-certificates.crt /etc/myskills-ca/*.crt > /ca/ca-bundle.crt"]
   securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+  resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {memory: 64Mi}}
   volumeMounts:
     - {name: ca, mountPath: /etc/myskills-ca, readOnly: true}
     - {name: ca-bundle, mountPath: /ca}

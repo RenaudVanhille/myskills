@@ -1,7 +1,7 @@
 myskills-remote installé dans {{ .Release.Namespace }}.
 
 1. Vérifier la configuration :
-   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "myskills.name" . }} -- uv run /opt/myskills/deploy/remote-mission/service/scripts/remote_server.py check --config /etc/myskills/remote.json
+   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "myskills.name" . }} -- python /opt/myskills/deploy/remote-mission/service/scripts/remote_server.py check --config /etc/myskills/remote.json
 {{- if .Values.openWebui.enabled }}
 2. Open WebUI : {{ .Values.openWebui.url }} (connexion par GitLab). Un membre de {{ join ", " .Values.openWebui.adminGroups }} importe
    la fonction Pipe (deploy/remote-mission/openwebui_pipe.py) puis règle ses Valves :

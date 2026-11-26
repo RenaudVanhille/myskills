@@ -10,7 +10,8 @@ pods de session.
 | --- | --- |
 | `service/` | le service : `remote_server.py` (HTTP du pipe, sessions), `remote_turn.py` (un message), `contract.json` |
 | `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
-| `Dockerfile` | image du service et des sessions, avec les outils de tous les skills |
+| `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
+| `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
 | `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
 | `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
 
@@ -89,14 +90,26 @@ uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json
 uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
 ```
 
-## 1. Image
+## 1. Images
 
 ```bash
-docker build -f deploy/remote-mission/Dockerfile -t registry.exemple.local/myskills/remote-mission:2.4.0 .
+docker build -f deploy/remote-mission/Dockerfile -t registry.exemple.local/myskills/remote-mission:0.1.0 .
+docker build -f deploy/remote-mission/Dockerfile.service -t registry.exemple.local/myskills/remote-service:0.1.0 .
 ```
 
-Une seule image sert au service frontal et aux pods de session. Elle contient
-tout ce que les skills utilisent, préparé à la construction pour qu'une
+Deux images, construites depuis la racine du dépôt :
+
+- **Service frontal** (`Dockerfile.service`, `serviceImage`) : Python, le
+  service et les bibliothèques partagées, quelques dizaines de Mo. Il
+  redémarre en quelques secondes (mise à jour, changement de nœud) : Open
+  WebUI ne perd le service que ce temps-là ; les sessions continuent.
+- **Sessions** (`Dockerfile`, `image`) : plusieurs Go. Le chart la
+  **précharge sur chaque nœud** (DaemonSet `prepull`, relancé à chaque
+  nouveau tag) : une session démarre ou se recharge en 10 à 30 s au lieu de
+  quelques minutes quand le nœud n'a pas encore l'image. Avec un quota, compter
+  un pod de préchargement par nœud (`sessions.quota.nodes`).
+
+L'image des sessions contient tout ce que les skills utilisent, préparé à la construction pour qu'une
 session travaille hors ligne (`UV_OFFLINE`, `MYSKILLS_OFFLINE`,
 `HF_HUB_OFFLINE`) :
 

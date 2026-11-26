@@ -102,6 +102,7 @@ class Sessions:
         sync = ["uv", "run", "--quiet", INSTALL, "sync", "--source", "/opt/myskills",
                 "--global", "--tools", runner.get("tools", "claude")] \
             + (["--models", runner["models"]] if runner.get("models") else [])  # modèle par niveau (LiteLLM)
+        resources = runner.get("resources", {"requests": {"cpu": "250m", "memory": "1Gi"}, "limits": {"memory": "4Gi"}})
         mounts, volumes = [], []
         if runner.get("ca_secret"):
             # Autorité interne (GitLab, LiteLLM d'un autre cluster) : ajoutée aux autorités de l'image, pour git,
@@ -126,6 +127,7 @@ class Sessions:
                     "name": "skills", "image": runner["image"],
                     "command": sync,
                     "env": [{"name": "HOME", "value": "/work/home"}],
+                    "resources": resources,  # limites exigées par un ResourceQuota sur la mémoire
                     "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
                     "volumeMounts": [{"name": "config", "mountPath": "/etc/myskills", "readOnly": True},
                                      *mounts, {"name": "work", "mountPath": "/work"}]}],
@@ -133,8 +135,7 @@ class Sessions:
                     "name": "session", "image": runner["image"], "command": command, "env": env,
                     "ports": [{"containerPort": 8765}],
                     "envFrom": [{"secretRef": {"name": runner.get("secret", "myskills-session")}}],
-                    "resources": runner.get("resources", {"requests": {"cpu": "250m", "memory": "1Gi"},
-                                                          "limits": {"memory": "4Gi"}}),
+                    "resources": resources,
                     "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
                     "volumeMounts": [{"name": "config", "mountPath": "/etc/myskills", "readOnly": True},
                                      {"name": "git", "mountPath": "/etc/myskills-git", "readOnly": True},

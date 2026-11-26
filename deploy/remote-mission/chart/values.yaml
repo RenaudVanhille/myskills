@@ -1,8 +1,14 @@
 # Valeurs du chart myskills-remote. Aucun secret ici : ils sont dans des Secrets créés à part
 # (voir le README de deploy/remote-mission), le chart ne fait que les nommer.
 
+# Deux images construites depuis le dépôt : celle des sessions (Dockerfile : outils de tous les skills,
+# lourde) et celle du service frontal (Dockerfile.service : Python et les scripts, légère).
 image:
   repository: registry.exemple.local/myskills/remote-mission
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+serviceImage:
+  repository: registry.exemple.local/myskills/remote-service
   tag: "0.1.0"
   pullPolicy: IfNotPresent
 imagePullSecrets: []
@@ -66,12 +72,21 @@ sessions:
   resources:
     requests: {cpu: 250m, memory: 1Gi}
     limits: {memory: 4Gi}
-  # Plafond du namespace : sessions ouvertes en même temps (+ service et Open WebUI).
+  # Plafond du namespace : sessions ouvertes en même temps (+ service, Open WebUI, préchargement).
   quota:
     enabled: true
     maxSessions: 20
+    nodes: 10        # nœuds du cluster : un pod de préchargement par nœud compte dans le quota
     storage: 500Gi
     memory: 84Gi
+
+# Image des sessions préchargée sur chaque nœud (DaemonSet) : le premier message d'une session ne
+# télécharge pas plusieurs Go. Relancé à chaque changement de image.tag.
+prepull:
+  enabled: true
+  pauseImage: registry.k8s.io/pause:3.10
+  nodeSelector: {}
+  tolerations: []
 
 kubernetes:
   # Adresse de l'API du cluster pour la NetworkPolicy du service (kubectl get endpoints kubernetes).

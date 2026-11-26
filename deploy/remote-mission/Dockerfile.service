@@ -1,0 +1,21 @@
+# Image légère du service frontal des missions à distance : Python et les scripts du dépôt, sans
+# outils de rendu, navigateur, agent ni modèle (ceux-là sont dans l'image des sessions, Dockerfile).
+# Elle démarre vite : le service est de nouveau joignable en quelques secondes après un redémarrage.
+# Contexte de construction : la racine du dépôt myskills.
+#
+#   docker build -f deploy/remote-mission/Dockerfile.service -t registry.exemple.local/myskills/remote-service:X.Y.Z .
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 myskills
+# Service et bibliothèques partagées : bibliothèque standard seule (en mode kubernetes, les tours se jouent
+# dans les pods de session).
+COPY --chown=myskills shared/scripts /opt/myskills/shared/scripts
+COPY --chown=myskills deploy/remote-mission/service /opt/myskills/deploy/remote-mission/service
+USER myskills
+ENV PYTHONDONTWRITEBYTECODE=1 LANG=C.UTF-8
+
+EXPOSE 8765
+ENTRYPOINT ["python", "/opt/myskills/deploy/remote-mission/service/scripts/remote_server.py", "serve", \
+            "--config", "/etc/myskills/remote.json"]
