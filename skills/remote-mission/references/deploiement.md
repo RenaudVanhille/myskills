@@ -1,11 +1,31 @@
 # Déployer les missions à distance (Kubernetes, LiteLLM, GitLab, Open WebUI)
 
 ```
-Open WebUI ──(pipe, jeton)──> myskills-remote ──(clé virtuelle)──> LiteLLM ──> modèles du harness
-   (SSO GitLab)                 │  un tour = un agent sans terminal
-                                └──(jeton de déploiement)──> GitLab : une branche par conversation
-                                └──(read_api)──> GitLab : rôle de l'utilisateur sur le projet
+Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
+   (SSO GitLab)                     │ crée un Job par tour (API du cluster)
+                                    v
+                              pod du tour (une mission) ──(clé virtuelle)──> LiteLLM
+                                    └──(jeton git)──> GitLab : une branche par conversation
 ```
+
+## Démarrage et concurrence
+
+- **Service toujours prêt** : un pod léger (HTTP, droits, Jobs), sans dépôt ni
+  clé LiteLLM.
+- **Un Job par tour** (`runner.kind: kubernetes`) : pod à la demande, image
+  déjà prête (outils et skills), dépôt de la seule mission cloné dans un volume
+  vide, commit et push, puis arrêt ; le Job s'efface après `ttl_seconds`.
+  Compter 10 à 30 s de démarrage (image en cache sur le nœud, clone).
+- **Concurrence** : un tour à la fois par conversation (un message pendant un
+  tour suit le tour en cours ; un Job encore actif est retrouvé après un
+  redémarrage du service), au plus `server.max_jobs` tours en parallèle, et le
+  `ResourceQuota` du namespace en plafond. Deux conversations d'une mission
+  travaillent sur deux branches : rien ne s'écrase, un conflit se règle à la
+  merge request.
+- **Isolation** : un pod ne voit que sa mission, sans jeton de l'API du
+  cluster ; jeton git propre à une mission possible (`missions.<nom>.git_secret`).
+- `runner.kind: local` (défaut) joue les tours dans le pod du service, sur un
+  volume persistant : utile sur un poste ou sans droit de créer des Jobs.
 
 Tout est auto-hébergé : aucun contenu de mission ne sort vers un service tiers
 (AGENTS.md, section 5). Les seuls flux sortants du pod sont LiteLLM et GitLab
@@ -37,8 +57,8 @@ de même : l'installer dans l'image et changer `agent.command`.
           "max_budget": 200, "budget_duration": "30d", "rpm_limit": 60}'
    ```
 
-   La clé va dans le Secret `myskills-remote` (`ANTHROPIC_AUTH_TOKEN`), jamais
-   dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
+   La clé va dans le Secret `myskills-turn` (`ANTHROPIC_AUTH_TOKEN`), monté
+   dans les seuls pods des tours, jamais dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
    service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
 2. **NetworkPolicy `litellm-clients`** (fichier facultatif
    `kubernetes/litellm-clients.yaml`) : seuls les pods déclarés joignent
@@ -97,17 +117,24 @@ l'utilisateur fusionne par une merge request.
 ```bash
 kubectl -n myskills create secret generic myskills-remote \
   --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
-  --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
+kubectl -n myskills create secret generic myskills-turn \
+  --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
 kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
 # facultatif, après relecture : kubectl apply -f skills/remote-mission/assets/kubernetes/litellm-clients.yaml
 ```
 
-Adapter `remote.json` dans la ConfigMap (missions, hôtes) et l'adresse de
-GitLab dans la NetworkPolicy. Une seule réplique : les tours en cours sont en
-mémoire ; les copies de travail restent sur le volume. Avant de brancher Open
-WebUI :
+Le fichier crée : la ConfigMap de `remote.json` (missions, hôtes, `runner`),
+le compte de service et son Role (Jobs, pods et leurs journaux, dans le
+namespace seulement), un `ResourceQuota`, le Deployment du service, son
+Service et deux NetworkPolicy (service : entrée depuis Open WebUI, sortie
+vers l'API du cluster et GitLab ; pods des tours : aucune entrée, sortie vers
+LiteLLM et GitLab). Adapter les adresses de l'API du cluster et de GitLab,
+et les labels de LiteLLM. Le message de l'utilisateur passe dans la
+définition du Job (variable `MYSKILLS_MESSAGE`) : lisible par qui peut lire
+les Jobs du namespace, à réserver aux administrateurs. Avant de brancher
+Open WebUI :
 
 ```bash
 kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/remote-mission/scripts/remote_server.py check --config /etc/myskills/remote.json
@@ -131,6 +158,7 @@ arrière-plan : son résultat s'affiche au message suivant.
   en local (`git pull` de la branche).
 - Les pièces jointes du chat ne sont pas transmises : déposer les documents
   dans `documents/` du dépôt.
-- Une réplique : un redémarrage interrompt les tours en cours (le commit du
-  tour n'est pas fait ; la copie de travail garde les fichiers, repris au tour
-  suivant).
+- Un redémarrage du service ne coupe pas les Jobs en cours (ils finissent,
+  font le commit et poussent), mais leur progression et leur réponse ne
+  s'affichent plus dans le chat : `/statut` donne l'état, la branche garde le
+  travail. En mode `local`, un redémarrage interrompt le tour.

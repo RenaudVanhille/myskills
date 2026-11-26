@@ -2066,6 +2066,20 @@
           "exit": 0
         }
       ]
+    },
+    {
+      "id": "mission-distance-kubernetes",
+      "skill": "remote-mission",
+      "_note": "Tour joué dans un Job Kubernetes (runner kubernetes) face à une API du cluster simulée en local : Job créé avec le message en variable, pod sans jeton de l'API, non rejoué, effacé après le tour, volume vide ; progression lue dans les journaux du pod et rendue par le pipe ; Reporter refusé avant toute création de Job.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/kube_job.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        }
+      ]
     }
   ]
 }

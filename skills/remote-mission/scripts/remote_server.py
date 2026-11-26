@@ -41,6 +41,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
+import access  # noqa: E402
+import k8s_runner  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
@@ -115,13 +117,25 @@ class Service:
 
         def work() -> None:
             try:
-                report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user)
+                if self.config.get("runner", {}).get("kind") == "kubernetes":
+                    report = self.in_pod(mission, chat, message, user, job.emit)
+                else:
+                    report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
             job.finish(report)
 
         threading.Thread(target=work, daemon=True).start()
         return 202, {"job": job.id}
+
+    def in_pod(self, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
+        """Tour dans un Job Kubernetes ; les droits se vérifient ici, le pod n'a pas de jeton GitLab API."""
+        empty = remote_turn.empty_report(mission, chat, user)
+        refused = access.check(self.config, mission, user,
+                               write=message.strip().lower() not in remote_turn.STATUS_WORDS)
+        if refused:
+            return {**empty, "errors": [refused]}
+        return k8s_runner.run(self.config, mission, chat, message, user, emit, empty)
 
     def chat(self, mission: str, chat: str, user: str | None) -> dict:
         if self.owner_refused(mission, chat, user):

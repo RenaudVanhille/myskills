@@ -84,6 +84,9 @@ def check_config(config: dict, base: Path) -> list[str]:
             errors.append(f"missions/{name}/repo : hôte « {host} » absent de allowed_hosts")
         if not host and not (base / repo).is_dir():
             errors.append(f"missions/{name}/repo : dossier local « {repo} » introuvable")
+    runner = config.get("runner", {})
+    if runner.get("kind") == "kubernetes" and not runner.get("image"):
+        errors.append("runner/image : image du pod des tours attendue avec kind kubernetes")
     rights = config.get("access")
     if rights and rights.get("provider", "gitlab") == "gitlab":
         host = host_of(rights.get("api", ""))
@@ -310,7 +313,7 @@ def empty_report(name: str, chat: str, user: str | None = None) -> dict:
 
 
 def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind, text: None,
-             push: bool = True, user: str | None = None) -> dict:
+             push: bool = True, user: str | None = None, check_access: bool = True) -> dict:
     """Un tour complet ; config déjà validée (load_config), config["_base"] = dossier de la configuration.
     Avec access, l'utilisateur doit avoir sur le projet GitLab de la mission le rôle de lecture
     (/statut) ou d'écriture (tour d'agent)."""
@@ -319,7 +322,8 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
     if name not in config["missions"]:
         report["errors"].append(f"mission « {name} » inconnue (permis : {', '.join(config['missions'])})")
         return report
-    refused = access.check(config, name, user, write=message.strip().lower() not in STATUS_WORDS)
+    refused = access.check(config, name, user, write=message.strip().lower() not in STATUS_WORDS) \
+        if check_access else None
     if refused:
         report["errors"].append(refused)
         return report
@@ -368,17 +372,25 @@ def main() -> int:
     parser.add_argument("--chat", help="identifiant de la conversation (une branche par conversation)")
     parser.add_argument("--message", help="message de l'utilisateur")
     parser.add_argument("--message-file", type=Path, help="message lu dans un fichier (UTF-8)")
+    parser.add_argument("--message-env", help="message lu dans cette variable d'environnement (Job Kubernetes)")
     parser.add_argument("--user", help="utilisateur (courriel ou nom GitLab), exigé si access est configuré")
+    parser.add_argument("--workdir", type=Path, help="copies de travail (remplace workdir de la configuration)")
     parser.add_argument("--no-push", action="store_true", help="commit local seulement")
     parser.add_argument("--events", type=Path, help="journal des événements du tour (JSON Lines)")
+    parser.add_argument("--job", action="store_true",
+                        help="tour lancé par le service dans un pod : événements sur la sortie d'erreur, images en "
+                             "ligne gardées, droits déjà vérifiés par le service")
     schema_option(parser)
     args = parser.parse_args()
     if args.schema:
         print_schema(__file__)
         return 0
     report = empty_report(args.mission or "", args.chat or "", args.user)
+    message = args.message if args.message is not None else \
+        os.environ.get(args.message_env) if args.message_env else \
+        args.message_file.read_text(encoding="utf-8") if args.message_file else None
     missing = [o for o, v in (("--config", args.config), ("--mission", args.mission), ("--chat", args.chat),
-                              ("--message ou --message-file", args.message or args.message_file)) if not v]
+                              ("--message, --message-file ou --message-env", message)) if v is None]
     if missing:
         report["errors"].append(f"options manquantes : {', '.join(missing)}")
         print(json.dumps(report, ensure_ascii=False))
@@ -389,8 +401,9 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False))
         return 1
     config["_base"] = str(args.config.resolve().parent)
-    message = args.message if args.message is not None else args.message_file.read_text(encoding="utf-8")
-    sink = args.events.open("w", encoding="utf-8") if args.events else None
+    if args.workdir:
+        config["workdir"] = str(args.workdir.resolve())
+    sink = sys.stderr if args.job else args.events.open("w", encoding="utf-8") if args.events else None
 
     def emit(kind: str, text: str) -> None:
         if sink:
@@ -399,12 +412,13 @@ def main() -> int:
 
     try:
         report = run_turn(config, args.mission, args.chat, message, emit, push=not args.no_push,
-                          user=args.user)
+                          user=args.user, check_access=not args.job)
     finally:
-        if sink:
+        if sink and sink is not sys.stderr:
             sink.close()
-    for image in report["images"]:  # le rapport reste court : les images en ligne sont pour le serveur
-        image["data"] = bool(image["data"])
+    if not args.job:  # le rapport reste court : les images en ligne sont pour le service
+        for image in report["images"]:
+            image["data"] = bool(image["data"])
     print(json.dumps(report, ensure_ascii=False))
     return 1 if report["errors"] else 0
 

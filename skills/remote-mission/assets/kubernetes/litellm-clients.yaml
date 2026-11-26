@@ -16,7 +16,7 @@ spec:
         - namespaceSelector:
             matchLabels: {kubernetes.io/metadata.name: myskills}
           podSelector:
-            matchLabels: {app: myskills-remote}
+            matchLabels: {app: myskills-turn}   # pods des tours
         # ajouter ici les autres clients autorisés de LiteLLM (Open WebUI s'il l'utilise aussi)
       ports:
         - port: 4000

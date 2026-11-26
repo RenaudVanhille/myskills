@@ -18088,13 +18088,13 @@
         "Contrôle d'accès : chaque tour vérifie le rôle de l'utilisateur sur le projet GitLab de la mission ; refus motivé dans le chat",
         "Une branche par conversation dans le dépôt de la mission, un commit par tour, poussée",
         "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-        "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (Deployment, Service, volume, NetworkPolicy, clé LiteLLM en Secret)"
+        "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (service toujours prêt, un Job par tour, RBAC limité aux Jobs, NetworkPolicy, clé LiteLLM en Secret)"
       ],
       "scripts": [
         {
           "name": "remote_turn.py",
           "role": "Joue un tour d'une mission à distance : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés (Reporter pour /statut, Developer pour un tour, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, agent lancé sans terminal ni shell (claude -p sur LiteLLM...) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
-          "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F) [--user COURRIEL] [--no-push] [--events EVENEMENTS.jsonl] | --schema",
+          "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F | --message-env VAR) [--user COURRIEL] [--workdir DOSSIER] [--no-push] [--events EVENEMENTS.jsonl] [--job] | --schema",
           "options": {
             "--config": "configuration du service, validée contre le schéma d'entrée",
             "--mission": "mission de la configuration",
@@ -18104,7 +18104,10 @@
             "--no-push": "commit local seulement",
             "--events": "événements du tour en JSON Lines (progression)",
             "--schema": "affiche le schéma de la configuration sur une ligne",
-            "--user": "utilisateur (courriel ou nom GitLab), exigé quand access est configuré"
+            "--user": "utilisateur (courriel ou nom GitLab), exigé quand access est configuré",
+            "--message-env": "message lu dans cette variable d'environnement (Job Kubernetes)",
+            "--workdir": "copies de travail (remplace workdir de la configuration)",
+            "--job": "tour lancé par le service dans un pod : événements JSON Lines sur la sortie d'erreur, images en ligne gardées, droits déjà vérifiés par le service"
           },
           "exit_codes": {
             "0": "tour joué, branche commitée (et poussée)",
@@ -18166,6 +18169,11 @@
                         "type": "string",
                         "minLength": 1,
                         "description": "Chemin du projet GitLab pour les droits (groupe/projet ; défaut : tiré de l'URL du dépôt)."
+                      },
+                      "git_secret": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$",
+                        "description": "runner kubernetes : Secret du jeton git propre à cette mission (.git-credentials), au lieu de runner.git_secret."
                       }
                     }
                   }
@@ -18326,6 +18334,83 @@
                       "type": "integer",
                       "minimum": 0,
                       "description": "Durée de mémoire des droits lus (défaut : 300)."
+                    }
+                  }
+                },
+                "runner": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Où se joue un tour : local (défaut, dans le processus du service) ou kubernetes (un Job par tour, pod à la demande, une seule mission par pod).",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "local",
+                        "kubernetes"
+                      ]
+                    },
+                    "image": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "kubernetes : image du pod des tours (celle du service)."
+                    },
+                    "namespace": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Namespace des Jobs (défaut : celui du service)."
+                    },
+                    "api": {
+                      "type": "string",
+                      "pattern": "^https?://",
+                      "description": "API du cluster (défaut : https://kubernetes.default.svc)."
+                    },
+                    "token_file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Jeton du compte de service (défaut : celui monté dans le pod)."
+                    },
+                    "ca_file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Autorité de l'API (défaut : celle montée dans le pod)."
+                    },
+                    "secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret des variables du pod de tour : ANTHROPIC_AUTH_TOKEN (défaut : myskills-turn)."
+                    },
+                    "git_secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret du jeton git (.git-credentials) par défaut (défaut : myskills-git)."
+                    },
+                    "config_map": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "ConfigMap de remote.json (défaut : myskills-remote)."
+                    },
+                    "config_path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Chemin de remote.json dans le pod (défaut : /etc/myskills/remote.json)."
+                    },
+                    "script": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Chemin de remote_turn.py dans l'image."
+                    },
+                    "resources": {
+                      "type": "object",
+                      "description": "Ressources du conteneur (requests, limits)."
+                    },
+                    "ttl_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Effacement du Job fini (défaut : 900)."
+                    },
+                    "work_size": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Taille maximale du volume de travail du pod (défaut : 10Gi)."
                     }
                   }
                 }
@@ -18563,7 +18648,7 @@
         },
         {
           "name": "remote_server.py",
-          "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours : chaque message lance remote_turn en arrière-plan, le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
+          "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours : chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans un Job par tour (pod à la demande, une seule mission, effacé après le tour, progression lue dans les journaux du pod, Job encore actif d'une conversation retrouvé après un redémarrage), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
           "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--mission NOM] [--chat ID] [--message M] [--user COURRIEL] | --schema",
           "options": {
             "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt",
@@ -18639,6 +18724,11 @@
                         "type": "string",
                         "minLength": 1,
                         "description": "Chemin du projet GitLab pour les droits (groupe/projet ; défaut : tiré de l'URL du dépôt)."
+                      },
+                      "git_secret": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$",
+                        "description": "runner kubernetes : Secret du jeton git propre à cette mission (.git-credentials), au lieu de runner.git_secret."
                       }
                     }
                   }
@@ -18799,6 +18889,83 @@
                       "type": "integer",
                       "minimum": 0,
                       "description": "Durée de mémoire des droits lus (défaut : 300)."
+                    }
+                  }
+                },
+                "runner": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Où se joue un tour : local (défaut, dans le processus du service) ou kubernetes (un Job par tour, pod à la demande, une seule mission par pod).",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "local",
+                        "kubernetes"
+                      ]
+                    },
+                    "image": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "kubernetes : image du pod des tours (celle du service)."
+                    },
+                    "namespace": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Namespace des Jobs (défaut : celui du service)."
+                    },
+                    "api": {
+                      "type": "string",
+                      "pattern": "^https?://",
+                      "description": "API du cluster (défaut : https://kubernetes.default.svc)."
+                    },
+                    "token_file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Jeton du compte de service (défaut : celui monté dans le pod)."
+                    },
+                    "ca_file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Autorité de l'API (défaut : celle montée dans le pod)."
+                    },
+                    "secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret des variables du pod de tour : ANTHROPIC_AUTH_TOKEN (défaut : myskills-turn)."
+                    },
+                    "git_secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret du jeton git (.git-credentials) par défaut (défaut : myskills-git)."
+                    },
+                    "config_map": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "ConfigMap de remote.json (défaut : myskills-remote)."
+                    },
+                    "config_path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Chemin de remote.json dans le pod (défaut : /etc/myskills/remote.json)."
+                    },
+                    "script": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Chemin de remote_turn.py dans l'image."
+                    },
+                    "resources": {
+                      "type": "object",
+                      "description": "Ressources du conteneur (requests, limits)."
+                    },
+                    "ttl_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Effacement du Job fini (défaut : 900)."
+                    },
+                    "work_size": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Taille maximale du volume de travail du pod (défaut : 10Gi)."
                     }
                   }
                 }

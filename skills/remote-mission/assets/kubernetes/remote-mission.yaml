@@ -1,9 +1,12 @@
-# Service des missions à distance (skill remote-mission). Namespace : myskills.
+# Missions à distance (skill remote-mission), namespace myskills : le service est toujours prêt
+# (léger : HTTP, droits, création des Jobs) ; chaque tour tourne dans un Job, pod à la demande
+# qui ne voit que sa mission, effacé après le tour.
 # Secrets créés à part, jamais dans ce fichier (voir references/deploiement.md) :
 #   myskills-remote : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
-#                     ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre au service),
 #                     GITLAB_ACCESS_TOKEN (read_api : droits par mission)
-#   myskills-git    : .git-credentials (jeton de déploiement GitLab, write_repository)
+#   myskills-turn   : ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre aux tours)
+#   myskills-git    : .git-credentials (jeton GitLab write_repository ; un Secret par mission
+#                     possible : missions.<nom>.git_secret)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -20,7 +23,7 @@ data:
           "web": "https://gitlab.exemple.local/archi/portail-sinistres"
         }
       },
-      "workdir": "/data/clones",
+      "workdir": "/work",
       "branch_prefix": "openwebui/",
       "allowed_hosts": [
         "gitlab.exemple.local",
@@ -72,19 +75,73 @@ data:
         "port": 8765,
         "token_env": "MYSKILLS_REMOTE_TOKEN",
         "max_jobs": 4
+      },
+      "runner": {
+        "kind": "kubernetes",
+        "image": "registry.exemple.local/myskills/remote-mission:2.4.0",
+        "secret": "myskills-turn",
+        "git_secret": "myskills-git",
+        "config_map": "myskills-remote",
+        "ttl_seconds": 900,
+        "resources": {
+          "requests": {
+            "cpu": "500m",
+            "memory": "1Gi"
+          },
+          "limits": {
+            "memory": "4Gi"
+          }
+        }
       }
     }
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
+kind: ServiceAccount
 metadata:
-  name: myskills-clones
+  name: myskills-remote
+  namespace: myskills
+---
+# Le service ne gère que les Jobs des tours et lit les journaux de leurs pods, dans son namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: myskills-remote
+  namespace: myskills
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: myskills-remote
+  namespace: myskills
+subjects:
+  - kind: ServiceAccount
+    name: myskills-remote
+    namespace: myskills
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: myskills-remote
+---
+# Plafond des tours en parallèle dans le namespace (en plus de server.max_jobs).
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: myskills-tours
   namespace: myskills
 spec:
-  accessModes: ["ReadWriteOnce"]
-  resources:
-    requests:
-      storage: 20Gi
+  hard:
+    count/jobs.batch: "20"
+    limits.memory: 24Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -92,7 +149,7 @@ metadata:
   name: myskills-remote
   namespace: myskills
 spec:
-  replicas: 1            # l'état des tours en cours est en mémoire : une seule réplique
+  replicas: 1            # suivi des tours en mémoire ; un Job encore actif est retrouvé après un redémarrage
   strategy:
     type: Recreate
   selector:
@@ -101,46 +158,31 @@ spec:
     metadata:
       labels: {app: myskills-remote}
     spec:
-      automountServiceAccountToken: false
-      terminationGracePeriodSeconds: 120
+      serviceAccountName: myskills-remote
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
-        fsGroup: 10001
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: service
-          image: registry.exemple.local/myskills/remote-mission:latest
+          image: registry.exemple.local/myskills/remote-mission:2.4.0
           ports:
             - containerPort: 8765
           envFrom:
             - secretRef: {name: myskills-remote}
-          env:
-            - name: GIT_CONFIG_COUNT
-              value: "1"
-            - name: GIT_CONFIG_KEY_0
-              value: credential.helper
-            - name: GIT_CONFIG_VALUE_0
-              value: store --file=/etc/myskills-git/.git-credentials
           readinessProbe:
             httpGet: {path: /health, port: 8765}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: {drop: ["ALL"]}
           resources:
-            requests: {cpu: 500m, memory: 1Gi}
-            limits: {memory: 4Gi}
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 256Mi}
           volumeMounts:
             - {name: config, mountPath: /etc/myskills, readOnly: true}
-            - {name: git, mountPath: /etc/myskills-git, readOnly: true}
-            - {name: clones, mountPath: /data}
       volumes:
         - name: config
           configMap: {name: myskills-remote}
-        - name: git
-          secret: {secretName: myskills-git, defaultMode: 0400}
-        - name: clones
-          persistentVolumeClaim: {claimName: myskills-clones}
 ---
 apiVersion: v1
 kind: Service
@@ -153,7 +195,7 @@ spec:
     - port: 8765
       targetPort: 8765
 ---
-# Entrée : Open WebUI seulement. Sortie : DNS, LiteLLM et GitLab seulement (allowlist).
+# Service : entrée depuis Open WebUI seulement ; sortie vers DNS, l'API du cluster et l'API GitLab.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -180,6 +222,34 @@ spec:
         - {port: 53, protocol: UDP}
         - {port: 53, protocol: TCP}
     - to:
+        - ipBlock: {cidr: 10.0.0.1/32}    # adresse de l'API du cluster (kubectl get endpoints kubernetes)
+      ports:
+        - port: 443
+        - port: 6443
+    - to:
+        - ipBlock: {cidr: 10.0.0.10/32}   # GitLab (ou son namespace s'il tourne dans le cluster)
+      ports:
+        - port: 443
+---
+# Pods des tours : aucune entrée ; sortie vers DNS, LiteLLM et GitLab seulement.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: myskills-tours
+  namespace: myskills
+spec:
+  podSelector:
+    matchLabels: {app: myskills-turn}
+  policyTypes: ["Ingress", "Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    - to:
         - namespaceSelector:
             matchLabels: {kubernetes.io/metadata.name: litellm}
           podSelector:
@@ -187,7 +257,7 @@ spec:
       ports:
         - port: 4000
     - to:
-        - ipBlock: {cidr: 10.0.0.10/32}   # adresse de GitLab (ou son namespace s'il tourne dans le cluster)
+        - ipBlock: {cidr: 10.0.0.10/32}   # GitLab
       ports:
         - port: 443
         - port: 22
