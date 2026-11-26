@@ -77,6 +77,9 @@ class Pipe:
             parts.append(f"Étape **{done['stage']}** {word}.")
         if report.get("answer"):
             parts.append(report["answer"])
+        if report.get("mode") == "fin" and not report.get("errors"):
+            parts.append("Session terminée : le travail est poussé sur la branche, la session est effacée. "
+                         "Un nouveau message ouvre une session neuve.")
         if report.get("mode") == "statut":
             for wf in report.get("workflows", []):
                 steps = ", ".join(f"{s} ({v})" for s, v in wf["stages"].items())

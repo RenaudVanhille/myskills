@@ -1771,7 +1771,7 @@
     {
       "id": "mission-distance",
       "skill": "remote-mission",
-      "_note": "Mission à distance, agent simulé (aucun modèle) : dépôt de mission ouvert par mission.py, tour d'un Developer (branche poussée, PNG et .drawio liés, jeton du service retiré de l'agent, LiteLLM transmis), Reporter refusé pour un tour mais admis pour /statut, utilisateur absent refusé, étape soumise puis « valide » passé à journal.py review sans tour de modèle, message joué de bout en bout par la fonction Pipe d'Open WebUI et le service (probe), service refusé sans jeton hors de la machine.",
+      "_note": "Mission à distance, agent simulé (aucun modèle) : dépôt de mission ouvert par mission.py, tour d'un Developer (branche poussée, PNG et .drawio liés, jeton du service retiré de l'agent, LiteLLM transmis), Reporter refusé pour un tour mais admis pour /statut, utilisateur absent refusé, session de l'agent reprise au message suivant, étape soumise puis « valide » passé à journal.py review sans tour de modèle, message joué de bout en bout par la fonction Pipe d'Open WebUI et le service (probe), service refusé sans jeton hors de la machine. ; « /fin » pousse et efface la copie de travail ; pod de session arrêté seul après inactivité.",
       "steps": [
         {
           "script": "{skills}/mission-workspace/scripts/mission.py",
@@ -1827,7 +1827,8 @@
             "pushed": true,
             "gate": null,
             "images.0.source": "schemas/contexte.drawio",
-            "images.0.data": true
+            "images.0.data": true,
+            "resumed": false
           },
           "report_contains": {
             "answer": "schemas/contexte.drawio",
@@ -1925,7 +1926,11 @@
           "report": {
             "gate.stages": [
               "documents"
-            ]
+            ],
+            "resumed": true
+          },
+          "report_contains": {
+            "answer": "suite de session"
           }
         },
         {
@@ -1982,6 +1987,30 @@
           }
         },
         {
+          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "args": [
+            "--config",
+            "{out}/remote.json",
+            "--mission",
+            "portail",
+            "--chat",
+            "c1",
+            "--user",
+            "dev@exemple.local",
+            "--message",
+            "/fin"
+          ],
+          "env": {
+            "MOCK_SKILLS": "{skills}",
+            "MYSKILLS_REMOTE_TOKEN": "ne-doit-pas-passer"
+          },
+          "exit": 0,
+          "report": {
+            "mode": "fin",
+            "pushed": true
+          }
+        },
+        {
           "script": "{skills}/remote-mission/scripts/remote_server.py",
           "args": [
             "serve",
@@ -1997,12 +2026,34 @@
           "report_contains": {
             "errors": "jeton obligatoire"
           }
+        },
+        {
+          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "args": [
+            "serve",
+            "--config",
+            "{out}/remote.json",
+            "--session",
+            "portail:c3",
+            "--idle-minutes",
+            "0.02"
+          ],
+          "exit": 0,
+          "report": {
+            "command": "serve",
+            "turns": 0
+          },
+          "report_contains": {
+            "warnings": "sans message"
+          }
         }
       ],
       "files": [
         "origin/.git",
-        "clones/portail/c1/sources/cahier.md",
         "clones/portail/c2/schemas/contexte.drawio.png"
+      ],
+      "absent": [
+        "clones/portail/c1"
       ]
     },
     {
@@ -2070,10 +2121,10 @@
     {
       "id": "mission-distance-kubernetes",
       "skill": "remote-mission",
-      "_note": "Tour joué dans un Job Kubernetes (runner kubernetes) face à une API du cluster simulée en local : Job créé avec le message en variable, pod sans jeton de l'API, non rejoué, effacé après le tour, volume vide ; progression lue dans les journaux du pod et rendue par le pipe ; Reporter refusé avant toute création de Job.",
+      "_note": "Un pod de session par conversation (runner kubernetes) face à une API du cluster simulée en local : session démarrée avec son volume, pod retrouvé au message suivant par un service frontal neuf (contexte de l'agent repris), pod arrêté puis rechargé depuis son volume avec le contexte, Reporter refusé sans pod créé, « /fin » qui efface pod et volume ; pod sans jeton de l'API.",
       "steps": [
         {
-          "script": "{fixtures}/remote/kube_job.py",
+          "script": "{fixtures}/remote/kube_session.py",
           "args": [
             "{skills}"
           ],

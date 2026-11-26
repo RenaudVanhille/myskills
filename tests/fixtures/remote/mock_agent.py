@@ -18,6 +18,7 @@ prompt = Path(sys.argv[1]).read_text(encoding="utf-8")
 message = prompt.split("Message de l'utilisateur :", 1)[-1].strip()
 assert os.environ.get("ANTHROPIC_BASE_URL"), "agent.env non transmis"
 assert "MYSKILLS_REMOTE_TOKEN" not in os.environ, "jeton du service transmis à l'agent"
+print("suite de session" if "--continue" in sys.argv else "nouvelle session", flush=True)
 print("lecture du journal", flush=True)
 files = []
 if "soumets" in message.lower():

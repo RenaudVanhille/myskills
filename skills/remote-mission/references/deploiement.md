@@ -2,35 +2,43 @@
 
 ```
 Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
-   (SSO GitLab)                     │ crée un Job par tour (API du cluster)
+   (SSO GitLab)                     │ crée, retrouve ou recharge le pod de la conversation
                                     v
-                              pod du tour (une mission) ──(clé virtuelle)──> LiteLLM
-                                    └──(jeton git)──> GitLab : une branche par conversation
+                        pod de session (une conversation) ──(clé virtuelle)──> LiteLLM
+                          │ volume : copie de travail + contexte de l'agent
+                          └──(jeton git)──> GitLab : une branche par conversation
 ```
 
-## Démarrage et concurrence
+## Sessions et concurrence
 
-- **Service toujours prêt** : un pod léger (HTTP, droits, Jobs), sans dépôt ni
-  clé LiteLLM.
-- **Un Job par tour** (`runner.kind: kubernetes`) : pod à la demande, image
-  déjà prête (outils et skills), dépôt de la seule mission cloné dans un volume
-  vide, commit et push, puis arrêt ; le Job s'efface après `ttl_seconds`.
-  Compter 10 à 30 s de démarrage (image en cache sur le nœud, clone).
-- **Concurrence** : un tour à la fois par conversation (un message pendant un
-  tour suit le tour en cours ; un Job encore actif est retrouvé après un
-  redémarrage du service), au plus `server.max_jobs` tours en parallèle, et le
-  `ResourceQuota` du namespace en plafond. Deux conversations d'une mission
+- **Service frontal toujours prêt** : un pod léger (HTTP, droits, pods de
+  session), sans dépôt ni clé LiteLLM.
+- **Un pod par conversation** (`runner.kind: kubernetes`) : créé au premier
+  message (10 à 30 s : image en cache, clone), il reste prêt tant que la
+  conversation est active ; les messages suivants partent tout de suite.
+  L'agent reprend sa session à chaque message (`agent.continue_args`,
+  `--continue` pour Claude Code) : il garde le contexte de la conversation.
+- **Arrêt après inactivité** : sans message pendant `runner.idle_minutes`
+  (120 par défaut), le pod s'arrête seul ; chaque message a déjà été commité et
+  poussé.
+- **Retour de l'utilisateur** : la conversation retrouve son volume (PVC :
+  copie de travail et `HOME` de l'agent) ; un nouveau pod le monte, la session
+  est rechargée avec son contexte.
+- **Fin** : `/fin` dans le chat pousse, arrête le pod et efface le volume ; un
+  volume sans pod depuis `runner.retention_days` (14 jours) est effacé. Le
+  travail reste sur la branche.
+- **Concurrence** : un message à la fois par conversation (un message envoyé
+  pendant un autre suit celui en cours), au plus `server.max_jobs` messages
+  traités en même temps par le service, et le `ResourceQuota` du namespace
+  plafonne les sessions ouvertes. Deux conversations d'une mission
   travaillent sur deux branches : rien ne s'écrase, un conflit se règle à la
   merge request.
-- **Isolation** : un pod ne voit que sa mission, sans jeton de l'API du
-  cluster ; jeton git propre à une mission possible (`missions.<nom>.git_secret`).
-- `runner.kind: local` (défaut) joue les tours dans le pod du service, sur un
-  volume persistant : utile sur un poste ou sans droit de créer des Jobs.
-
-Tout est auto-hébergé : aucun contenu de mission ne sort vers un service tiers
-(AGENTS.md, section 5). Les seuls flux sortants du pod sont LiteLLM et GitLab
-(NetworkPolicy et `allowed_hosts`, repris dans `MYSKILLS_ALLOWED_HOSTS` pour
-les scripts qui chargent un modèle local).
+- **Isolation** : un pod ne voit que sa conversation et sa mission, sans
+  jeton de l'API du cluster ; jeton git propre à une mission possible
+  (`missions.<nom>.git_secret`). Le service frontal vérifie les droits avant
+  chaque message.
+- `runner.kind: local` (défaut) traite les conversations dans le service lui-même,
+  sur un volume persistant : utile sur un poste ou sans droit de créer des pods.
 
 ## 1. Image
 
@@ -41,7 +49,7 @@ docker build -f skills/remote-mission/assets/Dockerfile -t registry.exemple.loca
 L'image contient git, uv, Claude Code et les skills de myskills
 (`install.py sync --tools claude`). Les modèles locaux éventuels
 (`doctor.py GROUPE --prefetch`, skill `check-prerequisites`) s'ajoutent à la
-construction, jamais pendant un tour. Un autre harness (OpenCode...) s'utilise
+construction, jamais pendant une session. Un autre harness (OpenCode...) s'utilise
 de même : l'installer dans l'image et changer `agent.command`.
 
 ## 2. LiteLLM : une clé propre au service, un accès réservé
@@ -57,8 +65,8 @@ de même : l'installer dans l'image et changer `agent.command`.
           "max_budget": 200, "budget_duration": "30d", "rpm_limit": 60}'
    ```
 
-   La clé va dans le Secret `myskills-turn` (`ANTHROPIC_AUTH_TOKEN`), monté
-   dans les seuls pods des tours, jamais dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
+   La clé va dans le Secret `myskills-session` (`ANTHROPIC_AUTH_TOKEN`), monté
+   dans les seuls pods de session, jamais dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
    service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
 2. **NetworkPolicy `litellm-clients`** (fichier facultatif
    `kubernetes/litellm-clients.yaml`) : seuls les pods déclarés joignent
@@ -79,13 +87,13 @@ de même : l'installer dans l'image et changer `agent.command`.
 ## 3. Qui accède à quelle mission
 
 Les droits sont ceux du projet GitLab de la mission (`access`, fournisseur
-`gitlab`) : à chaque tour, le service lit le rôle de l'utilisateur sur le
+`gitlab`) : à chaque message, le service lit le rôle de l'utilisateur sur le
 projet, groupes hérités compris.
 
 | Rôle GitLab | Dans le chat |
 | --- | --- |
 | Reporter (20) et plus | `/statut` |
-| Developer (30) et plus | tours d'agent, décisions de revue |
+| Developer (30) et plus | messages à l'agent, décisions de revue, `/fin` |
 | aucun | refus motivé |
 
 Seuils : `read_level`, `write_level`. Les droits lus sont gardés
@@ -109,7 +117,7 @@ tard après ce délai.
 
 Jeton de déploiement GitLab (`write_repository`) par projet de mission ou
 jeton de groupe, dans le Secret `myskills-git` (fichier `.git-credentials`).
-Protéger `main` : les tours ne poussent que sur `openwebui/<conversation>` ;
+Protéger `main` : les sessions ne poussent que sur `openwebui/<conversation>` ;
 l'utilisateur fusionne par une merge request.
 
 ## 5. Kubernetes
@@ -118,7 +126,7 @@ l'utilisateur fusionne par une merge request.
 kubectl -n myskills create secret generic myskills-remote \
   --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
-kubectl -n myskills create secret generic myskills-turn \
+kubectl -n myskills create secret generic myskills-session \
   --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
 kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
@@ -126,15 +134,15 @@ kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
 ```
 
 Le fichier crée : la ConfigMap de `remote.json` (missions, hôtes, `runner`),
-le compte de service et son Role (Jobs, pods et leurs journaux, dans le
-namespace seulement), un `ResourceQuota`, le Deployment du service, son
-Service et deux NetworkPolicy (service : entrée depuis Open WebUI, sortie
-vers l'API du cluster et GitLab ; pods des tours : aucune entrée, sortie vers
-LiteLLM et GitLab). Adapter les adresses de l'API du cluster et de GitLab,
-et les labels de LiteLLM. Le message de l'utilisateur passe dans la
-définition du Job (variable `MYSKILLS_MESSAGE`) : lisible par qui peut lire
-les Jobs du namespace, à réserver aux administrateurs. Avant de brancher
-Open WebUI :
+le compte de service et son Role (pods et volumes, dans le namespace
+seulement), un `ResourceQuota`, le Deployment du service, son Service et
+deux NetworkPolicy (service : entrée depuis Open WebUI, sortie vers l'API du
+cluster, GitLab et les pods de session ; pods de session : entrée depuis le
+service seulement, sortie vers LiteLLM et GitLab). Adapter les adresses de
+l'API du cluster et de GitLab, et les labels de LiteLLM. Le contenu des
+conversations reste dans les volumes de session : réserver aux
+administrateurs le droit de lire les volumes et d'entrer dans les pods du
+namespace. Avant de brancher Open WebUI :
 
 ```bash
 kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/remote-mission/scripts/remote_server.py check --config /etc/myskills/remote.json
@@ -147,10 +155,10 @@ kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/r
    `TOKEN` (valeur de `MYSKILLS_REMOTE_TOKEN`).
 3. Un modèle apparaît par mission ; restreindre chacun aux groupes concernés.
 
-Le pipe affiche la progression du tour (statut), puis la réponse, les schémas
+Le pipe affiche la progression du message (statut), puis la réponse, les schémas
 PNG (en ligne jusqu'à `inline_images_kb`, liens GitLab vers le PNG et le
-`.drawio`) et l'étape en revue. Un tour plus long que la requête continue en
-arrière-plan : son résultat s'affiche au message suivant.
+`.drawio`) et l'étape en revue. Un traitement plus long que la requête
+continue en arrière-plan : son résultat s'affiche au message suivant.
 
 ## Limites connues
 
@@ -158,7 +166,9 @@ arrière-plan : son résultat s'affiche au message suivant.
   en local (`git pull` de la branche).
 - Les pièces jointes du chat ne sont pas transmises : déposer les documents
   dans `documents/` du dépôt.
-- Un redémarrage du service ne coupe pas les Jobs en cours (ils finissent,
-  font le commit et poussent), mais leur progression et leur réponse ne
-  s'affichent plus dans le chat : `/statut` donne l'état, la branche garde le
-  travail. En mode `local`, un redémarrage interrompt le tour.
+- Un redémarrage du service ne coupe pas les sessions (elles vivent dans
+  leurs pods, retrouvés au message suivant), mais la réponse d'un message en
+  cours à ce moment ne s'affiche pas : la branche garde le travail. En mode
+  `local`, un redémarrage interrompt le message en cours.
+- Un pod de session arrêté en plein message (nœud perdu) reprend au message
+  suivant depuis son volume ; le message interrompu n'a pas de commit.

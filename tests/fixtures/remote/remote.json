@@ -20,7 +20,10 @@
     "timeout": 120,
     "env": {
       "ANTHROPIC_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000"
-    }
+    },
+    "continue_args": [
+      "--continue"
+    ]
   },
   "git": {
     "name": "myskills-remote",

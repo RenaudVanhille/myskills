@@ -7,7 +7,7 @@
       "web": "https://gitlab.exemple.local/archi/portail-sinistres"
     }
   },
-  "workdir": "/work",
+  "workdir": "/work/clones",
   "branch_prefix": "openwebui/",
   "allowed_hosts": [
     "gitlab.exemple.local",
@@ -48,7 +48,10 @@
       "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus",
       "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
       "DISABLE_AUTOUPDATER": "1"
-    }
+    },
+    "continue_args": [
+      "--continue"
+    ]
   },
   "git": {
     "name": "myskills-remote",
@@ -63,13 +66,15 @@
   "runner": {
     "kind": "kubernetes",
     "image": "registry.exemple.local/myskills/remote-mission:2.4.0",
-    "secret": "myskills-turn",
+    "secret": "myskills-session",
     "git_secret": "myskills-git",
     "config_map": "myskills-remote",
-    "ttl_seconds": 900,
+    "idle_minutes": 120,
+    "session_size": "5Gi",
+    "retention_days": 14,
     "resources": {
       "requests": {
-        "cpu": "500m",
+        "cpu": "250m",
         "memory": "1Gi"
       },
       "limits": {

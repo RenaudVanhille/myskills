@@ -42,6 +42,7 @@ from skill_paths import absent, find_script, run_script  # noqa: E402
 from spec_schema import read_spec, schema_option, print_schema, validate  # noqa: E402
 
 STATUS_WORDS = {"/statut", "/status", "statut", "status"}
+END_WORDS = {"/fin", "/end"}  # fin de session : dernier push, copie de travail et contexte de l'agent effacés
 VALIDATE = re.compile(r"^\s*(je\s+valide|valide[rz]?|validé|ok|go|approve[d]?)\s*[.!]?\s*$", re.I)
 FEEDBACK = re.compile(r"^\s*(retour|feedback)\s*:\s*(.+)$", re.I | re.S)
 URL_VARS = re.compile(r"(_URL|_BASE|_HOST|_ENDPOINT)$")
@@ -216,8 +217,10 @@ def agent_env(config: dict) -> dict:
     return env
 
 
-def run_agent(config: dict, folder: Path, prompt: str, emit) -> tuple[str, list[str], dict | None]:
-    """Lance l'agent ; chaque ligne de sa sortie est un événement, la sortie entière la réponse."""
+def run_agent(config: dict, folder: Path, prompt: str, emit, resume: bool = False) -> tuple[str, list[str], dict | None]:
+    """Lance l'agent ; chaque ligne de sa sortie est un événement, la sortie entière la réponse.
+    resume : la conversation a déjà un tour d'agent ici, agent.continue_args reprend sa session
+    (claude --continue) : l'agent garde le contexte des messages précédents."""
     agent = config["agent"]
     tmp = folder / ".myskills-tmp"
     tmp.mkdir(exist_ok=True)
@@ -229,7 +232,9 @@ def run_agent(config: dict, folder: Path, prompt: str, emit) -> tuple[str, list[
                re.sub(r"\{(prompt_file|folder|python|config_dir)\}", lambda m: values["{" + m.group(1) + "}"], part)
                for part in agent["command"]]
     command[0] = shutil.which(command[0]) or command[0]
-    emit("agent", "lancement de l'agent")
+    if resume:
+        command += agent.get("continue_args", [])
+    emit("agent", "reprise de la session de l'agent" if resume else "lancement de l'agent")
     started, lines = time.monotonic(), []
     try:
         process = subprocess.Popen(command, cwd=folder, env=agent_env(config), stdout=subprocess.PIPE,
@@ -309,7 +314,7 @@ def commit_push(config: dict, target: Path, branch: str, chat: str, emit, push: 
 def empty_report(name: str, chat: str, user: str | None = None) -> dict:
     return {"mission": name, "chat": chat, "user": user, "branch": None, "folder": None, "mode": "agent", "answer": "",
             "shortcut": None, "gate": None, "questions": 0, "workflows": [], "changed": [], "images": [],
-            "commit": None, "pushed": False, "seconds": 0, "errors": [], "warnings": []}
+            "commit": None, "pushed": False, "resumed": False, "seconds": 0, "errors": [], "warnings": []}
 
 
 def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind, text: None,
@@ -338,6 +343,14 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
         state = status(folder, report["warnings"])
         if message.strip().lower() in STATUS_WORDS:
             report["mode"] = "statut"
+        elif message.strip().lower() in END_WORDS:
+            report["mode"] = "fin"
+            report["commit"], report["pushed"], errors = commit_push(config, target, branch, chat, emit, push)
+            report["errors"] += errors
+            state = status(folder, report["warnings"])
+            if not errors:
+                emit("session", "fin de session : copie de travail effacée")
+                shutil.rmtree(target, ignore_errors=True)
         else:
             done, errors = shortcut(folder, message, state, emit)
             report["shortcut"], report["errors"] = done, report["errors"] + errors
@@ -348,8 +361,12 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
                 template = config["agent"].get("prompt", DEFAULT_PROMPT)
                 prompt = template.replace("{folder}", str(folder)).replace("{note}", note) \
                     .replace("{message}", message)
-                answer, errors, final = run_agent(config, folder, prompt, emit)
+                marker = target / ".git" / "myskills-agent-session"  # hors des fichiers suivis par git
+                answer, errors, final = run_agent(config, folder, prompt, emit, resume=marker.is_file())
                 report["answer"], report["errors"] = answer, report["errors"] + errors
+                report["resumed"] = marker.is_file()
+                if not errors:
+                    marker.write_text(time.strftime("%Y-%m-%dT%H:%M:%S"), encoding="utf-8")
                 if final and final.get("todo"):
                     report["warnings"] += [f"agent, reste à faire : {t}" for t in final["todo"][:5]]
             changed = changed_files(target)

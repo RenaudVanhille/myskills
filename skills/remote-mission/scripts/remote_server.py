@@ -33,6 +33,8 @@ import signal
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -42,7 +44,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 import access  # noqa: E402
-import k8s_runner  # noqa: E402
+import k8s_sessions  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
@@ -80,8 +82,12 @@ class Job:
 class Service:
     """État partagé : tours en cours et derniers rapports, par conversation."""
 
-    def __init__(self, config: dict, token: str | None):
+    def __init__(self, config: dict, token: str | None, session: tuple | None = None):
         self.config, self.token = config, token
+        self.session = session  # pod de session : la seule conversation qu'il sert
+        self.last_activity = time.monotonic()
+        self.sessions = k8s_sessions.Sessions(config) \
+            if config.get("runner", {}).get("kind") == "kubernetes" and session is None else None
         self.jobs: dict[str, Job] = {}
         self.chats: dict[tuple, str] = {}
         self.owners: dict[tuple, str] = {}  # conversation -> utilisateur qui l'a ouverte
@@ -101,6 +107,9 @@ class Service:
     def start(self, mission: str, chat: str, message: str, user: str | None) -> tuple[int, dict]:
         if mission not in self.config["missions"]:
             return 404, {"error": f"mission « {mission} » inconnue"}
+        if self.session and (mission, chat) != self.session:
+            return 403, {"error": "ce pod de session sert une autre conversation"}
+        self.last_activity = time.monotonic()
         refused = self.owner_refused(mission, chat, user)
         if refused:
             return 403, {"error": refused}
@@ -117,25 +126,36 @@ class Service:
 
         def work() -> None:
             try:
-                if self.config.get("runner", {}).get("kind") == "kubernetes":
-                    report = self.in_pod(mission, chat, message, user, job.emit)
-                else:
-                    report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user)
+                if self.sessions:
+                    report = self.via_session(mission, chat, message, user, job.emit)
+                else:  # dans un pod de session, les droits ont été vérifiés par le service frontal
+                    report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user,
+                                                  check_access=self.session is None)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
             job.finish(report)
+            self.last_activity = time.monotonic()
 
         threading.Thread(target=work, daemon=True).start()
         return 202, {"job": job.id}
 
-    def in_pod(self, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
-        """Tour dans un Job Kubernetes ; les droits se vérifient ici, le pod n'a pas de jeton GitLab API."""
+    def via_session(self, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
+        """Message passé au pod de session de la conversation (créé, retrouvé ou rechargé) ;
+        les droits se vérifient ici : le pod n'a pas de jeton de l'API GitLab."""
         empty = remote_turn.empty_report(mission, chat, user)
         refused = access.check(self.config, mission, user,
                                write=message.strip().lower() not in remote_turn.STATUS_WORDS)
         if refused:
             return {**empty, "errors": [refused]}
-        return k8s_runner.run(self.config, mission, chat, message, user, emit, empty)
+        try:
+            url, token = self.sessions.ensure(mission, chat, emit)
+            report = forward(url, token, mission, chat, message, user, emit)
+            if report.get("mode") == "fin" and not report.get("errors"):
+                self.sessions.end(mission, chat)
+                emit("session", "pod et volume de la session effacés")
+            return report
+        except (urllib.error.URLError, OSError, RuntimeError, ValueError) as error:
+            return {**empty, "errors": [f"session : {error}"]}
 
     def chat(self, mission: str, chat: str, user: str | None) -> dict:
         if self.owner_refused(mission, chat, user):
@@ -212,6 +232,34 @@ def handler(service: Service):
     return Handler
 
 
+def forward(url: str, token: str, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
+    """Joue le message dans un autre service (le pod de session) et relaie ses événements."""
+    def call(method: str, path: str, payload: dict | None = None, timeout: float = 30) -> tuple[int, dict]:
+        request = urllib.request.Request(url + path, method=method,
+                                         data=json.dumps(payload).encode("utf-8") if payload else None,
+                                         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json",
+                                                  "X-Myskills-User": user or ""})
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.status, json.loads(response.read() or b"{}")
+        except urllib.error.HTTPError as error:
+            return error.code, json.loads(error.read() or b"{}")
+
+    code, started = call("POST", "/turns", {"mission": mission, "chat": chat, "message": message})
+    if code not in (202, 409):
+        raise RuntimeError(started.get("error", f"pod de session : code {code}"))
+    if code == 409:
+        emit("session", "un message est déjà en cours dans la session : suivi de celui-ci")
+    job, after = started["job"], 0
+    while True:
+        _, view = call("GET", f"/jobs/{job}?after={after}&wait=25&ack=1", timeout=60)
+        for event in view.get("events", []):
+            emit(event["kind"], event["text"])
+        after = view.get("next", after)
+        if view.get("done"):
+            return view["report"]
+
+
 def report(command: str, **fields) -> dict:
     return {"command": command, "url": None, "missions": 0, "turns": 0, "output": None,
             "errors": [], "warnings": [], **fields}
@@ -263,6 +311,9 @@ def main() -> int:
     parser.add_argument("--config", type=Path, help="configuration (remote.json), schéma de remote_turn.py")
     parser.add_argument("--host", help="adresse d'écoute (défaut : server.host, sinon 127.0.0.1)")
     parser.add_argument("--port", type=int, help="port (défaut : server.port, sinon 8765)")
+    parser.add_argument("--workdir", type=Path, help="serve : copies de travail (remplace workdir)")
+    parser.add_argument("--session", help="serve : pod de session, ne sert que MISSION:CONVERSATION")
+    parser.add_argument("--idle-minutes", type=float, help="serve : s'arrête après ce temps sans message")
     parser.add_argument("--mission", help="probe : mission à jouer")
     parser.add_argument("--chat", default="probe", help="probe : conversation (défaut : probe)")
     parser.add_argument("--user", help="probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès")
@@ -287,6 +338,11 @@ def main() -> int:
         return 1 if out["errors"] else 0
     settings = config.get("server", {})
     host = args.host or settings.get("host", "127.0.0.1")
+    if args.workdir:
+        config["workdir"] = str(args.workdir.resolve())
+    session = tuple(args.session.split(":", 1)) if args.session else None
+    if session and (len(session) != 2 or session[0] not in config["missions"]):
+        out["errors"].append(f"--session : MISSION:CONVERSATION attendu, mission de la configuration ({args.session})")
     if args.command == "probe":
         host, token = "127.0.0.1", secrets.token_urlsafe(16)
         if not args.mission:
@@ -317,7 +373,7 @@ def main() -> int:
     if out["errors"]:
         print(json.dumps(out, ensure_ascii=False))
         return 1
-    service = Service(config, token)
+    service = Service(config, token, session)
     server = start_server(service, host, args.port or settings.get("port", 8765))
     out["url"] = f"http://{host}:{server.server_address[1]}"
     print(json.dumps({"listening": out["url"], "missions": out["missions"]}, ensure_ascii=False),
@@ -326,11 +382,16 @@ def main() -> int:
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, stop)
+    idle = args.idle_minutes * 60 if args.idle_minutes else None
     try:
         while True:
-            time.sleep(3600)
+            time.sleep(min(5.0, idle / 4) if idle else 3600)
+            if idle and not service.running() and time.monotonic() - service.last_activity > idle:
+                out["warnings"].append(f"arrêt après {args.idle_minutes:g} min sans message (session rechargée au suivant)")
+                break
     except KeyboardInterrupt:
-        server.shutdown()
+        pass
+    server.shutdown()
     out["turns"] = service.turns
     print(json.dumps(out, ensure_ascii=False))
     return 0

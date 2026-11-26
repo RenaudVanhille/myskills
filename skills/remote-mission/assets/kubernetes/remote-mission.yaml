@@ -1,12 +1,13 @@
-# Missions à distance (skill remote-mission), namespace myskills : le service est toujours prêt
-# (léger : HTTP, droits, création des Jobs) ; chaque tour tourne dans un Job, pod à la demande
-# qui ne voit que sa mission, effacé après le tour.
+# Missions à distance (skill remote-mission), namespace myskills.
+# Service frontal toujours prêt (léger : HTTP, droits, pods de session). Chaque conversation a son
+# pod de session, qui garde le contexte de l'agent, s'arrête après runner.idle_minutes sans message
+# et se recharge depuis son volume (PVC) quand l'utilisateur revient ; « /fin » efface pod et volume.
 # Secrets créés à part, jamais dans ce fichier (voir references/deploiement.md) :
-#   myskills-remote : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
-#                     GITLAB_ACCESS_TOKEN (read_api : droits par mission)
-#   myskills-turn   : ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre aux tours)
-#   myskills-git    : .git-credentials (jeton GitLab write_repository ; un Secret par mission
-#                     possible : missions.<nom>.git_secret)
+#   myskills-remote  : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
+#                      GITLAB_ACCESS_TOKEN (read_api : droits par mission)
+#   myskills-session : ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre aux sessions)
+#   myskills-git     : .git-credentials (jeton GitLab write_repository ; un Secret par mission
+#                      possible : missions.<nom>.git_secret)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,7 +24,7 @@ data:
           "web": "https://gitlab.exemple.local/archi/portail-sinistres"
         }
       },
-      "workdir": "/work",
+      "workdir": "/work/clones",
       "branch_prefix": "openwebui/",
       "allowed_hosts": [
         "gitlab.exemple.local",
@@ -64,7 +65,10 @@ data:
           "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus",
           "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
           "DISABLE_AUTOUPDATER": "1"
-        }
+        },
+        "continue_args": [
+          "--continue"
+        ]
       },
       "git": {
         "name": "myskills-remote",
@@ -79,13 +83,15 @@ data:
       "runner": {
         "kind": "kubernetes",
         "image": "registry.exemple.local/myskills/remote-mission:2.4.0",
-        "secret": "myskills-turn",
+        "secret": "myskills-session",
         "git_secret": "myskills-git",
         "config_map": "myskills-remote",
-        "ttl_seconds": 900,
+        "idle_minutes": 120,
+        "session_size": "5Gi",
+        "retention_days": 14,
         "resources": {
           "requests": {
-            "cpu": "500m",
+            "cpu": "250m",
             "memory": "1Gi"
           },
           "limits": {
@@ -101,22 +107,19 @@ metadata:
   name: myskills-remote
   namespace: myskills
 ---
-# Le service ne gère que les Jobs des tours et lit les journaux de leurs pods, dans son namespace.
+# Le service ne gère que les pods et volumes des sessions, dans son namespace.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: myskills-remote
   namespace: myskills
 rules:
-  - apiGroups: ["batch"]
-    resources: ["jobs"]
-    verbs: ["create", "get", "list"]
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["get", "list"]
+    verbs: ["create", "get", "list", "delete"]
   - apiGroups: [""]
-    resources: ["pods/log"]
-    verbs: ["get"]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["create", "get", "list", "delete", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -132,7 +135,7 @@ roleRef:
   kind: Role
   name: myskills-remote
 ---
-# Plafond des tours en parallèle dans le namespace (en plus de server.max_jobs).
+# Plafond des sessions ouvertes en même temps dans le namespace.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -140,8 +143,10 @@ metadata:
   namespace: myskills
 spec:
   hard:
-    count/jobs.batch: "20"
-    limits.memory: 24Gi
+    pods: "21"                      # 20 sessions + le service
+    persistentvolumeclaims: "100"
+    requests.storage: 500Gi
+    limits.memory: 84Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -149,7 +154,7 @@ metadata:
   name: myskills-remote
   namespace: myskills
 spec:
-  replicas: 1            # suivi des tours en mémoire ; un Job encore actif est retrouvé après un redémarrage
+  replicas: 1            # les sessions vivent dans leurs pods : un redémarrage du service les retrouve
   strategy:
     type: Recreate
   selector:
@@ -195,7 +200,7 @@ spec:
     - port: 8765
       targetPort: 8765
 ---
-# Service : entrée depuis Open WebUI seulement ; sortie vers DNS, l'API du cluster et l'API GitLab.
+# Service : entrée depuis Open WebUI seulement ; sortie vers DNS, l'API du cluster, l'API GitLab et les pods de session.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -230,17 +235,28 @@ spec:
         - ipBlock: {cidr: 10.0.0.10/32}   # GitLab (ou son namespace s'il tourne dans le cluster)
       ports:
         - port: 443
+    - to:
+        - podSelector:
+            matchLabels: {app: myskills-session}
+      ports:
+        - port: 8765
 ---
-# Pods des tours : aucune entrée ; sortie vers DNS, LiteLLM et GitLab seulement.
+# Pods de session : entrée depuis le service seulement ; sortie vers DNS, LiteLLM et GitLab.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: myskills-tours
+  name: myskills-sessions
   namespace: myskills
 spec:
   podSelector:
-    matchLabels: {app: myskills-turn}
+    matchLabels: {app: myskills-session}
   policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: myskills-remote}
+      ports:
+        - port: 8765
   egress:
     - to:
         - namespaceSelector: {}

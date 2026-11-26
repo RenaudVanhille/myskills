@@ -7,20 +7,20 @@
   ],
   "outputs": [
     "Contrôle d'accès : chaque tour vérifie le rôle de l'utilisateur sur le projet GitLab de la mission ; refus motivé dans le chat",
-    "Une branche par conversation dans le dépôt de la mission, un commit par tour, poussée",
+    "Une branche par conversation dans le dépôt de la mission, un commit par message, poussée",
     "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-    "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (service toujours prêt, un Job par tour, RBAC limité aux Jobs, NetworkPolicy, clé LiteLLM en Secret)"
+    "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (service frontal toujours prêt, un pod de session par conversation avec son volume, RBAC limité aux pods et volumes, NetworkPolicy, clé LiteLLM en Secret)"
   ],
   "scripts": [
     {
       "name": "remote_turn.py",
-      "role": "Joue un tour d'une mission à distance : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés (Reporter pour /statut, Developer pour un tour, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, agent lancé sans terminal ni shell (claude -p sur LiteLLM...) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
+      "role": "Joue un tour d'une mission à distance : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés (Reporter pour /statut, Developer pour un tour, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, « /fin » qui pousse et efface la copie de travail, session de l'agent reprise d'un message à l'autre (agent.continue_args : contexte gardé), agent lancé sans terminal ni shell (claude -p sur LiteLLM...) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
       "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F | --message-env VAR) [--user COURRIEL] [--workdir DOSSIER] [--no-push] [--events EVENEMENTS.jsonl] [--job] | --schema",
       "options": {
         "--config": "configuration du service, validée contre le schéma d'entrée",
         "--mission": "mission de la configuration",
         "--chat": "identifiant de la conversation : une branche <branch_prefix><chat>",
-        "--message": "message de l'utilisateur ; « valide », « retour : ... » ou « /statut » traités sans modèle",
+        "--message": "message de l'utilisateur ; « valide », « retour : ... », « /statut » et « /fin » traités sans modèle",
         "--message-file": "message lu dans un fichier UTF-8",
         "--no-push": "commit local seulement",
         "--events": "événements du tour en JSON Lines (progression)",
@@ -158,6 +158,14 @@
                     "type": "string"
                   },
                   "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                },
+                "continue_args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (claude : [\"--continue\"])."
                 }
               }
             },
@@ -261,7 +269,7 @@
             "runner": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Où se joue un tour : local (défaut, dans le processus du service) ou kubernetes (un Job par tour, pod à la demande, une seule mission par pod).",
+              "description": "Où se joue la conversation : local (défaut, dans le processus du service) ou kubernetes (un pod par conversation, vivant tant qu'elle est active, rechargé depuis son volume au retour de l'utilisateur).",
               "properties": {
                 "kind": {
                   "enum": [
@@ -297,7 +305,7 @@
                 "secret": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Secret des variables du pod de tour : ANTHROPIC_AUTH_TOKEN (défaut : myskills-turn)."
+                  "description": "Secret des variables du pod de session : ANTHROPIC_AUTH_TOKEN (défaut : myskills-session)."
                 },
                 "git_secret": {
                   "type": "string",
@@ -317,21 +325,36 @@
                 "script": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Chemin de remote_turn.py dans l'image."
+                  "description": "Chemin de remote_server.py dans l'image."
                 },
                 "resources": {
                   "type": "object",
                   "description": "Ressources du conteneur (requests, limits)."
                 },
-                "ttl_seconds": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Effacement du Job fini (défaut : 900)."
+                "idle_minutes": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Arrêt du pod après ce temps sans message (défaut : 120) ; le volume garde la session."
                 },
-                "work_size": {
+                "session_size": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Taille maximale du volume de travail du pod (défaut : 10Gi)."
+                  "description": "Taille du volume de session : copie de travail et contexte de l'agent (défaut : 5Gi)."
+                },
+                "storage_class": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Classe de stockage des volumes de session (défaut : celle du cluster)."
+                },
+                "retention_days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Volume de session sans pod effacé après ce délai (défaut : 14) ; le travail reste sur la branche."
+                },
+                "startup_seconds": {
+                  "type": "integer",
+                  "minimum": 10,
+                  "description": "Attente maximale du pod prêt (défaut : 300)."
                 }
               }
             }
@@ -360,6 +383,7 @@
             "images",
             "commit",
             "pushed",
+            "resumed",
             "seconds",
             "errors",
             "warnings"
@@ -387,7 +411,8 @@
             "mode": {
               "enum": [
                 "agent",
-                "statut"
+                "statut",
+                "fin"
               ]
             },
             "answer": {
@@ -562,6 +587,10 @@
                 "string",
                 "null"
               ]
+            },
+            "resumed": {
+              "type": "boolean",
+              "description": "L'agent a repris la session de la conversation (contexte des messages précédents)."
             }
           }
         }
@@ -569,10 +598,10 @@
     },
     {
       "name": "remote_server.py",
-      "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours : chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans un Job par tour (pod à la demande, une seule mission, effacé après le tour, progression lue dans les journaux du pod, Job encore actif d'une conversation retrouvé après un redémarrage), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
-      "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--mission NOM] [--chat ID] [--message M] [--user COURRIEL] | --schema",
+      "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours : chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans le pod de session de la conversation (créé au premier message, retrouvé ensuite, arrêté après inactivité, rechargé depuis son volume avec le contexte de l'agent au retour de l'utilisateur, effacé par « /fin » ou après runner.retention_days), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
+      "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--workdir DOSSIER] [--session MISSION:CONVERSATION] [--idle-minutes N] [--mission NOM] [--chat ID] [--message M] [--user COURRIEL] | --schema",
       "options": {
-        "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt",
+        "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt (SIGTERM, ou inactivité avec --idle-minutes)",
         "check": "valide la configuration et ses hôtes",
         "probe": "démarre le service sur un port local, joue --message (défaut : /statut) par le pipe, rend son texte",
         "--config": "configuration (schéma de remote_turn.py)",
@@ -582,7 +611,10 @@
         "--chat": "probe : conversation (défaut : probe)",
         "--message": "probe : message",
         "--schema": "affiche le schéma de la configuration sur une ligne",
-        "--user": "probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès"
+        "--user": "probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès",
+        "--workdir": "serve : copies de travail (remplace workdir)",
+        "--session": "serve : pod de session, ne sert que cette conversation (droits vérifiés par le service frontal)",
+        "--idle-minutes": "serve : s'arrête après ce temps sans message (pod de session)"
       },
       "exit_codes": {
         "0": "service arrêté proprement, configuration valide ou sonde réussie",
@@ -713,6 +745,14 @@
                     "type": "string"
                   },
                   "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                },
+                "continue_args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (claude : [\"--continue\"])."
                 }
               }
             },
@@ -816,7 +856,7 @@
             "runner": {
               "type": "object",
               "additionalProperties": false,
-              "description": "Où se joue un tour : local (défaut, dans le processus du service) ou kubernetes (un Job par tour, pod à la demande, une seule mission par pod).",
+              "description": "Où se joue la conversation : local (défaut, dans le processus du service) ou kubernetes (un pod par conversation, vivant tant qu'elle est active, rechargé depuis son volume au retour de l'utilisateur).",
               "properties": {
                 "kind": {
                   "enum": [
@@ -852,7 +892,7 @@
                 "secret": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Secret des variables du pod de tour : ANTHROPIC_AUTH_TOKEN (défaut : myskills-turn)."
+                  "description": "Secret des variables du pod de session : ANTHROPIC_AUTH_TOKEN (défaut : myskills-session)."
                 },
                 "git_secret": {
                   "type": "string",
@@ -872,21 +912,36 @@
                 "script": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Chemin de remote_turn.py dans l'image."
+                  "description": "Chemin de remote_server.py dans l'image."
                 },
                 "resources": {
                   "type": "object",
                   "description": "Ressources du conteneur (requests, limits)."
                 },
-                "ttl_seconds": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Effacement du Job fini (défaut : 900)."
+                "idle_minutes": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Arrêt du pod après ce temps sans message (défaut : 120) ; le volume garde la session."
                 },
-                "work_size": {
+                "session_size": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Taille maximale du volume de travail du pod (défaut : 10Gi)."
+                  "description": "Taille du volume de session : copie de travail et contexte de l'agent (défaut : 5Gi)."
+                },
+                "storage_class": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Classe de stockage des volumes de session (défaut : celle du cluster)."
+                },
+                "retention_days": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Volume de session sans pod effacé après ce délai (défaut : 14) ; le travail reste sur la branche."
+                },
+                "startup_seconds": {
+                  "type": "integer",
+                  "minimum": 10,
+                  "description": "Attente maximale du pod prêt (défaut : 300)."
                 }
               }
             }
