@@ -18078,6 +18078,815 @@
       "path": "skills/process-diagram"
     },
     {
+      "skill": "remote-mission",
+      "level": "simple",
+      "inputs": [
+        "remote.json : missions (dépôt GitLab auto-hébergé de chaque mission), commande de l'agent sans terminal et ses variables (LiteLLM), hôtes autorisés, contrôle d'accès (API GitLab), jeton du service",
+        "Un message de l'utilisateur et l'identifiant de sa conversation (Open WebUI), par mission"
+      ],
+      "outputs": [
+        "Contrôle d'accès : chaque tour vérifie le rôle de l'utilisateur sur le projet GitLab de la mission ; refus motivé dans le chat",
+        "Une branche par conversation dans le dépôt de la mission, un commit par tour, poussée",
+        "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
+        "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (Deployment, Service, volume, NetworkPolicy, clé LiteLLM en Secret)"
+      ],
+      "scripts": [
+        {
+          "name": "remote_turn.py",
+          "role": "Joue un tour d'une mission à distance : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés (Reporter pour /statut, Developer pour un tour, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, agent lancé sans terminal ni shell (claude -p sur LiteLLM...) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
+          "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F) [--user COURRIEL] [--no-push] [--events EVENEMENTS.jsonl] | --schema",
+          "options": {
+            "--config": "configuration du service, validée contre le schéma d'entrée",
+            "--mission": "mission de la configuration",
+            "--chat": "identifiant de la conversation : une branche <branch_prefix><chat>",
+            "--message": "message de l'utilisateur ; « valide », « retour : ... » ou « /statut » traités sans modèle",
+            "--message-file": "message lu dans un fichier UTF-8",
+            "--no-push": "commit local seulement",
+            "--events": "événements du tour en JSON Lines (progression)",
+            "--schema": "affiche le schéma de la configuration sur une ligne",
+            "--user": "utilisateur (courriel ou nom GitLab), exigé quand access est configuré"
+          },
+          "exit_codes": {
+            "0": "tour joué, branche commitée (et poussée)",
+            "1": "configuration invalide (erreurs avec leur chemin), mission inconnue, accès refusé, git, agent ou push en échec ; le commit du tour est gardé"
+          },
+          "input": {
+            "format": "json",
+            "description": "Configuration du service (remote.json).",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "Configuration du service des missions à distance (remote.json)",
+              "type": "object",
+              "required": [
+                "missions",
+                "agent"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "missions": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "description": "Une entrée par mission : un modèle dans Open WebUI.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "repo"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "repo": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dépôt git de la mission (GitLab auto-hébergé : https ou ssh, hôte dans allowed_hosts, sans identifiant) ou dossier local relatif à la configuration."
+                      },
+                      "base": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Branche de départ d'une nouvelle conversation (défaut : branche par défaut du dépôt)."
+                      },
+                      "folder": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dossier de la mission dans le dépôt (défaut : .)."
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nom du modèle dans Open WebUI."
+                      },
+                      "web": {
+                        "type": "string",
+                        "pattern": "^https?://",
+                        "description": "Adresse web du projet GitLab, pour les liens vers les schémas (/-/raw/<branche>/<chemin>)."
+                      },
+                      "project": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Chemin du projet GitLab pour les droits (groupe/projet ; défaut : tiré de l'URL du dépôt)."
+                      }
+                    }
+                  }
+                },
+                "workdir": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Copies de travail, une par conversation (défaut : clones, relatif à la configuration ; volume persistant en Kubernetes)."
+                },
+                "branch_prefix": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._/-]*$",
+                  "description": "Préfixe des branches des conversations (défaut : openwebui/)."
+                },
+                "push": {
+                  "type": "boolean",
+                  "description": "Pousser la branche après chaque tour (défaut : true)."
+                },
+                "allowed_hosts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(\\*\\.)?[A-Za-z0-9.-]+$"
+                  },
+                  "description": "Seuls hôtes joignables : dépôts, LiteLLM ; passés à l'agent dans MYSKILLS_ALLOWED_HOSTS."
+                },
+                "inline_images_kb": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Taille maximale d'un PNG affiché en ligne dans le chat (défaut : 300)."
+                },
+                "agent": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "command": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "Commande de l'agent sans terminal, sans shell : {prompt}, {prompt_file}, {folder}, {python}, {config_dir} remplacés."
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Consigne du tour ({folder}, {note}, {message}) ; défaut : consigne de remote_turn.py."
+                    },
+                    "timeout": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "description": "Durée maximale d'un tour en secondes (défaut : 3600)."
+                    },
+                    "env": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                    }
+                  }
+                },
+                "git": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "email": {
+                      "type": "string",
+                      "minLength": 3
+                    }
+                  },
+                  "description": "Auteur des commits des tours."
+                },
+                "server": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "host": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Adresse d'écoute (défaut : 127.0.0.1 ; 0.0.0.0 dans un pod)."
+                    },
+                    "port": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65535
+                    },
+                    "token_env": {
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$",
+                      "description": "Variable du jeton du service (défaut : MYSKILLS_REMOTE_TOKEN)."
+                    },
+                    "max_jobs": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Tours en parallèle (défaut : 4)."
+                    }
+                  }
+                },
+                "access": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Contrôle d'accès par mission : rôle de l'utilisateur d'Open WebUI sur le projet GitLab de la mission (sans cette section, toute personne qui voit le modèle joue des tours).",
+                  "properties": {
+                    "provider": {
+                      "enum": [
+                        "gitlab",
+                        "file"
+                      ],
+                      "description": "gitlab (défaut) : API GitLab, groupes hérités compris ; file : table locale."
+                    },
+                    "api": {
+                      "type": "string",
+                      "pattern": "^https?://",
+                      "description": "gitlab : API de l'instance (https://gitlab.../api/v4), hôte dans allowed_hosts."
+                    },
+                    "token_env": {
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$",
+                      "description": "gitlab : variable du jeton read_api du service (défaut : GITLAB_ACCESS_TOKEN)."
+                    },
+                    "file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file : JSON {mission: {utilisateur ou *: niveau}}, relatif à la configuration."
+                    },
+                    "read_level": {
+                      "enum": [
+                        10,
+                        15,
+                        20,
+                        30,
+                        40,
+                        50
+                      ],
+                      "description": "Rôle minimal pour /statut (défaut : 20, Reporter)."
+                    },
+                    "write_level": {
+                      "enum": [
+                        10,
+                        15,
+                        20,
+                        30,
+                        40,
+                        50
+                      ],
+                      "description": "Rôle minimal pour un tour d'agent (défaut : 30, Developer)."
+                    },
+                    "cache_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Durée de mémoire des droits lus (défaut : 300)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet par tour : réponse, porte de revue, fichiers changés, images, commit.",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "mission",
+                "chat",
+                "user",
+                "branch",
+                "folder",
+                "mode",
+                "answer",
+                "shortcut",
+                "gate",
+                "questions",
+                "workflows",
+                "changed",
+                "images",
+                "commit",
+                "pushed",
+                "seconds",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "mission": {
+                  "type": "string"
+                },
+                "chat": {
+                  "type": "string"
+                },
+                "branch": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "folder": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mode": {
+                  "enum": [
+                    "agent",
+                    "statut"
+                  ]
+                },
+                "answer": {
+                  "type": "string",
+                  "description": "Réponse de l'agent en Markdown, sans son rapport final."
+                },
+                "shortcut": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "stage",
+                        "decision",
+                        "folder"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "stage": {
+                          "type": "string"
+                        },
+                        "decision": {
+                          "enum": [
+                            "valide",
+                            "retour"
+                          ]
+                        },
+                        "folder": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Décision de revue passée à journal.py review sans tour de modèle."
+                },
+                "gate": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "folder",
+                        "stages"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "folder": {
+                          "type": "string"
+                        },
+                        "stages": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "description": "Étapes en revue après le tour : la question posée à l'utilisateur."
+                },
+                "questions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "workflows": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "folder",
+                      "workflow",
+                      "current",
+                      "stages"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "folder": {
+                        "type": "string"
+                      },
+                      "workflow": {
+                        "type": "string"
+                      },
+                      "current": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "stages": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "changed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "images": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "url",
+                      "source",
+                      "data"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "source": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "data": {
+                        "type": [
+                          "string",
+                          "boolean",
+                          "null"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "commit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pushed": {
+                  "type": "boolean"
+                },
+                "seconds": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "user": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "remote_server.py",
+          "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours : chaque message lance remote_turn en arrière-plan, le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
+          "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--mission NOM] [--chat ID] [--message M] [--user COURRIEL] | --schema",
+          "options": {
+            "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt",
+            "check": "valide la configuration et ses hôtes",
+            "probe": "démarre le service sur un port local, joue --message (défaut : /statut) par le pipe, rend son texte",
+            "--config": "configuration (schéma de remote_turn.py)",
+            "--host": "adresse d'écoute (défaut : server.host, sinon 127.0.0.1)",
+            "--port": "port (défaut : server.port, sinon 8765)",
+            "--mission": "probe : mission",
+            "--chat": "probe : conversation (défaut : probe)",
+            "--message": "probe : message",
+            "--schema": "affiche le schéma de la configuration sur une ligne",
+            "--user": "probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès"
+          },
+          "exit_codes": {
+            "0": "service arrêté proprement, configuration valide ou sonde réussie",
+            "1": "configuration invalide, jeton absent hors de la machine, ou sonde en échec"
+          },
+          "input": {
+            "format": "json",
+            "description": "Même configuration que remote_turn.py.",
+            "same_as": "remote-mission/remote_turn.py",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "title": "Configuration du service des missions à distance (remote.json)",
+              "type": "object",
+              "required": [
+                "missions",
+                "agent"
+              ],
+              "additionalProperties": false,
+              "patternProperties": {
+                "^_": {}
+              },
+              "properties": {
+                "missions": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "description": "Une entrée par mission : un modèle dans Open WebUI.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "required": [
+                      "repo"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "repo": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dépôt git de la mission (GitLab auto-hébergé : https ou ssh, hôte dans allowed_hosts, sans identifiant) ou dossier local relatif à la configuration."
+                      },
+                      "base": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Branche de départ d'une nouvelle conversation (défaut : branche par défaut du dépôt)."
+                      },
+                      "folder": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dossier de la mission dans le dépôt (défaut : .)."
+                      },
+                      "title": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Nom du modèle dans Open WebUI."
+                      },
+                      "web": {
+                        "type": "string",
+                        "pattern": "^https?://",
+                        "description": "Adresse web du projet GitLab, pour les liens vers les schémas (/-/raw/<branche>/<chemin>)."
+                      },
+                      "project": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Chemin du projet GitLab pour les droits (groupe/projet ; défaut : tiré de l'URL du dépôt)."
+                      }
+                    }
+                  }
+                },
+                "workdir": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Copies de travail, une par conversation (défaut : clones, relatif à la configuration ; volume persistant en Kubernetes)."
+                },
+                "branch_prefix": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9._/-]*$",
+                  "description": "Préfixe des branches des conversations (défaut : openwebui/)."
+                },
+                "push": {
+                  "type": "boolean",
+                  "description": "Pousser la branche après chaque tour (défaut : true)."
+                },
+                "allowed_hosts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^(\\*\\.)?[A-Za-z0-9.-]+$"
+                  },
+                  "description": "Seuls hôtes joignables : dépôts, LiteLLM ; passés à l'agent dans MYSKILLS_ALLOWED_HOSTS."
+                },
+                "inline_images_kb": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Taille maximale d'un PNG affiché en ligne dans le chat (défaut : 300)."
+                },
+                "agent": {
+                  "type": "object",
+                  "required": [
+                    "command"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "command": {
+                      "type": "array",
+                      "minItems": 1,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": "Commande de l'agent sans terminal, sans shell : {prompt}, {prompt_file}, {folder}, {python}, {config_dir} remplacés."
+                    },
+                    "prompt": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Consigne du tour ({folder}, {note}, {message}) ; défaut : consigne de remote_turn.py."
+                    },
+                    "timeout": {
+                      "type": "integer",
+                      "minimum": 10,
+                      "description": "Durée maximale d'un tour en secondes (défaut : 3600)."
+                    },
+                    "env": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                    }
+                  }
+                },
+                "git": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "email": {
+                      "type": "string",
+                      "minLength": 3
+                    }
+                  },
+                  "description": "Auteur des commits des tours."
+                },
+                "server": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "host": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Adresse d'écoute (défaut : 127.0.0.1 ; 0.0.0.0 dans un pod)."
+                    },
+                    "port": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 65535
+                    },
+                    "token_env": {
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$",
+                      "description": "Variable du jeton du service (défaut : MYSKILLS_REMOTE_TOKEN)."
+                    },
+                    "max_jobs": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Tours en parallèle (défaut : 4)."
+                    }
+                  }
+                },
+                "access": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Contrôle d'accès par mission : rôle de l'utilisateur d'Open WebUI sur le projet GitLab de la mission (sans cette section, toute personne qui voit le modèle joue des tours).",
+                  "properties": {
+                    "provider": {
+                      "enum": [
+                        "gitlab",
+                        "file"
+                      ],
+                      "description": "gitlab (défaut) : API GitLab, groupes hérités compris ; file : table locale."
+                    },
+                    "api": {
+                      "type": "string",
+                      "pattern": "^https?://",
+                      "description": "gitlab : API de l'instance (https://gitlab.../api/v4), hôte dans allowed_hosts."
+                    },
+                    "token_env": {
+                      "type": "string",
+                      "pattern": "^[A-Z_][A-Z0-9_]*$",
+                      "description": "gitlab : variable du jeton read_api du service (défaut : GITLAB_ACCESS_TOKEN)."
+                    },
+                    "file": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "file : JSON {mission: {utilisateur ou *: niveau}}, relatif à la configuration."
+                    },
+                    "read_level": {
+                      "enum": [
+                        10,
+                        15,
+                        20,
+                        30,
+                        40,
+                        50
+                      ],
+                      "description": "Rôle minimal pour /statut (défaut : 20, Reporter)."
+                    },
+                    "write_level": {
+                      "enum": [
+                        10,
+                        15,
+                        20,
+                        30,
+                        40,
+                        50
+                      ],
+                      "description": "Rôle minimal pour un tour d'agent (défaut : 30, Developer)."
+                    },
+                    "cache_seconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Durée de mémoire des droits lus (défaut : 300)."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "report": {
+            "format": "json",
+            "description": "Un objet : commande, adresse, nombre de missions et de tours, texte du pipe (probe).",
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "object",
+              "required": [
+                "command",
+                "url",
+                "missions",
+                "turns",
+                "output",
+                "errors",
+                "warnings"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "command": {
+                  "enum": [
+                    "serve",
+                    "check",
+                    "probe",
+                    ""
+                  ]
+                },
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "missions": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "turns": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "output": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "probe : texte rendu par le pipe Open WebUI (fin)."
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "requires": [
+        {
+          "skill": "decision-log",
+          "script": "journal.py",
+          "why": "lire l'état des workflows (status) et enregistrer la décision de revue de l'utilisateur (review)",
+          "optional": true
+        }
+      ],
+      "handoffs": [
+        {
+          "to": "orientation",
+          "kind": "agent",
+          "when": "chaque tour : l'agent lancé sans terminal reprend la mission par l'agent orientation puis le workflow en cours"
+        }
+      ],
+      "description": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une mission et une branche, chaque message un tour d'agent sans terminal (modèles servis par LiteLLM), portes de revue posées dans le chat, commit et push à chaque tour. Service HTTP, fonction Pipe d'Open WebUI et manifestes Kubernetes fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur.",
+      "path": "skills/remote-mission"
+    },
+    {
       "skill": "requirements-catalog",
       "level": "moyen",
       "inputs": [

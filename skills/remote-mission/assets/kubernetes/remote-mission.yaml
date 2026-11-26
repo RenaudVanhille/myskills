@@ -1,0 +1,213 @@
+# Service des missions à distance (skill remote-mission). Namespace : myskills.
+# Secrets créés à part, jamais dans ce fichier (voir references/deploiement.md) :
+#   myskills-remote : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
+#                     ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre au service),
+#                     GITLAB_ACCESS_TOKEN (read_api : droits par mission)
+#   myskills-git    : .git-credentials (jeton de déploiement GitLab, write_repository)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myskills-remote
+  namespace: myskills
+data:
+  remote.json: |
+    {
+      "missions": {
+        "portail-sinistres": {
+          "repo": "https://gitlab.exemple.local/archi/portail-sinistres.git",
+          "base": "main",
+          "title": "Mission portail sinistres",
+          "web": "https://gitlab.exemple.local/archi/portail-sinistres"
+        }
+      },
+      "workdir": "/data/clones",
+      "branch_prefix": "openwebui/",
+      "allowed_hosts": [
+        "gitlab.exemple.local",
+        "litellm.litellm.svc.cluster.local"
+      ],
+      "access": {
+        "provider": "gitlab",
+        "api": "https://gitlab.exemple.local/api/v4",
+        "token_env": "GITLAB_ACCESS_TOKEN",
+        "read_level": 20,
+        "write_level": 30
+      },
+      "agent": {
+        "command": [
+          "claude",
+          "-p",
+          "{prompt}",
+          "--output-format",
+          "text",
+          "--permission-mode",
+          "acceptEdits",
+          "--allowedTools",
+          "Bash(uv run:*)",
+          "Bash(python:*)",
+          "Read",
+          "Write",
+          "Edit",
+          "Glob",
+          "Grep",
+          "Skill",
+          "Agent"
+        ],
+        "timeout": 5400,
+        "env": {
+          "ANTHROPIC_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000",
+          "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku",
+          "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet",
+          "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "DISABLE_AUTOUPDATER": "1"
+        }
+      },
+      "git": {
+        "name": "myskills-remote",
+        "email": "myskills-remote@exemple.local"
+      },
+      "server": {
+        "host": "0.0.0.0",
+        "port": 8765,
+        "token_env": "MYSKILLS_REMOTE_TOKEN",
+        "max_jobs": 4
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myskills-clones
+  namespace: myskills
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myskills-remote
+  namespace: myskills
+spec:
+  replicas: 1            # l'état des tours en cours est en mémoire : une seule réplique
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: myskills-remote}
+  template:
+    metadata:
+      labels: {app: myskills-remote}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: service
+          image: registry.exemple.local/myskills/remote-mission:latest
+          ports:
+            - containerPort: 8765
+          envFrom:
+            - secretRef: {name: myskills-remote}
+          env:
+            - name: GIT_CONFIG_COUNT
+              value: "1"
+            - name: GIT_CONFIG_KEY_0
+              value: credential.helper
+            - name: GIT_CONFIG_VALUE_0
+              value: store --file=/etc/myskills-git/.git-credentials
+          readinessProbe:
+            httpGet: {path: /health, port: 8765}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 4Gi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/myskills, readOnly: true}
+            - {name: git, mountPath: /etc/myskills-git, readOnly: true}
+            - {name: clones, mountPath: /data}
+      volumes:
+        - name: config
+          configMap: {name: myskills-remote}
+        - name: git
+          secret: {secretName: myskills-git, defaultMode: 0400}
+        - name: clones
+          persistentVolumeClaim: {claimName: myskills-clones}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myskills-remote
+  namespace: myskills
+spec:
+  selector: {app: myskills-remote}
+  ports:
+    - port: 8765
+      targetPort: 8765
+---
+# Entrée : Open WebUI seulement. Sortie : DNS, LiteLLM et GitLab seulement (allowlist).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: myskills-remote
+  namespace: myskills
+spec:
+  podSelector:
+    matchLabels: {app: myskills-remote}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: open-webui}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: open-webui}
+      ports:
+        - port: 8765
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: litellm}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: litellm}
+      ports:
+        - port: 4000
+    - to:
+        - ipBlock: {cidr: 10.0.0.10/32}   # adresse de GitLab (ou son namespace s'il tourne dans le cluster)
+      ports:
+        - port: 443
+        - port: 22
+---
+# LiteLLM : seuls les clients déclarés le joignent (namespace litellm).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: litellm-clients
+  namespace: litellm
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: litellm}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: myskills}
+          podSelector:
+            matchLabels: {app: myskills-remote}
+        # ajouter ici les autres clients autorisés de LiteLLM (Open WebUI s'il l'utilise aussi)
+      ports:
+        - port: 4000
