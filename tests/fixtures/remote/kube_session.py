@@ -135,7 +135,7 @@ class Kube(BaseHTTPRequestHandler):
 
 
 def probe(user: str, message: str, chat: str = "s1") -> dict:
-    result = subprocess.run([sys.executable, str(SKILLS / "remote-mission" / "scripts" / "remote_server.py"), "probe",
+    result = subprocess.run([sys.executable, str(SKILLS.parent / "deploy" / "remote-mission" / "service" / "scripts" / "remote_server.py"), "probe",
                              "--config", str(OUT / "remote.json"), "--mission", "portail", "--chat", chat,
                              "--user", user, "--message", message, "--pipe", str(SKILLS.parent / "deploy" / "remote-mission" / "openwebui_pipe.py")],
                             capture_output=True, text=True, encoding="utf-8")
@@ -169,7 +169,7 @@ try:
     config["runner"] = {"kind": "kubernetes", "image": "registry.exemple.local/myskills/remote-mission:test",
                         "api": f"http://127.0.0.1:{server.server_address[1]}", "token_file": str(OUT / "token"),
                         "namespace": "myskills", "config_path": str(OUT / "remote.json"), "idle_minutes": 30,
-                        "script": str(SKILLS / "remote-mission" / "scripts" / "remote_server.py")}
+                        "script": str(SKILLS.parent / "deploy" / "remote-mission" / "service" / "scripts" / "remote_server.py")}
     (OUT / "remote.json").write_text(json.dumps(config), encoding="utf-8")
 
     expect("premier message", probe("dev@exemple.local", "dessine le contexte"),
@@ -195,7 +195,7 @@ try:
     if PODS or CLAIMS:
         errors.append(f"/fin : pod ou volume restant ({list(PODS)}, {list(CLAIMS)})")
     # Mission choisie par /mission (modèle Missions) : liaison gardée sur le volume, relue par un service neuf.
-    sys.path.insert(0, str(SKILLS / "remote-mission" / "scripts" / "lib"))
+    sys.path.insert(0, str(SKILLS.parent / "deploy" / "remote-mission" / "service" / "scripts" / "lib"))
     import k8s_sessions  # noqa: E402
     config["_base"] = str(OUT)
     k8s_sessions.Sessions(config).bind("portail", "s9")

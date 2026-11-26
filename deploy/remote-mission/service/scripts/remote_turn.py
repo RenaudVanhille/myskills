@@ -9,7 +9,7 @@ branche : <branch_prefix><conversation>. Le tour, sans rien demander au modèle 
    allowed_hosts seulement, aucun identifiant dans une URL ;
 2. clone le dépôt de la mission ou met à jour sa copie, sur la branche de la conversation ;
 3. porte de revue : « valide » ou « retour : ... » quand une seule étape est en revue est passé
-   tel quel à journal.py review (skill decision-log), sans tour de modèle pour cela ;
+   tel quel à journal.py review (skill decision-log du dépôt), sans tour de modèle pour cela ;
    « /statut » rend l'état sans lancer l'agent ;
 4. lance l'agent sans terminal (commande de la configuration : claude -p, opencode run...),
    modèles servis par LiteLLM ou tout point d'accès du harness, dans le dossier de la mission ;
@@ -19,7 +19,7 @@ branche : <branch_prefix><conversation>. Le tour, sans rien demander au modèle 
 Rapport JSON : réponse de l'agent (Markdown), porte de revue, fichiers changés, images,
 commit, poussé ou non. Le serveur remote_server.py appelle run_turn() pour chaque message.
 
-    uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message TEXTE
+    uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message TEXTE
 """
 
 import argparse
@@ -36,10 +36,29 @@ from pathlib import Path
 from urllib.parse import quote, urlparse
 
 HERE = Path(__file__).resolve().parent
+# Service du dépôt myskills (deploy/remote-mission/service), pas un skill : il s'appuie sur la copie du
+# dépôt où il tourne (/opt/myskills dans l'image), bibliothèques partagées et journal de decision-log.
+ROOT = HERE.parents[3]
+JOURNAL = ROOT / "skills" / "decision-log" / "scripts" / "journal.py"
 sys.path.insert(0, str(HERE / "lib"))
+sys.path.insert(1, str(ROOT / "shared" / "scripts"))
 import access  # noqa: E402
-from skill_paths import absent, find_script, run_script  # noqa: E402
 from spec_schema import read_spec, schema_option, print_schema, validate  # noqa: E402
+
+
+def journal(args: list) -> dict:
+    """Lance journal.py (skill decision-log du dépôt) et rend son rapport JSON."""
+    if not JOURNAL.is_file():
+        return {"errors": [f"journal.py introuvable ({JOURNAL}) : copie complète du dépôt myskills attendue"],
+                "warnings": []}
+    runner = ["uv", "run", "--quiet"] if shutil.which("uv") else [sys.executable]
+    result = subprocess.run(runner + [str(JOURNAL)] + [str(a) for a in args], capture_output=True,
+                            text=True, encoding="utf-8")
+    try:
+        return json.loads(result.stdout)
+    except ValueError:
+        tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["sans sortie"]
+        return {"errors": [f"journal.py : rapport illisible ({tail[0][:200]})"], "warnings": []}
 
 STATUS_WORDS = {"/statut", "/status", "statut", "status"}
 END_WORDS = {"/fin", "/end"}  # fin de session : dernier push, copie de travail et contexte de l'agent effacés
@@ -178,11 +197,11 @@ def status(folder: Path, warnings: list[str]) -> dict:
     state = {"workflows": [], "gate": None, "questions": 0}
     if not workflows(folder):
         return state
-    if find_script("decision-log", "journal.py") is None:
-        warnings.append(absent("decision-log", "journal.py"))
+    if not JOURNAL.is_file():
+        warnings.append(f"journal.py introuvable ({JOURNAL}) : état des workflows non lu")
         return state
     for wf in workflows(folder):
-        report = run_script("decision-log", "journal.py", ["status", str(wf)])
+        report = journal(["status", str(wf)])
         warnings.extend(f"journal.py status {wf.name} : {e}" for e in report.get("errors", []))
         stages = report.get("stages", {})
         rel = wf.relative_to(folder).as_posix()
@@ -208,8 +227,7 @@ def shortcut(folder: Path, message: str, state: dict, emit) -> tuple[dict | None
     stage, decision = gate["stages"][0], "retour" if feedback else "valide"
     text = feedback.group(2).strip() if feedback else message.strip()
     emit("revue", f"{stage} : {decision}")
-    report = run_script("decision-log", "journal.py", ["review", str(folder / gate["folder"]), stage,
-                                                       "--decision", decision, "--text", text])
+    report = journal(["review", str(folder / gate["folder"]), stage, "--decision", decision, "--text", text])
     if report.get("errors"):
         return None, [f"journal.py review {stage} : {e}" for e in report["errors"]]
     return {"stage": stage, "decision": decision, "folder": gate["folder"]}, []

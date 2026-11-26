@@ -1,6 +1,6 @@
 {
-  "skill": "remote-mission",
-  "level": "simple",
+  "service": "remote-mission",
+  "description": "Contrat du service des missions à distance (hors des skills) : entrées, sorties, scripts, schémas de la configuration et des rapports. tests/run.py valide chaque rapport contre lui.",
   "inputs": [
     "remote.json : missions déclarées (dépôt GitLab auto-hébergé de chaque mission) ou découverte par topic GitLab, commande de l'agent sans terminal et ses variables (LiteLLM), hôtes autorisés, contrôle d'accès (API GitLab), jeton du service",
     "Un message de l'utilisateur et l'identifiant de sa conversation (Open WebUI), par mission"
@@ -15,7 +15,7 @@
     {
       "name": "remote_turn.py",
       "role": "Joue un tour d'une mission à distance (déclarée dans remote.json ou découverte dans GitLab par le service) : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés au début de la session, avant chaque pull et chaque push, pas à chaque message (Developer pour ouvrir une session et pousser, Reporter pour /statut et pull, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, « /fin » qui pousse et efface la copie de travail, session de l'agent reprise d'un message à l'autre (agent.continue_args : contexte gardé), agent lancé sans terminal ni shell (opencode run ou claude -p, sur LiteLLM) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
-      "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F | --message-env VAR) [--user COURRIEL] [--workdir DOSSIER] [--no-push] [--events EVENEMENTS.jsonl] [--job] | --schema",
+      "usage": "uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F | --message-env VAR) [--user COURRIEL] [--workdir DOSSIER] [--no-push] [--events EVENEMENTS.jsonl] [--job] | --schema",
       "options": {
         "--config": "configuration du service, validée contre le schéma d'entrée",
         "--mission": "mission de la configuration",
@@ -649,7 +649,7 @@
     {
       "name": "remote_server.py",
       "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours ; missions déclarées (un modèle chacune) ou découvertes dans GitLab par leur topic (un modèle « Missions » : /missions liste celles ouvertes à l'utilisateur selon son rôle, /mission groupe/projet lie la conversation, liaison gardée après un redémarrage) ; chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans le pod de session de la conversation (créé au premier message, retrouvé ensuite, arrêté après inactivité, rechargé depuis son volume avec le contexte de l'agent au retour de l'utilisateur, effacé par « /fin » ou après runner.retention_days), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; droits vérifiés au démarrage ou au rechargement de la session, jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (--pipe : deploy/remote-mission/openwebui_pipe.py du dépôt) sur un port local, pour tester sans Open WebUI.",
-      "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--workdir DOSSIER] [--session MISSION:CONVERSATION] [--idle-minutes N] [--mission NOM --pipe openwebui_pipe.py] [--chat ID] [--message M] [--user COURRIEL] | --schema",
+      "usage": "uv run deploy/remote-mission/service/scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--workdir DOSSIER] [--session MISSION:CONVERSATION] [--idle-minutes N] [--mission NOM --pipe openwebui_pipe.py] [--chat ID] [--message M] [--user COURRIEL] | --schema",
       "options": {
         "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt (SIGTERM, ou inactivité avec --idle-minutes)",
         "check": "valide la configuration et ses hôtes",
@@ -674,7 +674,6 @@
       "input": {
         "format": "json",
         "description": "Même configuration que remote_turn.py.",
-        "same_as": "remote-mission/remote_turn.py",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "title": "Configuration du service des missions à distance (remote.json)",
@@ -1110,21 +1109,6 @@
           }
         }
       }
-    }
-  ],
-  "requires": [
-    {
-      "skill": "decision-log",
-      "script": "journal.py",
-      "why": "lire l'état des workflows (status) et enregistrer la décision de revue de l'utilisateur (review)",
-      "optional": true
-    }
-  ],
-  "handoffs": [
-    {
-      "to": "orientation",
-      "kind": "agent",
-      "when": "chaque tour : l'agent lancé sans terminal reprend la mission par l'agent orientation puis le workflow en cours"
     }
   ]
 }

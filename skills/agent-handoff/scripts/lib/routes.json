@@ -671,16 +671,6 @@
    "match": "Dessine un processus métier en couloirs (notation BPMN, swimlanes) : qui fait quoi, dans quel ordre, avec les décisions, les attentes, les passages de main et les points de douleur, en draw.io et PNG, avec sa fiche Markdown. À utiliser pour décrire un processus existant ou cible, un parcours de traitement entre services, un logigramme avec acteurs, à partir d'un atelier, d'une procédure ou d'un cahier des charges, pour un public métier ou technique. Pas pour une séquence d'appels entre systèmes (mermaid-diagram) ni pour une cartographie du SI (urbanization-map)."
   },
   {
-   "name": "remote-mission",
-   "level": "simple",
-   "description": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message.",
-   "inputs": [
-    "remote.json : missions déclarées (dépôt GitLab auto-hébergé de chaque mission) ou découverte par topic GitLab, commande de l'agent sans terminal et ses variables (LiteLLM), hôtes autorisés, contrôle d'accès (API GitLab), jeton du service",
-    "Un message de l'utilisateur et l'identifiant de sa conversation (Open WebUI), par mission"
-   ],
-   "match": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message. Service HTTP, fonction Pipe d'Open WebUI et chart Helm fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur."
-  },
-  {
    "name": "requirements-catalog",
    "level": "moyen",
    "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV.",

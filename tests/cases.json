@@ -1770,7 +1770,7 @@
     {"id": "chiffrage-parcours", "skill": "solution-estimate", "_note": "Coût par parcours utilisateur : lots rattachés par exigences (prorata des exigences communes), postes partagés répartis au prorata, chaque poste avec ses références, somme des parcours égale à la réalisation de chaque hypothèse ; vue de restitution (workflow Mermaid, coût, points d'attention) dans l'hypothèse choisie ; clé mal orthographiée, exigence et lot inconnus, poste hors liste, somme fausse et hypothèse inconnue refusés sans fichier.", "steps": [{"copy": ["{fixtures}/workflow/chiffrage-parcours.json", "{out}/chiffrage-parcours.json"]}, {"copy": ["{fixtures}/workflow/chiffrage-parcours-schema.json", "{out}/chiffrage-parcours-schema.json"]}, {"copy": ["{fixtures}/workflow/chiffrage-parcours-invalide.json", "{out}/chiffrage-parcours-invalide.json"]}, {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]}, {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]}, {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-parcours.json"], "exit": 0, "report": {"build.cost": 128776, "journeys.count": 2, "journeys.spread": 0.439, "journeys.items.0.id": "UJ1", "journeys.items.0.cost": 102619, "journeys.items.1.cost": 26157, "journeys.items.1.share": 0.203, "errors": []}}, {"script": "{skills}/solution-estimate/scripts/journeys_view.py", "args": ["{out}/chiffrage-parcours.parcours.json", "--scenario", "ia-natif"], "exit": 0, "report": {"journeys": 2, "scenario": "ia-natif", "total": 92985, "errors": []}}, {"script": "{skills}/solution-estimate/scripts/journeys_view.py", "args": ["{out}/chiffrage-parcours.parcours.json", "--scenario", "ia-native", "--out", "{out}/x/parcours.md"], "exit": 1, "report_contains": {"errors": "--scenario : « ia-native » inconnu"}}, {"script": "{skills}/solution-estimate/scripts/journeys_view.py", "args": ["{fixtures}/workflow/parcours-invalide.json", "--out", "{out}/x/parcours.md"], "exit": 1, "report_contains": {"errors": "journeys/0/lots/0/post : « frontend » non permis"}}, {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-parcours-schema.json"], "exit": 1, "report_contains": {"errors": "journeys/0 : clé inconnue « screen » ; vouliez-vous « screens » ?"}}, {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-parcours-invalide.json"], "exit": 1, "report_contains": {"errors": "journeys/1 (UJ2)/refs : exigence inconnue EF-099"}}, {"script": "{skills}/solution-estimate/scripts/estimate_build.py", "args": ["{out}/chiffrage-parcours-invalide.json"], "exit": 1, "report_contains": {"errors": "journeys/1 (UJ2)/work : lot inconnu « L99 »"}}], "files": ["chiffrage-parcours.md", "chiffrage-parcours.parcours.json", "parcours.md"], "absent": ["x/parcours.md", "chiffrage-parcours-schema.md", "chiffrage-parcours-invalide.parcours.json"], "contains": {"chiffrage-parcours.md": ["## Coût par parcours utilisateur", "| UJ1 Déclarer un sinistre | 102 619 € | 85 985 € | 75 684 € | 80 % |", "| **Total** | **128 776 €** | **107 251 €** | **92 985 €** | 100 % |", "| Front | 41,7 | 27 083 € | 20 312 € | 13 542 € | L2 Portail web (EF-001, SEC-01 ; 100 %) |", "L6 Recette et tests de charge (ENF-001 ; réparti 20 %)"], "parcours.md": ["| UJ2 Suivre son dossier | Assuré | 17 301 € | 19 % | 1 |", "  S3[\"3. Joindre les photos\"]", "- Dépendance : API de création de dossier de l'outil de gestion", "- À vérifier : estimation incertaine : L4"]}},
     {
       "id": "mission-distance",
-      "skill": "remote-mission",
+      "skill": "tous",
       "_note": "Mission à distance, agent simulé (aucun modèle) : dépôt de mission ouvert par mission.py, tour d'un Developer (branche poussée, PNG et .drawio liés, jeton du service retiré de l'agent, LiteLLM transmis), droits vérifiés au début de la session et avant pull et push, pas à chaque message (Reporter : session refusée, push refusé dans une session en cours, /statut admis), utilisateur absent refusé, session de l'agent reprise au message suivant, étape soumise puis « valide » passé à journal.py review sans tour de modèle, message joué de bout en bout par la fonction Pipe d'Open WebUI et le service (probe), service refusé sans jeton hors de la machine. ; « /fin » pousse et efface la copie de travail ; pod de session arrêté seul après inactivité.",
       "steps": [
         {
@@ -1804,7 +1804,7 @@
           ]
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1836,7 +1836,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1862,7 +1862,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1885,7 +1885,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1910,7 +1910,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1931,7 +1931,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1960,7 +1960,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -1986,7 +1986,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "probe",
             "--pipe",
@@ -2015,7 +2015,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{out}/remote.json",
@@ -2039,7 +2039,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "serve",
             "--config",
@@ -2056,7 +2056,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "serve",
             "--config",
@@ -2086,11 +2086,11 @@
     },
     {
       "id": "mission-distance-invalide",
-      "skill": "remote-mission",
+      "skill": "tous",
       "_note": "Configuration refusée avant tout travail : clé inconnue avec sa correction, commande vide ; hôtes hors allowed_hosts (GitHub, API GitLab, LiteLLM d'un SaaS) et identifiants dans l'URL du dépôt ; configuration d'exemple (OpenCode sur LiteLLM) acceptée.",
       "steps": [
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "check",
             "--config",
@@ -2099,7 +2099,7 @@
           "exit": 0
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "probe",
             "--config",
@@ -2115,7 +2115,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
           "args": [
             "--config",
             "{fixtures}/remote/invalide.json",
@@ -2132,7 +2132,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "check",
             "--config",
@@ -2144,7 +2144,7 @@
           }
         },
         {
-          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_server.py",
           "args": [
             "check",
             "--config",
@@ -2159,7 +2159,7 @@
     },
     {
       "id": "mission-distance-droits",
-      "skill": "remote-mission",
+      "skill": "tous",
       "_note": "Droits par mission lus dans GitLab (API simulée en local) : rôle par courriel public ou par nom, groupes hérités (members/all), seuil Maintainer, non-membre, inconnu et jeton refusé : accès refusé.",
       "steps": [
         {
@@ -2173,7 +2173,7 @@
     },
     {
       "id": "mission-distance-kubernetes",
-      "skill": "remote-mission",
+      "skill": "tous",
       "_note": "Un pod de session par conversation (runner kubernetes) face à une API du cluster simulée en local : session démarrée avec son volume, pod retrouvé au message suivant par un service frontal neuf (contexte de l'agent repris), pod arrêté puis rechargé depuis son volume avec le contexte, droits vérifiés au démarrage de la session (Reporter refusé sans pod créé) et au push, pas à chaque message, « /fin » qui efface pod et volume ; pod sans jeton de l'API.",
       "steps": [
         {
@@ -2187,7 +2187,7 @@
     },
     {
       "id": "mission-distance-decouverte",
-      "skill": "remote-mission",
+      "skill": "tous",
       "_note": "Missions découvertes dans GitLab par leur topic (API simulée) et choisies depuis Open WebUI : modèle unique « Missions », aide hors mission, /missions limité aux missions lisibles par l'utilisateur (hors topic et archivées exclues), /mission refusé sans droit d'écriture ou hors topic, liaison relue par un service neuf, message joué et poussé dans la mission choisie.",
       "steps": [
         {

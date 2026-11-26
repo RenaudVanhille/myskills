@@ -98,10 +98,15 @@ CONTRACTS = {script["name"]: script["report"].get("schema")
 CONTRACTS["install.py"] = contracts_lib.schema("install-report")
 CONTRACTS["check_commit.py"] = contracts_lib.schema("commit-report")
 CONTRACTS["pin_model.py"] = contracts_lib.schema("pin-report")
+# Service des missions à distance (deploy/remote-mission/service) : contrat au format des skills, hors de skills/.
+SERVICE_CONTRACT = json.loads((ROOT / "deploy" / "remote-mission" / "service" / "contract.json").read_text(encoding="utf-8"))
+CONTRACTS.update({script["name"]: script["report"].get("schema") for script in SERVICE_CONTRACT["scripts"]})
 # Schéma d'entrée (description JSON) de chaque script qui en déclare un.
 INPUTS = {script["name"]: script["input"]["schema"]
           for contract in contracts_lib.skill_contracts().values() for script in contract["scripts"]
           if script.get("input")}
+INPUTS.update({script["name"]: script["input"]["schema"] for script in SERVICE_CONTRACT["scripts"]
+               if script.get("input", {}).get("schema")})
 
 
 def closest(error):

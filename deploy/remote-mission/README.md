@@ -1,11 +1,14 @@
 # Déployer les missions à distance (Kubernetes, LiteLLM, GitLab, Open WebUI)
 
-Fichiers de déploiement du skill `remote-mission`, gardés hors du skill : ils
-servent à l'exploitation, pas à un agent, et ne sont donc pas copiés avec les
-skills (`install.py sync`) sur les postes ni dans les pods de session.
+Les missions myskills menées à distance : une mission vit dans son dépôt
+GitLab, l'utilisateur ne passe que par Open WebUI. Ce n'est pas un skill (aucun
+agent ne s'en sert) : c'est un service et son déploiement, gardés hors de
+`skills/`, donc jamais copiés par `install.py sync` sur les postes ni dans les
+pods de session.
 
 | Fichier | Rôle |
 | --- | --- |
+| `service/` | le service : `remote_server.py` (HTTP du pipe, sessions), `remote_turn.py` (un message), `contract.json` |
 | `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
 | `Dockerfile` | image du service et des sessions, avec les outils de tous les skills |
 | `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
@@ -69,6 +72,22 @@ mission. Le compte de service GitLab (`GITLAB_ACCESS_TOKEN`) doit voir les
 projets missions (Reporter sur le groupe). Un projet archivé, sans le topic
 ou hors de `allowed_hosts` n'est pas une mission. `missions` de
 `remote.json` reste possible : un modèle par mission déclarée.
+
+## Dans le chat
+
+- `valide` ou `retour : ...` quand une étape est en revue : décision passée à
+  `journal.py review` sans tour de modèle, puis l'agent continue.
+- `/statut` : état des workflows, sans agent.
+- `/fin` : pousse et termine la session (pod et volume effacés).
+- Un message pendant un autre : le pipe suit celui en cours ; un résultat
+  manqué s'affiche au message suivant.
+
+Hors Kubernetes (poste, CI GitLab, test), un message se joue sans le service :
+
+```bash
+uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message "..."
+uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
+```
 
 ## 1. Image
 

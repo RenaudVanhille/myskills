@@ -63,7 +63,7 @@ class GitLab(BaseHTTPRequestHandler):
 
 
 def probe(chat: str, message: str) -> dict:
-    result = subprocess.run([sys.executable, str(SKILLS / "remote-mission" / "scripts" / "remote_server.py"), "probe",
+    result = subprocess.run([sys.executable, str(SKILLS.parent / "deploy" / "remote-mission" / "service" / "scripts" / "remote_server.py"), "probe",
                              "--config", str(OUT / "remote.json"), "--mission", "missions", "--chat", chat,
                              "--user", "dev@exemple.local", "--message", message, "--pipe", str(SKILLS.parent / "deploy" / "remote-mission" / "openwebui_pipe.py")],
                             capture_output=True, text=True, encoding="utf-8",

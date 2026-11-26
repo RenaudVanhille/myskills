@@ -117,5 +117,5 @@ jobs:
           for options in "" "--set agent.kind=claude --set caSecret=autorite-interne --set openWebui.enabled=false"; do
             helm template myskills "$chart" -n myskills $options > "$RUNNER_TEMP/rendu.yaml"
             uv run --with pyyaml python -c 'import sys, yaml; cm = next(d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d["kind"] == "ConfigMap" and "remote.json" in d["data"]); open(sys.argv[2], "w", encoding="utf-8").write(cm["data"]["remote.json"])' "$RUNNER_TEMP/rendu.yaml" "$RUNNER_TEMP/remote.json"
-            uv run skills/remote-mission/scripts/remote_server.py check --config "$RUNNER_TEMP/remote.json"
+            uv run deploy/remote-mission/service/scripts/remote_server.py check --config "$RUNNER_TEMP/remote.json"
           done

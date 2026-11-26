@@ -24,7 +24,7 @@ import urllib.request
 from pathlib import Path
 
 SA = Path("/var/run/secrets/kubernetes.io/serviceaccount")
-SERVER = "/opt/myskills/skills/remote-mission/scripts/remote_server.py"
+SERVER = "/opt/myskills/deploy/remote-mission/service/scripts/remote_server.py"
 INSTALL = "/opt/myskills/scripts/install.py"  # copie de myskills dans l'image
 CA_BUNDLE = "/work/ca-bundle.crt"  # autorités de l'image et autorité interne (runner.ca_secret)
 

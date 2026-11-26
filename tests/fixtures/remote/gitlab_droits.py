@@ -10,7 +10,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-sys.path.insert(0, str(Path(sys.argv[1]) / "remote-mission" / "scripts" / "lib"))
+sys.path.insert(0, str(Path(sys.argv[1]).resolve().parent / "deploy" / "remote-mission" / "service" / "scripts" / "lib"))
 import access  # noqa: E402
 
 USERS = [{"id": 7, "username": "reno", "public_email": "reno@exemple.local"}, {"id": 8, "email": "autre@exemple.local"}]

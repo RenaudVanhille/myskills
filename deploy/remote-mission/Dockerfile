@@ -81,5 +81,5 @@ ENV UV_OFFLINE=1 \
     OPENCODE_DISABLE_LSP_DOWNLOAD=true
 
 EXPOSE 8765
-ENTRYPOINT ["uv", "run", "/opt/myskills/skills/remote-mission/scripts/remote_server.py", "serve", \
+ENTRYPOINT ["uv", "run", "/opt/myskills/deploy/remote-mission/service/scripts/remote_server.py", "serve", \
             "--config", "/etc/myskills/remote.json"]

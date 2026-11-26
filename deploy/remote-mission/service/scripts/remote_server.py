@@ -17,9 +17,9 @@ raccroche au tour en cours si la connexion tombe. Un seul tour à la fois par co
 Jeton : en-tête « Authorization: Bearer ... », lu dans la variable server.token_env ; obligatoire
 dès que le service écoute ailleurs que sur la machine elle-même.
 
-    uv run scripts/remote_server.py serve --config remote.json [--host H] [--port P]
-    uv run scripts/remote_server.py check --config remote.json
-    uv run scripts/remote_server.py probe --config remote.json --mission NOM --pipe openwebui_pipe.py [--chat ID] [--message M]
+    uv run deploy/remote-mission/service/scripts/remote_server.py serve --config remote.json [--host H] [--port P]
+    uv run deploy/remote-mission/service/scripts/remote_server.py check --config remote.json
+    uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe openwebui_pipe.py [--chat ID] [--message M]
 """
 
 import argparse
@@ -43,6 +43,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
+sys.path.insert(2, str(HERE.parents[3] / "shared" / "scripts"))  # bibliothèques partagées du dépôt myskills
 import access  # noqa: E402
 import discovery  # noqa: E402
 import k8s_sessions  # noqa: E402
