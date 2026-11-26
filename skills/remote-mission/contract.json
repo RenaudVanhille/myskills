@@ -9,7 +9,7 @@
     "Contrôle d'accès : rôle de l'utilisateur sur le projet GitLab de la mission vérifié au début de la session, avant chaque pull et chaque push ; refus motivé dans le chat",
     "Une branche par conversation dans le dépôt de la mission, un commit par message, poussée",
     "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-    "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple, l'image (outils de tous les skills, modèles et environnements préparés, travail hors ligne) et les manifestes Kubernetes (service frontal toujours prêt, un pod de session par conversation avec son volume et ses skills, RBAC limité aux pods et volumes, NetworkPolicy, clé LiteLLM en Secret, Open WebUI connecté par GitLab seulement)"
+    "Déploiement, hors du skill (deploy/remote-mission/ du dépôt myskills) : fonction Pipe d'Open WebUI, configuration d'exemple, image avec les outils de tous les skills, manifestes Kubernetes (service frontal, pods de session, Open WebUI connecté par GitLab), guide"
   ],
   "scripts": [
     {
@@ -643,8 +643,8 @@
     },
     {
       "name": "remote_server.py",
-      "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours ; missions déclarées (un modèle chacune) ou découvertes dans GitLab par leur topic (un modèle « Missions » : /missions liste celles ouvertes à l'utilisateur selon son rôle, /mission groupe/projet lie la conversation, liaison gardée après un redémarrage) ; chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans le pod de session de la conversation (créé au premier message, retrouvé ensuite, arrêté après inactivité, rechargé depuis son volume avec le contexte de l'agent au retour de l'utilisateur, effacé par « /fin » ou après runner.retention_days), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; droits vérifiés au démarrage ou au rechargement de la session, jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (assets/openwebui_pipe.py) sur un port local, pour tester sans Open WebUI.",
-      "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--workdir DOSSIER] [--session MISSION:CONVERSATION] [--idle-minutes N] [--mission NOM] [--chat ID] [--message M] [--user COURRIEL] | --schema",
+      "role": "Service HTTP (bibliothèque standard) entre Open WebUI et les tours ; missions déclarées (un modèle chacune) ou découvertes dans GitLab par leur topic (un modèle « Missions » : /missions liste celles ouvertes à l'utilisateur selon son rôle, /mission groupe/projet lie la conversation, liaison gardée après un redémarrage) ; chaque message lance remote_turn en arrière-plan, dans le service ou, avec runner kubernetes, dans le pod de session de la conversation (créé au premier message, retrouvé ensuite, arrêté après inactivité, rechargé depuis son volume avec le contexte de l'agent au retour de l'utilisateur, effacé par « /fin » ou après runner.retention_days), le pipe suit sa progression par appels longs et se raccroche au tour en cours, un tour à la fois par conversation, dernier rapport non lu rendu au message suivant ; droits vérifiés au démarrage ou au rechargement de la session, jeton Bearer obligatoire hors de la machine, utilisateur transmis par le pipe (en-tête X-Myskills-User) et conversation réservée à celui qui l'a ouverte. check valide la configuration ; probe joue un message de bout en bout par la fonction Pipe d'Open WebUI (--pipe : deploy/remote-mission/openwebui_pipe.py du dépôt) sur un port local, pour tester sans Open WebUI.",
+      "usage": "uv run scripts/remote_server.py serve|check|probe --config remote.json [--host H] [--port P] [--workdir DOSSIER] [--session MISSION:CONVERSATION] [--idle-minutes N] [--mission NOM --pipe openwebui_pipe.py] [--chat ID] [--message M] [--user COURRIEL] | --schema",
       "options": {
         "serve": "lance le service (jeton dans server.token_env) ; rapport à l'arrêt (SIGTERM, ou inactivité avec --idle-minutes)",
         "check": "valide la configuration et ses hôtes",
@@ -657,6 +657,7 @@
         "--message": "probe : message",
         "--schema": "affiche le schéma de la configuration sur une ligne",
         "--user": "probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès",
+        "--pipe": "probe : fonction Pipe d'Open WebUI, obligatoire (deploy/remote-mission/openwebui_pipe.py du dépôt myskills : hors du skill)",
         "--workdir": "serve : copies de travail (remplace workdir)",
         "--session": "serve : pod de session, ne sert que cette conversation (droits vérifiés par le service frontal)",
         "--idle-minutes": "serve : s'arrête après ce temps sans message (pod de session)"

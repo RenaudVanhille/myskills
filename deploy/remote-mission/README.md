@@ -1,5 +1,19 @@
 # Déployer les missions à distance (Kubernetes, LiteLLM, GitLab, Open WebUI)
 
+Fichiers de déploiement du skill `remote-mission`, gardés hors du skill : ils
+servent à l'exploitation, pas à un agent, et ne sont donc pas copiés avec les
+skills (`install.py sync`) sur les postes ni dans les pods de session.
+
+| Fichier | Rôle |
+| --- | --- |
+| `Dockerfile` | image du service et des sessions, avec les outils de tous les skills |
+| `remote.example.json` | configuration du service (missions, droits, agent, sessions) |
+| `opencode.json`, `models.json` | agent OpenCode sur LiteLLM, modèle par niveau |
+| `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
+| `kubernetes/remote-mission.yaml` | service frontal, sessions, RBAC, NetworkPolicy |
+| `kubernetes/open-webui.yaml` | Open WebUI, connexion par GitLab seulement |
+| `kubernetes/litellm-clients.yaml` | facultatif : accès à LiteLLM réservé |
+
 ```
 Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
    (SSO GitLab)                     │ crée, retrouve ou recharge le pod de la conversation
@@ -62,7 +76,7 @@ ou hors de `allowed_hosts` n'est pas une mission. `missions` de
 ## 1. Image
 
 ```bash
-docker build -f skills/remote-mission/assets/Dockerfile -t registry.exemple.local/myskills/remote-mission:2.4.0 .
+docker build -f deploy/remote-mission/Dockerfile -t registry.exemple.local/myskills/remote-mission:2.4.0 .
 ```
 
 Une seule image sert au service frontal et aux pods de session. Elle contient
@@ -195,8 +209,8 @@ kubectl -n myskills create secret generic myskills-session \
   --from-literal=LITELLM_API_KEY="<clé virtuelle LiteLLM>" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
-kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
-# facultatif, après relecture : kubectl apply -f skills/remote-mission/assets/kubernetes/litellm-clients.yaml
+kubectl apply -f deploy/remote-mission/kubernetes/remote-mission.yaml
+# facultatif, après relecture : kubectl apply -f deploy/remote-mission/kubernetes/litellm-clients.yaml
 ```
 
 Le fichier crée : la ConfigMap de `remote.json` (missions, hôtes, `runner`),
@@ -216,7 +230,7 @@ kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/r
 
 ## 6. Open WebUI et SSO GitLab
 
-`assets/kubernetes/open-webui.yaml` déploie Open WebUI (namespace
+`kubernetes/open-webui.yaml` déploie Open WebUI (namespace
 `open-webui`, volume pour sa base, Ingress en TLS) avec GitLab comme seul
 moyen de connexion : ni formulaire ni mot de passe, ni Ollama ni API OpenAI
 directe, ni télémétrie ni téléchargement de modèle.
@@ -233,7 +247,7 @@ directe, ni télémétrie ni téléchargement de modèle.
      --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
      --from-literal=OAUTH_CLIENT_ID="<Application ID>" \
      --from-literal=OAUTH_CLIENT_SECRET="<Secret>"
-   kubectl apply -f skills/remote-mission/assets/kubernetes/open-webui.yaml
+   kubectl apply -f deploy/remote-mission/kubernetes/open-webui.yaml
    ```
 
    Adapter les adresses (`WEBUI_URL`, `OPENID_PROVIDER_URL`,
@@ -247,7 +261,7 @@ directe, ni télémétrie ni téléchargement de modèle.
    elles, restent ouvertes selon le rôle sur leur projet GitLab (section 3) ;
    aucun droit par modèle n'est à poser dans Open WebUI.
 4. **Fonction Pipe** (un administrateur) : Admin > Fonctions > importer
-   `assets/openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL`
+   `openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL`
    (`http://myskills-remote.myskills.svc.cluster.local:8765`), `TOKEN`
    (valeur de `MYSKILLS_REMOTE_TOKEN`). Le modèle « Missions » apparaît pour
    tous (modèle public).

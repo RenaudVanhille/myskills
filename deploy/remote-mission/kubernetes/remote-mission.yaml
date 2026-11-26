@@ -2,7 +2,7 @@
 # Service frontal toujours prêt (léger : HTTP, droits, pods de session). Chaque conversation a son
 # pod de session, qui garde le contexte de l'agent, s'arrête après runner.idle_minutes sans message
 # et se recharge depuis son volume (PVC) quand l'utilisateur revient ; « /fin » efface pod et volume.
-# Secrets créés à part, jamais dans ce fichier (voir references/deploiement.md) :
+# Secrets créés à part, jamais dans ce fichier (voir deploy/remote-mission/README.md) :
 #   myskills-remote  : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
 #                      GITLAB_ACCESS_TOKEN (read_api : droits par mission)
 #   myskills-session : LITELLM_API_KEY (clé virtuelle LiteLLM propre aux sessions ; avec Claude Code :

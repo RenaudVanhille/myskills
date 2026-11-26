@@ -1,5 +1,5 @@
 # Open WebUI pour les missions à distance (skill remote-mission), connexion par GitLab seulement (OIDC).
-# Avant : application GitLab créée (voir references/deploiement.md, « Open WebUI et SSO GitLab ») et
+# Avant : application GitLab créée (voir deploy/remote-mission/README.md, « Open WebUI et SSO GitLab ») et
 # Secret open-webui rempli :
 #   kubectl create namespace open-webui
 #   kubectl -n open-webui create secret generic open-webui \

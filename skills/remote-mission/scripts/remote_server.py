@@ -19,7 +19,7 @@ dès que le service écoute ailleurs que sur la machine elle-même.
 
     uv run scripts/remote_server.py serve --config remote.json [--host H] [--port P]
     uv run scripts/remote_server.py check --config remote.json
-    uv run scripts/remote_server.py probe --config remote.json --mission NOM [--chat ID] [--message M]
+    uv run scripts/remote_server.py probe --config remote.json --mission NOM --pipe openwebui_pipe.py [--chat ID] [--message M]
 """
 
 import argparse
@@ -49,7 +49,6 @@ import k8s_sessions  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
-PIPE = HERE.parent / "assets" / "openwebui_pipe.py"
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 MAX_BODY = 1_000_000
 OUTPUT_MAX = 4000
@@ -340,16 +339,17 @@ def start_server(service: Service, host: str, port: int) -> ThreadingHTTPServer:
     return server
 
 
-def load_pipe():
-    spec = importlib.util.spec_from_file_location("openwebui_pipe", PIPE)
+def load_pipe(path: Path):
+    spec = importlib.util.spec_from_file_location("openwebui_pipe", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-async def drive_pipe(url: str, token: str, mission: str, chat: str, message: str, user: str | None) -> str:
+async def drive_pipe(url: str, token: str, mission: str, chat: str, message: str, user: str | None,
+                     pipe_file: Path) -> str:
     """Joue le message comme Open WebUI le ferait : modèle « fonction.mission », chat_id en métadonnées."""
-    pipe = load_pipe().Pipe()
+    pipe = load_pipe(pipe_file).Pipe()
     pipe.valves.SERVER_URL, pipe.valves.TOKEN, pipe.valves.POLL_SECONDS = url, token, 2
     models = pipe.pipes()
     if mission not in {m["id"] for m in models}:
@@ -375,6 +375,8 @@ def main() -> int:
     parser.add_argument("--mission", help="probe : mission à jouer")
     parser.add_argument("--chat", default="probe", help="probe : conversation (défaut : probe)")
     parser.add_argument("--user", help="probe : utilisateur Open WebUI (courriel), pour le contrôle d'accès")
+    parser.add_argument("--pipe", type=Path, help="probe : fonction Pipe d'Open WebUI "
+                        "(deploy/remote-mission/openwebui_pipe.py du dépôt myskills : hors du skill)")
     parser.add_argument("--message", default="/statut", help="probe : message (défaut : /statut, sans agent)")
     schema_option(parser)
     args = parser.parse_args()
@@ -407,6 +409,10 @@ def main() -> int:
         host, token = "127.0.0.1", secrets.token_urlsafe(16)
         if not args.mission:
             out["errors"].append("probe : --mission attendu")
+        if not args.pipe or not args.pipe.is_file():
+            out["errors"].append(f"probe : fonction Pipe introuvable ({args.pipe or '--pipe absent'}) ; --pipe CHEMIN "
+                                 "vers deploy/remote-mission/openwebui_pipe.py d'une copie du dépôt myskills")
+        if out["errors"]:
             print(json.dumps(out, ensure_ascii=False))
             return 1
         service = Service(config, token)
@@ -414,7 +420,7 @@ def main() -> int:
         out["url"] = f"http://{host}:{server.server_address[1]}"
         try:
             text = asyncio.run(drive_pipe(out["url"], token, args.mission, args.chat, args.message,
-                                          args.user))
+                                          args.user, args.pipe))
             out["output"] = text[-OUTPUT_MAX:]
             if not text.strip():
                 out["errors"].append("probe : réponse vide du pipe")

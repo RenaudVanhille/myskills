@@ -1989,6 +1989,8 @@
           "script": "{skills}/remote-mission/scripts/remote_server.py",
           "args": [
             "probe",
+            "--pipe",
+            "{root}/deploy/remote-mission/openwebui_pipe.py",
             "--config",
             "{out}/remote.json",
             "--mission",
@@ -2092,9 +2094,25 @@
           "args": [
             "check",
             "--config",
-            "{skills}/remote-mission/assets/remote.example.json"
+            "{root}/deploy/remote-mission/remote.example.json"
           ],
           "exit": 0
+        },
+        {
+          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "args": [
+            "probe",
+            "--config",
+            "{root}/deploy/remote-mission/remote.example.json",
+            "--mission",
+            "x",
+            "--pipe",
+            "{out}/absent.py"
+          ],
+          "exit": 1,
+          "report_contains": {
+            "errors": "fonction Pipe introuvable"
+          }
         },
         {
           "script": "{skills}/remote-mission/scripts/remote_turn.py",

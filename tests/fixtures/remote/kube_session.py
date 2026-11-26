@@ -137,7 +137,7 @@ class Kube(BaseHTTPRequestHandler):
 def probe(user: str, message: str, chat: str = "s1") -> dict:
     result = subprocess.run([sys.executable, str(SKILLS / "remote-mission" / "scripts" / "remote_server.py"), "probe",
                              "--config", str(OUT / "remote.json"), "--mission", "portail", "--chat", chat,
-                             "--user", user, "--message", message],
+                             "--user", user, "--message", message, "--pipe", str(SKILLS.parent / "deploy" / "remote-mission" / "openwebui_pipe.py")],
                             capture_output=True, text=True, encoding="utf-8")
     try:
         return json.loads(result.stdout)

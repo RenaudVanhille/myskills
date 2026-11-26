@@ -65,7 +65,7 @@ class GitLab(BaseHTTPRequestHandler):
 def probe(chat: str, message: str) -> dict:
     result = subprocess.run([sys.executable, str(SKILLS / "remote-mission" / "scripts" / "remote_server.py"), "probe",
                              "--config", str(OUT / "remote.json"), "--mission", "missions", "--chat", chat,
-                             "--user", "dev@exemple.local", "--message", message],
+                             "--user", "dev@exemple.local", "--message", message, "--pipe", str(SKILLS.parent / "deploy" / "remote-mission" / "openwebui_pipe.py")],
                             capture_output=True, text=True, encoding="utf-8",
                             env={**os.environ, "GITLAB_ACCESS_TOKEN": "jeton-lecture", "MOCK_SKILLS": str(SKILLS)})
     try:

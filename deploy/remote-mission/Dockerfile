@@ -3,7 +3,7 @@
 # hors ligne : rien n'est téléchargé pendant un message (modèles, paquets npm, navigateur,
 # environnements Python préparés ici). Contexte de construction : la racine du dépôt myskills.
 #
-#   docker build -f skills/remote-mission/assets/Dockerfile -t registry.exemple.local/myskills/remote-mission:X.Y.Z .
+#   docker build -f deploy/remote-mission/Dockerfile -t registry.exemple.local/myskills/remote-mission:X.Y.Z .
 #
 # Arguments : versions épinglées (à relire à chaque mise à jour) et skill externe markdown-to-pptx
 # (dépôt git du plugin powerpoint-skill, facultatif : sans lui, l'export PowerPoint est signalé absent).
