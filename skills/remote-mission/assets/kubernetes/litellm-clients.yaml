@@ -1,0 +1,22 @@
+# FACULTATIF, à adapter avant de l'appliquer à votre LiteLLM déjà déployé.
+# Une NetworkPolicy d'entrée sur LiteLLM coupe TOUS les clients qui n'y sont pas listés :
+# ajoutez d'abord chacun de vos clients actuels (Open WebUI, autres applications), puis
+# vérifiez le namespace, les labels des pods et le port de votre déploiement.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: litellm-clients
+  namespace: litellm
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: litellm}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: myskills}
+          podSelector:
+            matchLabels: {app: myskills-remote}
+        # ajouter ici les autres clients autorisés de LiteLLM (Open WebUI s'il l'utilise aussi)
+      ports:
+        - port: 4000

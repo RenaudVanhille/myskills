@@ -40,9 +40,12 @@ de même : l'installer dans l'image et changer `agent.command`.
    La clé va dans le Secret `myskills-remote` (`ANTHROPIC_AUTH_TOKEN`), jamais
    dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
    service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
-2. **NetworkPolicy `litellm-clients`** (fichier `kubernetes/remote-mission.yaml`) :
-   seuls les pods déclarés joignent LiteLLM. Ajouter Open WebUI à la liste
-   seulement s'il appelle aussi LiteLLM.
+2. **NetworkPolicy `litellm-clients`** (fichier facultatif
+   `kubernetes/litellm-clients.yaml`) : seuls les pods déclarés joignent
+   LiteLLM. Sur un LiteLLM déjà déployé, elle coupe tout client absent de sa
+   liste : y ajouter d'abord chaque client actuel, et reprendre namespace,
+   labels et port du déploiement existant (aussi dans la NetworkPolicy de
+   sortie de `remote-mission.yaml` et `ANTHROPIC_BASE_URL`).
 3. **Interface d'administration de LiteLLM** : pas d'Ingress public ; SSO de
    l'entreprise (ou GitLab) pour l'UI, clé maîtresse dans un Secret.
 4. **Rien ne part ailleurs** : aucun callback de journalisation vers un service
@@ -98,6 +101,7 @@ kubectl -n myskills create secret generic myskills-remote \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
 kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
+# facultatif, après relecture : kubectl apply -f skills/remote-mission/assets/kubernetes/litellm-clients.yaml
 ```
 
 Adapter `remote.json` dans la ConfigMap (missions, hôtes) et l'adresse de
