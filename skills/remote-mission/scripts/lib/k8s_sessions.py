@@ -24,6 +24,7 @@ from pathlib import Path
 
 SA = Path("/var/run/secrets/kubernetes.io/serviceaccount")
 SERVER = "/opt/myskills/skills/remote-mission/scripts/remote_server.py"
+INSTALL = "/opt/myskills/scripts/install.py"  # copie de myskills dans l'image
 
 
 def chat_label(mission: str, chat: str) -> str:
@@ -104,6 +105,15 @@ class Sessions:
                 "automountServiceAccountToken": False,
                 "securityContext": {"runAsNonRoot": True, "runAsUser": 10001, "fsGroup": 10001,
                                     "seccompProfile": {"type": "RuntimeDefault"}},
+                # Skills et agents de l'image copiés dans le HOME de la session (sur le volume, où Claude Code
+                # les lit) : une nouvelle image les met à jour au rechargement suivant.
+                "initContainers": [{
+                    "name": "skills", "image": runner["image"],
+                    "command": ["uv", "run", "--quiet", INSTALL, "sync", "--source", "/opt/myskills",
+                                "--global", "--tools", runner.get("tools", "claude")],
+                    "env": [{"name": "HOME", "value": "/work/home"}],
+                    "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
+                    "volumeMounts": [{"name": "work", "mountPath": "/work"}]}],
                 "containers": [{
                     "name": "session", "image": runner["image"], "command": command, "env": env,
                     "ports": [{"containerPort": 8765}],

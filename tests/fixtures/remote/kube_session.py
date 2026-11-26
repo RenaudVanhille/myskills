@@ -104,6 +104,9 @@ class Kube(BaseHTTPRequestHandler):
                 errors.append("pod de session avec le jeton de l'API Kubernetes")
             if spec["spec"]["volumes"][-1].get("persistentVolumeClaim", {}).get("claimName") not in CLAIMS:
                 errors.append("pod de session sans son volume")
+            init = (spec["spec"].get("initContainers") or [{}])[0]
+            if "sync" not in init.get("command", []) or {"name": "HOME", "value": "/work/home"} not in init.get("env", []):
+                errors.append("pod de session sans copie des skills dans son HOME (initContainer)")
             PODS[name] = start_pod(spec)
         return self.reply(spec, 201)
 

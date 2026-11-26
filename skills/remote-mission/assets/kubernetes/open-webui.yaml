@@ -1,0 +1,168 @@
+# Open WebUI pour les missions à distance (skill remote-mission), connexion par GitLab seulement (OIDC).
+# Avant : application GitLab créée (voir references/deploiement.md, « Open WebUI et SSO GitLab ») et
+# Secret open-webui rempli :
+#   kubectl create namespace open-webui
+#   kubectl -n open-webui create secret generic open-webui \
+#     --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
+#     --from-literal=OAUTH_CLIENT_ID="<Application ID GitLab>" \
+#     --from-literal=OAUTH_CLIENT_SECRET="<Secret GitLab>"
+# À adapter : adresses (chat.exemple.local, gitlab.exemple.local), classe d'Ingress et certificat,
+# version de l'image (épinglée : la relire avant de la changer), groupes GitLab (OAUTH_*_ROLES).
+# Les labels app.kubernetes.io/name=open-webui et le namespace open-webui sont ceux qu'attend la
+# NetworkPolicy de remote-mission.yaml : les garder, ou changer les deux fichiers ensemble.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-webui
+  namespace: open-webui
+data:
+  WEBUI_URL: "https://chat.exemple.local"
+  WEBUI_NAME: "Missions"
+  # Connexion : GitLab seulement, comptes créés à la première connexion, rattachés par courriel.
+  ENABLE_OAUTH_SIGNUP: "true"
+  OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+  OAUTH_PROVIDER_NAME: "GitLab"
+  OPENID_PROVIDER_URL: "https://gitlab.exemple.local/.well-known/openid-configuration"
+  OPENID_REDIRECT_URI: "https://chat.exemple.local/oauth/oidc/callback"
+  OAUTH_SCOPES: "openid email profile"
+  OAUTH_EMAIL_CLAIM: "email"
+  OAUTH_USERNAME_CLAIM: "nickname"
+  ENABLE_LOGIN_FORM: "false"
+  ENABLE_PASSWORD_AUTH: "false"
+  ENABLE_SIGNUP: "false"
+  DEFAULT_USER_ROLE: "user"
+  # Rôles tirés des groupes GitLab (revendication groups) : seuls les membres de myskills/utilisateurs
+  # entrent, myskills/admins administre (import du pipe). L'accès à chaque mission reste vérifié par le
+  # service sur le projet GitLab de la mission.
+  ENABLE_OAUTH_ROLE_MANAGEMENT: "true"
+  OAUTH_ROLES_CLAIM: "groups"
+  OAUTH_ALLOWED_ROLES: "myskills/utilisateurs,myskills/admins"
+  OAUTH_ADMIN_ROLES: "myskills/admins"
+  # Un seul fournisseur de réponses : la fonction Pipe de myskills (pas d'Ollama ni d'API OpenAI directe).
+  ENABLE_OLLAMA_API: "false"
+  ENABLE_OPENAI_API: "false"
+  # Rien ne part ailleurs : pas de téléchargement de modèle, de partage communautaire ni de télémétrie.
+  OFFLINE_MODE: "true"
+  HF_HUB_OFFLINE: "1"
+  ENABLE_COMMUNITY_SHARING: "false"
+  ENABLE_MESSAGE_RATING: "false"
+  ENABLE_WEB_SEARCH: "false"
+  ENABLE_IMAGE_GENERATION: "false"
+  SCARF_NO_ANALYTICS: "true"
+  DO_NOT_TRACK: "true"
+  ANONYMIZED_TELEMETRY: "false"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: open-webui
+  labels: {app.kubernetes.io/name: open-webui}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: open-webui}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: open-webui}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 0
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: open-webui
+          image: ghcr.io/open-webui/open-webui:v0.6.18
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - configMapRef: {name: open-webui}
+            - secretRef: {name: open-webui}
+          # GitLab avec un certificat d'une autorité interne : monter son CA et le déclarer.
+          # env:
+          #   - {name: SSL_CERT_FILE, value: /etc/ssl/interne/ca.crt}
+          #   - {name: REQUESTS_CA_BUNDLE, value: /etc/ssl/interne/ca.crt}
+          resources:
+            requests: {cpu: 250m, memory: 1Gi}
+            limits: {memory: 2Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            initialDelaySeconds: 10
+          volumeMounts:
+            - {name: data, mountPath: /app/backend/data}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: open-webui}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  selector: {app.kubernetes.io/name: open-webui}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [chat.exemple.local]
+      secretName: open-webui-tls
+  rules:
+    - host: chat.exemple.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: open-webui, port: {number: 80}}
+---
+# Entrée : le contrôleur d'Ingress seulement. Sortie : DNS, service des missions, GitLab (OIDC).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: open-webui
+  namespace: open-webui
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: open-webui}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+      ports: [{port: 8080}]
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: myskills}
+          podSelector:
+            matchLabels: {app: myskills-remote}
+      ports: [{port: 8765}]
+    - to:
+        - ipBlock: {cidr: 10.0.0.10/32}   # GitLab (ou son namespace s'il tourne dans le cluster)
+      ports: [{port: 443}]

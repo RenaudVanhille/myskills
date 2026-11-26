@@ -96,7 +96,10 @@ QUIET_CHROMIUM = [f"--proxy-server={DEAD_PROXY}", "--proxy-bypass-list=<-loopbac
     "--disable-features=OptimizationHints,MediaRouter,Translate,AutofillServerCommunication,"
     "CertificateTransparencyComponentUpdater",
 ]
-NO_SANDBOX = platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0
+# Chromium et draw.io sans bac à sable : root sous Linux, ou conteneur qui le demande (MYSKILLS_NO_SANDBOX=1 :
+# pod Kubernetes sans espace de noms utilisateur, où le bac à sable de Chromium ne démarre pas).
+NO_SANDBOX = (platform.system() == "Linux" and hasattr(os, "geteuid") and os.geteuid() == 0) \
+    or os.environ.get("MYSKILLS_NO_SANDBOX") == "1"
 
 
 def launch_chromium(pw):

@@ -9,7 +9,7 @@
     "Contrôle d'accès : rôle de l'utilisateur sur le projet GitLab de la mission vérifié au début de la session, avant chaque pull et chaque push ; refus motivé dans le chat",
     "Une branche par conversation dans le dépôt de la mission, un commit par message, poussée",
     "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-    "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple et les manifestes Kubernetes (service frontal toujours prêt, un pod de session par conversation avec son volume, RBAC limité aux pods et volumes, NetworkPolicy, clé LiteLLM en Secret)"
+    "assets/ : la fonction Pipe d'Open WebUI, une configuration d'exemple, l'image (outils de tous les skills, modèles et environnements préparés, travail hors ligne) et les manifestes Kubernetes (service frontal toujours prêt, un pod de session par conversation avec son volume et ses skills, RBAC limité aux pods et volumes, NetworkPolicy, clé LiteLLM en Secret, Open WebUI connecté par GitLab seulement)"
   ],
   "scripts": [
     {
@@ -330,6 +330,11 @@
                 "resources": {
                   "type": "object",
                   "description": "Ressources du conteneur (requests, limits)."
+                },
+                "tools": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
                 },
                 "idle_minutes": {
                   "type": "number",
@@ -952,6 +957,11 @@
                 "resources": {
                   "type": "object",
                   "description": "Ressources du conteneur (requests, limits)."
+                },
+                "tools": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
                 },
                 "idle_minutes": {
                   "type": "number",

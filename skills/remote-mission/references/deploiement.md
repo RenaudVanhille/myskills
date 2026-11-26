@@ -65,11 +65,29 @@ ou hors de `allowed_hosts` n'est pas une mission. `missions` de
 docker build -f skills/remote-mission/assets/Dockerfile -t registry.exemple.local/myskills/remote-mission:2.4.0 .
 ```
 
-L'image contient git, uv, Claude Code et les skills de myskills
-(`install.py sync --tools claude`). Les modèles locaux éventuels
-(`doctor.py GROUPE --prefetch`, skill `check-prerequisites`) s'ajoutent à la
-construction, jamais pendant une session. Un autre harness (OpenCode...) s'utilise
-de même : l'installer dans l'image et changer `agent.command`.
+Une seule image sert au service frontal et aux pods de session. Elle contient
+tout ce que les skills utilisent, préparé à la construction pour qu'une
+session travaille hors ligne (`UV_OFFLINE`, `MYSKILLS_OFFLINE`,
+`HF_HUB_OFFLINE`) :
+
+| Besoin | Dans l'image |
+| --- | --- |
+| Agent | Claude Code (`CLAUDE_CODE_VERSION`), skills et agents de myskills |
+| Scripts | uv, Python 3.12, environnement de chaque script préparé (`uv sync --script`) |
+| Schémas | draw.io Desktop (`DRAWIO_VERSION`) sous écran virtuel (xvfb), Chromium de Playwright, Node.js et LikeC4, paquets Mermaid et Excalidraw en cache |
+| Extraction | Tesseract (fr, en), modèles Docling et Whisper préchargés depuis leurs sources épinglées (`doctor.py tout --prefetch`, empreintes vérifiées) |
+| Publication | LibreOffice sans interface, polices ; skill externe markdown-to-pptx si `MD2PPTX_REPO` est donné |
+| Revue | graphify (skill externe) |
+
+La construction finit par `doctor.py tout` (journal de construction) : un
+outil absent y est signalé. Les caches (uv, modèles, navigateur) sont hors du
+`HOME`, qui est sur le volume de la session. Chromium et draw.io tournent
+sans bac à sable (`MYSKILLS_NO_SANDBOX=1`, le pod n'a aucun privilège). Au
+démarrage d'un pod, un conteneur d'initialisation copie les skills de l'image
+dans le `HOME` de la session (`install.py sync`, `runner.tools`) : une
+nouvelle image les met à jour au rechargement suivant. Un autre harness
+(OpenCode...) s'installe de même dans l'image, avec `agent.command` et
+`runner.tools`.
 
 ## 2. LiteLLM : une clé propre au service, un accès réservé
 
@@ -120,10 +138,8 @@ Un droit retiré pendant une session s'applique donc au prochain pull ou push.
 Seuils : `read_level`, `write_level`. Les droits lus sont gardés
 `cache_seconds` (300 s par défaut) dans chaque pod.
 
-- **Identité** : Open WebUI s'authentifie par GitLab (OIDC :
-  `OPENID_PROVIDER_URL=https://gitlab.exemple.local/.well-known/openid-configuration`,
-  `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `ENABLE_OAUTH_SIGNUP=true`) : le
-  courriel transmis par le pipe est celui du compte GitLab.
+- **Identité** : Open WebUI s'authentifie par GitLab seulement (section 6) :
+  le courriel transmis par le pipe est celui du compte GitLab.
 - **Jeton de lecture des droits** (`GITLAB_ACCESS_TOKEN`, dans les Secrets
   `myskills-remote` et `myskills-session` : le pod de session vérifie les
   droits avant ses pull et push) : jeton d'un compte de
@@ -132,8 +148,6 @@ Seuils : `read_level`, `write_level`. Les droits lus sont gardés
 - **Confiance** : le service croit l'utilisateur que lui transmet le pipe, seul
   détenteur du jeton du service, et la NetworkPolicy n'admet qu'Open WebUI.
 - **Conversation** : réservée à celui qui l'a ouverte.
-- En complément, les droits d'Open WebUI sur les modèles (groupes) masquent une
-  mission à qui n'a rien à y faire.
 
 ## 4. Git
 
@@ -171,12 +185,43 @@ namespace. Avant de brancher Open WebUI :
 kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/remote-mission/scripts/remote_server.py check --config /etc/myskills/remote.json
 ```
 
-## 6. Open WebUI
+## 6. Open WebUI et SSO GitLab
 
-1. Admin > Fonctions > importer `assets/openwebui_pipe.py`.
-2. Valves : `SERVER_URL` (`http://myskills-remote.myskills.svc.cluster.local:8765`),
-   `TOKEN` (valeur de `MYSKILLS_REMOTE_TOKEN`).
-3. Un modèle apparaît par mission ; restreindre chacun aux groupes concernés.
+`assets/kubernetes/open-webui.yaml` déploie Open WebUI (namespace
+`open-webui`, volume pour sa base, Ingress en TLS) avec GitLab comme seul
+moyen de connexion : ni formulaire ni mot de passe, ni Ollama ni API OpenAI
+directe, ni télémétrie ni téléchargement de modèle.
+
+1. **Application GitLab** (Admin > Applications, ou celle d'un groupe) :
+   nom `Open WebUI`, URI de redirection
+   `https://chat.exemple.local/oauth/oidc/callback`, confidentielle, portées
+   `openid`, `email`, `profile`. Garder l'Application ID et le Secret.
+2. **Secret et manifeste** :
+
+   ```bash
+   kubectl create namespace open-webui
+   kubectl -n open-webui create secret generic open-webui \
+     --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
+     --from-literal=OAUTH_CLIENT_ID="<Application ID>" \
+     --from-literal=OAUTH_CLIENT_SECRET="<Secret>"
+   kubectl apply -f skills/remote-mission/assets/kubernetes/open-webui.yaml
+   ```
+
+   Adapter les adresses (`WEBUI_URL`, `OPENID_PROVIDER_URL`,
+   `OPENID_REDIRECT_URI`, Ingress), l'adresse de GitLab dans la
+   NetworkPolicy et, pour un GitLab à certificat interne, le CA monté
+   (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`).
+3. **Qui entre** : les groupes GitLab de l'utilisateur (revendication
+   `groups`) décident du rôle dans Open WebUI : `OAUTH_ALLOWED_ROLES`
+   (`myskills/utilisateurs`, `myskills/admins`) pour entrer,
+   `OAUTH_ADMIN_ROLES` (`myskills/admins`) pour administrer. Les missions,
+   elles, restent ouvertes selon le rôle sur leur projet GitLab (section 3) ;
+   aucun droit par modèle n'est à poser dans Open WebUI.
+4. **Fonction Pipe** (un administrateur) : Admin > Fonctions > importer
+   `assets/openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL`
+   (`http://myskills-remote.myskills.svc.cluster.local:8765`), `TOKEN`
+   (valeur de `MYSKILLS_REMOTE_TOKEN`). Le modèle « Missions » apparaît pour
+   tous (modèle public).
 
 Le pipe affiche la progression du message (statut), puis la réponse, les schémas
 PNG (en ligne jusqu'à `inline_images_kb`, liens GitLab vers le PNG et le
