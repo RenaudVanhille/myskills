@@ -1,0 +1,109 @@
+# Valeurs du chart myskills-remote. Aucun secret ici : ils sont dans des Secrets créés à part
+# (voir le README de deploy/remote-mission), le chart ne fait que les nommer.
+
+image:
+  repository: registry.exemple.local/myskills/remote-mission
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# GitLab : missions, droits par mission (rôle sur le projet), connexion à Open WebUI.
+gitlab:
+  url: https://gitlab.exemple.local
+  # Adresses de GitLab pour les NetworkPolicy (blocs IP, ou namespace s'il tourne dans le cluster).
+  cidrs: [10.0.0.10/32]
+  # Missions : projets GitLab qui portent ce topic (dans ce groupe s'il est donné).
+  discovery:
+    topic: myskills-mission
+    group: ""
+    title: Missions myskills
+  readLevel: 20    # Reporter : /statut, pull
+  writeLevel: 30   # Developer : ouvrir une session, pousser
+  branchPrefix: openwebui/
+  commitAuthor:
+    name: myskills-remote
+    email: myskills-remote@exemple.local
+
+# LiteLLM hors du cluster : joint par HTTPS (sortie du cluster), clé virtuelle propre aux sessions.
+litellm:
+  url: https://litellm.exemple.local/v1
+  # Adresses de LiteLLM (ou de la passerelle de sortie) pour la NetworkPolicy des sessions.
+  cidrs: [192.0.2.10/32]
+  port: 443
+  # Alias des modèles dans LiteLLM, par niveau des agents de myskills.
+  models:
+    simple: claude-haiku
+    moyen: claude-sonnet
+    complexe: claude-opus
+
+# Autorité interne (GitLab ou LiteLLM avec un certificat interne) : Secret avec un ou plusieurs *.crt.
+caSecret: ""
+
+# Secrets créés à part (noms).
+secrets:
+  service: myskills-remote    # MYSKILLS_REMOTE_TOKEN, GITLAB_ACCESS_TOKEN (read_api)
+  session: myskills-session   # LITELLM_API_KEY, GITLAB_ACCESS_TOKEN
+  git: myskills-git           # .git-credentials (write_repository)
+
+# Agent lancé à chaque message : OpenCode (défaut) ou Claude Code (image construite avec CLAUDE_CODE_VERSION).
+agent:
+  kind: opencode   # opencode | claude
+  timeout: 5400
+
+service:
+  port: 8765
+  maxJobs: 4
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+
+# Un pod par conversation, avec son volume (copie de travail, contexte de l'agent).
+sessions:
+  idleMinutes: 120
+  retentionDays: 14
+  size: 5Gi
+  storageClass: ""
+  resources:
+    requests: {cpu: 250m, memory: 1Gi}
+    limits: {memory: 4Gi}
+  # Plafond du namespace : sessions ouvertes en même temps (+ service et Open WebUI).
+  quota:
+    enabled: true
+    maxSessions: 20
+    storage: 500Gi
+    memory: 84Gi
+
+kubernetes:
+  # Adresse de l'API du cluster pour la NetworkPolicy du service (kubectl get endpoints kubernetes).
+  apiCidrs: [10.0.0.1/32]
+  apiPorts: [443, 6443]
+
+networkPolicy:
+  enabled: true
+  # Contrôleur d'Ingress (entrée d'Open WebUI).
+  ingressNamespace: ingress-nginx
+
+openWebui:
+  enabled: true
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: v0.6.18   # version épinglée : la relire avant de la changer
+  url: https://chat.exemple.local
+  name: Missions
+  # Secret : WEBUI_SECRET_KEY, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET (application GitLab).
+  secret: open-webui
+  # Groupes GitLab (revendication groups) : qui entre, qui administre (import du pipe).
+  allowedGroups: [myskills/utilisateurs, myskills/admins]
+  adminGroups: [myskills/admins]
+  persistence:
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests: {cpu: 250m, memory: 1Gi}
+    limits: {memory: 2Gi}
+  ingress:
+    enabled: true
+    className: nginx
+    host: chat.exemple.local
+    tlsSecret: open-webui-tls
+    annotations: {}

@@ -678,7 +678,7 @@
     "remote.json : missions déclarées (dépôt GitLab auto-hébergé de chaque mission) ou découverte par topic GitLab, commande de l'agent sans terminal et ses variables (LiteLLM), hôtes autorisés, contrôle d'accès (API GitLab), jeton du service",
     "Un message de l'utilisateur et l'identifiant de sa conversation (Open WebUI), par mission"
    ],
-   "match": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message. Service HTTP, fonction Pipe d'Open WebUI et manifestes Kubernetes fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur."
+   "match": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message. Service HTTP, fonction Pipe d'Open WebUI et chart Helm fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur."
   },
   {
    "name": "requirements-catalog",

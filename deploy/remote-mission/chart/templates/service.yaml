@@ -1,0 +1,70 @@
+# Service frontal toujours prêt : HTTP du pipe, droits, pods de session (sans dépôt ni clé LiteLLM).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  replicas: 1   # les sessions vivent dans leurs pods : un redémarrage du service les retrouve
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+      annotations:
+        checksum/config: {{ include "myskills.remoteJson" . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "myskills.name" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      {{- if .Values.caSecret }}
+      initContainers: {{- include "myskills.caInit" . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: service
+          image: {{ include "myskills.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{containerPort: {{ .Values.service.port }}}]
+          envFrom:
+            - secretRef: {name: {{ .Values.secrets.service }}}
+          {{- if .Values.caSecret }}
+          env:
+            - {name: SSL_CERT_FILE, value: /ca/ca-bundle.crt}
+          {{- end }}
+          readinessProbe:
+            httpGet: {path: /health, port: {{ .Values.service.port }}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources: {{- toYaml .Values.service.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/myskills, readOnly: true}
+            {{- if .Values.caSecret }}
+            - {name: ca-bundle, mountPath: /ca, readOnly: true}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap: {name: {{ include "myskills.name" . }}-config}
+        {{- if .Values.caSecret }}
+        - name: ca
+          secret: {secretName: {{ .Values.caSecret }}}
+        - name: ca-bundle
+          emptyDir: {}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  selector: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}

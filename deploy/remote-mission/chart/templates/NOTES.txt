@@ -1,0 +1,12 @@
+myskills-remote installé dans {{ .Release.Namespace }}.
+
+1. Vérifier la configuration :
+   kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "myskills.name" . }} -- uv run /opt/myskills/skills/remote-mission/scripts/remote_server.py check --config /etc/myskills/remote.json
+{{- if .Values.openWebui.enabled }}
+2. Open WebUI : {{ .Values.openWebui.url }} (connexion par GitLab). Un membre de {{ join ", " .Values.openWebui.adminGroups }} importe
+   la fonction Pipe (deploy/remote-mission/openwebui_pipe.py) puis règle ses Valves :
+   SERVER_URL = http://{{ include "myskills.name" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+   TOKEN      = valeur de MYSKILLS_REMOTE_TOKEN (Secret {{ .Values.secrets.service }})
+{{- end }}
+3. LiteLLM ({{ .Values.litellm.url }}) est hors du cluster : n'y admettre que l'adresse de sortie du cluster et la clé
+   de LITELLM_API_KEY (Secret {{ .Values.secrets.session }}).

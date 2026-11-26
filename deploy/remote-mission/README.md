@@ -6,19 +6,16 @@ skills (`install.py sync`) sur les postes ni dans les pods de session.
 
 | Fichier | Rôle |
 | --- | --- |
+| `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
 | `Dockerfile` | image du service et des sessions, avec les outils de tous les skills |
-| `remote.example.json` | configuration du service (missions, droits, agent, sessions) |
-| `opencode.json`, `models.json` | agent OpenCode sur LiteLLM, modèle par niveau |
 | `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
-| `kubernetes/remote-mission.yaml` | service frontal, sessions, RBAC, NetworkPolicy |
-| `kubernetes/open-webui.yaml` | Open WebUI, connexion par GitLab seulement |
-| `kubernetes/litellm-clients.yaml` | facultatif : accès à LiteLLM réservé |
+| `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
 
 ```
 Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
    (SSO GitLab)                     │ crée, retrouve ou recharge le pod de la conversation
                                     v
-                        pod de session (une conversation) ──(clé virtuelle)──> LiteLLM
+                        pod de session (une conversation) ──(HTTPS, clé virtuelle)──> LiteLLM (autre cluster)
                           │ volume : copie de travail + contexte de l'agent
                           └──(jeton git)──> GitLab : une branche par conversation
 ```
@@ -103,38 +100,43 @@ nouvelle image les met à jour au rechargement suivant. Un autre harness
 (OpenCode...) s'installe de même dans l'image, avec `agent.command` et
 `runner.tools`.
 
-## 2. LiteLLM : une clé propre au service, un accès réservé
+## 2. LiteLLM hors du cluster : une clé propre aux sessions, un accès réservé
+
+LiteLLM tourne sur un autre cluster : les pods de session le joignent par
+HTTPS (`litellm.url`, par exemple `https://litellm.exemple.local/v1`), par la
+sortie du cluster. Seuls eux l'appellent ; le service frontal et Open WebUI
+n'y ont pas accès.
 
 1. **Clé virtuelle dédiée**, créée par un administrateur de LiteLLM, limitée
    aux modèles utiles, avec un budget et une équipe à part :
 
    ```bash
-   curl -s http://litellm.litellm.svc.cluster.local:4000/key/generate \
+   curl -s https://litellm.exemple.local/key/generate \
      -H "Authorization: Bearer $LITELLM_MASTER_KEY" -H "Content-Type: application/json" \
      -d '{"key_alias": "myskills-remote", "team_id": "myskills",
           "models": ["claude-haiku", "claude-sonnet", "claude-opus"],
           "max_budget": 200, "budget_duration": "30d", "rpm_limit": 60}'
    ```
 
-   La clé va dans le Secret `myskills-session` (`LITELLM_API_KEY`), monté
-   dans les seuls pods de session, jamais dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
+   La clé va dans le Secret des sessions (`LITELLM_API_KEY`), monté dans les
+   seuls pods de session. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
    service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
-2. **NetworkPolicy `litellm-clients`** (fichier facultatif
-   `kubernetes/litellm-clients.yaml`) : seuls les pods déclarés joignent
-   LiteLLM. Sur un LiteLLM déjà déployé, elle coupe tout client absent de sa
-   liste : y ajouter d'abord chaque client actuel, et reprendre namespace,
-   labels et port du déploiement existant (aussi dans la NetworkPolicy de
-   sortie de `remote-mission.yaml` et `LITELLM_BASE_URL`).
-3. **Interface d'administration de LiteLLM** : pas d'Ingress public ; SSO de
-   l'entreprise (ou GitLab) pour l'UI, clé maîtresse dans un Secret.
-4. **Rien ne part ailleurs** : aucun callback de journalisation vers un service
+2. **Flux réservé, des deux côtés** : ici, la NetworkPolicy des sessions
+   n'ouvre que `litellm.cidrs` sur `litellm.port` (adresse de LiteLLM ou de
+   son Ingress) ; côté LiteLLM, n'admettre que l'adresse de sortie de ce
+   cluster (liste d'IP de l'Ingress ou pare-feu), en plus de la clé.
+3. **Certificat** : un certificat d'une autorité interne se déclare par
+   `caSecret` (Secret avec les `*.crt`) : ajouté aux autorités de l'image pour
+   git, Python et Node, dans les sessions, le service et Open WebUI.
+4. **Interface d'administration de LiteLLM** : pas d'accès public ; SSO de
+   l'entreprise (ou GitLab), clé maîtresse dans un Secret.
+5. **Rien ne part ailleurs** : aucun callback de journalisation vers un service
    en ligne (Langfuse, Helicone... hébergés) ; `store_prompts_in_spend_logs:
    false` pour ne pas garder les contenus dans la base de LiteLLM.
-5. Noms des modèles : les alias de LiteLLM (`claude-haiku`, `claude-sonnet`,
-   `claude-opus`) sont déclarés dans `opencode.json` (fournisseur `litellm`,
-   compatible OpenAI) et `models.json` les donne aux agents de myskills par
-   niveau (léger, standard, puissant) quand les skills sont copiés dans la
-   session (`runner.models`). Les deux fichiers sont dans la ConfigMap.
+6. **Noms des modèles** : les alias de LiteLLM (`litellm.models` : simple,
+   moyen, complexe) vont dans la configuration d'OpenCode et dans le modèle de
+   chaque niveau des agents de myskills (`opencode.json` et `models.json`,
+   générés par le chart dans sa ConfigMap).
 
 ## Agent : OpenCode (défaut) ou Claude Code
 
@@ -148,21 +150,10 @@ reprise de session avec son contexte, agents de myskills trouvés avec leur
 modèle par niveau.
 
 Claude Code reste possible si sa licence convient : construire l'image avec
-`--build-arg CLAUDE_CODE_VERSION=...`, puis dans `remote.json` :
-
-```json
-"agent": {
-  "command": ["claude", "-p", "{prompt}", "--output-format", "text", "--permission-mode", "acceptEdits",
-              "--allowedTools", "Bash(uv run:*)", "Bash(python:*)", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Agent"],
-  "env": {"ANTHROPIC_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000",
-          "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku", "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet",
-          "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"},
-  "continue_args": ["--continue"]
-},
-"runner": {"tools": "claude", "models": "/etc/myskills/models.json"}
-```
-
-et la clé dans le Secret sous `ANTHROPIC_AUTH_TOKEN`.
+`--build-arg CLAUDE_CODE_VERSION=...`, puis `agent.kind: claude` dans les
+valeurs du chart (commande, alias des modèles par `ANTHROPIC_DEFAULT_*_MODEL`
+et skills copiés pour Claude Code), la clé dans le Secret des sessions sous
+`ANTHROPIC_AUTH_TOKEN`.
 
 ## 3. Qui accède à quelle mission
 
@@ -195,76 +186,78 @@ Seuils : `read_level`, `write_level`. Les droits lus sont gardés
 ## 4. Git
 
 Jeton de déploiement GitLab (`write_repository`) par projet de mission ou
-jeton de groupe, dans le Secret `myskills-git` (fichier `.git-credentials`).
+jeton de groupe, dans le Secret `myskills-git` (fichier `.git-credentials`, `secrets.git`).
 Protéger `main` : les sessions ne poussent que sur `openwebui/<conversation>` ;
 l'utilisateur fusionne par une merge request.
 
-## 5. Kubernetes
+## 5. Installer avec Helm
 
-```bash
-kubectl -n myskills create secret generic myskills-remote \
-  --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
-  --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
-kubectl -n myskills create secret generic myskills-session \
-  --from-literal=LITELLM_API_KEY="<clé virtuelle LiteLLM>" \
-  --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
-kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
-kubectl apply -f deploy/remote-mission/kubernetes/remote-mission.yaml
-# facultatif, après relecture : kubectl apply -f deploy/remote-mission/kubernetes/litellm-clients.yaml
-```
+Un namespace, une installation (le service retrouve les pods de session par
+leurs labels dans son namespace).
 
-Le fichier crée : la ConfigMap de `remote.json` (missions, hôtes, `runner`),
-le compte de service et son Role (pods et volumes, dans le namespace
-seulement), un `ResourceQuota`, le Deployment du service, son Service et
-deux NetworkPolicy (service : entrée depuis Open WebUI, sortie vers l'API du
-cluster, GitLab et les pods de session ; pods de session : entrée depuis le
-service seulement, sortie vers LiteLLM et GitLab). Adapter les adresses de
-l'API du cluster et de GitLab, et les labels de LiteLLM. Le contenu des
-conversations reste dans les volumes de session : réserver aux
-administrateurs le droit de lire les volumes et d'entrer dans les pods du
-namespace. Avant de brancher Open WebUI :
-
-```bash
-kubectl -n myskills exec deploy/myskills-remote -- uv run /opt/myskills/skills/remote-mission/scripts/remote_server.py check --config /etc/myskills/remote.json
-```
-
-## 6. Open WebUI et SSO GitLab
-
-`kubernetes/open-webui.yaml` déploie Open WebUI (namespace
-`open-webui`, volume pour sa base, Ingress en TLS) avec GitLab comme seul
-moyen de connexion : ni formulaire ni mot de passe, ni Ollama ni API OpenAI
-directe, ni télémétrie ni téléchargement de modèle.
-
-1. **Application GitLab** (Admin > Applications, ou celle d'un groupe) :
-   nom `Open WebUI`, URI de redirection
+1. **Application GitLab pour Open WebUI** (Admin > Applications, ou celle d'un
+   groupe) : nom `Open WebUI`, URI de redirection
    `https://chat.exemple.local/oauth/oidc/callback`, confidentielle, portées
    `openid`, `email`, `profile`. Garder l'Application ID et le Secret.
-2. **Secret et manifeste** :
+2. **Secrets**, créés à part (le chart ne fait que les nommer) :
 
    ```bash
-   kubectl create namespace open-webui
-   kubectl -n open-webui create secret generic open-webui \
+   kubectl create namespace myskills
+   kubectl -n myskills create secret generic myskills-remote \
+     --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
+     --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
+   kubectl -n myskills create secret generic myskills-session \
+     --from-literal=LITELLM_API_KEY="<clé virtuelle LiteLLM>" \
+     --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
+   kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
+   kubectl -n myskills create secret generic open-webui \
      --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
      --from-literal=OAUTH_CLIENT_ID="<Application ID>" \
      --from-literal=OAUTH_CLIENT_SECRET="<Secret>"
-   kubectl apply -f deploy/remote-mission/kubernetes/open-webui.yaml
+   # autorité interne, si GitLab ou LiteLLM en ont une : --set caSecret=autorite-interne
+   kubectl -n myskills create secret generic autorite-interne --from-file=interne.crt
    ```
 
-   Adapter les adresses (`WEBUI_URL`, `OPENID_PROVIDER_URL`,
-   `OPENID_REDIRECT_URI`, Ingress), l'adresse de GitLab dans la
-   NetworkPolicy et, pour un GitLab à certificat interne, le CA monté
-   (`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`).
-3. **Qui entre** : les groupes GitLab de l'utilisateur (revendication
-   `groups`) décident du rôle dans Open WebUI : `OAUTH_ALLOWED_ROLES`
-   (`myskills/utilisateurs`, `myskills/admins`) pour entrer,
-   `OAUTH_ADMIN_ROLES` (`myskills/admins`) pour administrer. Les missions,
+3. **Valeurs** (`values.yaml` du chart, à copier) : `image`, `gitlab.url` et
+   `gitlab.cidrs`, `gitlab.discovery` (topic des missions), `litellm.url`,
+   `litellm.cidrs` et `litellm.models`, `kubernetes.apiCidrs` (adresse de
+   l'API du cluster : `kubectl get endpoints kubernetes`), `openWebui.url`,
+   `openWebui.ingress`, groupes GitLab d'Open WebUI.
+4. **Installation** :
+
+   ```bash
+   helm upgrade --install myskills deploy/remote-mission/chart -n myskills -f mes-valeurs.yaml
+   ```
+
+   Le chart crée : la ConfigMap (`remote.json`, `opencode.json`,
+   `models.json`, générés depuis les valeurs), le compte de service et son
+   Role (pods et volumes du namespace), un `ResourceQuota`, le service
+   frontal, Open WebUI (volume, Ingress) et les NetworkPolicy (service :
+   entrée depuis Open WebUI, sortie vers l'API du cluster, GitLab et les
+   sessions ; sessions : entrée depuis le service, sortie vers GitLab et
+   LiteLLM ; Open WebUI : entrée depuis l'Ingress, sortie vers le service et
+   GitLab). Les notes de fin d'installation donnent la commande de
+   vérification (`remote_server.py check`) et les Valves du pipe.
+
+Le contenu des conversations reste dans les volumes de session : réserver aux
+administrateurs le droit de lire les volumes et d'entrer dans les pods du
+namespace.
+
+## 6. Open WebUI et SSO GitLab
+
+Open WebUI (`openWebui.enabled`) n'a que GitLab comme moyen de connexion : ni
+formulaire ni mot de passe, ni Ollama ni API OpenAI directe, ni télémétrie
+ni téléchargement de modèle.
+
+1. **Qui entre** : les groupes GitLab de l'utilisateur (revendication
+   `groups`) décident du rôle dans Open WebUI : `openWebui.allowedGroups`
+   pour entrer, `openWebui.adminGroups` pour administrer. Les missions,
    elles, restent ouvertes selon le rôle sur leur projet GitLab (section 3) ;
    aucun droit par modèle n'est à poser dans Open WebUI.
-4. **Fonction Pipe** (un administrateur) : Admin > Fonctions > importer
-   `openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL`
-   (`http://myskills-remote.myskills.svc.cluster.local:8765`), `TOKEN`
-   (valeur de `MYSKILLS_REMOTE_TOKEN`). Le modèle « Missions » apparaît pour
-   tous (modèle public).
+2. **Fonction Pipe** (un administrateur) : Admin > Fonctions > importer
+   `openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL` et `TOKEN`
+   donnés par les notes de l'installation. Le modèle « Missions » apparaît
+   pour tous (modèle public).
 
 Le pipe affiche la progression du message (statut), puis la réponse, les schémas
 PNG (en ligne jusqu'à `inline_images_kb`, liens GitLab vers le PNG et le

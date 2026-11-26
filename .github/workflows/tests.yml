@@ -97,3 +97,25 @@ jobs:
         run: |
           uv run tests/triage_eval.py --markdown tri-eval.md --min-f1 0.9
           cat tri-eval.md >> "$GITHUB_STEP_SUMMARY"
+
+  # Chart Helm des missions à distance : lint, rendu (agent OpenCode puis Claude Code, autorité interne),
+  # configuration générée validée par remote_server.py check.
+  deploiement:
+    runs-on: ${{ fromJSON(vars.RUNNER_LINUX || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+      - name: Chart myskills-remote
+        run: |
+          chart=deploy/remote-mission/chart
+          helm lint "$chart"
+          for options in "" "--set agent.kind=claude --set caSecret=autorite-interne --set openWebui.enabled=false"; do
+            helm template myskills "$chart" -n myskills $options > "$RUNNER_TEMP/rendu.yaml"
+            uv run --with pyyaml python -c 'import sys, yaml; cm = next(d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d["kind"] == "ConfigMap" and "remote.json" in d["data"]); open(sys.argv[2], "w", encoding="utf-8").write(cm["data"]["remote.json"])' "$RUNNER_TEMP/rendu.yaml" "$RUNNER_TEMP/remote.json"
+            uv run skills/remote-mission/scripts/remote_server.py check --config "$RUNNER_TEMP/remote.json"
+          done

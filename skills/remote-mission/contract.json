@@ -9,7 +9,7 @@
     "Contrôle d'accès : rôle de l'utilisateur sur le projet GitLab de la mission vérifié au début de la session, avant chaque pull et chaque push ; refus motivé dans le chat",
     "Une branche par conversation dans le dépôt de la mission, un commit par message, poussée",
     "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-    "Déploiement, hors du skill (deploy/remote-mission/ du dépôt myskills) : fonction Pipe d'Open WebUI, configuration d'exemple, image avec les outils de tous les skills, manifestes Kubernetes (service frontal, pods de session, Open WebUI connecté par GitLab), guide"
+    "Déploiement, hors du skill (deploy/remote-mission/ du dépôt myskills) : fonction Pipe d'Open WebUI, configuration d'exemple, image avec les outils de tous les skills, chart Helm (service frontal, pods de session, Open WebUI connecté par GitLab, LiteLLM hors du cluster), guide"
   ],
   "scripts": [
     {
@@ -335,6 +335,11 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
+                },
+                "ca_secret": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Secret des certificats (*.crt) d'une autorité interne (GitLab, LiteLLM hors du cluster), ajoutés à ceux de l'image dans les pods de session (git, Python, Node)."
                 },
                 "models": {
                   "type": "string",
@@ -968,6 +973,11 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
+                },
+                "ca_secret": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Secret des certificats (*.crt) d'une autorité interne (GitLab, LiteLLM hors du cluster), ajoutés à ceux de l'image dans les pods de session (git, Python, Node)."
                 },
                 "models": {
                   "type": "string",

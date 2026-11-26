@@ -18088,7 +18088,7 @@
         "Contrôle d'accès : rôle de l'utilisateur sur le projet GitLab de la mission vérifié au début de la session, avant chaque pull et chaque push ; refus motivé dans le chat",
         "Une branche par conversation dans le dépôt de la mission, un commit par message, poussée",
         "La réponse de l'agent en Markdown, les PNG changés (en ligne ou liés au dépôt avec leur .drawio), l'étape en revue posée en question",
-        "Déploiement, hors du skill (deploy/remote-mission/ du dépôt myskills) : fonction Pipe d'Open WebUI, configuration d'exemple, image avec les outils de tous les skills, manifestes Kubernetes (service frontal, pods de session, Open WebUI connecté par GitLab), guide"
+        "Déploiement, hors du skill (deploy/remote-mission/ du dépôt myskills) : fonction Pipe d'Open WebUI, configuration d'exemple, image avec les outils de tous les skills, chart Helm (service frontal, pods de session, Open WebUI connecté par GitLab, LiteLLM hors du cluster), guide"
       ],
       "scripts": [
         {
@@ -18414,6 +18414,11 @@
                       "type": "string",
                       "minLength": 1,
                       "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
+                    },
+                    "ca_secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret des certificats (*.crt) d'une autorité interne (GitLab, LiteLLM hors du cluster), ajoutés à ceux de l'image dans les pods de session (git, Python, Node)."
                     },
                     "models": {
                       "type": "string",
@@ -19048,6 +19053,11 @@
                       "minLength": 1,
                       "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
                     },
+                    "ca_secret": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Secret des certificats (*.crt) d'une autorité interne (GitLab, LiteLLM hors du cluster), ajoutés à ceux de l'image dans les pods de session (git, Python, Node)."
+                    },
                     "models": {
                       "type": "string",
                       "minLength": 1,
@@ -19196,7 +19206,7 @@
           "when": "chaque tour : l'agent lancé sans terminal reprend la mission par l'agent orientation puis le workflow en cours"
         }
       ],
-      "description": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message. Service HTTP, fonction Pipe d'Open WebUI et manifestes Kubernetes fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur.",
+      "description": "Fait tourner une mission myskills à distance, depuis son dépôt GitLab auto-hébergé, avec Open WebUI comme seule interface : une conversation = une session (un pod Kubernetes qui garde le contexte de l'agent, arrêté après inactivité, rechargé au retour de l'utilisateur) sur une branche, modèles servis par LiteLLM, portes de revue posées dans le chat, commit et push à chaque message. Service HTTP, fonction Pipe d'Open WebUI et chart Helm fournis. À utiliser pour déployer ou exploiter des missions hors du poste de l'utilisateur.",
       "path": "skills/remote-mission"
     },
     {

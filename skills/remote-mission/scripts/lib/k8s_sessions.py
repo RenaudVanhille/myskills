@@ -16,6 +16,7 @@ import hashlib
 import json
 import re
 import secrets
+import shlex
 import ssl
 import time
 import urllib.error
@@ -25,6 +26,7 @@ from pathlib import Path
 SA = Path("/var/run/secrets/kubernetes.io/serviceaccount")
 SERVER = "/opt/myskills/skills/remote-mission/scripts/remote_server.py"
 INSTALL = "/opt/myskills/scripts/install.py"  # copie de myskills dans l'image
+CA_BUNDLE = "/work/ca-bundle.crt"  # autorités de l'image et autorité interne (runner.ca_secret)
 
 
 def chat_label(mission: str, chat: str) -> str:
@@ -97,6 +99,19 @@ class Sessions:
                {"name": "GIT_CONFIG_COUNT", "value": "1"},
                {"name": "GIT_CONFIG_KEY_0", "value": "credential.helper"},
                {"name": "GIT_CONFIG_VALUE_0", "value": "store --file=/etc/myskills-git/.git-credentials"}]
+        sync = ["uv", "run", "--quiet", INSTALL, "sync", "--source", "/opt/myskills",
+                "--global", "--tools", runner.get("tools", "claude")] \
+            + (["--models", runner["models"]] if runner.get("models") else [])  # modèle par niveau (LiteLLM)
+        mounts, volumes = [], []
+        if runner.get("ca_secret"):
+            # Autorité interne (GitLab, LiteLLM d'un autre cluster) : ajoutée aux autorités de l'image, pour git,
+            # Python et Node (OpenCode, Claude Code).
+            sync = ["sh", "-c", f"cat /etc/ssl/certs/ca-certificates.crt /etc/myskills-ca/*.crt > {CA_BUNDLE} "
+                                f"&& exec {shlex.join(sync)}"]
+            env += [{"name": var, "value": CA_BUNDLE}
+                    for var in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "GIT_SSL_CAINFO", "NODE_EXTRA_CA_CERTS")]
+            mounts = [{"name": "ca", "mountPath": "/etc/myskills-ca", "readOnly": True}]
+            volumes = [{"name": "ca", "secret": {"secretName": runner["ca_secret"]}}]
         return {
             "apiVersion": "v1", "kind": "Pod",
             "metadata": {"name": name, "labels": self.labels(mission, chat)},
@@ -109,13 +124,11 @@ class Sessions:
                 # les lit) : une nouvelle image les met à jour au rechargement suivant.
                 "initContainers": [{
                     "name": "skills", "image": runner["image"],
-                    "command": ["uv", "run", "--quiet", INSTALL, "sync", "--source", "/opt/myskills",
-                                "--global", "--tools", runner.get("tools", "claude")]
-                    + (["--models", runner["models"]] if runner.get("models") else []),  # modèle par niveau (LiteLLM)
+                    "command": sync,
                     "env": [{"name": "HOME", "value": "/work/home"}],
                     "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
                     "volumeMounts": [{"name": "config", "mountPath": "/etc/myskills", "readOnly": True},
-                                     {"name": "work", "mountPath": "/work"}]}],
+                                     *mounts, {"name": "work", "mountPath": "/work"}]}],
                 "containers": [{
                     "name": "session", "image": runner["image"], "command": command, "env": env,
                     "ports": [{"containerPort": 8765}],
@@ -125,11 +138,12 @@ class Sessions:
                     "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
                     "volumeMounts": [{"name": "config", "mountPath": "/etc/myskills", "readOnly": True},
                                      {"name": "git", "mountPath": "/etc/myskills-git", "readOnly": True},
-                                     {"name": "work", "mountPath": "/work"}]}],
+                                     *mounts, {"name": "work", "mountPath": "/work"}]}],
                 "volumes": [
                     {"name": "config", "configMap": {"name": runner.get("config_map", "myskills-remote")}},
                     {"name": "git", "secret": {"secretName": entry.get("git_secret", runner.get("git_secret", "myskills-git")),
                                                "defaultMode": 0o400}},
+                    *volumes,
                     {"name": "work", "persistentVolumeClaim": {"claimName": name}}]}}
 
     # --- cycle de vie -----------------------------------------------------------------------
