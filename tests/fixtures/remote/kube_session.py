@@ -191,6 +191,14 @@ try:
     expect("fin de session", probe("dev@exemple.local", "/fin"), ["Session terminée"], 2)
     if PODS or CLAIMS:
         errors.append(f"/fin : pod ou volume restant ({list(PODS)}, {list(CLAIMS)})")
+    # Mission choisie par /mission (modèle Missions) : liaison gardée sur le volume, relue par un service neuf.
+    sys.path.insert(0, str(SKILLS / "remote-mission" / "scripts" / "lib"))
+    import k8s_sessions  # noqa: E402
+    config["_base"] = str(OUT)
+    k8s_sessions.Sessions(config).bind("portail", "s9")
+    if k8s_sessions.Sessions(config).bound_mission("s9") != "portail" or \
+            k8s_sessions.Sessions(config).bound_mission("s10") is not None:
+        errors.append("liaison conversation -> mission non relue sur le volume de session")
 finally:
     server.shutdown()
     for pod in PODS.values():

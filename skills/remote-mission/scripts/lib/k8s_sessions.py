@@ -30,6 +30,10 @@ def chat_label(mission: str, chat: str) -> str:
     return hashlib.sha256(f"{mission}\0{chat}".encode("utf-8")).hexdigest()[:16]
 
 
+def conversation_label(chat: str) -> str:
+    return hashlib.sha256(chat.encode("utf-8")).hexdigest()[:16]
+
+
 class Sessions:
     def __init__(self, config: dict):
         self.config, self.runner = config, config["runner"]
@@ -66,6 +70,7 @@ class Sessions:
     # --- définition du pod et du volume -----------------------------------------------------
     def labels(self, mission: str, chat: str) -> dict:
         return {"app": "myskills-session", "myskills/chat": chat_label(mission, chat),
+                "myskills/conv": conversation_label(chat),
                 "myskills/mission": re.sub(r"[^a-z0-9-]", "-", mission.lower()).strip("-")[:63] or "mission"}
 
     def claim(self, name: str, mission: str, chat: str) -> dict:
@@ -75,7 +80,8 @@ class Sessions:
             spec["storageClassName"] = self.runner["storage_class"]
         return {"apiVersion": "v1", "kind": "PersistentVolumeClaim",
                 "metadata": {"name": name, "labels": self.labels(mission, chat),
-                             "annotations": {"myskills/last-used": str(int(time.time()))}},
+                             "annotations": {"myskills/last-used": str(int(time.time())),
+                                             "myskills/mission-path": mission}},
                 "spec": spec}
 
     def pod(self, name: str, mission: str, chat: str) -> dict:
@@ -85,6 +91,7 @@ class Sessions:
                    "--host", "0.0.0.0", "--port", "8765", "--workdir", "/work/clones",
                    "--session", f"{mission}:{chat}", "--idle-minutes", str(runner.get("idle_minutes", 120))]
         env = [{"name": "MYSKILLS_REMOTE_TOKEN", "value": secrets.token_urlsafe(24)},
+               {"name": "MYSKILLS_MISSION_SPEC", "value": json.dumps(entry, ensure_ascii=False)},  # mission découverte
                {"name": "HOME", "value": "/work/home"},  # contexte de l'agent (claude --continue) sur le volume
                {"name": "GIT_CONFIG_COUNT", "value": "1"},
                {"name": "GIT_CONFIG_KEY_0", "value": "credential.helper"},
@@ -134,6 +141,21 @@ class Sessions:
                 return response.status == 200
         except OSError:
             return False
+
+    def bind(self, mission: str, chat: str) -> None:
+        """Conversation liée à une mission (/mission) : son volume est créé et garde la liaison."""
+        name = self.name(mission, chat)
+        if self.call("GET", self.claims(name)) is None:
+            self.call("POST", self.claims(), self.claim(name, mission, chat))
+
+    def bound_mission(self, chat: str) -> str | None:
+        """Mission liée à la conversation, lue sur son volume (après un redémarrage du service)."""
+        found = self.call("GET", self.claims() + f"?labelSelector=myskills%2Fconv%3D{conversation_label(chat)}") or {}
+        for claim in found.get("items", []):
+            mission = claim["metadata"].get("annotations", {}).get("myskills/mission-path")
+            if mission:
+                return mission
+        return None
 
     def running(self, mission: str, chat: str) -> bool:
         """Session en cours : son pod tourne (sinon elle démarre ou se recharge)."""

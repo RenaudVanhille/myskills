@@ -1,11 +1,9 @@
 {
-  "missions": {
-    "portail-sinistres": {
-      "repo": "https://gitlab.exemple.local/archi/portail-sinistres.git",
-      "base": "main",
-      "title": "Mission portail sinistres",
-      "web": "https://gitlab.exemple.local/archi/portail-sinistres"
-    }
+  "missions": {},
+  "discovery": {
+    "topic": "myskills-mission",
+    "group": "archi",
+    "title": "Missions myskills"
   },
   "workdir": "/work/clones",
   "branch_prefix": "openwebui/",

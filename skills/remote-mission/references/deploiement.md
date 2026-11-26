@@ -39,6 +39,26 @@ Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) �
 - `runner.kind: local` (défaut) traite les conversations dans le service lui-même,
   sur un volume persistant : utile sur un poste ou sans droit de créer des pods.
 
+## Choisir la mission dans Open WebUI
+
+Une mission = un projet GitLab qui porte le topic `discovery.topic` (par
+exemple `myskills-mission`), dans `discovery.group` s'il est donné : rien à
+déclarer dans `remote.json`, ajouter le topic au projet suffit. Open WebUI
+montre un seul modèle, « Missions » ; dans une conversation neuve :
+
+| Message | Effet |
+| --- | --- |
+| `/missions` | missions où l'utilisateur a au moins le rôle de lecture |
+| `/mission archi/portail` | lie la conversation à cette mission (rôle d'écriture), sa session démarre au message suivant |
+| autre message, conversation non liée | rappel de ces deux commandes |
+
+La liaison est gardée par le service (sur le volume de session en mode
+kubernetes) : une conversation reprise des jours plus tard retrouve sa
+mission. Le compte de service GitLab (`GITLAB_ACCESS_TOKEN`) doit voir les
+projets missions (Reporter sur le groupe). Un projet archivé, sans le topic
+ou hors de `allowed_hosts` n'est pas une mission. `missions` de
+`remote.json` reste possible : un modèle par mission déclarée.
+
 ## 1. Image
 
 ```bash

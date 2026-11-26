@@ -2157,6 +2157,20 @@
           "exit": 0
         }
       ]
+    },
+    {
+      "id": "mission-distance-decouverte",
+      "skill": "remote-mission",
+      "_note": "Missions découvertes dans GitLab par leur topic (API simulée) et choisies depuis Open WebUI : modèle unique « Missions », aide hors mission, /missions limité aux missions lisibles par l'utilisateur (hors topic et archivées exclues), /mission refusé sans droit d'écriture ou hors topic, liaison relue par un service neuf, message joué et poussé dans la mission choisie.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/decouverte.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        }
+      ]
     }
   ]
 }

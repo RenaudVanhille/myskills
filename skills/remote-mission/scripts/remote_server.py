@@ -44,6 +44,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 import access  # noqa: E402
+import discovery  # noqa: E402
 import k8s_sessions  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
@@ -94,6 +95,11 @@ class Service:
         self.lock = threading.Lock()
         self.turns = 0
         self.max_jobs = config.get("server", {}).get("max_jobs", 4)
+        self.bindings = discovery.Bindings(config, self.sessions) if discovery.enabled(config) else None
+
+    def discovered(self) -> set:
+        """Missions ajoutées par la découverte GitLab (absentes du modèle par mission)."""
+        return {k for k, v in self.config["missions"].items() if v.get("_discovered")}
 
     def running(self) -> int:
         return sum(1 for j in self.jobs.values() if j.report is None)
@@ -104,7 +110,52 @@ class Service:
             return "conversation ouverte par un autre utilisateur"
         return None
 
+    def quick(self, mission: str, chat: str, user: str | None, answer: str = "", errors=()) -> tuple[int, dict]:
+        """Réponse immédiate, sans session (commandes du modèle Missions)."""
+        job = Job(mission, chat)
+        job.finish({**remote_turn.empty_report(mission, chat, user), "mode": "statut", "answer": answer,
+                    "errors": list(errors)})
+        with self.lock:
+            self.jobs[job.id], self.chats[(mission, chat)] = job, job.id
+        return 202, {"job": job.id}
+
+    def resolve(self, chat: str, message: str, user: str | None) -> tuple[str | None, tuple | None]:
+        """Modèle Missions : (mission liée, None) ou (None, réponse immédiate) pour /missions, /mission, aide."""
+        command = message.strip()
+        if command.lower() == "/missions":
+            answer, errors = discovery.listing(self.config, user)
+            return None, self.quick(discovery.MODEL_ID, chat, user, answer, errors)
+        if command.lower().startswith("/mission "):
+            path = command.split(None, 1)[1].strip().strip("`/")
+            try:
+                known = discovery.register(self.config, path)
+            except (PermissionError, OSError, ValueError) as error:
+                return None, self.quick(discovery.MODEL_ID, chat, user, errors=[f"missions : {error}"])
+            if not known:
+                return None, self.quick(discovery.MODEL_ID, chat, user,
+                                        errors=[f"« {path} » n'est pas une mission (topic {self.config['discovery']['topic']})"])
+            refused = access.check(self.config, path, user, write=True, action="start")
+            if refused:
+                return None, self.quick(discovery.MODEL_ID, chat, user, errors=[refused])
+            self.bindings.set(chat, path, user)
+            return None, self.quick(discovery.MODEL_ID, chat, user,
+                                    f"Mission **{path}** choisie pour cette conversation. Écrivez votre premier message.")
+        bound = self.bindings.get(chat)
+        if bound is None:
+            return None, self.quick(discovery.MODEL_ID, chat, user, discovery.HELP)
+        try:
+            if not discovery.register(self.config, bound):
+                return None, self.quick(discovery.MODEL_ID, chat, user,
+                                        errors=[f"mission « {bound} » sortie du périmètre (topic retiré, projet archivé ?)"])
+        except (PermissionError, OSError, ValueError) as error:
+            return None, self.quick(discovery.MODEL_ID, chat, user, errors=[f"missions : {error}"])
+        return bound, None
+
     def start(self, mission: str, chat: str, message: str, user: str | None) -> tuple[int, dict]:
+        if mission == discovery.MODEL_ID and self.bindings:
+            mission, answered = self.resolve(chat, message, user)
+            if answered:
+                return answered
         if mission not in self.config["missions"]:
             return 404, {"error": f"mission « {mission} » inconnue"}
         if self.session and (mission, chat) != self.session:
@@ -159,6 +210,8 @@ class Service:
             return {**empty, "errors": [f"session : {error}"]}
 
     def chat(self, mission: str, chat: str, user: str | None) -> dict:
+        if mission == discovery.MODEL_ID and self.bindings:
+            mission = self.bindings.get(chat) or mission
         if self.owner_refused(mission, chat, user):
             return {"job": None, "running": False, "report": None}
         job = self.jobs.get(self.chats.get((mission, chat), ""))
@@ -198,8 +251,12 @@ def handler(service: Service):
                 return self.send(401, {"error": "jeton absent ou invalide"})
             query = parse_qs(url.query)
             if parts == ["missions"]:
-                return self.send(200, {"missions": [{"id": k, "title": v.get("title", k)}
-                                                    for k, v in service.config["missions"].items()]})
+                listed = [{"id": k, "title": v.get("title", k)} for k, v in service.config["missions"].items()
+                          if k not in service.discovered()]
+                if service.bindings:
+                    listed.insert(0, {"id": discovery.MODEL_ID,
+                                      "title": service.config["discovery"].get("title", "Missions myskills")})
+                return self.send(200, {"missions": listed})
             if len(parts) == 2 and parts[0] == "jobs":
                 job = service.jobs.get(parts[1])
                 if job is None:
@@ -342,6 +399,8 @@ def main() -> int:
     if args.workdir:
         config["workdir"] = str(args.workdir.resolve())
     session = tuple(args.session.split(":", 1)) if args.session else None
+    if session and len(session) == 2 and session[0] not in config["missions"] and os.environ.get("MYSKILLS_MISSION_SPEC"):
+        config["missions"][session[0]] = json.loads(os.environ["MYSKILLS_MISSION_SPEC"])  # mission découverte
     if session and (len(session) != 2 or session[0] not in config["missions"]):
         out["errors"].append(f"--session : MISSION:CONVERSATION attendu, mission de la configuration ({args.session})")
     if args.command == "probe":

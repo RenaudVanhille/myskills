@@ -85,6 +85,12 @@ def check_config(config: dict, base: Path) -> list[str]:
             errors.append(f"missions/{name}/repo : hôte « {host} » absent de allowed_hosts")
         if not host and not (base / repo).is_dir():
             errors.append(f"missions/{name}/repo : dossier local « {repo} » introuvable")
+    if not config["missions"] and not config.get("discovery"):
+        errors.append("missions : au moins une mission, ou discovery pour les trouver dans GitLab")
+    if config.get("discovery") and (config.get("access") or {}).get("provider", "gitlab") != "gitlab":
+        errors.append("discovery : contrôle d'accès GitLab attendu (access.provider gitlab, access.api)")
+    elif config.get("discovery") and not config.get("access"):
+        errors.append("discovery : section access (API GitLab) attendue")
     runner = config.get("runner", {})
     if runner.get("kind") == "kubernetes" and not runner.get("image"):
         errors.append("runner/image : image du pod des tours attendue avec kind kubernetes")
