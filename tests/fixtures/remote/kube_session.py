@@ -6,8 +6,9 @@ pod. Chaque message passe par la fonction Pipe d'Open WebUI et un service fronta
 (remote_server.py probe), comme après un redémarrage. Aucun modèle : agent simulé.
 
 Vérifie : session démarrée, pod retrouvé au message suivant (contexte de l'agent repris), pod
-arrêté (inactivité) puis rechargé depuis son volume avec le contexte, Reporter refusé sans pod
-créé, « /fin » qui efface pod et volume.
+arrêté (inactivité) puis rechargé depuis son volume avec le contexte, droits vérifiés au début de
+la session (Reporter refusé sans pod créé) et avant le push (pas à chaque message), « /fin » qui
+efface pod et volume.
 
 Usage : python kube_session.py SKILLS ; rapport JSON (errors, warnings), code 1 si un contrôle échoue.
 """
@@ -130,9 +131,9 @@ class Kube(BaseHTTPRequestHandler):
         return self.reply({"message": "not found"}, 404)
 
 
-def probe(user: str, message: str) -> dict:
+def probe(user: str, message: str, chat: str = "s1") -> dict:
     result = subprocess.run([sys.executable, str(SKILLS / "remote-mission" / "scripts" / "remote_server.py"), "probe",
-                             "--config", str(OUT / "remote.json"), "--mission", "portail", "--chat", "s1",
+                             "--config", str(OUT / "remote.json"), "--mission", "portail", "--chat", chat,
                              "--user", user, "--message", message],
                             capture_output=True, text=True, encoding="utf-8")
     try:
@@ -161,6 +162,7 @@ try:
         shutil.copyfile(HERE / name, OUT / name)
     (OUT / "token").write_text("jeton-sa", encoding="utf-8")
     config = json.loads((HERE / "remote.json").read_text(encoding="utf-8"))
+    config["access"]["cache_seconds"] = 0  # droits relus à chaque contrôle (retrait en cours de session)
     config["runner"] = {"kind": "kubernetes", "image": "registry.exemple.local/myskills/remote-mission:test",
                         "api": f"http://127.0.0.1:{server.server_address[1]}", "token_file": str(OUT / "token"),
                         "namespace": "myskills", "config_path": str(OUT / "remote.json"), "idle_minutes": 30,
@@ -176,9 +178,16 @@ try:
         pod["process"].wait(10)
     expect("session rechargée", probe("dev@exemple.local", "où en est-on ?"),
            ["rechargement de la session", "reprise de la session de l'agent", "suite de session"], 2)
-    refused = probe("lecteur@exemple.local", "dessine")
-    if not any("Developer requis" in e for e in refused.get("errors", [])) or CREATED["pods"] != 2:
-        errors.append(f"Reporter : refus attendu sans pod créé ({refused.get('errors')})")
+    refused = probe("lecteur@exemple.local", "dessine", chat="s2")
+    if not any("requis pour ouvrir une session" in e for e in refused.get("errors", [])) or CREATED["pods"] != 2:
+        errors.append(f"Reporter, nouvelle session : refus attendu sans pod créé ({refused.get('errors')})")
+    # Droit retiré pendant la session : le message passe (pas de contrôle par message), le push est refusé.
+    (OUT / "acces.json").write_text(json.dumps({"portail": {"dev@exemple.local": 20}}), encoding="utf-8")
+    pushed = probe("dev@exemple.local", "dessine")
+    if not any("requis pour pousser sur le dépôt" in e for e in pushed.get("errors", [])) \
+            or "suite de session" not in (pushed.get("output") or "") or CREATED["pods"] != 2:
+        errors.append(f"droit retiré en session : message traité, push refusé attendus ({pushed.get('errors')})")
+    shutil.copyfile(HERE / "acces.json", OUT / "acces.json")
     expect("fin de session", probe("dev@exemple.local", "/fin"), ["Session terminée"], 2)
     if PODS or CLAIMS:
         errors.append(f"/fin : pod ou volume restant ({list(PODS)}, {list(CLAIMS)})")

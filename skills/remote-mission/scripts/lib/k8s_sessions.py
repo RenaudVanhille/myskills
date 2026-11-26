@@ -135,6 +135,11 @@ class Sessions:
         except OSError:
             return False
 
+    def running(self, mission: str, chat: str) -> bool:
+        """Session en cours : son pod tourne (sinon elle démarre ou se recharge)."""
+        pod = self.call("GET", self.pods(self.name(mission, chat))) or {}
+        return pod.get("status", {}).get("phase") == "Running"
+
     def ensure(self, mission: str, chat: str, emit) -> tuple[str, str]:
         """Pod prêt de la conversation : retrouvé, créé ou rechargé depuis son volume."""
         name = self.name(mission, chat)

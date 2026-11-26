@@ -35,8 +35,7 @@ Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) �
   merge request.
 - **Isolation** : un pod ne voit que sa conversation et sa mission, sans
   jeton de l'API du cluster ; jeton git propre à une mission possible
-  (`missions.<nom>.git_secret`). Le service frontal vérifie les droits avant
-  chaque message.
+  (`missions.<nom>.git_secret`).
 - `runner.kind: local` (défaut) traite les conversations dans le service lui-même,
   sur un volume persistant : utile sur un poste ou sans droit de créer des pods.
 
@@ -87,24 +86,27 @@ de même : l'installer dans l'image et changer `agent.command`.
 ## 3. Qui accède à quelle mission
 
 Les droits sont ceux du projet GitLab de la mission (`access`, fournisseur
-`gitlab`) : à chaque message, le service lit le rôle de l'utilisateur sur le
-projet, groupes hérités compris.
+`gitlab`) : le rôle de l'utilisateur sur le projet, groupes hérités
+compris, est lu au début de la session (création ou rechargement du pod),
+puis avant chaque pull et chaque push sur le dépôt ; pas à chaque message.
 
-| Rôle GitLab | Dans le chat |
+| Moment | Rôle exigé (défaut) |
 | --- | --- |
-| Reporter (20) et plus | `/statut` |
-| Developer (30) et plus | messages à l'agent, décisions de revue, `/fin` |
-| aucun | refus motivé |
+| Début de session | Developer (30), Reporter (20) pour `/statut` |
+| Avant un pull | Reporter (20) |
+| Avant un push | Developer (30) : sinon le commit reste dans la session, refus motivé |
 
+Un droit retiré pendant une session s'applique donc au prochain pull ou push.
 Seuils : `read_level`, `write_level`. Les droits lus sont gardés
-`cache_seconds` (300 s par défaut) : un retrait de droits s'applique au plus
-tard après ce délai.
+`cache_seconds` (300 s par défaut) dans chaque pod.
 
 - **Identité** : Open WebUI s'authentifie par GitLab (OIDC :
   `OPENID_PROVIDER_URL=https://gitlab.exemple.local/.well-known/openid-configuration`,
   `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`, `ENABLE_OAUTH_SIGNUP=true`) : le
   courriel transmis par le pipe est celui du compte GitLab.
-- **Jeton de lecture des droits** (`GITLAB_ACCESS_TOKEN`) : jeton d'un compte de
+- **Jeton de lecture des droits** (`GITLAB_ACCESS_TOKEN`, dans les Secrets
+  `myskills-remote` et `myskills-session` : le pod de session vérifie les
+  droits avant ses pull et push) : jeton d'un compte de
   service, portée `read_api`. Un courriel privé n'est trouvé qu'avec un jeton
   administrateur ; sinon, demander aux utilisateurs un courriel public.
 - **Confiance** : le service croit l'utilisateur que lui transmet le pipe, seul
@@ -127,7 +129,8 @@ kubectl -n myskills create secret generic myskills-remote \
   --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-session \
-  --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>"
+  --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>" \
+  --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
 kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml
 # facultatif, après relecture : kubectl apply -f skills/remote-mission/assets/kubernetes/litellm-clients.yaml

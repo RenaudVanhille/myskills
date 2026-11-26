@@ -6,6 +6,7 @@
 #   myskills-remote  : MYSKILLS_REMOTE_TOKEN (jeton du pipe Open WebUI),
 #                      GITLAB_ACCESS_TOKEN (read_api : droits par mission)
 #   myskills-session : ANTHROPIC_AUTH_TOKEN (clé virtuelle LiteLLM propre aux sessions)
+#                      GITLAB_ACCESS_TOKEN (droits relus avant chaque pull et push)
 #   myskills-git     : .git-credentials (jeton GitLab write_repository ; un Secret par mission
 #                      possible : missions.<nom>.git_secret)
 apiVersion: v1

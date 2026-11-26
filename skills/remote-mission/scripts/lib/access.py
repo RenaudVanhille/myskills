@@ -1,6 +1,7 @@
 """Qui peut faire quoi dans quelle mission : rôle de l'utilisateur sur le projet GitLab de la mission.
 
-Le service reçoit l'utilisateur d'Open WebUI (courriel, transmis par le pipe, seul détenteur du
+Vérifié au début d'une session (création ou rechargement), avant chaque pull et chaque push,
+pas à chaque message. Le service reçoit l'utilisateur d'Open WebUI (courriel, transmis par le pipe, seul détenteur du
 jeton du service). Avec Open WebUI branché sur GitLab (OIDC), ce courriel est celui du compte
 GitLab : son rôle sur le projet de la mission, groupes hérités compris (members/all), décide.
 
@@ -91,7 +92,10 @@ def level(config: dict, name: str, user: str) -> int:
     return found
 
 
-def check(config: dict, name: str, user: str | None, write: bool) -> str | None:
+ACTIONS = {"start": "ouvrir une session", "pull": "mettre à jour depuis le dépôt", "push": "pousser sur le dépôt"}
+
+
+def check(config: dict, name: str, user: str | None, write: bool, action: str | None = None) -> str | None:
     """None si l'utilisateur peut agir, sinon la raison du refus (affichée dans le chat)."""
     access = config.get("access")
     if not access:
@@ -105,5 +109,6 @@ def check(config: dict, name: str, user: str | None, write: bool) -> str | None:
     need = access.get("write_level", 30) if write else access.get("read_level", 20)
     if got < need:
         return (f"accès refusé : {user} a le rôle {LEVELS.get(got, got)} sur la mission « {name} », "
-                f"{LEVELS.get(need, need)} requis pour {'jouer un tour' if write else 'lire son état'}")
+                f"{LEVELS.get(need, need)} requis pour "
+                f"{ACTIONS.get(action) or ('jouer un tour' if write else 'lire son état')}")
     return None

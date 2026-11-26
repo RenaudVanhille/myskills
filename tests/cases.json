@@ -1771,7 +1771,7 @@
     {
       "id": "mission-distance",
       "skill": "remote-mission",
-      "_note": "Mission à distance, agent simulé (aucun modèle) : dépôt de mission ouvert par mission.py, tour d'un Developer (branche poussée, PNG et .drawio liés, jeton du service retiré de l'agent, LiteLLM transmis), Reporter refusé pour un tour mais admis pour /statut, utilisateur absent refusé, session de l'agent reprise au message suivant, étape soumise puis « valide » passé à journal.py review sans tour de modèle, message joué de bout en bout par la fonction Pipe d'Open WebUI et le service (probe), service refusé sans jeton hors de la machine. ; « /fin » pousse et efface la copie de travail ; pod de session arrêté seul après inactivité.",
+      "_note": "Mission à distance, agent simulé (aucun modèle) : dépôt de mission ouvert par mission.py, tour d'un Developer (branche poussée, PNG et .drawio liés, jeton du service retiré de l'agent, LiteLLM transmis), droits vérifiés au début de la session et avant pull et push, pas à chaque message (Reporter : session refusée, push refusé dans une session en cours, /statut admis), utilisateur absent refusé, session de l'agent reprise au message suivant, étape soumise puis « valide » passé à journal.py review sans tour de modèle, message joué de bout en bout par la fonction Pipe d'Open WebUI et le service (probe), service refusé sans jeton hors de la machine. ; « /fin » pousse et efface la copie de travail ; pod de session arrêté seul après inactivité.",
       "steps": [
         {
           "script": "{skills}/mission-workspace/scripts/mission.py",
@@ -1854,8 +1854,34 @@
             "MYSKILLS_REMOTE_TOKEN": "ne-doit-pas-passer"
           },
           "exit": 1,
+          "report": {
+            "pushed": false
+          },
           "report_contains": {
-            "errors": "Developer requis pour jouer un tour"
+            "errors": "Developer requis pour pousser sur le dépôt"
+          }
+        },
+        {
+          "script": "{skills}/remote-mission/scripts/remote_turn.py",
+          "args": [
+            "--config",
+            "{out}/remote.json",
+            "--mission",
+            "portail",
+            "--chat",
+            "c4",
+            "--user",
+            "lecteur@exemple.local",
+            "--message",
+            "dessine"
+          ],
+          "env": {
+            "MOCK_SKILLS": "{skills}",
+            "MYSKILLS_REMOTE_TOKEN": "ne-doit-pas-passer"
+          },
+          "exit": 1,
+          "report_contains": {
+            "errors": "Developer requis pour ouvrir une session"
           }
         },
         {
@@ -2121,7 +2147,7 @@
     {
       "id": "mission-distance-kubernetes",
       "skill": "remote-mission",
-      "_note": "Un pod de session par conversation (runner kubernetes) face à une API du cluster simulée en local : session démarrée avec son volume, pod retrouvé au message suivant par un service frontal neuf (contexte de l'agent repris), pod arrêté puis rechargé depuis son volume avec le contexte, Reporter refusé sans pod créé, « /fin » qui efface pod et volume ; pod sans jeton de l'API.",
+      "_note": "Un pod de session par conversation (runner kubernetes) face à une API du cluster simulée en local : session démarrée avec son volume, pod retrouvé au message suivant par un service frontal neuf (contexte de l'agent repris), pod arrêté puis rechargé depuis son volume avec le contexte, droits vérifiés au démarrage de la session (Reporter refusé sans pod créé) et au push, pas à chaque message, « /fin » qui efface pod et volume ; pod sans jeton de l'API.",
       "steps": [
         {
           "script": "{fixtures}/remote/kube_session.py",

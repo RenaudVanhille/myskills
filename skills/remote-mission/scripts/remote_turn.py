@@ -125,14 +125,20 @@ def identity(config: dict) -> list[str]:
             "-c", f"user.email={author.get('email', 'myskills-remote@localhost')}"]
 
 
-def workspace(config: dict, base: Path, name: str, chat: str, emit) -> tuple[Path, str]:
-    """Copie de travail de la conversation, sur sa branche, à jour du dépôt."""
+class Refused(Exception):
+    """Droits insuffisants au début de la session, avant un pull ou un push."""
+
+
+def workspace(config: dict, base: Path, name: str, chat: str, emit, guard) -> tuple[Path, str]:
+    """Copie de travail de la conversation, sur sa branche, à jour du dépôt. Sans copie, la session
+    commence : guard("start") ; avant chaque pull : guard("pull")."""
     mission = config["missions"][name]
     repo = mission["repo"] if host_of(mission["repo"]) else str((base / mission["repo"]).resolve())
     branch = config.get("branch_prefix", "openwebui/") + slug(chat)
     target = (base / config.get("workdir", "clones")).resolve() / slug(name) / slug(chat)
     remote_has = bool(git(base, "ls-remote", "--heads", repo, branch).stdout.strip())
     if not (target / ".git").is_dir():
+        guard("start")
         emit("git", f"clone de {name}")
         target.parent.mkdir(parents=True, exist_ok=True)
         start = branch if remote_has else mission.get("base")
@@ -140,6 +146,7 @@ def workspace(config: dict, base: Path, name: str, chat: str, emit) -> tuple[Pat
         if not remote_has:
             git(target, "checkout", "--quiet", "-b", branch)
     elif remote_has:
+        guard("pull")
         emit("git", f"mise à jour de {branch}")
         git(target, "pull", "--quiet", "--ff-only", "origin", branch)
     return target, branch
@@ -295,7 +302,8 @@ def images(config: dict, name: str, branch: str, target: Path, files: list[str])
     return found
 
 
-def commit_push(config: dict, target: Path, branch: str, chat: str, emit, push: bool) -> tuple[str | None, bool, list[str]]:
+def commit_push(config: dict, target: Path, branch: str, chat: str, emit, push: bool,
+                guard=lambda kind: None) -> tuple[str | None, bool, list[str]]:
     errors = []
     if changed_files(target):
         git(target, "add", "--all")
@@ -303,6 +311,10 @@ def commit_push(config: dict, target: Path, branch: str, chat: str, emit, push: 
     head = git(target, "rev-parse", "--short", "HEAD").stdout.strip()
     pushed = False
     if push and config.get("push", True):
+        try:
+            guard("push")
+        except Refused as error:
+            return head, False, [f"{error} ; commit {head} gardé dans la session"]
         emit("git", f"push de {branch}")
         result = git(target, "push", "--quiet", "-u", "origin", branch, check=False)
         pushed = result.returncode == 0
@@ -320,20 +332,24 @@ def empty_report(name: str, chat: str, user: str | None = None) -> dict:
 def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind, text: None,
              push: bool = True, user: str | None = None, check_access: bool = True) -> dict:
     """Un tour complet ; config déjà validée (load_config), config["_base"] = dossier de la configuration.
-    Avec access, l'utilisateur doit avoir sur le projet GitLab de la mission le rôle de lecture
-    (/statut) ou d'écriture (tour d'agent)."""
+    Avec access, les droits de l'utilisateur sur le projet GitLab de la mission se vérifient au début
+    de la session (écriture, lecture pour /statut), avant chaque pull (lecture) et chaque push
+    (écriture), pas à chaque message."""
     report, started = empty_report(name, chat, user), time.monotonic()
     base = Path(config["_base"])
     if name not in config["missions"]:
         report["errors"].append(f"mission « {name} » inconnue (permis : {', '.join(config['missions'])})")
         return report
-    refused = access.check(config, name, user, write=message.strip().lower() not in STATUS_WORDS) \
-        if check_access else None
-    if refused:
-        report["errors"].append(refused)
-        return report
+    reading = message.strip().lower() in STATUS_WORDS
+
+    def guard(kind: str) -> None:
+        refused = access.check(config, name, user, write={"start": not reading, "pull": False, "push": True}[kind],
+                               action=kind) if check_access else None
+        if refused:
+            raise Refused(refused)
+
     try:
-        target, branch = workspace(config, base, name, chat, emit)
+        target, branch = workspace(config, base, name, chat, emit, guard)
         folder = (target / config["missions"][name].get("folder", ".")).resolve()
         report.update(branch=branch, folder=folder.relative_to(target).as_posix())
         before = changed_files(target)
@@ -345,7 +361,7 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
             report["mode"] = "statut"
         elif message.strip().lower() in END_WORDS:
             report["mode"] = "fin"
-            report["commit"], report["pushed"], errors = commit_push(config, target, branch, chat, emit, push)
+            report["commit"], report["pushed"], errors = commit_push(config, target, branch, chat, emit, push, guard)
             report["errors"] += errors
             state = status(folder, report["warnings"])
             if not errors:
@@ -372,11 +388,11 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
             changed = changed_files(target)
             report["changed"] = changed
             report["images"] = images(config, name, branch, target, changed)
-            report["commit"], report["pushed"], errors = commit_push(config, target, branch, chat, emit, push)
+            report["commit"], report["pushed"], errors = commit_push(config, target, branch, chat, emit, push, guard)
             report["errors"] += errors
             state = status(folder, report["warnings"])
         report.update(gate=state["gate"], questions=state["questions"], workflows=state["workflows"])
-    except RuntimeError as error:
+    except (RuntimeError, Refused) as error:
         report["errors"].append(str(error))
     report["seconds"] = round(time.monotonic() - started, 1)
     return report
