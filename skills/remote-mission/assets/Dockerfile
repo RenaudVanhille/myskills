@@ -10,7 +10,9 @@
 FROM node:22-bookworm-slim
 
 ARG DRAWIO_VERSION=26.0.9
-ARG CLAUDE_CODE_VERSION=latest
+# Agent : OpenCode (licence MIT) par défaut ; Claude Code en plus si CLAUDE_CODE_VERSION est donné.
+ARG OPENCODE_VERSION=1.19.6
+ARG CLAUDE_CODE_VERSION=""
 ARG LIKEC4_VERSION=latest
 ARG MD2PPTX_REPO=""
 ARG MD2PPTX_REF=main
@@ -39,10 +41,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends /tmp/drawio.deb \
     && rm -rf /tmp/drawio.deb /var/lib/apt/lists/*
 
-# uv, Python, Claude Code, LikeC4, graphify (skill externe de revue), dépendances de Chromium.
+# uv, Python, OpenCode, LikeC4, graphify (skill externe de revue), dépendances de Chromium.
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh \
     && uv python install 3.12 \
-    && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "likec4@${LIKEC4_VERSION}" \
+    && npm install -g "opencode-ai@${OPENCODE_VERSION}" "likec4@${LIKEC4_VERSION}" \
+    && if [ -n "$CLAUDE_CODE_VERSION" ]; then npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"; fi \
     && uv tool install graphifyy \
     && uvx playwright install-deps chromium \
     && rm -rf /var/lib/apt/lists/*
@@ -60,19 +63,22 @@ ENV MD2PPTX_SKILL=/opt/md2pptx
 
 # Préchargement : paquets JavaScript des rendus et modèles locaux (Docling, Whisper) depuis leurs
 # sources épinglées, empreintes vérifiées ; navigateur de Playwright ; environnements uv de chaque
-# script (dépendances PEP 723) ; skills et agents pour Claude Code. Puis état des outils (informatif).
+# script (dépendances PEP 723). Les skills et agents sont copiés dans le HOME de chaque session au
+# démarrage de son pod (install.py sync, runner.tools). Puis état des outils (informatif).
 RUN uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout --prefetch \
     && uvx playwright install chromium \
     && for script in /opt/myskills/skills/*/scripts/*.py; do \
            uv sync --quiet --script "$script"; \
        done \
-    && uv run /opt/myskills/scripts/install.py sync --source /opt/myskills --tools claude \
     && (uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout || true)
 
 # À l'usage : rien ne se télécharge (uv, rendus, modèles).
 ENV UV_OFFLINE=1 \
     MYSKILLS_OFFLINE=1 \
-    HF_HUB_OFFLINE=1
+    HF_HUB_OFFLINE=1 \
+    OPENCODE_DISABLE_AUTOUPDATE=true \
+    OPENCODE_DISABLE_MODELS_FETCH=true \
+    OPENCODE_DISABLE_LSP_DOWNLOAD=true
 
 EXPOSE 8765
 ENTRYPOINT ["uv", "run", "/opt/myskills/skills/remote-mission/scripts/remote_server.py", "serve", \

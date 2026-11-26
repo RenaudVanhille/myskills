@@ -2085,8 +2085,17 @@
     {
       "id": "mission-distance-invalide",
       "skill": "remote-mission",
-      "_note": "Configuration refusée avant tout travail : clé inconnue avec sa correction, commande vide ; hôtes hors allowed_hosts (GitHub, API GitLab, LiteLLM d'un SaaS) et identifiants dans l'URL du dépôt.",
+      "_note": "Configuration refusée avant tout travail : clé inconnue avec sa correction, commande vide ; hôtes hors allowed_hosts (GitHub, API GitLab, LiteLLM d'un SaaS) et identifiants dans l'URL du dépôt ; configuration d'exemple (OpenCode sur LiteLLM) acceptée.",
       "steps": [
+        {
+          "script": "{skills}/remote-mission/scripts/remote_server.py",
+          "args": [
+            "check",
+            "--config",
+            "{skills}/remote-mission/assets/remote.example.json"
+          ],
+          "exit": 0
+        },
         {
           "script": "{skills}/remote-mission/scripts/remote_turn.py",
           "args": [

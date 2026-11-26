@@ -20,32 +20,17 @@
   },
   "agent": {
     "command": [
-      "claude",
-      "-p",
-      "{prompt}",
-      "--output-format",
-      "text",
-      "--permission-mode",
-      "acceptEdits",
-      "--allowedTools",
-      "Bash(uv run:*)",
-      "Bash(python:*)",
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
-      "Skill",
-      "Agent"
+      "opencode",
+      "run",
+      "{prompt}"
     ],
     "timeout": 5400,
     "env": {
-      "ANTHROPIC_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000",
-      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus",
-      "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-      "DISABLE_AUTOUPDATER": "1"
+      "OPENCODE_CONFIG": "/etc/myskills/opencode.json",
+      "LITELLM_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000/v1",
+      "OPENCODE_DISABLE_AUTOUPDATE": "true",
+      "OPENCODE_DISABLE_MODELS_FETCH": "true",
+      "OPENCODE_DISABLE_LSP_DOWNLOAD": "true"
     },
     "continue_args": [
       "--continue"
@@ -78,6 +63,8 @@
       "limits": {
         "memory": "4Gi"
       }
-    }
+    },
+    "tools": "opencode",
+    "models": "/etc/myskills/models.json"
   }
 }

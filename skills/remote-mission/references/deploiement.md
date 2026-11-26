@@ -17,7 +17,7 @@ Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) �
   message (10 à 30 s : image en cache, clone), il reste prêt tant que la
   conversation est active ; les messages suivants partent tout de suite.
   L'agent reprend sa session à chaque message (`agent.continue_args`,
-  `--continue` pour Claude Code) : il garde le contexte de la conversation.
+  `--continue` pour OpenCode et Claude Code) : il garde le contexte de la conversation.
 - **Arrêt après inactivité** : sans message pendant `runner.idle_minutes`
   (120 par défaut), le pod s'arrête seul ; chaque message a déjà été commité et
   poussé.
@@ -72,7 +72,7 @@ session travaille hors ligne (`UV_OFFLINE`, `MYSKILLS_OFFLINE`,
 
 | Besoin | Dans l'image |
 | --- | --- |
-| Agent | Claude Code (`CLAUDE_CODE_VERSION`), skills et agents de myskills |
+| Agent | OpenCode (`OPENCODE_VERSION`, licence MIT) ; Claude Code en plus si `CLAUDE_CODE_VERSION` est donné ; skills et agents de myskills |
 | Scripts | uv, Python 3.12, environnement de chaque script préparé (`uv sync --script`) |
 | Schémas | draw.io Desktop (`DRAWIO_VERSION`) sous écran virtuel (xvfb), Chromium de Playwright, Node.js et LikeC4, paquets Mermaid et Excalidraw en cache |
 | Extraction | Tesseract (fr, en), modèles Docling et Whisper préchargés depuis leurs sources épinglées (`doctor.py tout --prefetch`, empreintes vérifiées) |
@@ -102,7 +102,7 @@ nouvelle image les met à jour au rechargement suivant. Un autre harness
           "max_budget": 200, "budget_duration": "30d", "rpm_limit": 60}'
    ```
 
-   La clé va dans le Secret `myskills-session` (`ANTHROPIC_AUTH_TOKEN`), monté
+   La clé va dans le Secret `myskills-session` (`LITELLM_API_KEY`), monté
    dans les seuls pods de session, jamais dans `remote.json`. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
    service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
 2. **NetworkPolicy `litellm-clients`** (fichier facultatif
@@ -110,16 +110,45 @@ nouvelle image les met à jour au rechargement suivant. Un autre harness
    LiteLLM. Sur un LiteLLM déjà déployé, elle coupe tout client absent de sa
    liste : y ajouter d'abord chaque client actuel, et reprendre namespace,
    labels et port du déploiement existant (aussi dans la NetworkPolicy de
-   sortie de `remote-mission.yaml` et `ANTHROPIC_BASE_URL`).
+   sortie de `remote-mission.yaml` et `LITELLM_BASE_URL`).
 3. **Interface d'administration de LiteLLM** : pas d'Ingress public ; SSO de
    l'entreprise (ou GitLab) pour l'UI, clé maîtresse dans un Secret.
 4. **Rien ne part ailleurs** : aucun callback de journalisation vers un service
    en ligne (Langfuse, Helicone... hébergés) ; `store_prompts_in_spend_logs:
    false` pour ne pas garder les contenus dans la base de LiteLLM.
-5. Noms des modèles : les alias de LiteLLM (`claude-haiku`...) sont donnés à
-   Claude Code par `ANTHROPIC_DEFAULT_HAIKU_MODEL`, `..._SONNET_...` et
-   `..._OPUS_...` (`agent.env`) : les agents de myskills gardent leur niveau
-   (léger, standard, puissant).
+5. Noms des modèles : les alias de LiteLLM (`claude-haiku`, `claude-sonnet`,
+   `claude-opus`) sont déclarés dans `opencode.json` (fournisseur `litellm`,
+   compatible OpenAI) et `models.json` les donne aux agents de myskills par
+   niveau (léger, standard, puissant) quand les skills sont copiés dans la
+   session (`runner.models`). Les deux fichiers sont dans la ConfigMap.
+
+## Agent : OpenCode (défaut) ou Claude Code
+
+OpenCode (licence MIT) est l'agent par défaut : `agent.command`
+`["opencode", "run", "{prompt}"]`, `continue_args` `["--continue"]`,
+configuration `OPENCODE_CONFIG=/etc/myskills/opencode.json` (seul fournisseur
+LiteLLM, partage désactivé, ni mise à jour ni téléchargement de modèles ou de
+serveurs de langage, `webfetch` refusé, shell limité à `uv run`, `python` et
+la lecture de git). Vérifié face à un LiteLLM simulé, Internet coupé : réponse,
+reprise de session avec son contexte, agents de myskills trouvés avec leur
+modèle par niveau.
+
+Claude Code reste possible si sa licence convient : construire l'image avec
+`--build-arg CLAUDE_CODE_VERSION=...`, puis dans `remote.json` :
+
+```json
+"agent": {
+  "command": ["claude", "-p", "{prompt}", "--output-format", "text", "--permission-mode", "acceptEdits",
+              "--allowedTools", "Bash(uv run:*)", "Bash(python:*)", "Read", "Write", "Edit", "Glob", "Grep", "Skill", "Agent"],
+  "env": {"ANTHROPIC_BASE_URL": "http://litellm.litellm.svc.cluster.local:4000",
+          "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku", "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet",
+          "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"},
+  "continue_args": ["--continue"]
+},
+"runner": {"tools": "claude", "models": "/etc/myskills/models.json"}
+```
+
+et la clé dans le Secret sous `ANTHROPIC_AUTH_TOKEN`.
 
 ## 3. Qui accède à quelle mission
 
@@ -163,7 +192,7 @@ kubectl -n myskills create secret generic myskills-remote \
   --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-session \
-  --from-literal=ANTHROPIC_AUTH_TOKEN="<clé virtuelle LiteLLM>" \
+  --from-literal=LITELLM_API_KEY="<clé virtuelle LiteLLM>" \
   --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
 kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
 kubectl apply -f skills/remote-mission/assets/kubernetes/remote-mission.yaml

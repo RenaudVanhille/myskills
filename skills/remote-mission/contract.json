@@ -14,7 +14,7 @@
   "scripts": [
     {
       "name": "remote_turn.py",
-      "role": "Joue un tour d'une mission à distance (déclarée dans remote.json ou découverte dans GitLab par le service) : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés au début de la session, avant chaque pull et chaque push, pas à chaque message (Developer pour ouvrir une session et pousser, Reporter pour /statut et pull, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, « /fin » qui pousse et efface la copie de travail, session de l'agent reprise d'un message à l'autre (agent.continue_args : contexte gardé), agent lancé sans terminal ni shell (claude -p sur LiteLLM...) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
+      "role": "Joue un tour d'une mission à distance (déclarée dans remote.json ou découverte dans GitLab par le service) : configuration validée, droits de l'utilisateur sur le projet GitLab de la mission vérifiés au début de la session, avant chaque pull et chaque push, pas à chaque message (Developer pour ouvrir une session et pousser, Reporter pour /statut et pull, seuils réglables) (hôtes de allowed_hosts seulement, pas d'identifiant dans une URL), copie de travail de la conversation clonée ou mise à jour sur sa branche, décision de revue « valide » ou « retour : ... » passée à journal.py review sans tour de modèle quand une seule étape attend, « /statut » sans agent, « /fin » qui pousse et efface la copie de travail, session de l'agent reprise d'un message à l'autre (agent.continue_args : contexte gardé), agent lancé sans terminal ni shell (opencode run ou claude -p, sur LiteLLM) avec son jeton retiré de l'environnement et MYSKILLS_ALLOWED_HOSTS posé, commit et push de la branche, état des workflows relu (étape en revue, questions).",
       "usage": "uv run scripts/remote_turn.py --config remote.json --mission NOM --chat ID (--message TEXTE | --message-file F | --message-env VAR) [--user COURRIEL] [--workdir DOSSIER] [--no-push] [--events EVENEMENTS.jsonl] [--job] | --schema",
       "options": {
         "--config": "configuration du service, validée contre le schéma d'entrée",
@@ -157,7 +157,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                  "description": "Variables de l'agent (adresse de LiteLLM : LITELLM_BASE_URL pour OpenCode, ANTHROPIC_BASE_URL pour Claude Code...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
                 },
                 "continue_args": {
                   "type": "array",
@@ -165,7 +165,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (claude : [\"--continue\"])."
+                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (opencode et claude : [\"--continue\"])."
                 }
               }
             },
@@ -305,7 +305,7 @@
                 "secret": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Secret des variables du pod de session : ANTHROPIC_AUTH_TOKEN (défaut : myskills-session)."
+                  "description": "Secret des variables du pod de session : clé LiteLLM (LITELLM_API_KEY pour OpenCode, ANTHROPIC_AUTH_TOKEN pour Claude Code) et GITLAB_ACCESS_TOKEN (défaut : myskills-session)."
                 },
                 "git_secret": {
                   "type": "string",
@@ -335,6 +335,11 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
+                },
+                "models": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Fichier des modèles par outil et par niveau, alias de LiteLLM (install.py sync --models ; ex. /etc/myskills/models.json de la ConfigMap)."
                 },
                 "idle_minutes": {
                   "type": "number",
@@ -784,7 +789,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "description": "Variables de l'agent (ANTHROPIC_BASE_URL de LiteLLM...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                  "description": "Variables de l'agent (adresse de LiteLLM : LITELLM_BASE_URL pour OpenCode, ANTHROPIC_BASE_URL pour Claude Code...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
                 },
                 "continue_args": {
                   "type": "array",
@@ -792,7 +797,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (claude : [\"--continue\"])."
+                  "description": "Arguments ajoutés quand la conversation a déjà un tour d'agent : reprise de sa session, contexte gardé (opencode et claude : [\"--continue\"])."
                 }
               }
             },
@@ -932,7 +937,7 @@
                 "secret": {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Secret des variables du pod de session : ANTHROPIC_AUTH_TOKEN (défaut : myskills-session)."
+                  "description": "Secret des variables du pod de session : clé LiteLLM (LITELLM_API_KEY pour OpenCode, ANTHROPIC_AUTH_TOKEN pour Claude Code) et GITLAB_ACCESS_TOKEN (défaut : myskills-session)."
                 },
                 "git_secret": {
                   "type": "string",
@@ -962,6 +967,11 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Outils dont les skills sont copiés dans le HOME de la session au démarrage du pod (install.py sync --tools, défaut : claude)."
+                },
+                "models": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Fichier des modèles par outil et par niveau, alias de LiteLLM (install.py sync --models ; ex. /etc/myskills/models.json de la ConfigMap)."
                 },
                 "idle_minutes": {
                   "type": "number",

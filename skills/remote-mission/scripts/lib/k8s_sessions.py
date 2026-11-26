@@ -110,10 +110,12 @@ class Sessions:
                 "initContainers": [{
                     "name": "skills", "image": runner["image"],
                     "command": ["uv", "run", "--quiet", INSTALL, "sync", "--source", "/opt/myskills",
-                                "--global", "--tools", runner.get("tools", "claude")],
+                                "--global", "--tools", runner.get("tools", "claude")]
+                    + (["--models", runner["models"]] if runner.get("models") else []),  # modèle par niveau (LiteLLM)
                     "env": [{"name": "HOME", "value": "/work/home"}],
                     "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}},
-                    "volumeMounts": [{"name": "work", "mountPath": "/work"}]}],
+                    "volumeMounts": [{"name": "config", "mountPath": "/etc/myskills", "readOnly": True},
+                                     {"name": "work", "mountPath": "/work"}]}],
                 "containers": [{
                     "name": "session", "image": runner["image"], "command": command, "env": env,
                     "ports": [{"containerPort": 8765}],
