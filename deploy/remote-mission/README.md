@@ -13,6 +13,7 @@ pods de session.
 | `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
 | `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
 | `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
+| `dev/` | docker-compose du dev local : Open WebUI, service en mode local, mission de démo, LLM simulé |
 | `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
 
 ```
@@ -89,6 +90,45 @@ Hors Kubernetes (poste, CI GitLab, test), un message se joue sans le service :
 uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message "..."
 uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
 ```
+
+## Dev local (docker-compose)
+
+`dev/compose.yaml` lance tout sur un poste, sans Kubernetes ni GitLab :
+Open WebUI (sans connexion, utilisateur `admin@localhost`), le service en
+mode local (les conversations sont traitées dans son conteneur, sur l'image
+des sessions) avec une mission de démonstration créée au premier lancement,
+et, avec le profil `simule`, un LLM simulé compatible OpenAI qui répond sans
+modèle ni crédit.
+
+```bash
+cd deploy/remote-mission/dev
+cp .env.example .env
+docker compose --profile simule up --build
+```
+
+1. Ouvrir http://localhost:3000, Admin > Fonctions > importer
+   `../openwebui_pipe.py`, l'activer, Valves : `SERVER_URL`
+   `http://service:8765`, `TOKEN` `dev-local` (valeur de
+   `MYSKILLS_REMOTE_TOKEN` dans `.env`).
+2. Choisir le modèle « Mission de démonstration (dev local) » et écrire.
+   Les branches `openwebui/<conversation>` sont poussées dans la mission du
+   volume `work`.
+
+Variantes :
+- **Vrai LiteLLM** : `LITELLM_BASE_URL` et `LITELLM_API_KEY` dans `.env`,
+  son hôte dans `allowed_hosts` de `dev/remote.json`, lancer sans le profil
+  `simule`.
+- **SSO GitLab** : `WEBUI_AUTH=true` et les variables `OAUTH_*` de `.env`, et
+  le courriel du compte GitLab dans `dev/acces.json`.
+- **Sans Docker** : le service, OpenCode et le LLM simulé se lancent aussi sur
+  le poste (`python dev/llm_simule.py`, `remote_server.py serve --config ...`) ;
+  `remote_server.py probe --pipe openwebui_pipe.py` joue un message par le
+  pipe sans Open WebUI.
+
+Vérifié ainsi sans Docker (service, pipe, OpenCode 1.19.6, LLM simulé) :
+clone de la mission, réponse, branche poussée, reprise de la session de
+l'agent au message suivant (contexte gardé), `/statut`, et refus d'un
+utilisateur absent de `acces.json`.
 
 ## 1. Images
 

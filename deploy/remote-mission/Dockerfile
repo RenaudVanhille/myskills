@@ -51,8 +51,8 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 myskills \
-    && mkdir -p /opt/uv/cache /opt/myskills-cache /opt/pw-browsers /opt/md2pptx \
-    && chown -R myskills /opt/uv /opt/myskills-cache /opt/pw-browsers /opt/md2pptx
+    && mkdir -p /opt/uv/cache /opt/myskills-cache /opt/pw-browsers /opt/md2pptx /work \
+    && chown -R myskills /opt/uv /opt/myskills-cache /opt/pw-browsers /opt/md2pptx /work
 COPY --chown=myskills . /opt/myskills
 USER myskills
 WORKDIR /home/myskills

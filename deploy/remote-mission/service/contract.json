@@ -159,6 +159,11 @@
                   },
                   "description": "Variables de l'agent (adresse de LiteLLM : LITELLM_BASE_URL pour OpenCode, ANTHROPIC_BASE_URL pour Claude Code...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
                 },
+                "skip_lines": {
+                  "type": "array",
+                  "items": {"type": "string", "minLength": 1},
+                  "description": "Expressions régulières des lignes de sortie de l'agent à ne pas montrer (en-têtes, ex. OpenCode : \"^> \\\\S+ · \")."
+                },
                 "continue_args": {
                   "type": "array",
                   "items": {
@@ -795,6 +800,11 @@
                     "type": "string"
                   },
                   "description": "Variables de l'agent (adresse de LiteLLM : LITELLM_BASE_URL pour OpenCode, ANTHROPIC_BASE_URL pour Claude Code...) ; les secrets viennent de l'environnement du pod, jamais d'ici."
+                },
+                "skip_lines": {
+                  "type": "array",
+                  "items": {"type": "string", "minLength": 1},
+                  "description": "Expressions régulières des lignes de sortie de l'agent à ne pas montrer (en-têtes, ex. OpenCode : \"^> \\\\S+ · \")."
                 },
                 "continue_args": {
                   "type": "array",

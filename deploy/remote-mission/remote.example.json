@@ -32,6 +32,9 @@
       "OPENCODE_DISABLE_MODELS_FETCH": "true",
       "OPENCODE_DISABLE_LSP_DOWNLOAD": "true"
     },
+    "skip_lines": [
+      "^> \\S+ · "
+    ],
     "continue_args": [
       "--continue"
     ]

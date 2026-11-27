@@ -60,6 +60,7 @@ def journal(args: list) -> dict:
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or ["sans sortie"]
         return {"errors": [f"journal.py : rapport illisible ({tail[0][:200]})"], "warnings": []}
 
+ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
 STATUS_WORDS = {"/statut", "/status", "statut", "status"}
 END_WORDS = {"/fin", "/end"}  # fin de session : dernier push, copie de travail et contexte de l'agent effacés
 VALIDATE = re.compile(r"^\s*(je\s+valide|valide[rz]?|validé|ok|go|approve[d]?)\s*[.!]?\s*$", re.I)
@@ -274,7 +275,11 @@ def run_agent(config: dict, folder: Path, prompt: str, emit, resume: bool = Fals
     except OSError as error:
         return "", [f"agent : lancement impossible ({error}) ; vérifiez agent.command"], None
     errors, timeout = [], agent.get("timeout", 3600)
+    skip = [re.compile(pattern) for pattern in agent.get("skip_lines", [])]
     for line in process.stdout:
+        line = ANSI.sub("", line)  # couleurs du terminal (OpenCode, Claude Code) : illisibles dans le chat
+        if any(pattern.search(line) for pattern in skip):
+            continue
         lines.append(line.rstrip("\n"))
         if line.strip() and not line.startswith('{"agent"'):  # le rapport final ne s'affiche pas
             emit("agent", line.rstrip()[:300])

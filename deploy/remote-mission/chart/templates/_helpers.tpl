@@ -25,6 +25,7 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- $_ := set $agent "env" (dict "ANTHROPIC_BASE_URL" (trimSuffix "/v1" (trimSuffix "/" $v.litellm.url)) "ANTHROPIC_DEFAULT_HAIKU_MODEL" $v.litellm.models.simple "ANTHROPIC_DEFAULT_SONNET_MODEL" $v.litellm.models.moyen "ANTHROPIC_DEFAULT_OPUS_MODEL" $v.litellm.models.complexe "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" "1" "DISABLE_AUTOUPDATER" "1") -}}
 {{- else -}}
 {{- $_ := set $agent "command" (list "opencode" "run" "{prompt}") -}}
+{{- $_ := set $agent "skip_lines" (list "^> \\S+ · ") -}}
 {{- $_ := set $agent "env" (dict "OPENCODE_CONFIG" "/etc/myskills/opencode.json" "LITELLM_BASE_URL" $v.litellm.url "OPENCODE_DISABLE_AUTOUPDATE" "true" "OPENCODE_DISABLE_MODELS_FETCH" "true" "OPENCODE_DISABLE_LSP_DOWNLOAD" "true") -}}
 {{- end -}}
 {{- $runner := dict "kind" "kubernetes" "image" (include "myskills.image" .) "namespace" .Release.Namespace

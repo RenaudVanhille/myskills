@@ -119,3 +119,8 @@ jobs:
             uv run --with pyyaml python -c 'import sys, yaml; cm = next(d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d["kind"] == "ConfigMap" and "remote.json" in d["data"]); open(sys.argv[2], "w", encoding="utf-8").write(cm["data"]["remote.json"])' "$RUNNER_TEMP/rendu.yaml" "$RUNNER_TEMP/remote.json"
             uv run deploy/remote-mission/service/scripts/remote_server.py check --config "$RUNNER_TEMP/remote.json"
           done
+          # docker-compose du dev local : syntaxe et variables (sans construire ni lancer).
+          if command -v docker > /dev/null && docker compose version > /dev/null 2>&1; then
+            cp deploy/remote-mission/dev/.env.example deploy/remote-mission/dev/.env
+            docker compose -f deploy/remote-mission/dev/compose.yaml --profile simule config --quiet
+          fi
