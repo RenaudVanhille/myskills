@@ -86,8 +86,8 @@ workflow, la commande les trace aussi au journal.
    réestime pas un lot d'expert sans raison écrite dans `note`.
 5. Pour une option cloud, décris ses consommations dans `couts.json` (skill
    `cloud-cost`) et lance `cost_build.py couts.json --infra <option>`. Si
-   le dimensionnement est fait (`dimensionnement.couts.json`, skill
-   `capacity-sizing`), pars de lui : ne repose aucune question de
+   le dimensionnement de l'option est fait (`dimensionnement-option.couts.json`,
+   skill `capacity-sizing`), pars de lui : ne repose aucune question de
    volumétrie, une valeur manquante est une hypothèse. Puis
    `estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json
    [--lots decoupage.lots.json] [--infra couts.infra.json]` : le brouillon

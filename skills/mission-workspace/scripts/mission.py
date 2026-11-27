@@ -603,7 +603,7 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
     return done.get("git") == "absent" or done["tidy"]["moved"] > 0 or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
-                                              or w["noise"] or w["external"] or w.get("moved")
+                                              or w["noise"] or w["external"] or w.get("moved") or w.get("renamed")
                                               or (w["definition"] or {}).get("changed")
                                               for w in done["workflows"])
 
