@@ -124,7 +124,7 @@ from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa:
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
 from lib import id_renames, source_docs  # noqa: E402
 from lib.text_tools import DATA_DIR, data_file, unlink_notes  # noqa: E402
-from lib.workflow_chart import causes, label_of, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
+from lib.workflow_chart import causes, label_of, next_steps, optional, phase_errors, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
 from vault_sync import DEFAULT_MEMORY, EVENTS, KIND_LABELS, STATUS_LABELS, answers, decisions_of, open_questions, review_note, safe_folder, safe_name, stage_note, sync, vault_ontology  # noqa: E402,E501
 
@@ -385,6 +385,8 @@ def load_definition(value: str, errors: list[str]) -> dict | None:
                         f"script inconnu « {entry['script']} » du skill {entry['skill']} ({', '.join(known)})"
                         + (f" ; vouliez-vous « {close[0]} » ?" if close else "") if known
                         else absent(entry["skill"], entry["script"])))
+    if not invalid:
+        invalid += [f"stages : {e}" for e in phase_errors(definition["stages"])]
     errors += [f"{path.name} : {e}" for e in invalid]
     return None if invalid else {k: v for k, v in definition.items() if not k.startswith("_")}
 

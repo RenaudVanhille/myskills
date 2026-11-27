@@ -20,11 +20,22 @@ Du code d'infrastructure (Terraform, docker-compose, Kubernetes) au schéma clou
 title: "Schémas et menaces d'une infrastructure existante"
 ---
 flowchart LR
-  s_description["1. Description tirée du code<br/><small>architecture-workflow</small>"]
-  s_schemas["2. Schémas cloud<br/><small>schema-designer</small>"]
-  s_menaces["3. Modèle de menaces STRIDE et revue Well-Architected<br/><small>architecture-reviewer</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_description["1. Description tirée du code<br/><small>architecture-workflow</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_menaces["3. Modèle de menaces STRIDE et revue Well-Architected<br/><small>architecture-reviewer</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_schemas["2. Schémas cloud<br/><small>schema-designer</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_description --> s_schemas
   s_description --> s_menaces
+  s_description ~~~ s_menaces
+  s_menaces ~~~ s_schemas
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -32,18 +43,18 @@ flowchart LR
   class s_schemas,s_menaces agent
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Schémas cloud, 3. Modèle de menaces STRIDE et revue Well-Architected
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Description tirée du code | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/architecture.json` | début |
-| 2. Schémas cloud | simple | `schema-designer` | `cloud-architecture`, `diagram-export` | `schemas/architecture.drawio`, `schemas/*.png` | 1 |
-| 3. Modèle de menaces STRIDE et revue Well-Architected | complexe | `architecture-reviewer` | `threat-model`, `well-architected-review` | `schemas/architecture.threats.md`, `schemas/architecture.wa.md` | 1 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Description tirée du code | Lecture du dossier | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/architecture.json` | début |
+| 2. Schémas cloud | Restitution | simple | `schema-designer` | `cloud-architecture`, `diagram-export` | `schemas/architecture.drawio`, `schemas/*.png` | 1 |
+| 3. Modèle de menaces STRIDE et revue Well-Architected | Solutioning | complexe | `architecture-reviewer` | `threat-model`, `well-architected-review` | `schemas/architecture.threats.md`, `schemas/architecture.wa.md` | 1 |
 
 ### 1. Description tirée du code
 

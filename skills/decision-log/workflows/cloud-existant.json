@@ -9,6 +9,7 @@
   "stages": [
     {
       "id": "description",
+      "phase": "lecture",
       "label": "Description tirée du code",
       "level": "moyen",
       "skills": [
@@ -27,6 +28,7 @@
     },
     {
       "id": "schemas",
+      "phase": "restitution",
       "label": "Schémas cloud",
       "level": "simple",
       "skills": [
@@ -62,6 +64,7 @@
     },
     {
       "id": "menaces",
+      "phase": "solutioning",
       "label": "Modèle de menaces STRIDE et revue Well-Architected",
       "level": "complexe",
       "after": [

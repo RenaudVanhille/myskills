@@ -19,17 +19,29 @@ Workflow de cadrage de l'agent architecture-workflow : comptes rendus des atelie
 title: "Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette"
 ---
 flowchart TD
-  s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
-  s_comptes_rendus["2. Comptes rendus des ateliers<br/><small>architecture-workflow</small>"]
-  s_processus["3. Processus métier<br/><small>schema-designer</small>"]
-  s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
-  s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_modele_donnees["7. Modèle de données<br/><small>architecture-workflow</small>"]
-  s_architectures["8. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_interfaces["9. Interfaces et séquences<br/><small>architecture-workflow</small>"]
-  s_recette["10. Plan de recette<br/><small>architecture-workflow</small>"]
-  s_developpement["11. Passage au développement (spécifications)<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
+    s_comptes_rendus["2. Comptes rendus des ateliers<br/><small>architecture-workflow</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_processus["3. Processus métier<br/><small>schema-designer</small>"]
+    s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+    s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
+    s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_modele_donnees["7. Modèle de données<br/><small>architecture-workflow</small>"]
+    s_architectures["8. Options d'architecture<br/><small>architecture-workflow</small>"]
+    s_interfaces["9. Interfaces et séquences<br/><small>architecture-workflow</small>"]
+    s_recette["10. Plan de recette<br/><small>architecture-workflow</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_developpement["11. Passage au développement (spécifications)<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_processus
   s_comptes_rendus --> s_processus
   s_documents --> s_exigences
@@ -47,6 +59,9 @@ flowchart TD
   s_modele_donnees --> s_developpement
   s_interfaces --> s_developpement
   s_recette --> s_developpement
+  s_comptes_rendus ~~~ s_processus
+  s_domaines ~~~ s_modele_donnees
+  s_recette ~~~ s_developpement
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -55,7 +70,7 @@ flowchart TD
   class s_comptes_rendus,s_processus,s_domaines,s_developpement facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 1. Documents en Markdown, 2. Comptes rendus des ateliers
@@ -65,19 +80,19 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Documents en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Comptes rendus des ateliers (facultative) | moyen | `architecture-workflow` | `meeting-notes` | `comptes-rendus/*.json`, `comptes-rendus/*.md` | début |
-| 3. Processus métier (facultative) | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 1, 2 |
-| 4. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1, 2 |
-| 5. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
-| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
-| 7. Modèle de données | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `donnees/modele.mmd`, `modele.md`, `donnees/modele.sql` | 4, 6 |
-| 8. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 6, 5 |
-| 9. Interfaces et séquences | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `donnees/api.json`, `donnees/api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 8, 7 |
-| 10. Plan de recette | moyen | `architecture-workflow` | `test-plan` | `donnees/recette.json`, `recette.md`, `donnees/recette.csv` | 4 |
-| 11. Passage au développement (spécifications) (facultative) | simple | `architecture-workflow` | `spec-pack` | `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md` | 7, 9, 10 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Documents en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Comptes rendus des ateliers (facultative) | Lecture du dossier | moyen | `architecture-workflow` | `meeting-notes` | `comptes-rendus/*.json`, `comptes-rendus/*.md` | début |
+| 3. Processus métier (facultative) | Cadrage | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 1, 2 |
+| 4. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1, 2 |
+| 5. Dimensionnement | Cadrage | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
+| 6. Domaines et style d'architecture (facultative) | Cadrage | complexe | `architecture-workflow` | `domain-design` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
+| 7. Modèle de données | Solutioning | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `donnees/modele.mmd`, `modele.md`, `donnees/modele.sql` | 4, 6 |
+| 8. Options d'architecture | Solutioning | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 6, 5 |
+| 9. Interfaces et séquences | Solutioning | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `donnees/api.json`, `donnees/api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 8, 7 |
+| 10. Plan de recette | Solutioning | moyen | `architecture-workflow` | `test-plan` | `donnees/recette.json`, `recette.md`, `donnees/recette.csv` | 4 |
+| 11. Passage au développement (spécifications) (facultative) | Restitution | simple | `architecture-workflow` | `spec-pack` | `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md` | 7, 9, 10 |
 
 ### 1. Documents en Markdown
 

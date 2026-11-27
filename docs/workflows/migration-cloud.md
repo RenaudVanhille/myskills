@@ -21,13 +21,25 @@ D'un inventaire d'applications à la trajectoire de migration : exigences, éval
 title: "Migration d'un portefeuille d'applications vers le cloud"
 ---
 flowchart LR
-  s_exigences["1. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_evaluation["2. Évaluation 6R et vagues<br/><small>architecture-workflow</small>"]
-  s_cible["3. Architecture cible<br/><small>schema-designer</small>"]
-  s_chiffrage["4. Chiffrage de la migration<br/><small>solution-estimator</small>"]
-  s_exploitation["5. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
-  s_feuille_de_route["6. Feuille de route de transition<br/><small>architecture-workflow</small>"]
-  s_dossier["7. Dossier de migration<br/><small>architecture-workflow</small>"]
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["1. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+    s_evaluation["2. Évaluation 6R et vagues<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_cible["3. Architecture cible<br/><small>schema-designer</small>"]
+    s_exploitation["5. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
+    s_feuille_de_route["6. Feuille de route de transition<br/><small>architecture-workflow</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_chiffrage["4. Chiffrage de la migration<br/><small>solution-estimator</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_dossier["7. Dossier de migration<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_exigences --> s_evaluation
   s_evaluation --> s_cible
   s_cible --> s_chiffrage
@@ -36,6 +48,9 @@ flowchart LR
   s_chiffrage --> s_dossier
   s_feuille_de_route --> s_dossier
   s_exploitation --> s_dossier
+  s_evaluation ~~~ s_cible
+  s_feuille_de_route ~~~ s_chiffrage
+  s_chiffrage ~~~ s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -44,7 +59,7 @@ flowchart LR
   class s_chiffrage,s_exploitation,s_dossier facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 3. Architecture cible, 6. Feuille de route de transition
@@ -52,15 +67,15 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Catalogue des exigences | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `donnees/exigences.json`, `exigences.md` | début |
-| 2. Évaluation 6R et vagues | complexe | `architecture-workflow` | `migration-assessment`, `urbanization-map` | `donnees/migration.json`, `migration.md`, `donnees/migration.waves.json` | 1 |
-| 3. Architecture cible | complexe | `schema-designer` | `cloud-architecture`, `well-architected-review`, `diagram-export` | `schemas/cible.json`, `schemas/cible.drawio`, `schemas/*.png`, `schemas/cible.wa.md` | 2 |
-| 4. Chiffrage de la migration (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 3 |
-| 5. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 3 |
-| 6. Feuille de route de transition | moyen | `architecture-workflow` | `transition-roadmap`, `diagram-export` | `donnees/feuille-de-route.json`, `feuille-de-route.md` | 2 |
-| 7. Dossier de migration (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-migration.md` | 4, 6, 5 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `donnees/exigences.json`, `exigences.md` | début |
+| 2. Évaluation 6R et vagues | Cadrage | complexe | `architecture-workflow` | `migration-assessment`, `urbanization-map` | `donnees/migration.json`, `migration.md`, `donnees/migration.waves.json` | 1 |
+| 3. Architecture cible | Solutioning | complexe | `schema-designer` | `cloud-architecture`, `well-architected-review`, `diagram-export` | `schemas/cible.json`, `schemas/cible.drawio`, `schemas/*.png`, `schemas/cible.wa.md` | 2 |
+| 4. Chiffrage de la migration (facultative) | Chiffrage | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 3 |
+| 5. Dossier d'exploitation (facultative) | Solutioning | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 3 |
+| 6. Feuille de route de transition | Solutioning | moyen | `architecture-workflow` | `transition-roadmap`, `diagram-export` | `donnees/feuille-de-route.json`, `feuille-de-route.md` | 2 |
+| 7. Dossier de migration (facultative) | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-migration.md` | 4, 6, 5 |
 
 ### 1. Catalogue des exigences
 

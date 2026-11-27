@@ -89,6 +89,8 @@ dans `architecture`, revue et chiffrage dépendent des schémas et non l'une
 de l'autre, et le dossier attend les deux. Quand `ready` donne plusieurs
 étapes, elles se mènent en parallèle (`references/moteur.md`) ; les
 commandes d'un même dossier attendent leur tour (verrou `workflow.lock`).
+`phase` (lecture, cadrage, solutioning, chiffrage, restitution) range l'étape
+dans sa zone du schéma d'avancement ; `after` ne vise pas une zone placée après.
 La définition est
 copiée dans `workflow.json` : la modifier ensuite ne change pas un workflow
 commencé.

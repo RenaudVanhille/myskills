@@ -20,6 +20,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -39,6 +40,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -72,6 +74,7 @@
     },
     {
       "id": "dimensionnement",
+      "phase": "cadrage",
       "label": "Dimensionnement",
       "level": "moyen",
       "after": [
@@ -105,6 +108,7 @@
     },
     {
       "id": "domaines",
+      "phase": "cadrage",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -158,6 +162,7 @@
     },
     {
       "id": "architectures",
+      "phase": "solutioning",
       "label": "Options d'architecture",
       "level": "complexe",
       "after": [
@@ -204,6 +209,7 @@
     },
     {
       "id": "schemas",
+      "phase": "solutioning",
       "label": "Décision et schémas",
       "level": "moyen",
       "after": [
@@ -320,6 +326,7 @@
     },
     {
       "id": "revue",
+      "phase": "solutioning",
       "label": "Revue d'architecture",
       "level": "complexe",
       "after": [
@@ -365,6 +372,7 @@
     },
     {
       "id": "chiffrage",
+      "phase": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
       "after": [
@@ -431,6 +439,7 @@
     },
     {
       "id": "dossier",
+      "phase": "restitution",
       "label": "Dossier d'architecture technique",
       "level": "simple",
       "after": [

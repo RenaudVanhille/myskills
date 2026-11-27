@@ -12,6 +12,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -31,6 +32,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -64,6 +66,7 @@
     },
     {
       "id": "revue",
+      "phase": "solutioning",
       "label": "Revue d'architecture",
       "level": "complexe",
       "skills": [
@@ -103,6 +106,7 @@
     },
     {
       "id": "avis",
+      "phase": "restitution",
       "label": "Avis d'architecture",
       "level": "simple",
       "facultative": true,
