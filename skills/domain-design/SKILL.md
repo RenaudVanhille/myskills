@@ -77,7 +77,7 @@ réponse, laissez-le absent : le rapport baisse la confiance.
     {"id": "declaration", "name": "Déclaration", "subdomain": "sinistres", "team": "Équipe portail",
      "entities": ["Declaration", "Piece"], "uses": ["Contrat"], "refs": ["EF-001"],
      "terms": {"Sinistre": "événement déclaré par l'assuré, pas encore instruit"},
-     "needs": {"echelle": "pics après une tempête (ENF-001)"}}
+     "needs": {"echelle": "pics après une tempête (PERF-01)"}}
   ],
   "relations": [{"upstream": "contrats", "downstream": "declaration", "patterns": ["open-host", "acl"],
                  "integration": "sync", "label": "vérifie la garantie"}],

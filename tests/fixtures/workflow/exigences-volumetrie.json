@@ -48,7 +48,7 @@
    ]
   },
   {
-   "id": "ENF-001",
+   "id": "PERF-01",
    "title": "Tenir la charge",
    "text": "2 000 déclarations par jour, avec des pics après les tempêtes.",
    "category": "performance",
@@ -65,7 +65,7 @@
    ]
   },
   {
-   "id": "ENF-002",
+   "id": "DISP-01",
    "title": "Disponibilité",
    "text": "Service disponible 99,5 % du temps.",
    "category": "disponibilite",
@@ -79,7 +79,7 @@
    ]
   },
   {
-   "id": "ENF-003",
+   "id": "CONF-01",
    "title": "Données en Union européenne",
    "text": "Les données personnelles restent hébergées dans l'Union européenne.",
    "category": "conformite",
@@ -93,7 +93,7 @@
    ]
   },
   {
-   "id": "ENF-004",
+   "id": "SECU-01",
    "title": "Authentification forte",
    "text": "Authentification forte des assurés, en réutilisant l'annuaire existant.",
    "category": "securite",
@@ -111,7 +111,7 @@
    ]
   },
   {
-   "id": "ENF-005",
+   "id": "COUT-01",
    "title": "Coût de fonctionnement",
    "text": "Au plus 8 000 euros par mois.",
    "category": "cout",

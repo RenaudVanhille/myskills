@@ -5,7 +5,8 @@
 
 Entrée : une description JSON courte (`exigences.json`) où chaque exigence a
 un identifiant stable (celui des documents s'ils numérotent déjà leurs
-exigences, sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle), sa
+exigences, sinon EF-001 fonctionnelle, préfixe de sa catégorie pour une non
+fonctionnelle : SECU-01, PERF-01...), sa
 priorité et la citation exacte de sa source dans un document Markdown du
 dossier `sources`. Le script, et non le modèle :
 - vérifie que chaque citation existe dans son document et en donne la ligne ;
@@ -45,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import check as check_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import beside, cell, from_data  # noqa: E402
+from text_tools import GENERATED_ID, NFR_PREFIXES, beside, cell, from_data, generated_id, requirement_nature  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -123,14 +124,9 @@ TRIAGE_INSTRUCTIONS = (
 TRIAGE_SCHEMA = {"type": "object", "additionalProperties": {"type": "boolean"}}
 # Identifiant d'exigence dans un document : REQ-012, EX_F_03, RG.45, RF12...
 SOURCE_ID = re.compile(r"\b[A-Z]{1,6}(?:[-_.][A-Z]{1,6}){0,2}[-_.]?\d{1,4}\b")
-GENERATED_ID = re.compile(r"^(EF|ENF)-\d{3}$")
-
-
-def nature(req: dict) -> str | None:
-    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe EF- ou ENF-."""
-    if req.get("nature"):
-        return req["nature"]
-    return {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
+nature = requirement_nature
+# Numérotation d'avant les préfixes de catégorie : dans une source, c'est celle d'un catalogue déjà produit.
+LEGACY_ID = re.compile(r"^(EF|ENF)-\d{3}$")
 
 
 def normalize(text: str) -> str:
@@ -243,7 +239,7 @@ def draft(path: Path, sources_name: str) -> dict:
     if not sources:
         errors.append(f"sources : aucun fichier .md dans {folder}")
         return report
-    requirements, seen, numbers = [], set(), {"EF": 0, "ENF": 0}
+    requirements, seen, numbers = [], set(), {}
     for doc, lines in sources.items():
         for number, sentence, _ in sentences(lines):
             key = normalize(sentence)
@@ -251,20 +247,20 @@ def draft(path: Path, sources_name: str) -> dict:
                 continue
             seen.add(key)
             category = next((c for c, pattern in DRAFT_CATEGORIES if re.search(pattern, key)), None)
-            prefix = "ENF" if category else "EF"
+            prefix = NFR_PREFIXES[category] if category else "EF"
             given = SOURCE_ID.search(sentence) or SOURCE_ID.search(lines[number - 1] if number <= len(lines) else "")
-            if given and not GENERATED_ID.match(given.group()):
+            if given and not LEGACY_ID.match(given.group()):
                 rid = given.group()
             else:
-                numbers[prefix] += 1
-                rid = f"{prefix}-{numbers[prefix]:03d}"
+                numbers[prefix] = numbers.get(prefix, 0) + 1
+                rid = generated_id(prefix, numbers[prefix])
             words = sentence.rstrip(".;:").split()
             req = {"id": rid, "title": " ".join(words[:9]) + ("..." if len(words) > 9 else ""), "text": sentence}
             if category:
                 req["category"] = category
-                if not rid.startswith(("EF-", "ENF-")):
+                if not GENERATED_ID.match(rid):
                     req["nature"] = "non-fonctionnelle"
-            elif not rid.startswith(("EF-", "ENF-")):
+            elif not GENERATED_ID.match(rid):
                 req["nature"] = "fonctionnelle"
             metric = METRIC.findall(sentence)
             if metric and category:
@@ -359,6 +355,11 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
         for g in sorted(glossary, key=lambda g: normalize(g["term"])):
             term = g["term"] + (f" ({', '.join(g['aliases'])})" if g.get("aliases") else "")
             lines.append(f"| **{cell(term)}** | {cell(g['definition'])} | {', '.join(g['_refs']) or '-'} |")
+    if spec.get("renamed"):
+        lines += ["", "## Anciens identifiants", "",
+                  "Exigences renumérotées par catégorie (préfixe ENF- d'avant) : liens et références suivent.", "",
+                  "| Ancien | Nouveau |", "| --- | --- |"]
+        lines += [f"| {old} | {new} |" for old, new in spec["renamed"].items()]
     if ignored:
         lines += ["", "## Phrases des sources écartées", "", "| Source | Phrase | Raison |", "| --- | --- | --- |"]
         lines += [f"| {where(i['_where'])} | {cell(i['quote'])} | {cell(i['reason'])} |" for i in ignored]
@@ -410,6 +411,12 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
         return f"{doc}:{line}" + (f" (p. {ref['page']})" if ref.get("page") else "")
 
     items, seen = [], set()
+    corpus = "\n".join("\n".join(lines) for lines in sources.values())
+
+    def cited(rid: str) -> bool:
+        """Identifiant écrit dans les documents sources : leur numérotation, gardée telle quelle."""
+        return re.search(rf"(?<![\w-]){re.escape(rid)}(?![\w-])", corpus) is not None
+
     for index, req in enumerate(spec["requirements"]):
         where = f"requirements/{index} ({req['id']})"
         if req["id"] in seen:
@@ -425,6 +432,13 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
                           f"({', '.join(CATEGORY_LABELS)})")
         if functional and req.get("category"):
             warnings.append(f"{where} : category ignorée pour une exigence fonctionnelle (domain attendu)")
+        expected = NFR_PREFIXES.get(req.get("category", ""))
+        prefix = req["id"].split("-")[0]
+        if not functional and expected and GENERATED_ID.match(req["id"]) and prefix != expected \
+                and not cited(req["id"]):
+            warnings.append(f"{where} : préfixe {prefix}- pour la catégorie {req['category']}, {expected}- attendu"
+                            + (" (mission.py ou journal.py upgrade --apply renomme les ENF- d'un catalogue déjà "
+                               "produit)" if prefix == "ENF" else ""))
         if req.get("status") == "retiree" and not req.get("reason"):
             errors.append(f"{where} : reason manquante pour une exigence retirée")
         if not req.get("sources") and not req.get("derived"):
@@ -436,14 +450,13 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
                 doc = ref["doc"].replace("\\", "/")
                 line = find_quote(indexes[doc], ref["quote"]) if doc in sources and ref.get("quote") else None
                 found = SOURCE_ID.findall(sources[doc][line - 1]) if line else []
-                found = [f for f in found if not GENERATED_ID.match(f)]
+                found = [f for f in found if not LEGACY_ID.match(f) and f != req["id"]]
                 if found:
                     warnings.append(f"{where} : la source {doc}:{line} porte déjà l'identifiant {found[0]}, "
                                     "conservez-le comme id")
-        elif not any(re.search(rf"(?<![\w-]){re.escape(req['id'])}(?![\w-])", "\n".join(lines))
-                     for lines in sources.values()):
+        elif not cited(req["id"]):
             warnings.append(f"{where} : identifiant {req['id']} absent des sources : numérotation existante "
-                            "ou EF-/ENF- ?")
+                            "ou EF-/SECU-/PERF-... ?")
         if req.get("sources") and not any(ref.get("quote") for ref in req["sources"]) and not req.get("derived"):
             warnings.append(f"{where} : aucune citation, source non vérifiable")
         for ref in req.get("sources", []):

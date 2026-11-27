@@ -38,7 +38,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "lib"))
 from lib.spec_schema import check, input_schema  # noqa: E402
 from lib import source_docs  # noqa: E402
-from lib.text_tools import data_file  # noqa: E402
+from lib.text_tools import data_file, requirement_nature  # noqa: E402
 from lib.workflow_chart import causes, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from skill_paths import require_module, schema_of  # noqa: E402
 
@@ -389,8 +389,8 @@ class _Sync:
                 body += ["", "## Écarts des options", ""] + covered
             body += self.decisions(rid)
             self.typed(names[rid], "exigence",
-                       {"id": rid, "nature": req.get("nature") or ("fonctionnelle" if rid.startswith("EF-")
-                                                                   else "non-fonctionnelle"),
+                       {"id": rid, "nature": requirement_nature(req) or ("non-fonctionnelle" if req.get("category")
+                                                                                  else "fonctionnelle"),
                         "priorite": req["priority"], "categorie": req.get("category"), "domaine": req.get("domain"),
                         "statut": req.get("status", "retenue"), "deduite": req.get("derived")}, body,
                        {"termes": self.linked("terme:" + term for term in terms),

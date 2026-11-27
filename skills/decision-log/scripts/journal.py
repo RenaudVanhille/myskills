@@ -122,7 +122,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.skill_paths import SKILLS, absent, find_script, require_module  # noqa: E402
 from lib.spec_schema import check, input_schema, print_schema, validate  # noqa: E402
-from lib import source_docs  # noqa: E402
+from lib import id_renames, source_docs  # noqa: E402
 from lib.text_tools import DATA_DIR, data_file, unlink_notes  # noqa: E402
 from lib.workflow_chart import causes, label_of, next_steps, optional, progress_chart, shown_status, steps_lines  # noqa: E402,E501
 from lib.workflow_upgrade import changed, merge_definition  # noqa: E402
@@ -1028,7 +1028,7 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
         errors.append(f"{folder / STATE} illisible ({error}) : lancez init d'abord")
         return None, None
     info = {"applied": False, "definition": None, "vault": None, "journal": False, "links": 0, "superseded": 0,
-            "noise": 0, "external": 0, "moved": []}
+            "noise": 0, "external": 0, "moved": [], "renamed": {}}
     old = state.get("definition") if isinstance(state, dict) else None
     name = args.definition or (old.get("name") if isinstance(old, dict) else None)
     if name and not args.keep_definition:
@@ -1070,9 +1070,27 @@ def upgrade(args, folder: Path, errors: list[str], warnings: list[str]) -> tuple
                 and (found := external(folder, state, stage["id"])):
             stage["external"] = found
             info["external"] += 1
+    state, info["renamed"] = renumber(folder, state, write=False)
     info["journal"] = render(state, folder) != written
     info["links"] = link_deliverables(folder, state, write=False)
     return state, info
+
+
+def renumber(folder: Path, state: dict, write: bool) -> tuple[dict, dict[str, str]]:
+    """Exigences non fonctionnelles numérotées ENF- avant les préfixes de catégorie : renommées partout (lib/
+    id_renames.py) ; write faux : état renommé en mémoire seulement. Rend l'état et la correspondance appliquée."""
+    definition = state.get("definition")
+    names = (definition.get("memory", {}) if definition else DEFAULT_MEMORY).get("requirements")
+    catalog = id_renames.catalog_path(folder, state, names)
+    mapping, sources = id_renames.mapping_of(catalog) if catalog else ({}, None)
+    if not mapping:
+        return state, {}
+    memory = state.get("memory") or {}
+    vault = Path(memory["vault"]) if memory.get("vault") else None
+    base = vault / safe_folder(memory["folder"]) if vault and vault.is_dir() else None
+    with (vault_ontology.vault_lock(vault) if base and write else contextlib.nullcontext()):
+        state, touched = id_renames.apply(folder, state, mapping, catalog, sources, base, digest, items_of, write)
+    return state, mapping if touched else {}
 
 
 MACHINE = (".json", ".csv", ".mmd", ".sql", ".yaml")
@@ -1245,6 +1263,8 @@ def main() -> int:
                         (args.folder / DATA_DIR).mkdir(exist_ok=True)
                         for name in upgraded["moved"]:
                             (args.folder / name).replace(args.folder / DATA_DIR / name)
+                    if upgraded["renamed"]:
+                        state, _ = renumber(args.folder, state, write=True)
                     save(args.folder, state)
                     upgraded["links"] = link_deliverables(args.folder, state)
                     if state.get("memory") and Path(state["memory"]["vault"]).is_dir():
@@ -1286,7 +1306,7 @@ def main() -> int:
     if upgraded and not upgraded["applied"] and (changed(upgraded["definition"]) or upgraded["vault"]
                                                  or upgraded["journal"] or upgraded["links"]
                                                  or upgraded["superseded"] or upgraded["noise"]
-                                                 or upgraded["moved"]):
+                                                 or upgraded["moved"] or upgraded["renamed"]):
         action = f"montrer ces changements à l'utilisateur, puis relancer upgrade {args.folder} --apply"
     if checks and (errors or args.command == "check"):
         action = (f"corriger les descriptions en erreur, puis relancer check {args.stage}" if errors
