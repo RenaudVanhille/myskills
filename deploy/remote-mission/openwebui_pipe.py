@@ -5,7 +5,8 @@ version: 0.1.0
 license: MIT
 """
 
-# Fonction « Pipe » d'Open WebUI (Admin > Fonctions > importer ce fichier). Bibliothèque standard
+# Fonction « Pipe » d'Open WebUI, installée et réglée d'elle-même par chart/files/openwebui_install.py
+# (servie par GET /openwebui/pipe ; import manuel possible : Admin > Fonctions). Bibliothèque standard
 # seulement : aucun paquet à installer dans Open WebUI. Le pipe ne parle qu'au service
 # remote_server.py (adresse interne du cluster) ; aucun contenu ne part ailleurs.
 

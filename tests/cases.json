@@ -2198,6 +2198,20 @@
           "exit": 0
         }
       ]
+    },
+    {
+      "id": "mission-distance-pipe",
+      "skill": "tous",
+      "_note": "Pipe installé d'office dans Open WebUI (faux paquet open_webui, aucun Open WebUI) : source lue chez le service par GET /openwebui/pipe, fonction créée, activée et réglée (SERVER_URL, TOKEN), inchangée au passage suivant, réactivée si désactivée à la main, mise à jour quand le service change de version, Valves d'un administrateur gardées, jeton faux signalé.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/pipe_install.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        }
+      ]
     }
   ]
 }

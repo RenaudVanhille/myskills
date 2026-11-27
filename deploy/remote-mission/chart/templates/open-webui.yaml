@@ -52,10 +52,28 @@ data:
   SCARF_NO_ANALYTICS: "true"
   DO_NOT_TRACK: "true"
   ANONYMIZED_TELEMETRY: "false"
+  # Le seul modèle est le pipe myskills : visible de tous, les droits sont ceux des projets GitLab des missions.
+  BYPASS_MODEL_ACCESS_CONTROL: "true"
+  ENABLE_EVALUATION_ARENA_MODELS: "false"
+  {{- if $w.pipe.install }}
+  MYSKILLS_SERVER_URL: {{ printf "http://%s.%s.svc.cluster.local:%v" (include "myskills.name" .) .Release.Namespace .Values.service.port | quote }}
+  {{- end }}
   {{- if .Values.caSecret }}
   SSL_CERT_FILE: /ca/ca-bundle.crt
   REQUESTS_CA_BUNDLE: /ca/ca-bundle.crt
   {{- end }}
+{{- if $w.pipe.install }}
+---
+# Installation et mise à jour du pipe myskills dans Open WebUI (source servie par le service des missions).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui-pipe
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+data:
+  openwebui_install.py: |-
+{{ .Files.Get "files/openwebui_install.py" | indent 4 }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -70,6 +88,8 @@ spec:
   template:
     metadata:
       labels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+      annotations:
+        checksum/pipe: {{ .Files.Get "files/openwebui_install.py" | sha256sum }}
     spec:
       automountServiceAccountToken: false
       securityContext:
@@ -81,6 +101,13 @@ spec:
         - name: open-webui
           image: {{ $w.image.repository }}:{{ $w.image.tag }}
           ports: [{containerPort: 8080}]
+          {{- if $w.pipe.install }}
+          # Le pipe s'installe de lui-même en tâche de fond, puis se resynchronise (nouvelle version du service).
+          command: [sh, -c, "python /opt/myskills-pipe/openwebui_install.py --every {{ $w.pipe.syncSeconds }} & exec bash start.sh"]
+          env:
+            - name: MYSKILLS_REMOTE_TOKEN
+              valueFrom: {secretKeyRef: {name: {{ .Values.secrets.service }}, key: MYSKILLS_REMOTE_TOKEN}}
+          {{- end }}
           envFrom:
             - configMapRef: {name: {{ include "myskills.name" . }}-open-webui}
             - secretRef: {name: {{ $w.secret }}}
@@ -93,12 +120,19 @@ spec:
             initialDelaySeconds: 10
           volumeMounts:
             - {name: data, mountPath: /app/backend/data}
+            {{- if $w.pipe.install }}
+            - {name: pipe, mountPath: /opt/myskills-pipe, readOnly: true}
+            {{- end }}
             {{- if .Values.caSecret }}
             - {name: ca-bundle, mountPath: /ca, readOnly: true}
             {{- end }}
       volumes:
         - name: data
           persistentVolumeClaim: {claimName: {{ include "myskills.name" . }}-open-webui}
+        {{- if $w.pipe.install }}
+        - name: pipe
+          configMap: {name: {{ include "myskills.name" . }}-open-webui-pipe}
+        {{- end }}
         {{- if .Values.caSecret }}
         - name: ca
           secret: {secretName: {{ .Values.caSecret }}}

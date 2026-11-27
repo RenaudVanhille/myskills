@@ -110,6 +110,11 @@ openWebui:
   # Groupes GitLab (revendication groups) : qui entre, qui administre (import du pipe).
   allowedGroups: [myskills/utilisateurs, myskills/admins]
   adminGroups: [myskills/admins]
+  # Pipe myskills installé, activé et réglé (SERVER_URL, TOKEN) par Open WebUI lui-même au démarrage, puis
+  # resynchronisé toutes les syncSeconds depuis le service : rien à importer à la main.
+  pipe:
+    install: true
+    syncSeconds: 600
   persistence:
     size: 5Gi
     storageClass: ""

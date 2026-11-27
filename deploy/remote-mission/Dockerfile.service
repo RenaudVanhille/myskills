@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 # dans les pods de session).
 COPY --chown=myskills shared/scripts /opt/myskills/shared/scripts
 COPY --chown=myskills deploy/remote-mission/service /opt/myskills/deploy/remote-mission/service
+# Pipe d'Open WebUI, servi par GET /openwebui/pipe à openwebui_install.py (même version que le service).
+COPY --chown=myskills deploy/remote-mission/openwebui_pipe.py /opt/myskills/deploy/remote-mission/openwebui_pipe.py
 USER myskills
 ENV PYTHONDONTWRITEBYTECODE=1 LANG=C.UTF-8
 

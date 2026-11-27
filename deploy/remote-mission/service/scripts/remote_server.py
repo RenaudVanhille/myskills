@@ -24,6 +24,7 @@ dès que le service écoute ailleurs que sur la machine elle-même.
 
 import argparse
 import asyncio
+import hashlib
 import hmac
 import importlib.util
 import json
@@ -52,6 +53,7 @@ from spec_schema import print_schema, schema_option  # noqa: E402
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 MAX_BODY = 1_000_000
+PIPE = HERE.parents[1] / "openwebui_pipe.py"  # deploy/remote-mission/openwebui_pipe.py
 OUTPUT_MAX = 4000
 
 
@@ -267,6 +269,10 @@ def handler(service: Service):
                 if view["done"] and query.get("ack") == ["1"]:
                     job.delivered = True
                 return self.send(200, view)
+            if parts == ["openwebui", "pipe"]:  # source du pipe, installée par openwebui_install.py
+                content = PIPE.read_text(encoding="utf-8")
+                return self.send(200, {"content": content,
+                                       "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest()})
             if len(parts) == 3 and parts[0] == "chats":
                 return self.send(200, service.chat(parts[1], parts[2], self.headers.get("X-Myskills-User")))
             return self.send(404, {"error": "chemin inconnu"})

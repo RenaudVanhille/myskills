@@ -12,7 +12,7 @@ pods de session.
 | `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
 | `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
 | `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
-| `openwebui_pipe.py` | fonction Pipe à importer dans Open WebUI |
+| `openwebui_pipe.py` | fonction Pipe d'Open WebUI (modèle « Missions »), installée d'elle-même par `chart/files/openwebui_install.py` |
 | `dev/` | docker-compose du dev local : Open WebUI, service en mode local, mission de démo, LLM simulé |
 | `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
 
@@ -106,10 +106,10 @@ cp .env.example .env
 docker compose --profile simule up --build
 ```
 
-1. Ouvrir http://localhost:3000, Admin > Fonctions > importer
-   `../openwebui_pipe.py`, l'activer, Valves : `SERVER_URL`
-   `http://service:8765`, `TOKEN` `dev-local` (valeur de
-   `MYSKILLS_REMOTE_TOKEN` dans `.env`).
+1. Ouvrir http://localhost:3000 : le pipe est déjà installé, activé et réglé
+   (`docker compose logs open-webui | grep "myskills pipe"`) ; une
+   modification de `openwebui_pipe.py` est reprise en une minute après
+   `docker compose up -d --build service`.
 2. Choisir le modèle « Mission de démonstration (dev local) » et écrire.
    Les branches `openwebui/<conversation>` sont poussées dans la mission du
    volume `work`.
@@ -309,7 +309,7 @@ leurs labels dans son namespace).
    sessions ; sessions : entrée depuis le service, sortie vers GitLab et
    LiteLLM ; Open WebUI : entrée depuis l'Ingress, sortie vers le service et
    GitLab). Les notes de fin d'installation donnent la commande de
-   vérification (`remote_server.py check`) et les Valves du pipe.
+   vérification (`remote_server.py check`) et le suivi de l'installation du pipe.
 
 Le contenu des conversations reste dans les volumes de session : réserver aux
 administrateurs le droit de lire les volumes et d'entrer dans les pods du
@@ -326,10 +326,22 @@ ni téléchargement de modèle.
    pour entrer, `openWebui.adminGroups` pour administrer. Les missions,
    elles, restent ouvertes selon le rôle sur leur projet GitLab (section 3) ;
    aucun droit par modèle n'est à poser dans Open WebUI.
-2. **Fonction Pipe** (un administrateur) : Admin > Fonctions > importer
-   `openwebui_pipe.py`, l'activer, puis Valves : `SERVER_URL` et `TOKEN`
-   donnés par les notes de l'installation. Le modèle « Missions » apparaît
-   pour tous (modèle public).
+2. **Fonction Pipe** : rien à importer. Au démarrage d'Open WebUI,
+   `chart/files/openwebui_install.py` (tâche de fond du conteneur) lit le
+   pipe chez le service (`GET /openwebui/pipe`, même version que le service),
+   le crée ou le met à jour dans la base d'Open WebUI, l'active et règle ses
+   Valves `SERVER_URL` et `TOKEN` (les autres réglages d'un administrateur
+   sont gardés). Il recommence toutes les `openWebui.pipe.syncSeconds` : une
+   nouvelle version du service met le pipe à jour sans redémarrer Open WebUI,
+   et un pipe désactivé ou supprimé à la main est rétabli. Le modèle
+   « Missions » est visible de tous (`BYPASS_MODEL_ACCESS_CONTROL`, seul
+   modèle de l'instance, sans « Arena Model »). Vérifié contre Open WebUI
+   0.6.18 réel : fonction créée, activée, Valves réglées, modèle listé.
+   L'installation passe par les modèles internes
+   d'Open WebUI, faute d'administrateur avant la première connexion : relire
+   ce script avant de changer `openWebui.image.tag`.
+   `openWebui.pipe.install: false` revient à l'import manuel (Admin >
+   Fonctions, Valves données par les notes d'installation).
 
 Le pipe affiche la progression du message (statut), puis la réponse, les schémas
 PNG (en ligne jusqu'à `inline_images_kb`, liens GitLab vers le PNG et le

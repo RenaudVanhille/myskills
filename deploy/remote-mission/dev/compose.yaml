@@ -41,7 +41,13 @@ services:
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.6.18
+    # Le pipe myskills s'installe et se règle seul (modèle « Missions »), comme dans le chart Helm.
+    command: ["sh", "-c", "python /opt/myskills-pipe/openwebui_install.py --every 60 & exec bash start.sh"]
     environment:
+      MYSKILLS_SERVER_URL: http://service:8765
+      MYSKILLS_REMOTE_TOKEN: ${MYSKILLS_REMOTE_TOKEN:-dev-local}
+      BYPASS_MODEL_ACCESS_CONTROL: "true"
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
       # Sans connexion par défaut : un seul utilisateur, admin@localhost (droit sur la mission de démo
       # dans acces.json). WEBUI_AUTH=true et les variables OAUTH_* de .env pour essayer le SSO GitLab.
       WEBUI_AUTH: ${WEBUI_AUTH:-false}
@@ -61,6 +67,7 @@ services:
       ANONYMIZED_TELEMETRY: "false"
     volumes:
       - open-webui:/app/backend/data
+      - ../chart/files/openwebui_install.py:/opt/myskills-pipe/openwebui_install.py:ro
     ports:
       - "127.0.0.1:3000:8080"
     depends_on:
