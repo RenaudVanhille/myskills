@@ -58,6 +58,59 @@ NORMATIVE = re.compile(
     r"\b(doit|doivent|devra|devront|devrait|devraient|il faut|il faudra|est necessaire|sont necessaires|"
     r"obligatoire\w*|imperatif|exige|exigee?s?|ne pourra pas|pourra|shall|must|should|is required|are required)\b")
 MAX_LISTED = 20
+# Volumétrie attendue d'un catalogue : chaque dimension est couverte par une exigence retenue (titre, texte,
+# mesure) ou une question qui la cite, sinon déclarée sans objet (volumetry, avec sa raison). Motifs sur le texte
+# normalisé (sans accents ni majuscules). Sans elle, les volumes ne sont demandés qu'au chiffrage, trop tard.
+NUMBER = r"\d[\d  .,]*\s*(?:k|m|millions?|milliers?|mille)?\s*(?:de |d')?"
+VOLUMETRY = {
+    "utilisateurs": ("nombre d'utilisateurs", rf"{NUMBER}(?:utilisateurs?|usagers?|assures?|clients?|abonnes?|"
+                     r"agents?|comptes?|salaries?|collaborateurs?|patients?|adherents?|visiteurs?)"),
+    "pointe": ("pic ou utilisateurs simultanés", r"simultan|\bpic\b|pics\b|pointe|afflux|concurren|peak"),
+    "debit": ("débit (transactions, requêtes, traitements par unité de temps)",
+              rf"{NUMBER}(?!(?:euros?|heures?|minutes?|secondes?|jours?|fois)\b)(?:[a-z']+ ?){{1,3}}?"
+              r"(?:par |/ ?)(?:seconde|minute|heure|jour|semaine|mois|an|s|sec|min|h|j)\b|"
+              r"\btps\b|\brps\b|\bqps\b|transactions? par|requetes? par"),
+    "donnees": ("volume de données ou de fichiers",
+                rf"{NUMBER}(?:ko|mo|go|to|po|kb|mb|gb|tb|pb)\b|volumes? de donnees|volumetrie|"
+                rf"{NUMBER}(?:enregistrements?|lignes|documents?|fichiers?|dossiers?|contrats?|images?|photos?)"),
+    "croissance": ("croissance", r"croissance|augment|doubl|tripl|montee en charge|evolution du volume|"
+                   r"\d+ ?% (?:par|l')an|par an"),
+    "retention": ("durée de conservation", r"conserv|retention|archiv|purg|historis|\d+ ans\b"),
+}
+
+# Une question n'a pas encore de nombre : ses mots suffisent pour les dimensions qui en exigent un.
+VOLUMETRY_ASKED = {
+    "utilisateurs": r"(?:combien|nombre) (?:d'|de )?(?:utilisateurs?|usagers?|assures?|clients?|abonnes?|comptes?|"
+                    r"agents?|visiteurs?)",
+    "debit": r"debit|combien (?:de |d')?\w+ par|(?:transactions?|requetes?) par",
+    "donnees": r"volumes?|taille|stockage|\b(?:ko|mo|go|to)\b|combien (?:de |d')?(?:enregistrements?|fichiers?|"
+               r"photos?|documents?)",
+}
+
+
+def volumetry(spec: dict, items: list[dict]) -> list[tuple[str, str, str, str]]:
+    """(dimension, libellé, état, détail) : couverte (exigences), question (exigences qui la posent), sans objet
+    (raison) ou absente."""
+    kept = [r for r in items if r.get("status", "retenue") == "retenue"]
+    declared = spec.get("volumetry", {})
+    rows = []
+    for key, (label, pattern) in VOLUMETRY.items():
+        stated = [r["id"] for r in kept if re.search(pattern, normalize(
+            " ".join([r["title"], r["text"], r.get("metric", "")])))]
+        loose = VOLUMETRY_ASKED.get(key, pattern)
+        asked = [r["id"] for r in kept if any(re.search(pattern, normalize(q)) or re.search(loose, normalize(q))
+                                                for q in r.get("questions", []))]
+        if stated:
+            rows.append((key, label, "couverte", ", ".join(stated)))
+        elif asked:
+            rows.append((key, label, "question", ", ".join(asked)))
+        elif key in declared:
+            rows.append((key, label, "sans objet", declared[key]))
+        else:
+            rows.append((key, label, "absente", ""))
+    return rows
+
+
 # Tri des phrases non reprises par un modèle léger (sous-agent de niveau simple) : consigne écrite dans le
 # fichier des candidats, pour que le sous-agent n'ait besoin de rien d'autre. Mesurée par tests/triage_eval.py.
 TRIAGE_INSTRUCTIONS = (
@@ -268,7 +321,7 @@ def source_links(sources: dict[str, list[str]], folder: Path, out_dir: Path):
 
 
 def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None,
-              where=cell) -> str:
+              where=cell, volume: list | None = None) -> str:
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     functional = [r for r in kept if nature(r) == "fonctionnelle"]
     non_functional = [r for r in kept if nature(r) == "non-fonctionnelle"]
@@ -290,6 +343,10 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
     questions = [(r["id"], q) for r in kept for q in r.get("questions", [])]
     if questions:
         lines += ["", "## Questions ouvertes", ""] + [f"- **{rid}** : {q}" for rid, q in questions]
+    if volume:
+        lines += ["", "## Volumétrie", "", "| Dimension | État | Exigences ou raison |", "| --- | --- | --- |"]
+        lines += [f"| {label} | {'**absente : à demander**' if state == 'absente' else state} | {cell(detail) or '-'} |"
+                  for _, label, state, detail in volume]
     derived = [r for r in kept if r.get("derived")]
     if derived:
         lines += ["", "## Exigences déduites, à confirmer", ""]
@@ -506,6 +563,15 @@ def main() -> int:
     items, ignored, counts = check(spec, args.spec.parent, errors, warnings,
                                    triage if not errors else None, candidates)
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
+    volume = volumetry(spec, items) if not errors else []
+    missing = [key for key, _, state, _ in volume if state == "absente"]
+    if missing:
+        warnings.append("volumétrie absente des exigences : " + ", ".join(VOLUMETRY[k][0] for k in missing)
+                        + " ; demandez-la à l'utilisateur (une question dans l'exigence la plus proche) ou "
+                        "déclarez-la sans objet (volumetry, avec sa raison)")
+    for key in spec.get("volumetry", {}):
+        if key not in missing and any(k == key and state != "sans objet" for k, _, state, _ in volume):
+            warnings.append(f"volumetry/{key} : déclarée sans objet alors que des exigences la couvrent")
     report = {"input": str(args.spec), "outputs": [],
               "functional": sum(nature(r) == "fonctionnelle" for r in kept),
               "non_functional": sum(nature(r) == "non-fonctionnelle" for r in kept),
@@ -514,7 +580,7 @@ def main() -> int:
               "documents": counts.get("documents", 0), "uncovered": counts.get("uncovered", 0),
               "glossary": len(spec.get("glossary", [])),
               "method": counts.get("method", "regles"), "dismissed": counts.get("dismissed", 0),
-              "candidates": counts.get("candidates", 0),
+              "candidates": counts.get("candidates", 0), "volumetry_missing": missing,
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
@@ -526,7 +592,7 @@ def main() -> int:
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
         folder = from_data(args.spec.parent, spec.get("sources", "sources")).resolve()
         handle.write(render_md(spec, items, ignored, counts.get("glossary"),
-                               source_links(load_sources(folder), folder, md.parent.resolve())))
+                               source_links(load_sources(folder), folder, md.parent.resolve()), volume))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

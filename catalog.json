@@ -18092,7 +18092,7 @@
       "scripts": [
         {
           "name": "req_build.py",
-          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
+          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons, exigences non mesurables et dimensions de volumétrie absentes (utilisateurs, pic, débit, données, croissance, conservation), puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
           "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER] | exigences.json --draft [--sources DOSSIER] | --schema",
           "options": {
             "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
@@ -18328,13 +18328,44 @@
                       }
                     }
                   }
+                },
+                "volumetry": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+                  "properties": {
+                    "utilisateurs": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pointe": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "debit": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "donnees": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "croissance": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "retention": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
                 }
               }
             }
           },
           "report": {
             "format": "json",
-            "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon).",
+            "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, volumétrie absente) ; volumetry_missing : dimensions de volumétrie à demander.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -18355,7 +18386,8 @@
                     "glossary",
                     "method",
                     "dismissed",
-                    "candidates"
+                    "candidates",
+                    "volumetry_missing"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -18423,6 +18455,20 @@
                     "candidates": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "volumetry_missing": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "utilisateurs",
+                          "pointe",
+                          "debit",
+                          "donnees",
+                          "croissance",
+                          "retention"
+                        ]
+                      },
+                      "description": "Dimensions de volumétrie absentes : ni exigence, ni question, ni sans objet."
                     }
                   }
                 },
@@ -18863,6 +18909,37 @@
                           }
                         }
                       }
+                    }
+                  }
+                },
+                "volumetry": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+                  "properties": {
+                    "utilisateurs": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pointe": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "debit": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "donnees": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "croissance": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "retention": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }

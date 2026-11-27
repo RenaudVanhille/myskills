@@ -2,7 +2,7 @@
 
 # Des documents du projet aux schémas d'architecture
 
-Workflow `architecture` : 8 étapes, dont 4 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
+Workflow `architecture` : 9 étapes, dont 4 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
@@ -24,22 +24,25 @@ flowchart LR
   s_exigences["2. Catalogue des exigences<br/><small>architecture-workflow</small>"]
   s_domaines["3. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
   s_architectures["4. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_schemas["5. Décision et schémas<br/><small>schema-designer</small>"]
-  s_revue["6. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_chiffrage["7. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
-  s_dossier["8. Dossier d'architecture technique<br/><small>architecture-workflow</small>"]
+  s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
+  s_schemas["6. Décision et schémas<br/><small>schema-designer</small>"]
+  s_revue["7. Revue d'architecture<br/><small>architecture-reviewer</small>"]
+  s_chiffrage["8. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
+  s_dossier["9. Dossier d'architecture technique<br/><small>architecture-workflow</small>"]
   s_documents --> s_exigences
   s_exigences --> s_domaines
   s_domaines --> s_architectures
+  s_architectures --> s_dimensionnement
   s_architectures --> s_schemas
   s_schemas --> s_revue
   s_schemas --> s_chiffrage
+  s_dimensionnement --> s_chiffrage
   s_revue --> s_dossier
   s_chiffrage --> s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_exigences,s_domaines,s_architectures,s_dossier moteur
+  class s_exigences,s_domaines,s_architectures,s_dimensionnement,s_dossier moteur
   class s_documents,s_schemas,s_revue,s_chiffrage agent
   class s_domaines,s_revue,s_chiffrage,s_dossier facultative
 ```
@@ -47,7 +50,8 @@ flowchart LR
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
-- 6. Revue d'architecture, 7. Chiffrage de l'option retenue
+- 5. Dimensionnement, 6. Décision et schémas
+- 7. Revue d'architecture, 8. Chiffrage de l'option retenue
 
 ## Étapes
 
@@ -57,10 +61,11 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 2. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
 | 3. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2 |
 | 4. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 3 |
-| 5. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `architecture-deck`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 4 |
-| 6. Revue d'architecture (facultative) | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 5 |
-| 7. Chiffrage de l'option retenue (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 5 |
-| 8. Dossier d'architecture technique (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 6, 7 |
+| 5. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
+| 6. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `architecture-deck`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 4 |
+| 7. Revue d'architecture (facultative) | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 6 |
+| 8. Chiffrage de l'option retenue (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6, 5 |
+| 9. Dossier d'architecture technique (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 7, 8 |
 
 ### 1. Documents en Markdown
 
@@ -77,7 +82,7 @@ Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une 
 - **Livrables possibles** : `donnees/exigences.candidats.json`, `donnees/exigences.tri.json`
 - **Contrôle** : requirements-catalog : req_build.py donnees/exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (donnees/exigences.tri.json), puis req_build.py donnees/exigences.json : zéro erreur et zéro phrase d'exigence non reprise
 
-req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.
+req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.
 
 ### 3. Domaines et style d'architecture
 
@@ -98,7 +103,16 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire.
 
-### 5. Décision et schémas
+### 5. Dimensionnement
+
+- **Entrées** : `donnees/exigences.json`, `donnees/options.json`
+- **Livrables** : `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json`
+- **Livrables possibles** : `donnees/dimensionnement.couts.json`, `dimensionnement.couts.md`
+- **Contrôle** : capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)
+
+Volumes, pointe, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; composants de l'option retenue à la revue des architectures. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat. Pour une option cloud, --provider et --option écrivent donnees/dimensionnement.couts.json, que le chiffrage reprend sans reposer de question de volumétrie.
+
+### 6. Décision et schémas
 
 - **Entrées** : `donnees/options.json`, `donnees/exigences.json`
 - **Livrables** : `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png`
@@ -113,7 +127,7 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 donnees/decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : donnees/options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas.
 
-### 6. Revue d'architecture
+### 7. Revue d'architecture
 
 - **Entrées** : `donnees/options.json`, `donnees/exigences.json`, `donnees/decision.json`, `adr-architecture.md`, `schemas/option-*.cloud.json`, `donnees/domaines.json`
 - **Livrables** : `donnees/revue.json`, `revue.md`
@@ -123,17 +137,17 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). donnees/revue.json reprend l'option retenue (source vers donnees/options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, qui rend donnees/revue.json. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes).
 
-### 7. Chiffrage de l'option retenue
+### 8. Chiffrage de l'option retenue
 
-- **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`
+- **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`, `donnees/dimensionnement.couts.json`
 - **Livrables** : `donnees/chiffrage.json`, `chiffrage.md`
 - **Livrables possibles** : `donnees/chiffrage.csv`, `donnees/couts.json`, `couts.md`, `donnees/couts.csv`
-- **Contrôle** : cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)
+- **Contrôle** : cloud-cost : cost_build.py donnees/dimensionnement.couts.json --infra <option> (ou donnees/couts.json s'il complète le dimensionnement) pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)
 - **Contrôle** : solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)
 
-Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script.
+Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Les volumes viennent de l'étape dimensionnement : pour une option cloud, cost_build.py donnees/dimensionnement.couts.json --infra <option> donne les lignes d'infrastructure ; aucune question de volumétrie n'est reposée, une valeur manquante est une hypothèse notée au journal.
 
-### 8. Dossier d'architecture technique
+### 9. Dossier d'architecture technique
 
 - **Entrées** : `exigences.md`, `options.md`, `adr-architecture.md`, `schemas/*.png`, `revue.md`, `chiffrage.md`, `journal.md`
 - **Livrables** : `synthese.md`, `dossier-architecture.md`
