@@ -2,7 +2,7 @@
 
 # Réponse à un appel d'offres, des documents reçus à l'offre
 
-Workflow `avant-vente` : 16 étapes, dont 11 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
+Workflow `avant-vente` : 17 étapes, dont 11 facultatives. Point de départ : documents du projet. [Tous les workflows](README.md).
 
 ## À quoi il sert
 
@@ -26,16 +26,17 @@ flowchart TD
   s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
   s_domaines["5. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
   s_architectures["6. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_schemas["7. Décision et schémas<br/><small>schema-designer</small>"]
-  s_conformite["8. Matrice de conformité<br/><small>architecture-workflow</small>"]
-  s_maquettes["9. Maquettes d'écrans, revue UX et lots frontend<br/><small>ui-designer</small>"]
-  s_backend["10. Découpage et lots backend<br/><small>backend-estimator</small>"]
-  s_chiffrage["11. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
-  s_revue["12. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_exploitation["13. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
-  s_registre["14. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
-  s_memoire["15. Mémoire technique<br/><small>architecture-workflow</small>"]
-  s_soutenance["16. Support de soutenance<br/><small>architecture-workflow</small>"]
+  s_dimensionnement["7. Dimensionnement<br/><small>architecture-workflow</small>"]
+  s_schemas["8. Décision et schémas<br/><small>schema-designer</small>"]
+  s_conformite["9. Matrice de conformité<br/><small>architecture-workflow</small>"]
+  s_maquettes["10. Maquettes d'écrans, revue UX et lots frontend<br/><small>ui-designer</small>"]
+  s_backend["11. Découpage et lots backend<br/><small>backend-estimator</small>"]
+  s_chiffrage["12. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
+  s_revue["13. Revue d'architecture<br/><small>architecture-reviewer</small>"]
+  s_exploitation["14. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
+  s_registre["15. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
+  s_memoire["16. Mémoire technique<br/><small>architecture-workflow</small>"]
+  s_soutenance["17. Support de soutenance<br/><small>architecture-workflow</small>"]
   s_documents --> s_depouillement
   s_depouillement --> s_qualification
   s_documents --> s_exigences
@@ -43,6 +44,7 @@ flowchart TD
   s_exigences --> s_architectures
   s_qualification --> s_architectures
   s_domaines --> s_architectures
+  s_architectures --> s_dimensionnement
   s_architectures --> s_schemas
   s_schemas --> s_conformite
   s_documents --> s_maquettes
@@ -50,6 +52,7 @@ flowchart TD
   s_schemas --> s_chiffrage
   s_maquettes --> s_chiffrage
   s_backend --> s_chiffrage
+  s_dimensionnement --> s_chiffrage
   s_schemas --> s_revue
   s_schemas --> s_exploitation
   s_conformite --> s_registre
@@ -61,7 +64,7 @@ flowchart TD
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_depouillement,s_qualification,s_exigences,s_domaines,s_architectures,s_conformite,s_exploitation,s_registre,s_memoire,s_soutenance moteur
+  class s_depouillement,s_qualification,s_exigences,s_domaines,s_architectures,s_dimensionnement,s_conformite,s_exploitation,s_registre,s_memoire,s_soutenance moteur
   class s_documents,s_schemas,s_maquettes,s_backend,s_chiffrage,s_revue agent
   class s_depouillement,s_qualification,s_domaines,s_conformite,s_maquettes,s_backend,s_chiffrage,s_revue,s_exploitation,s_memoire,s_soutenance facultative
 ```
@@ -69,9 +72,10 @@ flowchart TD
 En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
-- 2. Dépouillement de l'appel d'offres, 4. Catalogue des exigences, 9. Maquettes d'écrans, revue UX et lots frontend
+- 2. Dépouillement de l'appel d'offres, 4. Catalogue des exigences, 10. Maquettes d'écrans, revue UX et lots frontend
 - 3. Qualification go / no-go, 5. Domaines et style d'architecture
-- 8. Matrice de conformité, 10. Découpage et lots backend, 12. Revue d'architecture, 13. Dossier d'exploitation
+- 7. Dimensionnement, 8. Décision et schémas
+- 9. Matrice de conformité, 11. Découpage et lots backend, 13. Revue d'architecture, 14. Dossier d'exploitation
 
 ## Étapes
 
@@ -83,16 +87,17 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 4. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
 | 5. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
 | 6. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 3, 5 |
-| 7. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 6 |
-| 8. Matrice de conformité (facultative) | moyen | `architecture-workflow` | `tender-response` | `donnees/conformite.json`, `conformite.md`, `conformite.xlsx` | 7 |
-| 9. Maquettes d'écrans, revue UX et lots frontend (facultative) | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `design-system.json`, `pages/*.json`, `donnees/revue-ux.json`, `decoupage.md`, `donnees/decoupage.lots.json` | 1 |
-| 10. Découpage et lots backend (facultative) | moyen | `backend-estimator` | `api-contract` | `donnees/decoupage-back.lots.json`, `decoupage-back.md` | 7 |
-| 11. Chiffrage de l'option retenue (facultative) | moyen | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 7, 9, 10 |
-| 12. Revue d'architecture (facultative) | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 7 |
-| 13. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 7 |
-| 14. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/registre.json`, `registre.md`, `questions-client.md` | 8, 11, 12 |
-| 15. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 14, 13 |
-| 16. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 15 |
+| 7. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 6 |
+| 8. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 6 |
+| 9. Matrice de conformité (facultative) | moyen | `architecture-workflow` | `tender-response` | `donnees/conformite.json`, `conformite.md`, `conformite.xlsx` | 8 |
+| 10. Maquettes d'écrans, revue UX et lots frontend (facultative) | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `design-system.json`, `pages/*.json`, `donnees/revue-ux.json`, `decoupage.md`, `donnees/decoupage.lots.json` | 1 |
+| 11. Découpage et lots backend (facultative) | moyen | `backend-estimator` | `api-contract` | `donnees/decoupage-back.lots.json`, `decoupage-back.md` | 8 |
+| 12. Chiffrage de l'option retenue (facultative) | moyen | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 8, 10, 11, 7 |
+| 13. Revue d'architecture (facultative) | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 8 |
+| 14. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 8 |
+| 15. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/registre.json`, `registre.md`, `questions-client.md` | 9, 12, 13 |
+| 16. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 15, 14 |
+| 17. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 16 |
 
 ### 1. Documents en Markdown
 
@@ -125,7 +130,7 @@ Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une 
 - **Livrables possibles** : `donnees/exigences.candidats.json`, `donnees/exigences.tri.json`
 - **Contrôle** : requirements-catalog : req_build.py donnees/exigences.json --candidates, tri des phrases par un sous-agent de niveau simple (donnees/exigences.tri.json), puis req_build.py donnees/exigences.json : zéro erreur et zéro phrase d'exigence non reprise
 
-req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.
+req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.
 
 ### 5. Domaines et style d'architecture
 
@@ -146,7 +151,16 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire.
 
-### 7. Décision et schémas
+### 7. Dimensionnement
+
+- **Entrées** : `donnees/exigences.json`, `donnees/options.json`
+- **Livrables** : `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json`
+- **Livrables possibles** : `donnees/dimensionnement.couts.json`, `dimensionnement.couts.md`
+- **Contrôle** : capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)
+
+Volumes, pointe, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; composants de l'option retenue à la revue des architectures. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat. Pour une option cloud, --provider et --option écrivent donnees/dimensionnement.couts.json, que le chiffrage reprend sans reposer de question de volumétrie.
+
+### 8. Décision et schémas
 
 - **Entrées** : `donnees/options.json`, `donnees/exigences.json`
 - **Livrables** : `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png`
@@ -160,7 +174,7 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 donnees/decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : donnees/options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer.
 
-### 8. Matrice de conformité
+### 9. Matrice de conformité
 
 - **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`
 - **Livrables** : `donnees/conformite.json`, `conformite.md`, `conformite.xlsx`
@@ -169,7 +183,7 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative : à faire quand l'acheteur demande une matrice de conformité ou un cadre de réponse. Le brouillon tire chaque réponse des écarts de l'option retenue ; n'écrire que la justification des réponses partielles et non conformes, pour l'acheteur. Une réponse qui contredit l'option se tranche avec l'utilisateur et se note au journal.
 
-### 9. Maquettes d'écrans, revue UX et lots frontend
+### 10. Maquettes d'écrans, revue UX et lots frontend
 
 - **Entrées** : `maquettes/*`, `sources/attachments/*`
 - **Livrables** : `design-system.json`, `pages/*.json`, `donnees/revue-ux.json`, `decoupage.md`, `donnees/decoupage.lots.json`
@@ -179,7 +193,7 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative, proposée quand le dossier de consultation contient des maquettes d'écrans (images de documents/ ou extraites dans sources/attachments/) : l'utilisateur dit s'il la veut. Mêmes règles que le workflow maquettes : descriptions dans pages/, jamais de HTML à la main ; constats UX retenus avec l'utilisateur ; donnees/decoupage.lots.json repris par le chiffrage (--lots).
 
-### 10. Découpage et lots backend
+### 11. Découpage et lots backend
 
 - **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`
 - **Livrables** : `donnees/decoupage-back.lots.json`, `decoupage-back.md`
@@ -188,17 +202,17 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative, proposée dans la même question que le chiffrage : faite si l'utilisateur veut le chiffrage, sautée avec lui. Elle passe à backend-estimator (niveau moyen), lancé en parallèle des autres étapes prêtes, avec le dossier, l'option retenue et les chemins de api_build.py et api_breakdown.py ; api/api.json de l'étape schémas est repris s'il existe, jamais réécrit. Le chiffrage reprend ses lots (--lots donnees/decoupage-back.lots.json) sans refaire le découpage.
 
-### 11. Chiffrage de l'option retenue
+### 12. Chiffrage de l'option retenue
 
-- **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`
+- **Entrées** : `donnees/exigences.json`, `donnees/options.json`, `donnees/decision.json`, `donnees/dimensionnement.couts.json`
 - **Livrables** : `donnees/chiffrage.json`, `chiffrage.md`
 - **Livrables possibles** : `donnees/chiffrage.csv`, `donnees/couts.json`, `couts.md`, `donnees/couts.csv`
-- **Contrôle** : cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)
+- **Contrôle** : cloud-cost : cost_build.py donnees/dimensionnement.couts.json --infra <option> (ou donnees/couts.json s'il complète le dimensionnement) pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)
 - **Contrôle** : solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)
 
-Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. En avant-vente, solution-estimator est lancé au niveau de l'étape (moyen) : le brouillon et les lots des experts font le découpage, il complète et arbitre ; il ne remonte au niveau complexe que s'il bute. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py donnees/chiffrage.json --draft --lots donnees/decoupage-back.lots.json [--lots donnees/decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée.
+Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. En avant-vente, solution-estimator est lancé au niveau de l'étape (moyen) : le brouillon et les lots des experts font le découpage, il complète et arbitre ; il ne remonte au niveau complexe que s'il bute. Le brouillon reprend les lots des étapes backend et maquettes faites : estimate_build.py donnees/chiffrage.json --draft --lots donnees/decoupage-back.lots.json [--lots donnees/decoupage.lots.json] ; le backend n'est redécoupé que si l'étape backend est sautée. Les volumes viennent de l'étape dimensionnement : pour une option cloud, cost_build.py donnees/dimensionnement.couts.json --infra <option> donne les lignes d'infrastructure ; aucune question de volumétrie n'est reposée, une valeur manquante est une hypothèse notée au journal.
 
-### 12. Revue d'architecture
+### 13. Revue d'architecture
 
 - **Entrées** : `donnees/options.json`, `donnees/exigences.json`, `donnees/decision.json`, `adr-architecture.md`, `schemas/option-*.cloud.json`
 - **Livrables** : `donnees/revue.json`, `revue.md`
@@ -208,7 +222,7 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative, proposée après la décision : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). donnees/revue.json reprend l'option retenue (source vers donnees/options.json et son id), les exigences et l'ADR ; les scénarios de qualité, risques et compromis demandent du jugement et passent à architecture-reviewer, lancé au niveau de l'étape (moyen) sur le brouillon arch_review.py donnees/revue.json --draft (scénarios tirés des exigences de qualité), qui rend donnees/revue.json ; il ne remonte au niveau complexe que s'il bute. Un écart n'est accepté qu'avec la raison donnée par l'utilisateur, notée au journal. La revue Well-Architected de l'option est celle de l'étape architectures (schemas/option-<id>.wa.md, validé) : la lire telle quelle, sans relancer wa_check.py sur la description (il réécrirait ce livrable validé et bloquerait les étapes suivantes).
 
-### 13. Dossier d'exploitation
+### 14. Dossier d'exploitation
 
 - **Entrées** : `donnees/options.json`, `donnees/decision.json`, `donnees/ao.json`, `donnees/exigences.json`
 - **Livrables** : `donnees/exploitation.json`, `exploitation.md`
@@ -216,7 +230,7 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Étape facultative, proposée dans la même question que la revue, quand l'appel d'offres demande des engagements de service, une infogérance ou une maintenance : sinon skip. Un service par composant de l'option retenue ; disponibilité, RPO, RTO et astreinte repris de l'appel d'offres et des exigences (requirements : donnees/exigences.json), jamais inventés : un engagement sans source se note au journal comme hypothèse et va au registre. Le mémoire reprend ses engagements dans memoire/maintenance.md.
 
-### 14. Hypothèses, exclusions et questions
+### 15. Hypothèses, exclusions et questions
 
 - **Entrées** : `donnees/exigences.json`, `donnees/chiffrage.json`, `donnees/ao.json`, `workflow.json`
 - **Livrables** : `donnees/registre.json`, `registre.md`, `questions-client.md`
@@ -225,7 +239,7 @@ donnees/decision.json reprend le choix fait par l'utilisateur à la revue préc�
 
 Le brouillon reprend les questions des exigences, les hypothèses et exclusions du chiffrage et du journal. Reformuler chaque question pour le client, ajouter les prérequis et les questions sur les clauses à risque du dépouillement. Les questions partent avant la date limite des questions (rapport : deadline) ; après elle, une question sans réponse devient une hypothèse de l'offre.
 
-### 15. Mémoire technique
+### 16. Mémoire technique
 
 - **Entrées** : `donnees/ao.json`, `options.md`, `adr-architecture.md`, `schemas/*.png`, `conformite.md`, `registre.md`, `chiffrage.md`, `revue.md`, `exploitation.md`
 - **Livrables** : `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md`
@@ -235,7 +249,7 @@ Le brouillon reprend les questions des exigences, les hypothèses et exclusions 
 
 Étape facultative, quand l'appel d'offres demande un mémoire technique. Écrire dans memoire/ une section par thème des critères (comprehension, solution, securite, methodologie, maintenance, equipe, environnement), pour l'acheteur, en reprenant les rapports des étapes validées sans relire les livrables ; le script range les sections dans l'ordre des critères, rappelle chaque critère et son poids, et contrôle la couverture et le budget de pages.
 
-### 16. Support de soutenance
+### 17. Support de soutenance
 
 - **Entrées** : `options.md`, `adr-architecture.md`, `schemas/*.png`
 - **Livrables** : `presentation.md`

@@ -16,7 +16,7 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 - **Niveau** : moyen (modèle standard).
 - **Entrées** : Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources ; Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes).
 - **Sorties** : <nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée ; <nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM) ; ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py).
-- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
+- **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons, exigences non mesurables et dimensions de volumétrie absentes (utilisateurs, pic, débit, données, croissance, conservation), puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`req_diff.py`** : Compare le catalogue validé et sa copie de travail d'une évolution : exigences ajoutées, retirées (absentes ou sorties du périmètre retenu) et modifiées champ par champ (texte, priorité, mesure, catégorie, nature, domaine, titre), exigence ajoutée sans source signalée ; avec --domains, contextes bornés qui portent chaque exigence changée et exigence ajoutée sans contexte ; avec --start, copie la référence dans la copie de travail ; les deux catalogues sont validés contre le schéma de req_build.py. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube ; fichiers de travail dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système.
 - **Dépend de** `domain-design` (`domain_build.py`, facultatif : sans lui, avertissement) : req_diff.py --domains : valider domaines.json contre son schéma.
@@ -79,6 +79,12 @@ Fichier `exigences.json`, à côté du dossier `sources/` :
   securite, conformite, exploitabilite, maintenabilite, evolutivite,
   interoperabilite, utilisabilite, portabilite, cout, autre ; `metric`
   mesurable, sinon une question.
+- **Volumétrie** : le script attend six dimensions (utilisateurs, pic ou
+  simultanés, débit, volume de données, croissance, conservation), lues dans
+  les exigences retenues ou leurs questions. Une dimension absente des
+  sources se demande tout de suite : une question dans l'exigence la plus
+  proche, posée à la première revue, pas au chiffrage. Sans objet pour le
+  projet : `"volumetry": {"retention": "aucune donnée conservée"}`.
 - **Source** : `quote` est une citation exacte et courte (une phrase ou un
   morceau) ; le script la retrouve et calcule la ligne, mise en forme et
   accents ignorés. `page` facultatif. Une exigence implicite n'a pas de
@@ -105,7 +111,8 @@ uv run scripts/req_build.py exigences.json
 Erreurs : citation introuvable (avec la ligne la plus proche), document
 absent, identifiant en double ou mal formé. Avertissements : phrase
 normative des sources (doit, devra, il faut, shall, must...) ni reprise ni
-écartée, exigence non mesurable, doublon. Corrigez jusqu'à zéro erreur et
+écartée, exigence non mesurable, doublon, volumétrie absente
+(`volumetry_missing`, section « Volumétrie » d'`exigences.md`). Corrigez jusqu'à zéro erreur et
 zéro phrase non reprise. Produit `exigences.md` pour la revue et
 `exigences.csv` pour un tableur.
 

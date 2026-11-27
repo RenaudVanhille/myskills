@@ -104,6 +104,7 @@
     "exigences",
     "domaines (facultative)",
     "architectures",
+    "dimensionnement",
     "schemas",
     "revue (facultative)",
     "chiffrage (facultative)",
@@ -112,7 +113,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier proposer des architectures options d'architecture cahier des charges"
+   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier proposer des architectures options d'architecture cahier des charges"
   },
   {
    "name": "avant-vente",
@@ -127,6 +128,7 @@
     "exigences",
     "domaines (facultative)",
     "architectures",
+    "dimensionnement",
     "schemas",
     "conformite (facultative)",
     "maquettes (facultative)",
@@ -141,7 +143,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Dossier d'exploitation operations-dossier Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Dossier d'exploitation operations-dossier Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",

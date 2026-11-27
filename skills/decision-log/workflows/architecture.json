@@ -64,7 +64,7 @@
           ]
         }
       ],
-      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
+      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.",
       "optional": [
         "donnees/exigences.candidats.json",
         "donnees/exigences.tri.json"
@@ -161,9 +161,50 @@
       "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
     },
     {
+      "id": "dimensionnement",
+      "label": "Dimensionnement",
+      "level": "moyen",
+      "after": [
+        "architectures"
+      ],
+      "skills": [
+        "capacity-sizing",
+        "cloud-cost"
+      ],
+      "inputs": [
+        "donnees/exigences.json",
+        "donnees/options.json"
+      ],
+      "deliverables": [
+        "donnees/dimensionnement.json",
+        "dimensionnement.md",
+        "donnees/dimensionnement.result.json"
+      ],
+      "optional": [
+        "donnees/dimensionnement.couts.json",
+        "dimensionnement.couts.md"
+      ],
+      "checks": [
+        "capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)"
+      ],
+      "run": [
+        {
+          "skill": "capacity-sizing",
+          "script": "size_build.py",
+          "args": [
+            "donnees/dimensionnement.json"
+          ]
+        }
+      ],
+      "instructions": "Volumes, pointe, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; composants de l'option retenue à la revue des architectures. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat. Pour une option cloud, --provider et --option écrivent donnees/dimensionnement.couts.json, que le chiffrage reprend sans reposer de question de volumétrie."
+    },
+    {
       "id": "schemas",
       "label": "Décision et schémas",
       "level": "moyen",
+      "after": [
+        "architectures"
+      ],
       "skills": [
         "architecture-options",
         "drawio-diagram",
@@ -323,7 +364,8 @@
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
       "after": [
-        "schemas"
+        "schemas",
+        "dimensionnement"
       ],
       "facultative": true,
       "skills": [
@@ -334,7 +376,8 @@
       "inputs": [
         "donnees/exigences.json",
         "donnees/options.json",
-        "donnees/decision.json"
+        "donnees/decision.json",
+        "donnees/dimensionnement.couts.json"
       ],
       "deliverables": [
         "donnees/chiffrage.json",
@@ -347,10 +390,18 @@
         "donnees/couts.csv"
       ],
       "checks": [
-        "cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)",
+        "cloud-cost : cost_build.py donnees/dimensionnement.couts.json --infra <option> (ou donnees/couts.json s'il complète le dimensionnement) pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)",
         "solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
       ],
       "run": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "args": [
+            "donnees/dimensionnement.couts.json"
+          ],
+          "if": "donnees/dimensionnement.couts.json"
+        },
         {
           "skill": "cloud-cost",
           "script": "cost_build.py",
@@ -368,7 +419,7 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Les volumes viennent de l'étape dimensionnement : pour une option cloud, cost_build.py donnees/dimensionnement.couts.json --infra <option> donne les lignes d'infrastructure ; aucune question de volumétrie n'est reposée, une valeur manquante est une hypothèse notée au journal."
     },
     {
       "id": "dossier",
