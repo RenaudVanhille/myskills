@@ -13,6 +13,7 @@
   "stages": [
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -50,6 +51,7 @@
     },
     {
       "id": "description",
+      "phase": "lecture",
       "label": "Description cloud",
       "level": "moyen",
       "after": [],
@@ -87,6 +89,7 @@
     },
     {
       "id": "menaces",
+      "phase": "solutioning",
       "label": "Menaces STRIDE et qualification de l'hébergement",
       "level": "complexe",
       "after": [
@@ -146,6 +149,7 @@
     },
     {
       "id": "rgpd",
+      "phase": "solutioning",
       "label": "Registre des traitements et AIPD",
       "level": "complexe",
       "skills": [
@@ -179,6 +183,7 @@
     },
     {
       "id": "plan",
+      "phase": "restitution",
       "label": "Plan d'actions et dossier de conformité",
       "level": "moyen",
       "skills": [

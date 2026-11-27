@@ -12,6 +12,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -31,6 +32,7 @@
     },
     {
       "id": "comptes-rendus",
+      "phase": "lecture",
       "label": "Comptes rendus des ateliers",
       "level": "moyen",
       "facultative": true,
@@ -65,6 +67,7 @@
     },
     {
       "id": "processus",
+      "phase": "cadrage",
       "label": "Processus métier",
       "level": "moyen",
       "facultative": true,
@@ -108,6 +111,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -146,6 +150,7 @@
     },
     {
       "id": "dimensionnement",
+      "phase": "cadrage",
       "label": "Dimensionnement",
       "level": "moyen",
       "after": [
@@ -179,6 +184,7 @@
     },
     {
       "id": "domaines",
+      "phase": "cadrage",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -218,6 +224,7 @@
     },
     {
       "id": "modele-donnees",
+      "phase": "solutioning",
       "label": "Modèle de données",
       "level": "moyen",
       "after": [
@@ -253,6 +260,7 @@
     },
     {
       "id": "architectures",
+      "phase": "solutioning",
       "label": "Options d'architecture",
       "level": "complexe",
       "after": [
@@ -299,6 +307,7 @@
     },
     {
       "id": "interfaces",
+      "phase": "solutioning",
       "label": "Interfaces et séquences",
       "level": "moyen",
       "after": [
@@ -347,6 +356,7 @@
     },
     {
       "id": "recette",
+      "phase": "solutioning",
       "label": "Plan de recette",
       "level": "moyen",
       "after": [
@@ -382,6 +392,7 @@
     },
     {
       "id": "developpement",
+      "phase": "restitution",
       "label": "Passage au développement (spécifications)",
       "level": "simple",
       "facultative": true,

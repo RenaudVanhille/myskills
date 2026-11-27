@@ -8559,6 +8559,16 @@
                             "type": "boolean",
                             "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
                           },
+                          "phase": {
+                            "enum": [
+                              "lecture",
+                              "cadrage",
+                              "solutioning",
+                              "chiffrage",
+                              "restitution"
+                            ],
+                            "description": "Zone de l'étape dans le schéma d'avancement, dans cet ordre : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Une étape ne dépend que d'étapes de sa zone ou d'une zone antérieure. Sans phase, le schéma est à plat."
+                          },
                           "after": {
                             "type": "array",
                             "items": {

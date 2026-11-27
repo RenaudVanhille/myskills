@@ -22,6 +22,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Demande en Markdown",
       "level": "simple",
       "skills": [
@@ -41,6 +42,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Écart d'exigences",
       "level": "moyen",
       "after": [
@@ -88,6 +90,7 @@
     },
     {
       "id": "contrats",
+      "phase": "solutioning",
       "label": "Écart de contrat d'interface",
       "level": "moyen",
       "facultative": true,
@@ -127,6 +130,7 @@
     },
     {
       "id": "donnees",
+      "phase": "solutioning",
       "label": "Modèle de données modifié",
       "level": "moyen",
       "facultative": true,
@@ -165,6 +169,7 @@
     },
     {
       "id": "options",
+      "phase": "solutioning",
       "label": "Options de mise en œuvre",
       "level": "complexe",
       "facultative": true,
@@ -207,6 +212,7 @@
     },
     {
       "id": "decision",
+      "phase": "solutioning",
       "label": "Décision",
       "level": "simple",
       "facultative": true,
@@ -245,6 +251,7 @@
     },
     {
       "id": "chiffrage",
+      "phase": "chiffrage",
       "label": "Chiffrage du changement",
       "level": "complexe",
       "after": [
@@ -301,6 +308,7 @@
     },
     {
       "id": "dossier",
+      "phase": "restitution",
       "label": "Dossier d'évolution",
       "level": "simple",
       "after": [

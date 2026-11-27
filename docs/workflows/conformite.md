@@ -21,15 +21,30 @@ Des exigences et de la description cloud d'une solution (existante ou retenue) a
 title: "Conformité d'une architecture : sécurité, RGPD et hébergement"
 ---
 flowchart LR
-  s_exigences["1. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_description["2. Description cloud<br/><small>architecture-workflow</small>"]
-  s_menaces["3. Menaces STRIDE et qualification de l'hébergement<br/><small>architecture-reviewer</small>"]
-  s_rgpd["4. Registre des traitements et AIPD<br/><small>architecture-reviewer</small>"]
-  s_plan["5. Plan d'actions et dossier de conformité<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_description["2. Description cloud<br/><small>architecture-workflow</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["1. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_menaces["3. Menaces STRIDE et qualification de l'hébergement<br/><small>architecture-reviewer</small>"]
+    s_rgpd["4. Registre des traitements et AIPD<br/><small>architecture-reviewer</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_plan["5. Plan d'actions et dossier de conformité<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_exigences --> s_menaces
   s_description --> s_menaces
   s_menaces --> s_rgpd
   s_rgpd --> s_plan
+  s_description ~~~ s_exigences
+  s_exigences ~~~ s_menaces
+  s_rgpd ~~~ s_plan
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -37,20 +52,20 @@ flowchart LR
   class s_menaces,s_rgpd agent
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 1. Catalogue des exigences, 2. Description cloud
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Catalogue des exigences | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `donnees/exigences.json`, `exigences.md` | début |
-| 2. Description cloud | moyen | `architecture-workflow` | `cloud-architecture`, `diagram-export` | `schemas/architecture.json`, `schemas/architecture.drawio`, `schemas/*.png` | début |
-| 3. Menaces STRIDE et qualification de l'hébergement | complexe | `architecture-reviewer` | `threat-model`, `well-architected-review` | `schemas/architecture.threats.md`, `schemas/architecture.wa.md` | 1, 2 |
-| 4. Registre des traitements et AIPD | complexe | `architecture-reviewer` | `data-protection` | `donnees/aipd.json`, `aipd.registre.md`, `aipd.aipd.md` | 3 |
-| 5. Plan d'actions et dossier de conformité | moyen | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `plan-actions.md`, `dossier-conformite.md` | 4 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `doc-to-markdown`, `requirements-catalog` | `donnees/exigences.json`, `exigences.md` | début |
+| 2. Description cloud | Lecture du dossier | moyen | `architecture-workflow` | `cloud-architecture`, `diagram-export` | `schemas/architecture.json`, `schemas/architecture.drawio`, `schemas/*.png` | début |
+| 3. Menaces STRIDE et qualification de l'hébergement | Solutioning | complexe | `architecture-reviewer` | `threat-model`, `well-architected-review` | `schemas/architecture.threats.md`, `schemas/architecture.wa.md` | 1, 2 |
+| 4. Registre des traitements et AIPD | Solutioning | complexe | `architecture-reviewer` | `data-protection` | `donnees/aipd.json`, `aipd.registre.md`, `aipd.aipd.md` | 3 |
+| 5. Plan d'actions et dossier de conformité | Restitution | moyen | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `plan-actions.md`, `dossier-conformite.md` | 4 |
 
 ### 1. Catalogue des exigences
 

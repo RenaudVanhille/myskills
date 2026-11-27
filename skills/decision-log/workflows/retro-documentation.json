@@ -22,6 +22,7 @@
   "stages": [
     {
       "id": "code",
+      "phase": "lecture",
       "label": "Graphe du code",
       "level": "simple",
       "skills": [],
@@ -38,6 +39,7 @@
     },
     {
       "id": "constat",
+      "phase": "lecture",
       "label": "Architecture constatée",
       "level": "moyen",
       "after": [
@@ -75,6 +77,7 @@
     },
     {
       "id": "infrastructure",
+      "phase": "lecture",
       "label": "Hébergement tiré de son code",
       "level": "moyen",
       "facultative": true,
@@ -112,6 +115,7 @@
     },
     {
       "id": "donnees",
+      "phase": "lecture",
       "label": "Modèle de données actuel",
       "level": "moyen",
       "facultative": true,
@@ -148,6 +152,7 @@
     },
     {
       "id": "processus",
+      "phase": "lecture",
       "label": "Processus métier",
       "level": "moyen",
       "facultative": true,
@@ -191,6 +196,7 @@
     },
     {
       "id": "domaines",
+      "phase": "solutioning",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -247,6 +253,7 @@
     },
     {
       "id": "revue",
+      "phase": "solutioning",
       "label": "Revue de l'existant",
       "level": "complexe",
       "after": [
@@ -293,6 +300,7 @@
     },
     {
       "id": "trajectoire",
+      "phase": "solutioning",
       "label": "Trajectoire de modernisation",
       "level": "moyen",
       "facultative": true,
@@ -331,6 +339,7 @@
     },
     {
       "id": "dossier",
+      "phase": "restitution",
       "label": "Dossier de l'existant",
       "level": "simple",
       "facultative": true,

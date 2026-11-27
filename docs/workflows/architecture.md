@@ -20,15 +20,30 @@ Workflow de l'agent architecture-workflow : documents en Markdown, catalogue d'e
 title: "Des documents du projet aux schémas d'architecture"
 ---
 flowchart LR
-  s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
-  s_exigences["2. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_dimensionnement["3. Dimensionnement<br/><small>architecture-workflow</small>"]
-  s_domaines["4. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_architectures["5. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_schemas["6. Décision et schémas<br/><small>schema-designer</small>"]
-  s_revue["7. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_chiffrage["8. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
-  s_dossier["9. Dossier d'architecture technique<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["2. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+    s_dimensionnement["3. Dimensionnement<br/><small>architecture-workflow</small>"]
+    s_domaines["4. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_architectures["5. Options d'architecture<br/><small>architecture-workflow</small>"]
+    s_schemas["6. Décision et schémas<br/><small>schema-designer</small>"]
+    s_revue["7. Revue d'architecture<br/><small>architecture-reviewer</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_chiffrage["8. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_dossier["9. Dossier d'architecture technique<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_exigences
   s_exigences --> s_dimensionnement
   s_exigences --> s_domaines
@@ -40,6 +55,10 @@ flowchart LR
   s_schemas --> s_chiffrage
   s_revue --> s_dossier
   s_chiffrage --> s_dossier
+  s_documents ~~~ s_exigences
+  s_domaines ~~~ s_architectures
+  s_revue ~~~ s_chiffrage
+  s_chiffrage ~~~ s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -48,7 +67,7 @@ flowchart LR
   class s_domaines,s_revue,s_chiffrage,s_dossier facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 3. Dimensionnement, 4. Domaines et style d'architecture
@@ -56,17 +75,17 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Documents en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
-| 3. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 2 |
-| 4. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2 |
-| 5. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 2, 4, 3 |
-| 6. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `architecture-deck`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 5 |
-| 7. Revue d'architecture (facultative) | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 6 |
-| 8. Chiffrage de l'option retenue (facultative) | complexe | `solution-estimator` | `solution-estimate`, `capacity-sizing`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6 |
-| 9. Dossier d'architecture technique (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 7, 8 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Documents en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
+| 3. Dimensionnement | Cadrage | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 2 |
+| 4. Domaines et style d'architecture (facultative) | Cadrage | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2 |
+| 5. Options d'architecture | Solutioning | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 2, 4, 3 |
+| 6. Décision et schémas | Solutioning | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `architecture-deck`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 5 |
+| 7. Revue d'architecture (facultative) | Solutioning | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 6 |
+| 8. Chiffrage de l'option retenue (facultative) | Chiffrage | complexe | `solution-estimator` | `solution-estimate`, `capacity-sizing`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6 |
+| 9. Dossier d'architecture technique (facultative) | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 7, 8 |
 
 ### 1. Documents en Markdown
 
