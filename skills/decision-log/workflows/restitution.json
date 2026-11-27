@@ -221,7 +221,7 @@
       ],
       "checks": [
         "architecture-deck : deck_build.py .. --out presentation.md (besoin, options, décision, schémas du dossier)",
-        "si l'utilisateur veut le .pptx : passer presentation.md à document-publisher (skill externe markdown-to-pptx)"
+        "si l'utilisateur veut le .pptx : passer presentation.md à document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu"
       ],
       "run": [
         {

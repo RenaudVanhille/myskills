@@ -8,13 +8,13 @@ Lit le dossier du workflow, sans rien demander au modèle :
   d'exigences qu'il cite ; decision.json s'il existe ;
 - les PNG des schémas déjà exportés (schemas/option-<id>.drawio.png pour une
   option cloud, sinon la page de schemas/architectures.drawio).
-Écrit presentation.md, au format d'entrée du skill externe markdown-to-pptx
+Écrit presentation.md, au format que l'agent externe concepteur-deck convertit
 (front matter, parties, une consigne de visuel par section) : chaque donnée
 n'y figure qu'une fois (chiffres clés, exigences indispensables, notes par
 critère en graphique, scores, écarts, comparaison, un schéma par option,
 décision, couverture par l'option retenue, conséquences et questions
 ouvertes). Le détail va dans les notes de l'orateur. La présentation se
-produit ensuite avec pptx_publish.py (skill markdown-publish). Les scores et contrôles
+délègue ensuite à concepteur-deck avec pptx_publish.py (skill markdown-publish). Les scores et contrôles
 sont ceux d'options_build.py (skill architecture-options), appelé par son
 contrat (`requires`).
 

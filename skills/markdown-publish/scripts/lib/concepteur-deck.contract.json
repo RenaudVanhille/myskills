@@ -1,0 +1,257 @@
+{
+  "agent": "concepteur-deck",
+  "versions": "0.22",
+  "source": "Agent concepteur-deck de Reno, projet powerpoint-skill (installé avec le skill markdown-to-pptx, qui fait le rendu). Installé à part : myskills n'en copie ni le prompt ni le skill, il ne s'appuie que sur ce contrat.",
+  "install": "lancez install.sh (ou install.ps1, install.cmd) du projet powerpoint-skill, sans --no-agents : il installe le skill markdown-to-pptx et l'agent concepteur-deck dans Claude Code, Copilot, Kiro et OpenCode ; ou donnez le fichier de l'agent dans la variable CONCEPTEUR_DECK_AGENT",
+  "locate": {
+    "env": "CONCEPTEUR_DECK_AGENT",
+    "files": [
+      "./.claude/agents/concepteur-deck.md",
+      "./.github/agents/concepteur-deck.agent.md",
+      "./.opencode/agents/concepteur-deck.md",
+      "./.kiro/agents/concepteur-deck.md",
+      "~/.claude/agents/concepteur-deck.md",
+      "~/.claude/plugins/cache/*/*/*/agents/concepteur-deck.md",
+      "~/.copilot/agents/concepteur-deck.agent.md",
+      "~/.config/opencode/agents/concepteur-deck.md",
+      "~/.kiro/agents/concepteur-deck.md"
+    ]
+  },
+  "invoke": {
+    "Claude Code": "sous-agent concepteur-deck (outil Agent), la demande JSON en prompt ; en sous-agent il ne pose pas de question et rend ses hypothèses",
+    "GitHub Copilot": "agent concepteur-deck (liste des agents du chat, /agent ou copilot --agent concepteur-deck)",
+    "Kiro": "agent concepteur-deck (sélecteur d'agent, /agent)",
+    "OpenCode": "@concepteur-deck"
+  },
+  "request": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Message de passage (shared/schemas/handoff.schema.json) restreint à l'agent concepteur-deck : destination powerpoint, output = le .pptx, constraints = mode, trame, gabarit, langue, taille et règles de délégation.",
+    "type": "object",
+    "required": [
+      "agent",
+      "objective",
+      "files",
+      "audience",
+      "destination",
+      "output",
+      "constraints"
+    ],
+    "additionalProperties": false,
+    "properties": {
+      "agent": {
+        "enum": [
+          "concepteur-deck"
+        ]
+      },
+      "objective": {
+        "type": "string",
+        "minLength": 1
+      },
+      "files": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1
+      },
+      "audience": {
+        "enum": [
+          "technique",
+          "non technique"
+        ]
+      },
+      "destination": {
+        "enum": [
+          "powerpoint"
+        ]
+      },
+      "output": {
+        "type": "string",
+        "pattern": "\\.pptx$"
+      },
+      "constraints": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minItems": 1,
+        "description": "la première est « mode : convertir » ou « mode : concevoir »"
+      },
+      "level": {
+        "enum": [
+          "simple",
+          "moyen",
+          "complexe"
+        ]
+      }
+    }
+  },
+  "modes": {
+    "convertir": "Markdown complet aux conventions de markdown : l'agent saute le cadrage et la rédaction, génère, relit le rendu et corrige ce Markdown (copie de travail), jamais le .pptx",
+    "concevoir": "sources et objectif : l'agent choisit ou suit la trame, rédige le Markdown du deck à côté du .pptx, génère, relit et corrige ; un chiffre absent des sources s'écrit [à compléter]"
+  },
+  "trames": [
+    "propale",
+    "copil",
+    "diagnostic",
+    "schema-directeur",
+    "comite-archi",
+    "cadrage",
+    "retex"
+  ],
+  "markdown": {
+    "front_matter": {
+      "title": "titre (60 caractères au plus)",
+      "subtitle": "ligne de la couverture (140 caractères au plus)",
+      "author": "auteur ou équipe",
+      "date": "date affichée",
+      "purpose": "objet du document, voir purposes",
+      "lang": "fr ou en",
+      "trame": "trame suivie (propale, copil, diagnostic, schema-directeur, comite-archi, cadrage, retex), facultative"
+    },
+    "hint": "<!-- slide: KIND --> seul sur la ligne sous le titre ; <!-- notes: texte --> pour les notes de l'orateur ; <!-- part: Titre --> sous le premier ## d'une partie",
+    "kinds": [
+      "bullets",
+      "text",
+      "process",
+      "cycle",
+      "timeline",
+      "hierarchy",
+      "cards",
+      "stats",
+      "pyramid",
+      "comparison",
+      "funnel",
+      "hub",
+      "rings",
+      "gantt",
+      "matrix",
+      "map",
+      "stairs",
+      "flow",
+      "table",
+      "chart",
+      "code",
+      "quote",
+      "image",
+      "statement",
+      "quadrant",
+      "faq",
+      "glossary",
+      "people",
+      "checklist",
+      "layers",
+      "diagram",
+      "logos",
+      "phases",
+      "heatmap",
+      "fishbone",
+      "capabilities",
+      "maturity",
+      "metamodel",
+      "swimlanes",
+      "scorecard",
+      "canvas",
+      "roadmap",
+      "stakeholders",
+      "journey",
+      "scoring",
+      "actions",
+      "positioning",
+      "okr",
+      "valuechain",
+      "venn",
+      "adr",
+      "principles",
+      "gap",
+      "sankey",
+      "decisions",
+      "summary",
+      "options",
+      "rag",
+      "interfaces",
+      "drivers",
+      "onepager",
+      "businesscase",
+      "staffing",
+      "governance",
+      "workstreams",
+      "sipoc",
+      "pestel",
+      "forces",
+      "treemap",
+      "persona",
+      "techradar",
+      "lifecycle",
+      "tornado",
+      "bulletchart",
+      "kanban",
+      "strategymap",
+      "vpc",
+      "empathy",
+      "wardley"
+    ],
+    "rules": [
+      "un seul bloc visuel par titre ; 6 puces, 7 éléments de diagramme, 8 lignes et 5 colonnes de tableau au plus",
+      "stats : chaque élément commence par le nombre en gras, 2 à 4 éléments",
+      "cards, process : chaque élément **Libellé** : texte",
+      "chart : tableau dont les colonnes après la première ne contiennent que des nombres",
+      "comparison : un ## dont le titre contient « comparaison » ou « options », avec 2 ou 3 ### qui n'ont qu'une liste",
+      "image : ![texte alternatif](chemin relatif), seule sur sa ligne, une par titre",
+      "pas de sommaire ni de diapositive de clôture : le skill les ajoute"
+    ]
+  },
+  "outputs": [
+    "NOM.pptx modifiable : diagrammes en formes natives, tableaux et graphiques natifs, notes de l'orateur, textes alternatifs",
+    "le Markdown du deck : la copie de travail en mode convertir, NOM.md à côté du .pptx en mode concevoir",
+    "l'état de la relecture, NOM.review.json dans le dossier d'aperçu (voir output_schema)",
+    "un compte rendu court : hypothèses, points [à compléter], défauts restants"
+  ],
+  "output_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "NOM.review.json, écrit par le skill markdown-to-pptx à chaque génération relue (--review).",
+    "type": "object",
+    "required": [
+      "round",
+      "md",
+      "issues",
+      "status"
+    ],
+    "properties": {
+      "round": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "md": {
+        "type": "string",
+        "description": "SHA-1 du Markdown relu (vide si inconnu)"
+      },
+      "issues": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "before": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "status": {
+        "enum": [
+          "clean",
+          "fix",
+          "stop"
+        ]
+      },
+      "time": {
+        "type": "number"
+      }
+    }
+  },
+  "verdicts": {
+    "clean": "rendu relu sans défaut",
+    "fix": "relecture inachevée : des défauts restent à corriger",
+    "stop": "trois tours de relecture faits, défauts restants listés par l'agent"
+  }
+}

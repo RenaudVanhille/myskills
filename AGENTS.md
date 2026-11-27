@@ -25,7 +25,11 @@ moins de tokens possible.
   (`shared/schemas/external-skill.schema.json`), et un passage de main de
   type `externe` le cite **(vérifiée)**. Le script appelant le trouve, valide
   sa sortie contre le contrat et donne la consigne d'installation s'il
-  manque.
+  manque. Un agent tiers suit le même principe
+  (`shared/schemas/external-agent.schema.json`) : un script prépare la
+  demande, validée contre le schéma `request` du contrat, l'agent appelant
+  la lui passe, puis le script vérifie le livrable contre `output_schema`
+  (ainsi `concepteur-deck` pour les présentations PowerPoint).
 - Un skill n'appelle un script d'un autre skill de myskills que par
   `scripts/lib/skill_paths.py` (`find_script`, `load_module`, `schema_of`),
   et le déclare dans le champ `requires` de son contrat (skill, script,

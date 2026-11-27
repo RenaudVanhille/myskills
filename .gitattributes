@@ -9,12 +9,12 @@
 skills/*/scripts/lib/abaques.schema.json linguist-generated=true
 skills/agent-handoff/scripts/lib/agent-report.schema.json linguist-generated=true
 skills/*/scripts/lib/charter.json linguist-generated=true
+skills/*/scripts/lib/concepteur-deck.contract.json linguist-generated=true
 skills/*/scripts/lib/drawio_xml.py linguist-generated=true
 skills/*/scripts/lib/external_skill.py linguist-generated=true
 skills/*/scripts/lib/graphify.contract.json linguist-generated=true
 skills/agent-handoff/scripts/lib/handoff.schema.json linguist-generated=true
 skills/*/scripts/lib/local_tools.py linguist-generated=true
-skills/*/scripts/lib/markdown-to-pptx.contract.json linguist-generated=true
 skills/*/scripts/lib/mission.schema.json linguist-generated=true
 skills/*/scripts/lib/model-sources.json linguist-generated=true
 skills/*/scripts/lib/model-sources.schema.json linguist-generated=true

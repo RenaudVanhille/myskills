@@ -709,33 +709,43 @@
     {
       "id": "pptx-externe",
       "skill": "markdown-publish",
-      "_note": "Skill externe markdown-to-pptx remplacé par une doublure qui respecte son contrat (fixtures/md2pptx-stub) ; skill absent, plan non conforme, schéma source, consigne inconnue, fichier non Markdown et gabarit absent refusés sans .pptx.",
+      "_note": "Présentation déléguée à l'agent externe concepteur-deck, remplacé par une doublure qui respecte son contrat (fixtures/concepteur-deck-stub) : demande préparée en mode convertir puis concevoir ; agent absent, schéma source, consigne inconnue, fichier non Markdown, gabarit absent, trame inconnue et Markdown du deck sur une source refusés ; rendu vérifié, relecture inachevée et présentation absente refusées.",
       "steps": [
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 0, "report": {"errors": [], "warnings": [], "slides": 6, "images": 1, "missing_alt": 0, "version": "0.5.0", "kinds.image": 1}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/absent"], "env": {"MD2PPTX_SKILL": "{fixtures}/absent"}, "exit": 1, "report": {"output": null}, "report_contains": {"errors": "MD2PPTX_SKILL"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/plan"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub", "MD2PPTX_STUB": "plan-invalide"}, "exit": 1, "report_contains": {"errors": "plan rendu non conforme au contrat"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md", "--out", "{out}/source"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "schéma source"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md", "--out", "{out}/source"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "« escalier » inconnue du contrat"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/notes.txt", "--out", "{out}/notes"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "Markdown attendu"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/dossier.md", "--out", "{out}/marque", "--template", "{fixtures}/pptx/absent.potx"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 1, "report_contains": {"errors": "gabarit introuvable"}}
+        {"copy": ["{fixtures}/pptx/dossier.md", "{out}/dossier.md"]},
+        {"copy": ["{fixtures}/pptx/images", "{out}/images"]},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 0, "report": {"errors": [], "warnings": [], "mode": "preparer", "images": 1, "handoff.agent": "concepteur-deck", "handoff.destination": "powerpoint", "handoff.constraints.0": "mode : convertir", "handoff.level": "moyen"}, "report_contains": {"handoff.files": ".myskills-tmp", "output": "dossier.pptx"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/absent.md"}, "cwd": "{out}", "exit": 1, "report": {"handoff": null}, "report_contains": {"errors": "CONCEPTEUR_DECK_AGENT"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "schéma source"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/schema-source.md"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "« escalier » inconnue du contrat"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{fixtures}/pptx/notes.txt"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "Markdown attendu"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md", "--template", "{fixtures}/pptx/absent.potx"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "gabarit introuvable"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md", "--mode", "concevoir", "--trame", "comite"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "trame « comite » inconnue"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md", "--mode", "concevoir", "--out", "{out}/dossier.pptx"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 1, "report_contains": {"errors": "qui est une source"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/dossier.md", "--mode", "concevoir", "--trame", "comite-archi", "--out", "{out}/comite.pptx", "--objective", "Faire valider l'option A par le comité"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 0, "report": {"errors": [], "handoff.level": "complexe", "handoff.objective": "Faire valider l'option A par le comité"}, "report_contains": {"handoff.constraints": "comite.md"}},
+        {"script": "{fixtures}/concepteur-deck-stub/rendu.py", "args": ["{out}/.myskills-tmp/dossier.md", "-o", "{out}/dossier.pptx", "--preview", "{out}/.myskills-tmp/dossier-apercu"], "cwd": "{out}"},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["--check", "{out}/dossier.pptx"], "cwd": "{out}", "exit": 0, "report": {"errors": [], "warnings": [], "mode": "verifier", "slides": 6, "images": 1, "missing_alt": 0, "review.status": "clean", "todo": 0}, "report_contains": {"removed": "dossier.before-autofix.md"}},
+        {"script": "{fixtures}/concepteur-deck-stub/rendu.py", "args": ["{out}/.myskills-tmp/dossier.md", "-o", "{out}/inacheve.pptx", "--preview", "{out}/.myskills-tmp/inacheve-apercu", "--status", "fix"], "cwd": "{out}"},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["--check", "{out}/inacheve.pptx", "--source", "{out}/.myskills-tmp/dossier.md"], "cwd": "{out}", "exit": 1, "report": {"output": null, "review.status": "fix"}, "report_contains": {"errors": "relecture inachevée"}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["--check", "{out}/absent.pptx"], "cwd": "{out}", "exit": 1, "report_contains": {"errors": "présentation introuvable"}}
       ],
-      "files": ["dossier.pptx"],
-      "absent": ["absent/dossier.pptx", "plan/dossier.pptx", "source", "notes", "marque"]
+      "files": ["dossier.pptx", ".myskills-tmp/dossier.md"],
+      "absent": [".myskills-tmp/dossier.before-autofix.md", "comite.pptx"],
+      "contains": {".myskills-tmp/dossier.md": ["](../images/schema-flux.png)"]}
     },
     {
       "id": "presentation",
       "skill": "architecture-deck",
-      "_note": "Présentation assemblée depuis les fichiers validés du workflow, puis rendue par la doublure du skill externe.",
+      "_note": "Présentation assemblée depuis les fichiers validés du workflow, puis demande préparée pour l'agent externe concepteur-deck (doublure).",
       "steps": [
         {"copy": ["{fixtures}/workflow/options.json", "{out}/options.json"]},
         {"copy": ["{fixtures}/workflow/exigences.json", "{out}/exigences.json"]},
         {"copy": ["{fixtures}/workflow/decision.json", "{out}/decision.json"]},
         {"copy": ["{fixtures}/pptx/images/schema-flux.png", "{out}/schemas/architectures.drawio.png"]},
         {"script": "{skills}/architecture-deck/scripts/deck_build.py", "args": ["{out}"], "exit": 0, "report": {"errors": [], "sections": 12, "images": 1, "decided": "A"}, "report_contains": {"warnings": "option B : schéma non exporté"}},
-        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/presentation.md"], "env": {"MD2PPTX_SKILL": "{fixtures}/md2pptx-stub"}, "exit": 0, "report": {"errors": [], "slides": 13, "images": 1, "missing_alt": 0}},
+        {"script": "{skills}/markdown-publish/scripts/pptx_publish.py", "args": ["{out}/presentation.md"], "env": {"CONCEPTEUR_DECK_AGENT": "{fixtures}/concepteur-deck-stub/concepteur-deck.md"}, "cwd": "{out}", "exit": 0, "report": {"errors": [], "images": 1, "handoff.agent": "concepteur-deck"}, "report_contains": {"output": "presentation.pptx"}},
         {"script": "{skills}/architecture-deck/scripts/deck_build.py", "args": ["{fixtures}/pptx"], "exit": 1, "report": {"output": null}, "report_contains": {"errors": "options.json illisible"}}
       ],
-      "files": ["presentation.md", "presentation.pptx"],
+      "files": ["presentation.md", ".myskills-tmp/presentation.md"],
       "contains": {"presentation.md": ["<!-- part: Le besoin -->", "- **82 %** option A, recevable", "| Performance | 5 | 2 |", "![Schéma de l'option A : Application web dans le cloud européen](schemas/architectures.drawio.png)", "> — Reno (utilisateur), 2026-10-23", "| ENF-004 | indispensable | Annuaire des assurés |", "Quel est le pic observé après une tempête ? (ENF-001)"]}
     },
     {

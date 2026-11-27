@@ -253,7 +253,7 @@ Le brouillon reprend les questions des exigences, les hypothèses et exclusions 
 
 - **Entrées** : `options.md`, `adr-architecture.md`, `schemas/*.png`
 - **Livrables** : `presentation.md`
-- **Contrôle** : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)
+- **Contrôle** : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu)
 
 Étape facultative, quand le règlement prévoit une soutenance (date de nature soutenance dans donnees/ao.json). Le support se construit par le script à partir des seuls fichiers validés et ne se réécrit pas. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER soutenance --submit).
 
