@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "lxml<6.2", "pypdf>=5"]
+# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5", "lxml<6.2"]
 # ///
 """Classe des documents (type, domaine, moteur conseillé) : règles, puis tri d'un modèle léger.
 
