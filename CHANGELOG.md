@@ -1,5 +1,23 @@
 # Journal des versions
 
+## [3.0.0](https://github.com/RenaudVanhille/myskills/compare/v2.5.0...v3.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **markdown-publish:** pptx_publish.py ne produit plus le .pptx lui-même ; --out désigne le fichier .pptx, nouvelles options --mode, --objective, --trame, --audience, --slides, --check. Le contrat markdown-to-pptx est retiré.
+
+### Ajouts
+
+* **decision-log:** étapes des workflows rangées par zone dans le schéma d'avancement ([#149](https://github.com/RenaudVanhille/myskills/issues/149)) ([d435f8b](https://github.com/RenaudVanhille/myskills/commit/d435f8b993a971295270e4111348f4b09e6933b6))
+* dimensionnement juste après les exigences, avant les options d'architecture ([#147](https://github.com/RenaudVanhille/myskills/issues/147)) ([31c7804](https://github.com/RenaudVanhille/myskills/commit/31c7804ef1717968fda082c79ecbaef59231d9ec))
+* **markdown-publish:** PowerPoint délégué à l'agent externe concepteur-deck ([#150](https://github.com/RenaudVanhille/myskills/issues/150)) ([46510b7](https://github.com/RenaudVanhille/myskills/commit/46510b7aac0ddeb39b61a4412033fd7c87f62413))
+
+
+### Corrections
+
+* **mission-workspace:** renumérotation des exigences comptée dans la mise à niveau en attente ([#148](https://github.com/RenaudVanhille/myskills/issues/148)) ([520e7be](https://github.com/RenaudVanhille/myskills/commit/520e7befe6cb3912630a8cef3a4b0b5731c3ef56))
+
 ## [2.5.0](https://github.com/RenaudVanhille/myskills/compare/v2.4.0...v2.5.0) (2026-11-27)
 
 
