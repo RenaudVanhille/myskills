@@ -1611,9 +1611,9 @@
         {
           "file": "dossier-architecture.md",
           "contains": [
-            "##",
-            "ENF-"
-          ]
+            "##"
+          ],
+          "matches": "\\b(PERF|DISP|SECU|CONF|EXPL|MAIN|EVOL|INTE|UTIL|PORT|COUT|ENF)-\\d"
         },
         {
           "file": "workflow.json",
@@ -1750,9 +1750,9 @@
         {
           "file": "dossier-architecture.md",
           "contains": [
-            "##",
-            "ENF-"
-          ]
+            "##"
+          ],
+          "matches": "\\b(PERF|DISP|SECU|CONF|EXPL|MAIN|EVOL|INTE|UTIL|PORT|COUT|ENF)-\\d"
         }
       ],
       "rubric": [

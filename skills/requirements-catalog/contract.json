@@ -3,7 +3,7 @@
   "level": "moyen",
   "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
+    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
   ],
   "outputs": [
     "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
@@ -65,14 +65,14 @@
                   "id": {
                     "type": "string",
                     "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                   },
                   "nature": {
                     "enum": [
                       "fonctionnelle",
                       "non-fonctionnelle"
                     ],
-                    "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                    "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                   },
                   "title": {
                     "type": "string",
@@ -278,6 +278,17 @@
                 "retention": {
                   "type": "string",
                   "minLength": 1
+                }
+              }
+            },
+            "renamed": {
+              "type": "object",
+              "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^ENF-\\d{3}$": {
+                  "type": "string",
+                  "pattern": "^[A-Z]+-\\d{2,3}$"
                 }
               }
             }
@@ -648,14 +659,14 @@
                   "id": {
                     "type": "string",
                     "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                   },
                   "nature": {
                     "enum": [
                       "fonctionnelle",
                       "non-fonctionnelle"
                     ],
-                    "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                    "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                   },
                   "title": {
                     "type": "string",
@@ -861,6 +872,17 @@
                 "retention": {
                   "type": "string",
                   "minLength": 1
+                }
+              }
+            },
+            "renamed": {
+              "type": "object",
+              "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^ENF-\\d{3}$": {
+                  "type": "string",
+                  "pattern": "^[A-Z]+-\\d{2,3}$"
                 }
               }
             }

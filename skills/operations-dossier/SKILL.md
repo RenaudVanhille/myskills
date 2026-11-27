@@ -41,7 +41,7 @@ Fichier `<nom>.json` (`ops_build.py --schema` en donne la forme) :
   "requirements": "exigences.json",
   "services": [
     {"id": "portail", "name": "Portail assurés", "criticality": "critique",
-     "slo": {"availability": 99.5}, "rto_hours": 4, "refs": ["ENF-002"]},
+     "slo": {"availability": 99.5}, "rto_hours": 4, "refs": ["DISP-01"]},
     {"id": "base", "name": "Base des déclarations", "criticality": "critique",
      "slo": {"availability": 99.9}, "rpo_hours": 1, "rto_hours": 2}
   ],

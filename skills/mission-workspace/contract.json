@@ -734,6 +734,13 @@
                         "type": "integer",
                         "minimum": 0,
                         "description": "Fichiers machine de la racine du workflow (JSON, CSV...) rangés dans donnees/."
+                      },
+                      "renamed": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01), comme journal.py upgrade."
                       }
                     }
                   }

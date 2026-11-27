@@ -56,7 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 import external_skill  # noqa: E402
 from skill_paths import absent, load_module, require_module, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import beside, from_data  # noqa: E402
+from text_tools import beside, from_data, requirement_nature  # noqa: E402
 from review_code import cycles, glob_regex, longest_sync, service_calls  # noqa: E402
 from review_common import ATTRIBUTES, RULES, SEVERITIES, count_of  # noqa: E402
 from review_render import accept, expected, list_rules, markdown, principles, verdict_of  # noqa: E402
@@ -459,7 +459,7 @@ def draft(path: Path, option_id: str | None, rules: list[dict]) -> dict:
     for req in catalog.values():
         category = req.get("category")
         if req.get("status", "retenue") != "retenue" or req.get("priority") not in ("indispensable", "importante") \
-                or not category or not (req.get("nature") == "non-fonctionnelle" or req["id"].startswith("ENF")):
+                or not category or requirement_nature(req) != "non-fonctionnelle":
             continue
         scenario = {"id": f"QS-{len(scenarios) + 1:02d}", "attribute": category,
                     "importance": "haute" if req["priority"] == "indispensable" else "moyenne",
@@ -617,8 +617,7 @@ def trace_review(catalog: dict, gaps: dict, comps: list[dict], decisions: dict, 
                 if r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre"]
     uncarried, without = [], []
     for req in retained:
-        nature = req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(
-            req["id"].split("-")[0])
+        nature = requirement_nature(req)
         if req.get("priority") == "indispensable" and (req["id"] not in carried
                                                        or gaps.get(req["id"], {}).get("level") == "non"):
             uncarried.append(req["id"])

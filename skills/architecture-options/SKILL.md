@@ -64,12 +64,12 @@ le fichier :
                     {"id": "api", "label": "API", "tech": "conteneurs"},
                     {"id": "gestion", "label": "Outil de gestion", "role": "external"}],
      "flows": [{"from": "assure", "to": "api", "label": "HTTPS"}, {"from": "api", "to": "gestion", "style": "async"}],
-     "gaps": {"ENF-005": {"level": "partiel", "note": "coût variable pendant les pics"}},
+     "gaps": {"COUT-01": {"level": "partiel", "note": "coût variable pendant les pics"}},
      "scores": {"performance": 5, "cout": 3},
      "score_notes": {"performance": "mise à l'échelle automatique", "cout": "6 000 euros par mois estimés"},
      "pros": ["..."], "cons": ["..."], "risks": ["..."]}
   ],
-  "recommendation": {"option": "A", "why": "...", "refs": ["ENF-001"]}
+  "recommendation": {"option": "A", "why": "...", "refs": ["PERF-01"]}
 }
 ```
 
@@ -111,7 +111,7 @@ le fichier :
   signalée.
 - **Qualification d'hébergement** : si une exigence impose SecNumCloud ou
   HDS, écrivez `"hosting": {"qualifications": ["secnumcloud"], "refs":
-  ["ENF-003"]}`. Le script compare l'hébergeur de chaque option au catalogue
+  ["CONF-01"]}`. Le script compare l'hébergeur de chaque option au catalogue
   commun des hébergeurs : sans la qualification, l'écart « non » est ajouté
   sur ces exigences (option éliminée si l'une est indispensable) et la
   revue Well-Architected porte le constat SEC-08.

@@ -5434,7 +5434,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "description": "exigences de volumétrie et de disponibilité (ENF-...)"
+                  "description": "exigences de volumétrie et de disponibilité (PERF-01, DISP-01...)"
                 },
                 "horizon_years": {
                   "type": "integer",
@@ -7779,7 +7779,7 @@
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
             "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
             "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit",
-            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
+            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, exigences non fonctionnelles ENF- renumérotées par catégorie (SECU-01, PERF-01... ; fichiers, journal et vault suivent, correspondance gardée dans le catalogue), journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
             "--apply": "avec upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "avec upgrade : garder les étapes et consignes d'origine du workflow (refusé si l'ancienne définition n'est plus valide)",
             "--definition": "avec init : workflow livré ou fichier de définition ; avec upgrade : définition à suivre désormais (défaut : celle livrée du même nom)"
@@ -8059,10 +8059,18 @@
                     "superseded",
                     "noise",
                     "external",
-                    "moved"
+                    "moved",
+                    "renamed"
                   ],
                   "additionalProperties": false,
                   "properties": {
+                    "renamed": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01) : catalogue ouvert avant les préfixes de catégorie ; fichiers du workflow, journal et notes du vault suivent, empreintes recalculées ; un identifiant cité par les sources est gardé. Vide : rien à renommer."
+                    },
                     "moved": {
                       "type": "array",
                       "items": {
@@ -15282,6 +15290,13 @@
                             "type": "integer",
                             "minimum": 0,
                             "description": "Fichiers machine de la racine du workflow (JSON, CSV...) rangés dans donnees/."
+                          },
+                          "renamed": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01), comme journal.py upgrade."
                           }
                         }
                       }
@@ -17340,7 +17355,7 @@
                         "items": {
                           "type": "string"
                         },
-                        "description": "Exigences que le service tient (ENF-002)."
+                        "description": "Exigences que le service tient (DISP-01)."
                       }
                     }
                   }
@@ -18082,7 +18097,7 @@
       "level": "moyen",
       "inputs": [
         "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
+        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
       ],
       "outputs": [
         "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
@@ -18144,14 +18159,14 @@
                       "id": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                       },
                       "nature": {
                         "enum": [
                           "fonctionnelle",
                           "non-fonctionnelle"
                         ],
-                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                        "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                       },
                       "title": {
                         "type": "string",
@@ -18357,6 +18372,17 @@
                     "retention": {
                       "type": "string",
                       "minLength": 1
+                    }
+                  }
+                },
+                "renamed": {
+                  "type": "object",
+                  "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^ENF-\\d{3}$": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+-\\d{2,3}$"
                     }
                   }
                 }
@@ -18727,14 +18753,14 @@
                       "id": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                       },
                       "nature": {
                         "enum": [
                           "fonctionnelle",
                           "non-fonctionnelle"
                         ],
-                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                        "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                       },
                       "title": {
                         "type": "string",
@@ -18940,6 +18966,17 @@
                     "retention": {
                       "type": "string",
                       "minLength": 1
+                    }
+                  }
+                },
+                "renamed": {
+                  "type": "object",
+                  "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^ENF-\\d{3}$": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+-\\d{2,3}$"
                     }
                   }
                 }

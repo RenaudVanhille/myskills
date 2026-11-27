@@ -4,7 +4,7 @@ Détail de la section 2 du skill, à lire seulement pour un hébergeur imposé (
 
 - **Hébergeur** : `hosting` donne l'hébergeur par défaut et les
   qualifications exigées par les exigences, par exemple
-  `{"provider": "cloud-temple", "qualifications": ["secnumcloud"], "refs": ["ENF-003"]}` ;
+  `{"provider": "cloud-temple", "qualifications": ["secnumcloud"], "refs": ["CONF-01"]}` ;
   une ligne peut en nommer un autre (`provider`). Sans `hosting`, c'est le
   `provider` de l'option. Les hébergeurs connus (aws, azure, gcp, ovh,
   cloud-temple, outscale, s3ns, bleu, numspot, scaleway, sur-site), leur

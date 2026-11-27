@@ -14,7 +14,7 @@ chaque citation, cherche les exigences oubliées et met en forme.
 Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : moyen (modèle standard).
-- **Entrées** : Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources ; Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes).
+- **Entrées** : Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources ; Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes).
 - **Sorties** : <nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée ; <nom>.csv : même catalogue pour un tableur (séparateur ;, UTF-8 avec BOM) ; ecarts-exigences.md : écart entre le catalogue validé et sa copie de travail d'une évolution (req_diff.py).
 - **`req_build.py`** : Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons, exigences non mesurables et dimensions de volumétrie absentes (utilisateurs, pic, débit, données, croissance, conservation), puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
 - **`req_diff.py`** : Compare le catalogue validé et sa copie de travail d'une évolution : exigences ajoutées, retirées (absentes ou sorties du périmètre retenu) et modifiées champ par champ (texte, priorité, mesure, catégorie, nature, domaine, titre), exigence ajoutée sans source signalée ; avec --domains, contextes bornés qui portent chaque exigence changée et exigence ajoutée sans contexte ; avec --start, copie la référence dans la copie de travail ; les deux catalogues sont validés contre le schéma de req_build.py. Rapport JSON (0 succès, 1 erreur ; description validée, `--schema` affiche son JSON Schema).
@@ -53,7 +53,7 @@ Fichier `exigences.json`, à côté du dossier `sources/` :
     {"id": "EF-001", "title": "Déclarer un sinistre", "text": "L'assuré déclare un sinistre en ligne.",
      "domain": "Sinistres", "priority": "indispensable",
      "sources": [{"doc": "cahier-des-charges.md", "quote": "L'assuré doit pouvoir déclarer un sinistre"}]},
-    {"id": "ENF-001", "title": "Tenir la charge", "text": "2 000 déclarations par jour.",
+    {"id": "PERF-01", "title": "Tenir la charge", "text": "2 000 déclarations par jour.",
      "category": "performance", "metric": "2 000 par jour, pic x10", "priority": "indispensable",
      "sources": [{"doc": "cahier-des-charges.md", "quote": "supporter 2 000 déclarations par jour"}],
      "questions": ["Quel est le pic après une tempête ?"]}
@@ -65,7 +65,14 @@ Fichier `exigences.json`, à côté du dossier `sources/` :
 - **Identifiants** : si les documents numérotent déjà leurs exigences
   (`SEC-01`, `REQ-012`...), gardez leur identifiant tel quel et ajoutez
   `"nature": "fonctionnelle"` ou `"non-fonctionnelle"`. Sinon, `EF-nnn`
-  fonctionnelle, `ENF-nnn` non fonctionnelle. Le script signale une
+  fonctionnelle et, pour une non fonctionnelle, le préfixe de sa catégorie
+  suivi de deux chiffres : `PERF` performance, `DISP` disponibilité, `SECU`
+  sécurité, `CONF` conformité, `EXPL` exploitabilité, `MAIN`
+  maintenabilité, `EVOL` évolutivité, `INTE` interopérabilité, `UTIL`
+  utilisabilité, `PORT` portabilité, `COUT` coût, `ENF` autre (`SECU-01`).
+  Un préfixe qui ne suit pas la catégorie est signalé ; les `ENF-nnn` d'un
+  catalogue plus ancien se renomment par `mission.py upgrade --apply` (ou
+  `journal.py upgrade`), correspondance gardée dans `renamed`. Le script signale une
   exigence renumérotée alors que sa source porte un identifiant, et un
   identifiant repris introuvable dans les sources. Un identifiant ne change
   jamais et n'est jamais réutilisé : pour enlever une exigence,
