@@ -57,7 +57,7 @@ secrets:
 # du Secret secrets.service s'il existe. La fusion reste faite dans GitLab.
 mergeRequests:
   enabled: true
-  on: [fin, workflow]
+  triggers: [fin, workflow]   # « on » serait lu comme un booléen par YAML
   target: ""      # défaut : branche par défaut du projet de la mission
   labels: []
   draft: false

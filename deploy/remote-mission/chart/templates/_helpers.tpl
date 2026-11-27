@@ -46,7 +46,7 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
       "server" (dict "host" "0.0.0.0" "port" $v.service.port "token_env" "MYSKILLS_REMOTE_TOKEN" "max_jobs" $v.service.maxJobs)
       "runner" $runner -}}
 {{- if $v.mergeRequests.enabled -}}
-{{- $merge := dict "on" $v.mergeRequests.on "draft" $v.mergeRequests.draft "token_env" "GITLAB_MR_TOKEN" -}}
+{{- $merge := dict "on" $v.mergeRequests.triggers "draft" $v.mergeRequests.draft "token_env" "GITLAB_MR_TOKEN" -}}
 {{- if $v.mergeRequests.target }}{{ $_ := set $merge "target" $v.mergeRequests.target }}{{ end -}}
 {{- if $v.mergeRequests.labels }}{{ $_ := set $merge "labels" $v.mergeRequests.labels }}{{ end -}}
 {{- $_ := set $config "merge_requests" $merge -}}
