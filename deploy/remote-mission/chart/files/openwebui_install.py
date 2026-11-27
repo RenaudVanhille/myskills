@@ -14,13 +14,15 @@ Lancé en tâche de fond dans le conteneur d'Open WebUI (chart Helm, docker comp
    (les autres Valves réglées par un administrateur sont gardées) ;
 4. recommence toutes les --every secondes : une nouvelle version du service met le pipe à jour d'elle-même.
 
-Il passe par les modèles internes d'Open WebUI (version épinglée dans le chart et le compose) : l'API HTTP
+Il passe par les modèles internes d'Open WebUI (version épinglée dans le chart et le compose ; 0.6 et 0.13 vérifiées) : l'API HTTP
 demanderait un administrateur connecté, qui n'existe pas avant la première connexion par GitLab.
 Variables : MYSKILLS_SERVER_URL, MYSKILLS_REMOTE_TOKEN. Chaque passage écrit un rapport JSON sur une ligne.
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
+import inspect
 import json
 import os
 import sys
@@ -52,47 +54,53 @@ def wait_webui(webui: str, deadline: float) -> None:
         time.sleep(3)
 
 
-def sync(content: str, server_url: str, token: str, function_id: str = FUNCTION_ID) -> dict:
+async def _done(value):
+    """Open WebUI 0.13 : modèles asynchrones ; versions antérieures : synchrones."""
+    return await value if inspect.isawaitable(value) else value
+
+
+async def sync(content: str, server_url: str, token: str, function_id: str = FUNCTION_ID) -> dict:
     """Crée ou met à jour la fonction, l'active et règle ses Valves. Rend l'action faite."""
     sys.path.insert(0, os.getcwd())  # /app/backend dans l'image d'Open WebUI
     from open_webui.models.functions import FunctionForm, FunctionMeta, Functions
     from open_webui.utils.plugin import load_function_module_by_id, replace_imports
 
     content = replace_imports(content)
-    _module, kind, frontmatter = load_function_module_by_id(function_id, content)  # source invalide : exception
+    loaded = await _done(load_function_module_by_id(function_id, content))  # source invalide : exception
+    kind, frontmatter = loaded[1], loaded[2]  # (instance, type, frontmatter[, module])
     if kind != "pipe":
         raise ValueError(f"la source servie est une fonction « {kind} », pas un pipe")
     meta = FunctionMeta(description=DESCRIPTION, manifest=frontmatter or {})
-    existing = Functions.get_function_by_id(function_id)
+    existing = await _done(Functions.get_function_by_id(function_id))
     actions = []
 
-    def done(result, action: str) -> None:  # les modèles d'Open WebUI rendent None sur échec
-        if result is None:
+    async def done(result, action: str) -> None:  # les modèles d'Open WebUI rendent None sur échec
+        if await _done(result) is None:
             raise RuntimeError(f"Open WebUI a refusé l'écriture ({action})")
         actions.append(action)
 
     if existing is None:
-        done(Functions.insert_new_function(OWNER, kind,
+        await done(Functions.insert_new_function(OWNER, kind,
                                            FunctionForm(id=function_id, name=NAME, content=content, meta=meta)),
              "créé")
     elif existing.content != content:
-        done(Functions.update_function_by_id(function_id, {"content": content, "type": kind,
+        await done(Functions.update_function_by_id(function_id, {"content": content, "type": kind,
                                                            "meta": meta.model_dump()}), "mis à jour")
     if existing is None or not existing.is_active:
-        done(Functions.update_function_by_id(function_id, {"is_active": True}), "activé")
-    valves = Functions.get_function_valves_by_id(function_id) or {}
+        await done(Functions.update_function_by_id(function_id, {"is_active": True}), "activé")
+    valves = await _done(Functions.get_function_valves_by_id(function_id)) or {}
     wanted = {**valves, "SERVER_URL": server_url, "TOKEN": token}
     if wanted != valves:
-        done(Functions.update_function_valves_by_id(function_id, wanted), "valves réglées")
+        await done(Functions.update_function_valves_by_id(function_id, wanted), "valves réglées")
     return {"function": function_id, "actions": actions or ["inchangé"]}
 
 
-def run_once(args, token: str) -> dict:
+async def run_once(args, token: str) -> dict:
     report = {"function": FUNCTION_ID, "actions": [], "errors": [], "warnings": []}
     try:
-        wait_webui(args.webui, time.time() + args.wait)
-        pipe = fetch(args.server_url.rstrip("/") + "/openwebui/pipe", token)
-        report.update(sync(pipe["content"], args.server_url, token))
+        await asyncio.to_thread(wait_webui, args.webui, time.time() + args.wait)
+        pipe = await asyncio.to_thread(fetch, args.server_url.rstrip("/") + "/openwebui/pipe", token)
+        report.update(await sync(pipe["content"], args.server_url, token))
         report["sha256"] = pipe.get("sha256")
     except urllib.error.HTTPError as error:
         report["errors"].append(f"service des missions : HTTP {error.code} sur /openwebui/pipe"
@@ -116,12 +124,16 @@ def main() -> int:
         print(json.dumps({"errors": ["--server-url ou MYSKILLS_SERVER_URL manquant"], "warnings": []},
                          ensure_ascii=False), flush=True)
         return 1
+    return asyncio.run(loop(args, token))  # une seule boucle d'événements : celle des connexions à la base
+
+
+async def loop(args, token: str) -> int:
     while True:
-        report = run_once(args, token)
+        report = await run_once(args, token)
         print("[myskills pipe] " + json.dumps(report, ensure_ascii=False), flush=True)
         if args.every <= 0:
             return 1 if report["errors"] else 0
-        time.sleep(args.every if not report["errors"] else min(args.every, 30))
+        await asyncio.sleep(args.every if not report["errors"] else min(args.every, 30))
 
 
 if __name__ == "__main__":

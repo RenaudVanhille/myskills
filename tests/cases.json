@@ -2212,6 +2212,20 @@
           "exit": 0
         }
       ]
+    },
+    {
+      "id": "mission-distance-merge-request",
+      "skill": "tous",
+      "_note": "Merge request de la branche d'une conversation face à une API GitLab simulée : ouverte à « /fin » et quand tous les workflows sont validés, pas sur un tour ordinaire ; au nom de l'utilisateur (jeton transmis par le pipe), sinon GITLAB_MR_TOKEN ; pas de doublon ; branche par défaut lue ou cible imposée ; sans jeton, avertissement ; jeton absent de l'environnement de l'agent ; pod de session qui n'ouvre rien.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/merge_request.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        }
+      ]
     }
   ]
 }

@@ -9,6 +9,7 @@ Usage : python pipe_install.py SKILLS ; rapport JSON (errors, warnings), code 1 
 """
 
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -100,27 +101,32 @@ openwebui_install.wait_webui = lambda webui, deadline: None  # pas d'Open WebUI 
 args = argparse.Namespace(server_url=url, webui="http://127.0.0.1:1", wait=1)
 fid = openwebui_install.FUNCTION_ID
 
-first = openwebui_install.run_once(args, "jeton-pipe")
+
+def run(args, token):
+    return asyncio.run(openwebui_install.run_once(args, token))
+
+
+first = run(args, "jeton-pipe")
 expect("premier passage", first["actions"], ["créé", "activé", "valves réglées"])
 row = ROWS.get(fid)
 expect("source servie", row and row.content, (DEPLOY / "openwebui_pipe.py").read_text(encoding="utf-8"))
 expect("type", row and row.type, "pipe")
 expect("valves", row and row.valves, {"SERVER_URL": url, "TOKEN": "jeton-pipe"})
-expect("second passage", openwebui_install.run_once(args, "jeton-pipe")["actions"], ["inchangé"])
+expect("second passage", run(args, "jeton-pipe")["actions"], ["inchangé"])
 
 row.is_active = False
 row.valves["POLL_SECONDS"] = 5  # réglage d'un administrateur
-expect("pipe désactivé à la main", openwebui_install.run_once(args, "jeton-pipe")["actions"], ["activé"])
+expect("pipe désactivé à la main", run(args, "jeton-pipe")["actions"], ["activé"])
 expect("valves de l'administrateur gardées", row.valves.get("POLL_SECONDS"), 5)
 
 with tempfile.TemporaryDirectory() as tmp:
     newer = Path(tmp) / "openwebui_pipe.py"
     newer.write_text(remote_server.PIPE.read_text(encoding="utf-8") + "\n# version suivante\n", encoding="utf-8")
     remote_server.PIPE = newer
-    expect("nouvelle version du service", openwebui_install.run_once(args, "jeton-pipe")["actions"], ["mis à jour"])
+    expect("nouvelle version du service", run(args, "jeton-pipe")["actions"], ["mis à jour"])
     expect("source à jour", row.content.endswith("# version suivante\n"), True)
 
-refused = openwebui_install.run_once(args, "faux")
+refused = run(args, "faux")
 expect("jeton faux", bool(refused["errors"]) and "401" in refused["errors"][0], True)
 server.shutdown()
 print(json.dumps({"errors": errors, "warnings": []}, ensure_ascii=False))

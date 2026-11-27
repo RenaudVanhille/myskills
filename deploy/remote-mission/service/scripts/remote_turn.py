@@ -123,6 +123,14 @@ def check_config(config: dict, base: Path) -> list[str]:
             errors.append(f"access/api : hôte « {host} » absent de allowed_hosts")
     elif rights and not (base / rights.get("file", "")).is_file():
         errors.append(f"access/file : fichier des droits « {rights.get('file')} » introuvable")
+    merge = config.get("merge_requests")
+    if merge is not None:
+        api = merge.get("api") or (rights or {}).get("api", "")
+        host = host_of(api)
+        if not host:
+            errors.append("merge_requests/api : API GitLab attendue (merge_requests.api ou access.api)")
+        elif not allowed(host, hosts):
+            errors.append(f"merge_requests/api : hôte « {host} » absent de allowed_hosts")
     for key, value in config["agent"].get("env", {}).items():
         host = host_of(value) if URL_VARS.search(key) else None
         if host and not allowed(host, hosts) and host not in ("localhost", "127.0.0.1"):
@@ -235,9 +243,10 @@ def shortcut(folder: Path, message: str, state: dict, emit) -> tuple[dict | None
 
 
 def agent_env(config: dict) -> dict:
-    """Environnement de l'agent : celui du service, sans son jeton, plus agent.env (LiteLLM...)."""
-    server_token = config.get("server", {}).get("token_env", "MYSKILLS_REMOTE_TOKEN")
-    env = {k: v for k, v in os.environ.items() if k != server_token}
+    """Environnement de l'agent : celui du service, sans son jeton ni celui des merge requests, plus agent.env."""
+    hidden = {config.get("server", {}).get("token_env", "MYSKILLS_REMOTE_TOKEN"),
+              config.get("merge_requests", {}).get("token_env", "GITLAB_MR_TOKEN")}
+    env = {k: v for k, v in os.environ.items() if k not in hidden}
     env.update(config["agent"].get("env", {}))
     hosts = ",".join(config.get("allowed_hosts", []))
     if hosts:  # model_store.guard_network() laisse joindre ces hôtes, et eux seuls (AGENTS.md, section 5)

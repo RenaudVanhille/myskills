@@ -40,7 +40,7 @@ services:
       start_period: 60s
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.6.18
+    image: ghcr.io/open-webui/open-webui:v0.13.3
     # Le pipe myskills s'installe et se règle seul (modèle « Missions »), comme dans le chart Helm.
     command: ["sh", "-c", "python /opt/myskills-pipe/openwebui_install.py --every 60 & exec bash start.sh"]
     environment:

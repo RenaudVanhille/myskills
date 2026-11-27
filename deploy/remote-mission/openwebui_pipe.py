@@ -40,11 +40,13 @@ class Pipe:
 
     # --- appels au service -------------------------------------------------------------
     def _call(self, method: str, path: str, payload: dict | None = None, timeout: float = 30,
-              user: str = "") -> tuple[int, dict]:
+              user: str = "", gitlab_token: str = "") -> tuple[int, dict]:
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
         headers = {"Authorization": f"Bearer {self.valves.TOKEN}", "Content-Type": "application/json"}
         if user:  # le service lit les droits de cet utilisateur sur le projet GitLab de la mission
             headers["X-Myskills-User"] = user
+        if gitlab_token:  # jeton GitLab de la connexion de l'utilisateur : merge request ouverte en son nom
+            headers["X-Myskills-Gitlab-Token"] = gitlab_token
         request = urllib.request.Request(self.valves.SERVER_URL.rstrip("/") + path, data=data, method=method,
                                          headers=headers)
         try:
@@ -97,6 +99,11 @@ class Pipe:
         if gate:
             stages = ", ".join(gate["stages"])
             parts.append(f"> **En revue : {stages}.** Répondez `valide`, ou `retour : ...` avec vos corrections.")
+        merge = report.get("merge_request")
+        if merge and merge.get("url") and (merge.get("created") or report.get("mode") == "fin"):
+            word = "ouverte" if merge.get("created") else "déjà ouverte"
+            parts.append(f"> **Merge request {word}** ({merge.get('reason')}) : {merge['url']} ; "
+                         "la fusion se décide dans GitLab.")
         if report.get("questions"):
             parts.append(f"> {report['questions']} question(s) ouverte(s) au journal.")
         for error in report.get("errors", []):
@@ -115,7 +122,8 @@ class Pipe:
 
     # --- un message -------------------------------------------------------------------
     async def pipe(self, body: dict, __metadata__: dict | None = None, __event_emitter__=None,
-                   __chat_id__: str | None = None, __user__: dict | None = None):
+                   __chat_id__: str | None = None, __user__: dict | None = None,
+                   __oauth_token__: dict | None = None):
         mission = body.get("model", "").split(".", 1)[-1]
         chat = __chat_id__ or (__metadata__ or {}).get("chat_id") or "sans-conversation"
         user = (__user__ or {}).get("email", "")
@@ -129,7 +137,7 @@ class Pipe:
             if code == 200 and previous.get("report"):
                 yield "**Résultat du tour précédent**\n\n" + self.render(previous["report"]) + "\n---\n\n"
             code, started = await self._acall("POST", "/turns", {"mission": mission, "chat": chat, "message": content},
-                                              user=user)
+                                              user=user, gitlab_token=(__oauth_token__ or {}).get("access_token", ""))
         except OSError as error:
             yield f"> ⚠️ Service des missions injoignable : {error}\n"
             return

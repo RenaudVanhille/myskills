@@ -30,7 +30,8 @@ data:
   OAUTH_PROVIDER_NAME: "GitLab"
   OPENID_PROVIDER_URL: {{ printf "%s/.well-known/openid-configuration" $gitlab | quote }}
   OPENID_REDIRECT_URI: {{ printf "%s/oauth/oidc/callback" $url | quote }}
-  OAUTH_SCOPES: "openid email profile"
+  # api : jeton de l'utilisateur transmis par le pipe pour ouvrir les merge requests en son nom.
+  OAUTH_SCOPES: {{ ternary "openid email profile api" "openid email profile" .Values.mergeRequests.enabled | quote }}
   OAUTH_EMAIL_CLAIM: "email"
   OAUTH_USERNAME_CLAIM: "nickname"
   ENABLE_LOGIN_FORM: "false"

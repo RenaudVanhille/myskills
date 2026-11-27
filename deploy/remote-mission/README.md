@@ -18,7 +18,8 @@ pods de session.
 
 ```
 Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
-   (SSO GitLab)                     │ crée, retrouve ou recharge le pod de la conversation
+   (SSO GitLab)                     │──(jeton GitLab de l'utilisateur)──> GitLab : merge request
+                                    │ crée, retrouve ou recharge le pod de la conversation
                                     v
                         pod de session (une conversation) ──(HTTPS, clé virtuelle)──> LiteLLM (autre cluster)
                           │ volume : copie de travail + contexte de l'agent
@@ -80,7 +81,8 @@ ou hors de `allowed_hosts` n'est pas une mission. `missions` de
 - `valide` ou `retour : ...` quand une étape est en revue : décision passée à
   `journal.py review` sans tour de modèle, puis l'agent continue.
 - `/statut` : état des workflows, sans agent.
-- `/fin` : pousse et termine la session (pod et volume effacés).
+- `/fin` : pousse et termine la session (pod et volume effacés), puis ouvre
+  la merge request de la branche (section 4).
 - Un message pendant un autre : le pipe suit celui en cours ; un résultat
   manqué s'affiche au message suivant.
 
@@ -259,8 +261,28 @@ Seuils : `read_level`, `write_level`. Les droits lus sont gardés
 
 Jeton de déploiement GitLab (`write_repository`) par projet de mission ou
 jeton de groupe, dans le Secret `myskills-git` (fichier `.git-credentials`, `secrets.git`).
-Protéger `main` : les sessions ne poussent que sur `openwebui/<conversation>` ;
-l'utilisateur fusionne par une merge request.
+Protéger `main` : les sessions ne poussent que sur `openwebui/<conversation>`
+et la fusion se fait toujours dans GitLab, par une personne.
+
+**Merge request automatique** (`mergeRequests`, section `merge_requests` de
+la configuration) : le service frontal ouvre la merge request de la branche
+vers la branche par défaut du projet (ou `mergeRequests.target`) à `/fin` et
+quand toutes les étapes des workflows de la mission sont validées ou sautées,
+puis en donne le lien dans le chat. Une merge request déjà ouverte pour la
+branche est reprise, jamais doublée ; la description dit qui l'a demandée,
+le dernier commit et l'avancement des workflows.
+
+Elle est ouverte **au nom de l'utilisateur**, avec le jeton que GitLab a remis
+à Open WebUI à sa connexion (portée `api`, gardé chiffré par Open WebUI et
+rafraîchi par lui). Le pipe le joint à chaque message
+(`X-Myskills-Gitlab-Token`) ; le service frontal ne s'en sert que pour cette
+merge request : il n'est ni gardé, ni transmis au pod de session ou à
+l'agent. GitLab applique donc les droits de l'utilisateur lui-même. À
+défaut de jeton utilisateur, une clé `GITLAB_MR_TOKEN` (portée `api`)
+facultative dans le Secret du service sert de secours ; sans l'une ni
+l'autre, le chat le signale et rien n'est ouvert. Le jeton circule en clair
+entre Open WebUI et le service, dans le cluster, sur le seul chemin admis par
+la NetworkPolicy.
 
 ## 5. Installer avec Helm
 
@@ -270,7 +292,9 @@ leurs labels dans son namespace).
 1. **Application GitLab pour Open WebUI** (Admin > Applications, ou celle d'un
    groupe) : nom `Open WebUI`, URI de redirection
    `https://chat.exemple.local/oauth/oidc/callback`, confidentielle, portées
-   `openid`, `email`, `profile`. Garder l'Application ID et le Secret.
+   `openid`, `email`, `profile` et `api` (merge requests au nom de
+   l'utilisateur ; sans `mergeRequests`, pas d'`api`). Garder l'Application ID
+   et le Secret.
 2. **Secrets**, créés à part (le chart ne fait que les nommer) :
 
    ```bash
@@ -336,7 +360,9 @@ ni téléchargement de modèle.
    et un pipe désactivé ou supprimé à la main est rétabli. Le modèle
    « Missions » est visible de tous (`BYPASS_MODEL_ACCESS_CONTROL`, seul
    modèle de l'instance, sans « Arena Model »). Vérifié contre Open WebUI
-   0.6.18 réel : fonction créée, activée, Valves réglées, modèle listé.
+   0.13.3 réel (et 0.6.18) : fonction créée, activée, Valves réglées, modèle
+   listé, message transmis au service. La 0.13 est exigée : c'est depuis la
+   0.6.27 qu'Open WebUI passe au pipe le jeton GitLab de l'utilisateur.
    L'installation passe par les modèles internes
    d'Open WebUI, faute d'administrateur avant la première connexion : relire
    ce script avant de changer `openWebui.image.tag`.

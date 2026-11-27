@@ -51,6 +51,17 @@ secrets:
   session: myskills-session   # LITELLM_API_KEY, GITLAB_ACCESS_TOKEN
   git: myskills-git           # .git-credentials (write_repository)
 
+# Merge request de la branche d'une conversation, ouverte par le service quand le travail est prêt :
+# à « /fin » et quand toutes les étapes des workflows sont validées. Ouverte au nom de l'utilisateur avec
+# le jeton de sa connexion GitLab (Open WebUI, portée api ajoutée à OAUTH_SCOPES) ; à défaut, GITLAB_MR_TOKEN
+# du Secret secrets.service s'il existe. La fusion reste faite dans GitLab.
+mergeRequests:
+  enabled: true
+  on: [fin, workflow]
+  target: ""      # défaut : branche par défaut du projet de la mission
+  labels: []
+  draft: false
+
 # Agent lancé à chaque message : OpenCode (défaut) ou Claude Code (image construite avec CLAUDE_CODE_VERSION).
 agent:
   kind: opencode   # opencode | claude
@@ -102,7 +113,7 @@ openWebui:
   enabled: true
   image:
     repository: ghcr.io/open-webui/open-webui
-    tag: v0.6.18   # version épinglée : la relire avant de la changer
+    tag: v0.13.3   # version épinglée : relire chart/files/openwebui_install.py avant de la changer
   url: https://chat.exemple.local
   name: Missions
   # Secret : WEBUI_SECRET_KEY, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET (application GitLab).

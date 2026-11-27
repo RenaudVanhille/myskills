@@ -161,7 +161,10 @@
                 },
                 "skip_lines": {
                   "type": "array",
-                  "items": {"type": "string", "minLength": 1},
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "description": "Expressions régulières des lignes de sortie de l'agent à ne pas montrer (en-têtes, ex. OpenCode : \"^> \\\\S+ · \")."
                 },
                 "continue_args": {
@@ -410,6 +413,51 @@
                   "type": "integer",
                   "minimum": 0,
                   "description": "Durée de mémoire de la liste des missions (défaut : 300)."
+                }
+              }
+            },
+            "merge_requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Merge request de la branche d'une conversation ouverte par le service frontal quand le travail est prêt (la fusion reste faite dans GitLab). Jeton : celui de la connexion GitLab de l'utilisateur (Open WebUI, portée api), sinon token_env.",
+              "properties": {
+                "on": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 1,
+                  "items": {
+                    "enum": [
+                      "fin",
+                      "workflow"
+                    ]
+                  },
+                  "description": "fin : à « /fin » ; workflow : toutes les étapes validées ou sautées (défaut : les deux)."
+                },
+                "target": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Branche cible (défaut : base de la mission, sinon branche par défaut du projet)."
+                },
+                "api": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": "API GitLab (défaut : access.api), hôte dans allowed_hosts."
+                },
+                "token_env": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$",
+                  "description": "Jeton de secours du service (portée api) quand l'utilisateur n'en transmet pas (défaut : GITLAB_MR_TOKEN) ; retiré de l'environnement de l'agent."
+                },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Merge request en brouillon (Draft:)."
                 }
               }
             }
@@ -646,6 +694,33 @@
             "resumed": {
               "type": "boolean",
               "description": "L'agent a repris la session de la conversation (contexte des messages précédents)."
+            },
+            "merge_request": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "Merge request ouverte ou retrouvée après le tour (service frontal).",
+              "properties": {
+                "url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "iid": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "created": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -803,7 +878,10 @@
                 },
                 "skip_lines": {
                   "type": "array",
-                  "items": {"type": "string", "minLength": 1},
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "description": "Expressions régulières des lignes de sortie de l'agent à ne pas montrer (en-têtes, ex. OpenCode : \"^> \\\\S+ · \")."
                 },
                 "continue_args": {
@@ -1052,6 +1130,51 @@
                   "type": "integer",
                   "minimum": 0,
                   "description": "Durée de mémoire de la liste des missions (défaut : 300)."
+                }
+              }
+            },
+            "merge_requests": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Merge request de la branche d'une conversation ouverte par le service frontal quand le travail est prêt (la fusion reste faite dans GitLab). Jeton : celui de la connexion GitLab de l'utilisateur (Open WebUI, portée api), sinon token_env.",
+              "properties": {
+                "on": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 1,
+                  "items": {
+                    "enum": [
+                      "fin",
+                      "workflow"
+                    ]
+                  },
+                  "description": "fin : à « /fin » ; workflow : toutes les étapes validées ou sautées (défaut : les deux)."
+                },
+                "target": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Branche cible (défaut : base de la mission, sinon branche par défaut du projet)."
+                },
+                "api": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": "API GitLab (défaut : access.api), hôte dans allowed_hosts."
+                },
+                "token_env": {
+                  "type": "string",
+                  "pattern": "^[A-Z_][A-Z0-9_]*$",
+                  "description": "Jeton de secours du service (portée api) quand l'utilisateur n'en transmet pas (défaut : GITLAB_MR_TOKEN) ; retiré de l'environnement de l'agent."
+                },
+                "labels": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "draft": {
+                  "type": "boolean",
+                  "description": "Merge request en brouillon (Draft:)."
                 }
               }
             }

@@ -48,6 +48,7 @@ sys.path.insert(2, str(HERE.parents[3] / "shared" / "scripts"))  # bibliothèque
 import access  # noqa: E402
 import discovery  # noqa: E402
 import k8s_sessions  # noqa: E402
+import merge_requests  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
@@ -153,7 +154,9 @@ class Service:
             return None, self.quick(discovery.MODEL_ID, chat, user, errors=[f"missions : {error}"])
         return bound, None
 
-    def start(self, mission: str, chat: str, message: str, user: str | None) -> tuple[int, dict]:
+    def start(self, mission: str, chat: str, message: str, user: str | None,
+              gitlab_token: str = "") -> tuple[int, dict]:
+        """gitlab_token : jeton GitLab de l'utilisateur (pipe), pour la seule merge request de ce tour."""
         if mission == discovery.MODEL_ID and self.bindings:
             mission, answered = self.resolve(chat, message, user)
             if answered:
@@ -183,6 +186,8 @@ class Service:
                     report = self.via_session(mission, chat, message, user, job.emit)
                 else:  # droits vérifiés au début de la session, avant chaque pull et chaque push
                     report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user)
+                if self.session is None:  # service frontal : jamais dans le pod de session
+                    merge_requests.after_turn(self.config, mission, report, job.emit, gitlab_token)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
             job.finish(report)
@@ -290,7 +295,8 @@ def handler(service: Service):
                 mission, chat, message = str(data["mission"]), str(data["chat"]), str(data["message"])
             except (ValueError, KeyError, TypeError):
                 return self.send(400, {"error": "attendu : {\"mission\", \"chat\", \"message\"}"})
-            code, payload = service.start(mission, chat, message, self.headers.get("X-Myskills-User"))
+            code, payload = service.start(mission, chat, message, self.headers.get("X-Myskills-User"),
+                                          self.headers.get("X-Myskills-Gitlab-Token", ""))
             return self.send(code, payload)
 
     return Handler
