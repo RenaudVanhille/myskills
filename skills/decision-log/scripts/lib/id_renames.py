@@ -2,7 +2,7 @@
 catégorie (ENF-004 -> SECU-01), à la mise à niveau (`journal.py upgrade`).
 
 La correspondance vient du catalogue d'exigences du workflow, ou de celui d'un autre workflow de la mission
-lu par une entrée `../` (`text_tools.category_renames`) : un identifiant cité par les documents sources est leur
+lu par une entrée `../` (`category_renames`) : un identifiant cité par les documents sources est leur
 numérotation et ne change pas. Elle s'applique, en mots entiers, aux fichiers texte du dossier du workflow
 (hors sources, .historique/, .git/ et dossiers d'autres workflows), à l'état (`workflow.json` : entrées, refs)
 et au dossier du projet dans le vault (notes renommées, liens suivis, « Mes notes » gardées). Les empreintes
@@ -13,12 +13,53 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
-from lib.text_tools import category_renames, data_file, from_data, id_pattern, rename_ids, unlink_notes
+from lib.text_tools import NFR_PREFIXES, data_file, from_data, generated_id, unlink_notes
 
 TEXT = (".md", ".json", ".csv", ".mmd", ".yaml", ".yml", ".txt", ".canvas", ".base", ".html")
 SKIP_DIRS = {".historique", ".git", ".myskills-tmp", ".obsidian", "node_modules", ".trash"}
+
+
+def id_pattern(ids) -> re.Pattern | None:
+    """Motif qui trouve ces identifiants comme mots entiers (ENF-004, pas ENF-0041 ni XENF-004)."""
+    ids = sorted(ids, key=len, reverse=True)
+    return re.compile(r"(?<![\w-])(" + "|".join(map(re.escape, ids)) + r")(?![\w-])") if ids else None
+
+
+def rename_ids(text: str, mapping: dict[str, str]) -> str:
+    """Texte où chaque identifiant de mapping est remplacé par le nouveau (mots entiers)."""
+    pattern = id_pattern(mapping)
+    return pattern.sub(lambda m: mapping[m.group(1)], text) if pattern else text
+
+
+def category_renames(catalog: dict, sources_text: str = "") -> dict[str, str]:
+    """Correspondance ancien -> nouvel identifiant pour un catalogue numéroté avant les préfixes de catégorie :
+    chaque ENF-nnn d'une catégorie autre que « autre » prend le préfixe de sa catégorie, numéroté à la suite des
+    identifiants déjà pris, dans l'ordre du catalogue. Un ENF-nnn cité par les documents sources est leur
+    numérotation : il est gardé. Déjà renommé (champ renamed) : la correspondance enregistrée."""
+    mapping = dict(catalog.get("renamed") or {})
+    reqs = [r for r in catalog.get("requirements", []) if isinstance(r, dict) and isinstance(r.get("id"), str)]
+    taken = {r["id"] for r in reqs}
+    found = id_pattern(r["id"] for r in reqs if r["id"].startswith("ENF-"))
+    cited = set(found.findall(sources_text)) if found and sources_text else set()
+    numbers: dict[str, int] = {}
+    for req in reqs:
+        prefix = NFR_PREFIXES.get(req.get("category", ""))
+        if not re.fullmatch(r"ENF-\d{3}", req["id"]) or req["id"] in mapping or req["id"] in cited \
+                or prefix in (None, "ENF") or req.get("nature") == "fonctionnelle":
+            continue
+        number = numbers.get(prefix, 0)
+        while True:
+            number += 1
+            new = generated_id(prefix, number)
+            if new not in taken:
+                break
+        numbers[prefix] = number
+        taken.add(new)
+        mapping[req["id"]] = new
+    return mapping
 
 
 def text_digest(text: str, suffix: str) -> str:
