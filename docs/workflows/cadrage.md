@@ -23,10 +23,10 @@ flowchart TD
   s_comptes_rendus["2. Comptes rendus des ateliers<br/><small>architecture-workflow</small>"]
   s_processus["3. Processus métier<br/><small>schema-designer</small>"]
   s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_domaines["5. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_modele_donnees["6. Modèle de données<br/><small>architecture-workflow</small>"]
-  s_architectures["7. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_dimensionnement["8. Dimensionnement<br/><small>architecture-workflow</small>"]
+  s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
+  s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+  s_modele_donnees["7. Modèle de données<br/><small>architecture-workflow</small>"]
+  s_architectures["8. Options d'architecture<br/><small>architecture-workflow</small>"]
   s_interfaces["9. Interfaces et séquences<br/><small>architecture-workflow</small>"]
   s_recette["10. Plan de recette<br/><small>architecture-workflow</small>"]
   s_developpement["11. Passage au développement (spécifications)<br/><small>architecture-workflow</small>"]
@@ -34,12 +34,13 @@ flowchart TD
   s_comptes_rendus --> s_processus
   s_documents --> s_exigences
   s_comptes_rendus --> s_exigences
+  s_exigences --> s_dimensionnement
   s_exigences --> s_domaines
   s_exigences --> s_modele_donnees
   s_domaines --> s_modele_donnees
   s_exigences --> s_architectures
   s_domaines --> s_architectures
-  s_architectures --> s_dimensionnement
+  s_dimensionnement --> s_architectures
   s_architectures --> s_interfaces
   s_modele_donnees --> s_interfaces
   s_exigences --> s_recette
@@ -49,7 +50,7 @@ flowchart TD
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
-  class s_comptes_rendus,s_exigences,s_domaines,s_modele_donnees,s_architectures,s_dimensionnement,s_interfaces,s_recette,s_developpement moteur
+  class s_comptes_rendus,s_exigences,s_dimensionnement,s_domaines,s_modele_donnees,s_architectures,s_interfaces,s_recette,s_developpement moteur
   class s_documents,s_processus agent
   class s_comptes_rendus,s_processus,s_domaines,s_developpement facultative
 ```
@@ -59,9 +60,8 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 Étapes prêtes en même temps, menées en parallèle :
 - 1. Documents en Markdown, 2. Comptes rendus des ateliers
 - 3. Processus métier, 4. Catalogue des exigences
-- 5. Domaines et style d'architecture, 10. Plan de recette
-- 6. Modèle de données, 7. Options d'architecture
-- 8. Dimensionnement, 9. Interfaces et séquences
+- 5. Dimensionnement, 6. Domaines et style d'architecture, 10. Plan de recette
+- 7. Modèle de données, 8. Options d'architecture
 
 ## Étapes
 
@@ -71,13 +71,13 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 | 2. Comptes rendus des ateliers (facultative) | moyen | `architecture-workflow` | `meeting-notes` | `comptes-rendus/*.json`, `comptes-rendus/*.md` | début |
 | 3. Processus métier (facultative) | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 1, 2 |
 | 4. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1, 2 |
-| 5. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
-| 6. Modèle de données | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `donnees/modele.mmd`, `modele.md`, `donnees/modele.sql` | 4, 5 |
-| 7. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 5 |
-| 8. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 7 |
-| 9. Interfaces et séquences | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `donnees/api.json`, `donnees/api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 7, 6 |
+| 5. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
+| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
+| 7. Modèle de données | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `donnees/modele.mmd`, `modele.md`, `donnees/modele.sql` | 4, 6 |
+| 8. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 6, 5 |
+| 9. Interfaces et séquences | moyen | `architecture-workflow` | `api-contract`, `mermaid-diagram` | `donnees/api.json`, `donnees/api.openapi.yaml`, `api.api.md`, `api.sequences.md` | 8, 7 |
 | 10. Plan de recette | moyen | `architecture-workflow` | `test-plan` | `donnees/recette.json`, `recette.md`, `donnees/recette.csv` | 4 |
-| 11. Passage au développement (spécifications) (facultative) | simple | `architecture-workflow` | `spec-pack` | `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md` | 6, 9, 10 |
+| 11. Passage au développement (spécifications) (facultative) | simple | `architecture-workflow` | `spec-pack` | `specs/README.md`, `specs/fonctionnel.md`, `specs/tests.md`, `specs/livraison.md` | 7, 9, 10 |
 
 ### 1. Documents en Markdown
 
@@ -114,7 +114,15 @@ Documents nommés par l'utilisateur, sinon ceux de documents/, convertis en une 
 
 req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.
 
-### 5. Domaines et style d'architecture
+### 5. Dimensionnement
+
+- **Entrées** : `donnees/exigences.json`
+- **Livrables** : `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json`
+- **Contrôle** : capacity-sizing : size_build.py donnees/dimensionnement.json : pointe, stockage, sauvegardes et trafic calculés, zéro erreur ; chaque avertissement (pic faible, capacité par défaut) justifié ou noté au journal
+
+Juste après les exigences, avant toute option : utilisateurs, charge et pointe, débits, données et fichiers, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; pas encore de composants. Le rapport donne la pointe, le stockage à l'horizon, les sauvegardes et le trafic, que les options d'architecture doivent tenir. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat.
+
+### 6. Domaines et style d'architecture
 
 - **Entrées** : `donnees/exigences.json`
 - **Livrables** : `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio`
@@ -123,7 +131,7 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : le modèle de données de chaque contexte vient après, à l'étape modele-donnees ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de donnees/domaines.json et se note au journal.
 
-### 6. Modèle de données
+### 7. Modèle de données
 
 - **Entrées** : `donnees/exigences.json`, `donnees/domaines.json`
 - **Livrables** : `donnees/modele.json`, `donnees/modele.mmd`, `modele.md`, `donnees/modele.sql`
@@ -131,23 +139,14 @@ req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phra
 
 Après le découpage : avec donnees/domaines.json (étape domaines menée), domains dans donnees/modele.json et le context de chaque entité, un schéma par contexte et aucune clé étrangère entre contextes ; un lien entre contextes sans relation de la carte se corrige dans le découpage (retour à domaines) ou se justifie au journal. Sans découpage, un seul modèle. Entités tirées du glossaire et des exigences fonctionnelles, refs vers les exigences ; champs personnels marqués. Une donnée de santé ou une entité sans exigence se note au journal.
 
-### 7. Options d'architecture
+### 8. Options d'architecture
 
-- **Entrées** : `donnees/exigences.json`, `documents/pos*`, `donnees/domaines.json`, `donnees/domaines.styles.json`
+- **Entrées** : `donnees/exigences.json`, `documents/pos*`, `donnees/domaines.json`, `donnees/domaines.styles.json`, `donnees/dimensionnement.result.json`
 - **Livrables** : `donnees/options.json`, `options.md`
 - **Livrables possibles** : `tracabilite.md`, `donnees/tracabilite.csv`, `schemas/option-*.cloud.json`, `schemas/option-*.wa.md`, `schemas/pos-option-*.json`
 - **Contrôle** : architecture-options : options_build.py donnees/options.json --draft d'abord (critères, qualifications exigées, hébergeurs qualifiés), puis options_build.py donnees/options.json (placement dans le POS et revue Well-Architected des piliers de chaque option cloud inclus)
 
-2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire.
-
-### 8. Dimensionnement
-
-- **Entrées** : `donnees/exigences.json`, `donnees/options.json`
-- **Livrables** : `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json`
-- **Livrables possibles** : `donnees/dimensionnement.couts.json`, `dimensionnement.couts.md`
-- **Contrôle** : capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)
-
-Volumes, pointe et disponibilité repris des exigences non fonctionnelles (mesures citées) ; composants de l'option retenue. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat.
+2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire. Les options tiennent le dimensionnement (donnees/dimensionnement.result.json : pointe, stockage, disponibilité) : les notes de performance et de coût le citent, une option qui ne le tient pas le dit.
 
 ### 9. Interfaces et séquences
 
