@@ -7,7 +7,8 @@
     "Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe"
   ],
   "produces": [
-    "Des fichiers .docx, .pptx, .html, .xwiki et ses images",
+    "Des fichiers .docx, .html, .xwiki et ses images",
+    "Un .pptx délégué à l'agent externe concepteur-deck, puis vérifié",
     "En option un PDF"
   ],
   "never": [
@@ -29,6 +30,13 @@
       "send": [
         "le document",
         "la cible Markdown et le dossier de travail"
+      ]
+    },
+    {
+      "to": "concepteur-deck",
+      "when": "une présentation PowerPoint est demandée (agent externe, installé à part)",
+      "send": [
+        "le champ handoff du rapport de pptx_publish.py, tel quel : sources, .pptx attendu, mode, trame, gabarit"
       ]
     }
   ]

@@ -803,7 +803,7 @@
         "presentation.md"
       ],
       "checks": [
-        "architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
+        "architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu)"
       ],
       "run": [
         {

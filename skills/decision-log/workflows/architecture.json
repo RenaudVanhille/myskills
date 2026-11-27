@@ -252,7 +252,7 @@
         "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
         "diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois",
         "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../donnees/exigences.json, source ../donnees/options.json et l'option)",
-        "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
+        "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu)"
       ],
       "run": [
         {

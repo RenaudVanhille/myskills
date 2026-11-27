@@ -81,7 +81,7 @@ def generated_libs() -> dict[Path, str]:
     for name, contract in skill_contracts().items():
         if contract.get("requires"):
             files[REPO / "skills" / name / "scripts" / "lib" / "skill_paths.py"] = paths
-    # Contrats des skills externes (shared/external/), lus par external_skill.py.
+    # Contrats des skills et agents externes (shared/external/), lus par external_skill.py.
     for path in sorted((REPO / "shared" / "external").glob("*.contract.json")):
         for name in LIB_USERS["external_skill.py"]:
             files[REPO / "skills" / name / "scripts" / "lib" / path.name] = path.read_text(encoding="utf-8")
@@ -130,16 +130,22 @@ def agent_enums() -> dict[Path, str]:
     """Schémas des messages et des contrats d'agent, avec la liste des agents à jour :
     ajouter un agent (src/agents/<nom>.contract.json) suffit, build.py met les listes à jour."""
     agents = sorted(agent_contracts())
+    # Agents externes (shared/external/, clé agent) : destinataires possibles d'un passage de main
+    # (message de passage, champ to d'un contrat d'agent), jamais auteurs d'un rapport.
+    outside = sorted(name for name, spec in external_contracts().items() if "agent" in spec)
     files: dict[Path, str] = {}
     for name in ("agent-contract", "handoff", "agent-report"):
         path = SCHEMAS / f"{name}.schema.json"
         text = path.read_text(encoding="utf-8")
 
-        def fix(match: re.Match) -> str:
+        def fix(match: re.Match, name: str = name, text: str = text) -> str:
             old = json.loads(f"[{match.group(1)}]")
             if sum(value in agents for value in old) * 2 < len(old):
                 return match.group(0)  # liste d'autre chose que des agents
-            new = [a for a in old if a in agents] + [a for a in agents if a not in old]
+            target = name == "handoff" or (name == "agent-contract"
+                                           and text[max(0, match.start() - 12):match.start()].endswith('"to": {'))
+            allowed = agents + outside if target else agents
+            new = [a for a in old if a in allowed] + [a for a in allowed if a not in old]
             return '"enum": ' + json.dumps(new, ensure_ascii=False)
 
         files[path] = AGENT_ENUM.sub(fix, text)
@@ -212,7 +218,8 @@ def skill_contracts() -> dict[str, dict]:
 
 
 def external_contracts() -> dict[str, dict]:
-    """Skills installés à part, connus par leur seul contrat d'interface (shared/external/)."""
+    """Skills (clé skill) et agents (clé agent) installés à part, connus par leur seul contrat d'interface
+    (shared/external/)."""
     return {path.name.removesuffix(".contract.json"): load(path)
             for path in sorted((REPO / "shared" / "external").glob("*.contract.json"))}
 
@@ -294,10 +301,15 @@ def render_skill(contract: dict, full: bool = False) -> str:
     for handoff in contract["handoffs"]:
         target = {"skill": f"au skill `{handoff['to']}`", "agent": f"à l'agent `{handoff['to']}`",
                   "utilisateur": "à l'utilisateur",
-                  "externe": f"au skill externe `{handoff['to']}` (installé à part, contrat "
+                  "externe": f"{_external_kind(handoff['to'])} `{handoff['to']}` (installé à part, contrat "
                              f"`shared/external/{handoff['to']}.contract.json`)"}[handoff["kind"]]
         lines.append(f"- **Passe la main** {target} : {handoff['when']}.")
     return "\n".join(lines) + "\n"
+
+
+def _external_kind(name: str) -> str:
+    path = REPO / "shared" / "external" / f"{name}.contract.json"
+    return "à l'agent externe" if path.is_file() and "agent" in load(path) else "au skill externe"
 
 
 LEVEL_HINTS = {"simple": "modèle léger", "moyen": "modèle standard", "complexe": "modèle puissant"}

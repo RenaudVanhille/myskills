@@ -98,9 +98,9 @@ GROUPS = {
         UV,
         ("LibreOffice (PDF et relecture visuelle des .docx)", "facultatif",
          lambda: local_tools.soffice_binary() is not None, "https://www.libreoffice.org/download/"),
-        ("Skill markdown-to-pptx installé à part (export PowerPoint)", "facultatif",
-         lambda: external_skill.locate("markdown-to-pptx")[1] is not None,
-         external_skill.contract("markdown-to-pptx")["install"]),
+        ("Agent concepteur-deck installé à part (présentations PowerPoint)", "facultatif",
+         lambda: external_skill.locate_agent("concepteur-deck")[1] is not None,
+         external_skill.contract("concepteur-deck")["install"]),
     ],
     "revue": [
         UV,

@@ -8,7 +8,7 @@ version machine de ce catalogue est [`catalog.json`](catalog.json).
 ## Messages entre agents
 
 - Message de passage : [`shared/schemas/handoff.schema.json`](shared/schemas/handoff.schema.json).
-  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`.
+  Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator | concepteur-deck), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`.
 - Rapport final : [`shared/schemas/agent-report.schema.json`](shared/schemas/agent-report.schema.json).
   Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `status` (ok | partiel | echec), `files` (liste), `tools` (texte), `level` (simple | moyen | complexe), `corrections` (liste), `todo` (liste), `next` (objet).
 
@@ -107,7 +107,7 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 
 - **Niveau** : simple (modèle léger, `shared/models.json`).
 - **Reçoit** : Des fichiers Markdown ou des notes Obsidian (et le vault) ; L'outil cible : Word, PowerPoint, SharePoint, Confluence ou XWiki ; Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe.
-- **Produit** : Des fichiers .docx, .pptx, .html, .xwiki et ses images ; En option un PDF.
+- **Produit** : Des fichiers .docx, .html, .xwiki et ses images ; Un .pptx délégué à l'agent externe concepteur-deck, puis vérifié ; En option un PDF.
 - **Ne fait jamais** : Publier en ligne : l'utilisateur importe lui-même les fichiers.
 - **Fichiers** : un livrable se reprend sur place, sans copie de sauvegarde à côté (`.avant-*`, `.v1-*`, `.before-*`) : `journal.py` garde chaque version validée (commit du dépôt git de la mission, sinon `.historique/`). Les fichiers de travail (descriptions provisoires, rendus et sorties de vérification) vont dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système (`/tmp`, `%TEMP%`) : hors du dossier, chaque écriture demande une approbation. Dans un workflow, `journal.py submit` le vide ; sinon, supprime-le avant de rendre la main.
 - **Passe la main** :
@@ -116,6 +116,7 @@ Généré depuis `src/agents/document-publisher.contract.json`, qui fait foi.
 | --- | --- | --- |
 | `schema-designer` | un schéma ne s'exporte pas ou doit être corrigé | le fichier source du schéma ; le message d'erreur ; la destination |
 | `document-extractor` | la source n'est pas encore en Markdown (PDF, Office) | le document ; la cible Markdown et le dossier de travail |
+| `concepteur-deck` | une présentation PowerPoint est demandée (agent externe, installé à part) | le champ handoff du rapport de pptx_publish.py, tel quel : sources, .pptx attendu, mode, trame, gabarit |
 
 ### `orientation`
 
@@ -253,16 +254,16 @@ Résumé de [`contract.json`](skills/api-contract/contract.json), qui fait foi (
 
 ### `architecture-deck`
 
-Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité.
+Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format que l'agent externe concepteur-deck convertit en PowerPoint. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité.
 
 Résumé de [`contract.json`](skills/architecture-deck/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Dossier d'un workflow d'architecture aux étapes validées : options.json, exigences.json (et son glossaire), decision.json, PNG des schémas déjà exportés.
-- **Sorties** : presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois.
+- **Sorties** : presentation.md : présentation du dossier (besoin, options, décision) au format Markdown que l'agent externe concepteur-deck convertit tel quel, schémas exportés compris ; chaque donnée n'y figure qu'une fois.
 - **`deck_build.py`** : Assemble la présentation du dossier à partir des étapes validées, sans rien demander au modèle : options.json (validé contre le schéma d'options_build.py), le catalogue d'exigences et son glossaire, decision.json, les PNG des schémas déjà exportés. Mêmes scores et contrôles qu'options_build.py ; une diapositive par information (chiffres clés, exigences indispensables, glossaire, notes par critère en graphique, scores, écarts, comparaison, un schéma par option, décision, couverture par l'option retenue, questions ouvertes), le détail dans les notes de l'orateur. Rapport JSON, codes de sortie : 0 presentation.md écrit ; 1 options.json, decision.json ou catalogue illisible ou invalide (erreurs avec leur chemin) ; aucun fichier écrit.
 - **Dépend de** `architecture-options` (`options_build.py`, obligatoire) : mêmes scores, contrôles et schéma d'options.json que la comparaison validée.
-- **Passe la main** au skill `markdown-publish` : produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx).
+- **Passe la main** au skill `markdown-publish` : faire produire le .pptx de presentation.md par l'agent externe concepteur-deck (pptx_publish.py prépare la demande, puis --check vérifie).
 
 ### `architecture-dossier`
 
@@ -609,19 +610,19 @@ Résumé de [`contract.json`](skills/excalidraw-diagram/contract.json), qui fait
 
 ### `markdown-publish`
 
-Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.
+Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint déléguée à l'agent concepteur-deck installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.
 
 Résumé de [`contract.json`](skills/markdown-publish/contract.json), qui fait foi (champs des rapports en JSON Schema).
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word ou gabarit PowerPoint .potx (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, par le skill externe markdown-to-pptx s'il est installé ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, conçu ou converti par l'agent externe concepteur-deck (installé à part), puis vérifié ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier. Rapport JSON, codes de sortie : 0 tous les documents sont produits ; 1 au moins un document a échoué.
-- **`pptx_publish.py`** : Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs). Rapport JSON, codes de sortie : 0 présentation écrite et vérifiée ; 1 Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé.
+- **`pptx_publish.py`** : Délègue la présentation PowerPoint à l'agent externe concepteur-deck, installé à part et appelé par son seul contrat d'interface. Sans --check, vérifie les sources (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), écrit en mode convertir la copie de travail dans .myskills-tmp/, trouve l'agent et donne dans le rapport la demande à lui passer (message de passage validé contre le contrat). Avec --check, après l'agent : rouvre le .pptx (diapositives, images, textes alternatifs), valide l'état de relecture contre le contrat, compare le Markdown relu, compte les points [à compléter] et retire les copies .before-*. Rapport JSON, codes de sortie : 0 demande prête (sans --check) ou présentation vérifiée (--check) ; 1 source, image, trame ou gabarit invalide, agent concepteur-deck introuvable (avec la consigne d'installation), relecture inachevée, état de relecture non conforme ou présentation incohérente.
 - **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte. Pas de rapport, codes de sortie : 0 modèle écrit.
 - **Dépend de** `diagram-export` (`export.py`, obligatoire) : exporter en image les schémas cités par le Markdown (sources .drawio, .excalidraw, .mmd, .c4).
 - **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
-- **Passe la main** au skill externe `markdown-to-pptx` (installé à part, contrat `shared/external/markdown-to-pptx.contract.json`) : produire le .pptx (pptx_publish.py le lance).
+- **Passe la main** à l'agent externe `concepteur-deck` (installé à part, contrat `shared/external/concepteur-deck.contract.json`) : concevoir ou convertir le .pptx : pptx_publish.py prépare la demande, l'agent appelant la lui passe, pptx_publish.py --check vérifie le résultat.
 - **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx.
 
 ### `markdown-to-obsidian`

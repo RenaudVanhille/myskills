@@ -142,7 +142,7 @@ Juste après les exigences, avant toute option : utilisateurs, charge et pointe,
 - **Contrôle** : urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)
 - **Contrôle** : diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois
 - **Contrôle** : si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../donnees/exigences.json, source ../donnees/options.json et l'option)
-- **Contrôle** : si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)
+- **Contrôle** : si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu)
 
 donnees/decision.json reprend le choix fait par l'utilisateur à la revue précédente : option, by, ses mots dans why, date, refs. options_build.py --decision n'écrit que l'ADR et la traçabilité de l'option retenue : donnees/options.json et options.md validés ne changent pas. Les constructions sont mécaniques et restent à l'agent du workflow ; un schéma C4 ou cloud détaillé demandé par l'utilisateur passe à schema-designer, un modèle de menaces à architecture-reviewer. La présentation, facultative, se construit après les PNG, à partir des seuls fichiers validés, et ne se réécrit pas.
 

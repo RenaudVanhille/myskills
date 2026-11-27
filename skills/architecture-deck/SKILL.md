@@ -1,6 +1,6 @@
 ---
 name: architecture-deck
-description: "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité."
+description: "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format que l'agent externe concepteur-deck convertit en PowerPoint. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité."
 ---
 
 # architecture-deck
@@ -16,11 +16,11 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Dossier d'un workflow d'architecture aux étapes validées : options.json, exigences.json (et son glossaire), decision.json, PNG des schémas déjà exportés.
-- **Sorties** : presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois.
+- **Sorties** : presentation.md : présentation du dossier (besoin, options, décision) au format Markdown que l'agent externe concepteur-deck convertit tel quel, schémas exportés compris ; chaque donnée n'y figure qu'une fois.
 - **`deck_build.py`** : Assemble la présentation du dossier à partir des étapes validées, sans rien demander au modèle : options.json (validé contre le schéma d'options_build.py), le catalogue d'exigences et son glossaire, decision.json, les PNG des schémas déjà exportés. Mêmes scores et contrôles qu'options_build.py ; une diapositive par information (chiffres clés, exigences indispensables, glossaire, notes par critère en graphique, scores, écarts, comparaison, un schéma par option, décision, couverture par l'option retenue, questions ouvertes), le détail dans les notes de l'orateur. Rapport JSON (0 succès, 1 erreur).
 - **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube ; fichiers de travail dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système.
 - **Dépend de** `architecture-options` (`options_build.py`, obligatoire) : mêmes scores, contrôles et schéma d'options.json que la comparaison validée.
-- **Passe la main** au skill `markdown-publish` : produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx).
+- **Passe la main** au skill `markdown-publish` : faire produire le .pptx de presentation.md par l'agent externe concepteur-deck (pptx_publish.py prépare la demande, puis --check vérifie).
 
 ## 1. Assembler
 
@@ -29,11 +29,14 @@ Une fois la décision prise et les schémas exportés en PNG :
 ```bash
 uv run scripts/deck_build.py DOSSIER
 uv run ../markdown-publish/scripts/pptx_publish.py DOSSIER/presentation.md [--template MARQUE.potx]
+# passer le champ handoff du rapport à l'agent concepteur-deck, puis :
+uv run ../markdown-publish/scripts/pptx_publish.py --check DOSSIER/presentation.pptx
 ```
 
 `deck_build.py` écrit `presentation.md` à partir des fichiers validés
 (rien à rédiger) ; un schéma non exporté est signalé et sa diapositive
-omise. `pptx_publish.py` appelle le skill externe `markdown-to-pptx`,
-installé à part, et vérifie le `.pptx`. N'éditez `presentation.md` que pour
+omise. Le `.pptx` est délégué à l'agent externe `concepteur-deck`
+(installé à part, mode `convertir`, sur une copie de travail) :
+`pptx_publish.py` prépare la demande, puis `--check` vérifie le rendu. N'éditez `presentation.md` que pour
 une demande de l'utilisateur ; corrigez sinon la source (`options.json`,
 exigences) et relancez.

@@ -28,7 +28,7 @@ Généré depuis `src/agents/backend-estimator.contract.json`, qui fait foi.
 | `solution-estimator` | les lots backend sont prêts : les fusionner dans le chiffrage | decoupage-back.lots.json ; les lots ajustés et leur raison, les hypothèses à valider ; si les abaques sont ceux par défaut (à calibrer) |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator | concepteur-deck), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 

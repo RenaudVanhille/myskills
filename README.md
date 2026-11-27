@@ -149,7 +149,7 @@ qui dit ce qui manque et donne la commande d'installation.
 | Schémas Mermaid, Excalidraw | un navigateur (voir ci-dessus) | `doctor.py schemas --prefetch` pour travailler hors ligne | `schemas` |
 | Schémas C4 (LikeC4) | [Node.js](https://nodejs.org/) (`winget install OpenJS.NodeJS.LTS`) | `npm install -g likec4`, plus rapide et nécessaire hors ligne | `schemas` |
 | Publier en Word, HTML, XWiki | rien de plus (Pandoc est fourni) | [LibreOffice](https://www.libreoffice.org/download/), pour le PDF et la relecture visuelle des `.docx` | `publication` |
-| Publier en PowerPoint | le skill externe `markdown-to-pptx` | — | `publication` |
+| Publier en PowerPoint | l'agent externe `concepteur-deck` (installé avec le skill `markdown-to-pptx` du projet powerpoint-skill) | — | `publication` |
 | Maquettes vers HTML, design system | un navigateur (voir schémas) | Tesseract (textes des maquettes : ébauche et comparaison) ; Bootstrap dans le cache pour travailler hors ligne : `doctor.py maquettes --prefetch` | `maquettes` |
 | Revue d'architecture avec comparaison au code | rien de plus | le skill externe `graphify` (analyse locale du code) | `revue` |
 | Avant-vente, exigences, chiffrage, revues, matrices Excel | rien de plus | — | — |
@@ -253,7 +253,7 @@ flowchart TD
   user(["Utilisateur"])
   orientation["orientation : choisit l'agent ou le workflow"]
   workflows[("Définitions de workflows (JSON)")]
-  ext["Skills externes : markdown-to-pptx, graphify"]
+  ext["Externes : agent concepteur-deck, skill graphify"]
   user -->|"demande"| orientation
   orientation -->|"ouvre"| mission
   orientation -->|"passe la main"| engine
@@ -363,17 +363,18 @@ lire par un autre agent ou outil qui appelle myskills.
 | `mockup-to-html` | Maquette d'écran en image vers HTML/CSS : mise en page mesurée en local (bandes, colonnes, cadres, textes par OCR Tesseract, tailles et espacements) et ébauche de description (`ui_analyze.py`) ; page décrite en composants (33 : en-tête, barre latérale, bandeau, grille, carte, statistique, graphique, formulaire, tableau, pagination, modale, icône, avatar...) et tokens, HTML sémantique, accessible et responsive écrit par script, logos et photos découpés dans la maquette, rendu dans un navigateur local réseau coupé et comparé à la maquette bloc par bloc (fidélité : textes, positions et tailles, bandes, cadres ; écarts rattachés au nœud de la description), image côte à côte, débordement mobile ; mêmes pages en Bootstrap (rendues et comparées) ou en React MUI / Ant Design, Vue Vuetify, Angular Material (composants et thème tirés des tokens) (`page_build.py --target`) ; découpage en composants (motifs répétés, composants fournis par la bibliothèque) et lots du chiffrage frontend à trois points, avec réemploi entre écrans semblables et abaques donnés avant le lancement, repris par `solution-estimate` (`ui_breakdown.py`) ; revue UX et accessibilité sur le rendu (contraste réel, noms accessibles, cibles WCAG 2.2, constats par heuristique de Nielsen validés et mis en forme, `ux_review.py`) |
 | `design-system` | Design system : reprise de celui du client (tokens W3C, Style Dictionary, variables CSS, thème MUI ou Ant Design, `ds_import.py`), qui prime sur les maquettes, écarts des maquettes signalés (`ds_extract.py --against`) ; sinon palette et rôles des couleurs tirés des maquettes, tailles de texte, espacements et rayons mesurés par `ui_analyze.py` (`ds_extract.py`), tokens complétés et contrôlés (contrastes WCAG 2.1 avec teinte corrigée proposée, couleurs en double, échelle, grille de 4 px), inventaire des composants et des couleurs en dur des pages, variables CSS, tokens W3C Design Tokens, documentation et styleguide rendu (`ds_build.py`) |
 | `diagram-export` | Exports PNG/SVG pour Office et Confluence |
-| `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint avec le skill externe `markdown-to-pptx` |
+| `markdown-publish` | Markdown vers Word, HTML ou XWiki (SharePoint, Confluence, XWiki), et vers PowerPoint par délégation à l'agent externe `concepteur-deck` (demande préparée, rendu vérifié) |
 
-### Skills externes
+### Skills et agents externes
 
 Installés à part et appelés par leur seul contrat d'interface
-(`shared/external/<nom>.contract.json` : où le trouver, commande, conventions
-d'entrée, schéma de la sortie) ; myskills n'en copie pas le code.
+(`shared/external/<nom>.contract.json` : où le trouver, commande ou demande
+(JSON Schema), conventions d'entrée, schéma de la sortie) ; myskills n'en
+copie pas le code.
 
-| Skill | Utilisé par | Installation |
+| Skill ou agent | Utilisé par | Installation |
 | --- | --- | --- |
-| `markdown-to-pptx` (md2pptx, Reno) | `markdown-publish` (`pptx_publish.py`) | plugin powerpoint-skill dans votre outil, ou dossier du skill dans `MD2PPTX_SKILL` ; `check-prerequisites` (groupe `publication`) le cherche |
+| agent `concepteur-deck` (powerpoint-skill, Reno), qui rend avec le skill `markdown-to-pptx` | `document-publisher` : `pptx_publish.py` (`markdown-publish`) prépare la demande (mode `convertir` ou `concevoir`), le lui passe, puis `--check` vérifie le `.pptx` et l'état de relecture | `install.sh` / `install.ps1` du projet powerpoint-skill (sans `--no-agents`), ou fichier de l'agent dans `CONCEPTEUR_DECK_AGENT` ; `check-prerequisites` (groupe `publication`) le cherche |
 | `graphify` (Graphify Labs, Apache-2.0) | `architecture-review` (`arch_review.py`) : graphe du code, `--code-only` par défaut (analyse locale) ; documents lus, sur demande, par le modèle du harness ou Ollama | `uv tool install graphifyy`, ou chemin de la commande dans `GRAPHIFY_BIN` ; `check-prerequisites` (groupe `revue`) le cherche |
 
 ## Outils autorisés

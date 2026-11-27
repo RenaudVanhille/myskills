@@ -94,7 +94,7 @@ Un à trois schémas métier, chacun avec un seul message. Le brief de chaque sc
 - **Entrées** : `../donnees/options.json`, `../donnees/decision.json`, `../schemas/*.png`
 - **Livrables** : `presentation.md`
 - **Contrôle** : architecture-deck : deck_build.py .. --out presentation.md (besoin, options, décision, schémas du dossier)
-- **Contrôle** : si l'utilisateur veut le .pptx : passer presentation.md à document-publisher (skill externe markdown-to-pptx)
+- **Contrôle** : si l'utilisateur veut le .pptx : passer presentation.md à document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu
 
 Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER presentation --submit).
 

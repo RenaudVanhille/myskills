@@ -1,10 +1,12 @@
-"""Skills installés à part, connus seulement par leur contrat d'interface.
+"""Skills et agents installés à part, connus seulement par leur contrat d'interface.
 
 Le contrat (`<nom>.contract.json`, copié à côté de ce module par
 scripts/build.py depuis shared/external/) dit où chercher le skill, quel
 script lancer et quelle version a été testée. Rien du skill n'est copié dans
 myskills : s'il n'est pas installé, l'appelant reçoit la consigne
-d'installation du contrat.
+d'installation du contrat. Un agent externe (clé `agent`) ne se lance pas
+par script : `locate_agent` trouve son fichier, l'agent appelant lui passe
+la demande préparée par le script.
 """
 
 import json
@@ -22,13 +24,13 @@ def contract(name: str) -> dict:
     return json.loads((HERE / f"{name}.contract.json").read_text(encoding="utf-8"))
 
 
-def candidates(spec: dict) -> list[Path]:
-    """Dossiers possibles du skill, dans l'ordre du contrat (variable d'abord)."""
+def candidates(spec: dict, key: str = "folders") -> list[Path]:
+    """Dossiers (ou fichiers d'agent) possibles, dans l'ordre du contrat (variable d'abord)."""
     found: list[Path] = []
     if os.environ.get(spec["locate"]["env"]):
         return [Path(os.environ[spec["locate"]["env"]]).expanduser().resolve()]
     cwd = Path.cwd().resolve()
-    for pattern in spec["locate"]["folders"]:
+    for pattern in spec["locate"][key]:
         rel = pattern[2:]
         roots = [Path.home()] if pattern.startswith("~/") else [cwd, *cwd.parents]
         for root in roots:
@@ -53,7 +55,15 @@ def locate(name: str) -> tuple[dict, Path | None]:
     return spec, None
 
 
+def locate_agent(name: str) -> tuple[dict, Path | None]:
+    """(contrat, fichier de l'agent externe installé, ou None)."""
+    spec = contract(name)
+    return spec, next((path for path in candidates(spec, "files") if path.is_file()), None)
+
+
 def missing_message(spec: dict) -> str:
+    if "agent" in spec:
+        return f"agent {spec['agent']} introuvable (variable {spec['locate']['env']} ou fichiers d'installation habituels) : {spec['install']}"
     where = "PATH" if spec["locate"].get("command") else "dossiers d'installation habituels"
     return f"skill {spec['skill']} introuvable (variable {spec['locate']['env']} ou {where}) : {spec['install']}"
 
