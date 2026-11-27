@@ -1,5 +1,13 @@
 # Journal des versions
 
+## [2.5.0](https://github.com/RenaudVanhille/myskills/compare/v2.4.0...v2.5.0) (2026-11-27)
+
+
+### Ajouts
+
+* **requirements-catalog:** exigences non fonctionnelles numérotées par catégorie ([#145](https://github.com/RenaudVanhille/myskills/issues/145)) ([dc3feab](https://github.com/RenaudVanhille/myskills/commit/dc3feab2fe4b0af5f65e3330c39970ca498f8a55))
+* volumétrie demandée dès les exigences, dimensionnement avant le chiffrage ([#144](https://github.com/RenaudVanhille/myskills/issues/144)) ([d97eb2b](https://github.com/RenaudVanhille/myskills/commit/d97eb2b5473df4ef79ad44639b7419b89925c4a6))
+
 ## [2.4.0](https://github.com/RenaudVanhille/myskills/compare/v2.3.0...v2.4.0) (2026-11-19)
 
 
