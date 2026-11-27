@@ -20,13 +20,28 @@ Pour un comité d'architecture : documents du dossier reçu d'un projet en Markd
 title: "Instruction d'un dossier d'architecture reçu"
 ---
 flowchart LR
-  s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
-  s_exigences["2. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_revue["3. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_avis["4. Avis d'architecture<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["2. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_revue["3. Revue d'architecture<br/><small>architecture-reviewer</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_avis["4. Avis d'architecture<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_exigences
   s_exigences --> s_revue
   s_revue --> s_avis
+  s_documents ~~~ s_exigences
+  s_exigences ~~~ s_revue
+  s_revue ~~~ s_avis
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -35,16 +50,16 @@ flowchart LR
   class s_avis facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Documents en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
-| 3. Revue d'architecture | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 2 |
-| 4. Avis d'architecture (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 3 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Documents en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
+| 3. Revue d'architecture | Solutioning | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 2 |
+| 4. Avis d'architecture (facultative) | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-architecture.md` | 3 |
 
 ### 1. Documents en Markdown
 

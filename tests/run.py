@@ -390,6 +390,7 @@ def _stage_failures(where: str, definition: dict, skills: dict, agents: dict) ->
 def _workflow_failures(skills: dict, agents: dict, agent_cases: list[dict]) -> list[str]:
     """Workflows livrés : conformes au schéma de définition, documentés, joués par un cas d'agent."""
     from agents_lib import parse_agent as parse, split_list as split
+    from workflow_docs import workflow_chart
 
     failures = []
     journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
@@ -410,10 +411,13 @@ def _workflow_failures(skills: dict, agents: dict, agent_cases: list[dict]) -> l
         for stage in definition.get("stages", []):
             if not stage.get("level"):
                 failures.append(f"{where} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
+            if not stage.get("phase"):
+                failures.append(f"{where} : étape {stage.get('id')} sans phase (zone du schéma d'avancement)")
             failures += [f"{where} : étape {stage.get('id')}, skill « {s} » absent des skills "
                          "de l'agent architecture-workflow" for s in stage.get("skills", [])
                          if s in skills and s not in engine]
         failures += [f"{where} : {e}" for e in schema_errors(definition, definition_schema)]
+        failures += [f"{where} : {e}" for e in workflow_chart.phase_errors(definition.get("stages", []))]
         if definition.get("name") != path.stem:
             failures.append(f"{where} : name = {definition.get('name')!r}, attendu {path.stem!r}")
         failures += _stage_failures(where, definition, skills, agents)

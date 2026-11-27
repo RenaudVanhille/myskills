@@ -15,6 +15,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -34,6 +35,7 @@
     },
     {
       "id": "depouillement",
+      "phase": "lecture",
       "label": "Dépouillement de l'appel d'offres",
       "level": "moyen",
       "after": [
@@ -66,6 +68,7 @@
     },
     {
       "id": "qualification",
+      "phase": "lecture",
       "label": "Qualification go / no-go",
       "level": "complexe",
       "after": [
@@ -100,6 +103,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -136,6 +140,7 @@
     },
     {
       "id": "dimensionnement",
+      "phase": "cadrage",
       "label": "Dimensionnement",
       "level": "moyen",
       "after": [
@@ -169,6 +174,7 @@
     },
     {
       "id": "domaines",
+      "phase": "cadrage",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -222,6 +228,7 @@
     },
     {
       "id": "architectures",
+      "phase": "solutioning",
       "label": "Options d'architecture",
       "level": "complexe",
       "skills": [
@@ -269,6 +276,7 @@
     },
     {
       "id": "schemas",
+      "phase": "solutioning",
       "label": "Décision et schémas",
       "level": "moyen",
       "after": [
@@ -382,6 +390,7 @@
     },
     {
       "id": "conformite",
+      "phase": "restitution",
       "label": "Matrice de conformité",
       "level": "moyen",
       "after": [
@@ -420,6 +429,7 @@
     },
     {
       "id": "maquettes",
+      "phase": "solutioning",
       "label": "Maquettes d'écrans, revue UX et lots frontend",
       "level": "moyen",
       "after": [
@@ -494,6 +504,7 @@
     },
     {
       "id": "backend",
+      "phase": "chiffrage",
       "label": "Découpage et lots backend",
       "level": "moyen",
       "after": [
@@ -526,6 +537,7 @@
     },
     {
       "id": "chiffrage",
+      "phase": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "moyen",
       "after": [
@@ -594,6 +606,7 @@
     },
     {
       "id": "revue",
+      "phase": "solutioning",
       "label": "Revue d'architecture",
       "level": "moyen",
       "after": [
@@ -638,6 +651,7 @@
     },
     {
       "id": "exploitation",
+      "phase": "solutioning",
       "label": "Dossier d'exploitation",
       "level": "moyen",
       "after": [
@@ -673,6 +687,7 @@
     },
     {
       "id": "registre",
+      "phase": "restitution",
       "label": "Hypothèses, exclusions et questions",
       "level": "moyen",
       "after": [
@@ -714,6 +729,7 @@
     },
     {
       "id": "memoire",
+      "phase": "restitution",
       "label": "Mémoire technique",
       "level": "moyen",
       "after": [
@@ -768,6 +784,7 @@
     },
     {
       "id": "soutenance",
+      "phase": "restitution",
       "label": "Support de soutenance",
       "level": "simple",
       "after": [

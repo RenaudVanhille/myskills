@@ -20,15 +20,24 @@ Workflow de rétro-documentation de l'agent architecture-workflow : d'une applic
 title: "Rétro-documentation et modernisation d'une application existante"
 ---
 flowchart LR
-  s_code["1. Graphe du code<br/><small>architecture-workflow</small>"]
-  s_constat["2. Architecture constatée<br/><small>schema-designer</small>"]
-  s_infrastructure["3. Hébergement tiré de son code<br/><small>architecture-workflow</small>"]
-  s_donnees["4. Modèle de données actuel<br/><small>architecture-workflow</small>"]
-  s_processus["5. Processus métier<br/><small>schema-designer</small>"]
-  s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_revue["7. Revue de l'existant<br/><small>architecture-reviewer</small>"]
-  s_trajectoire["8. Trajectoire de modernisation<br/><small>architecture-workflow</small>"]
-  s_dossier["9. Dossier de l'existant<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_code["1. Graphe du code<br/><small>architecture-workflow</small>"]
+    s_constat["2. Architecture constatée<br/><small>schema-designer</small>"]
+    s_infrastructure["3. Hébergement tiré de son code<br/><small>architecture-workflow</small>"]
+    s_donnees["4. Modèle de données actuel<br/><small>architecture-workflow</small>"]
+    s_processus["5. Processus métier<br/><small>schema-designer</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+    s_revue["7. Revue de l'existant<br/><small>architecture-reviewer</small>"]
+    s_trajectoire["8. Trajectoire de modernisation<br/><small>architecture-workflow</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_dossier["9. Dossier de l'existant<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_code --> s_constat
   s_code --> s_infrastructure
   s_code --> s_donnees
@@ -43,6 +52,8 @@ flowchart LR
   s_trajectoire --> s_dossier
   s_donnees --> s_dossier
   s_processus --> s_dossier
+  s_processus ~~~ s_domaines
+  s_trajectoire ~~~ s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -51,7 +62,7 @@ flowchart LR
   class s_infrastructure,s_donnees,s_processus,s_domaines,s_trajectoire,s_dossier facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Architecture constatée, 3. Hébergement tiré de son code, 4. Modèle de données actuel
@@ -59,17 +70,17 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Graphe du code | simple | `architecture-workflow` | aucun | `graphify-out/graph.json` | début |
-| 2. Architecture constatée | moyen | `schema-designer` | `c4-architecture` | `donnees/c4.json`, `c4/**/*.png` | 1 |
-| 3. Hébergement tiré de son code (facultative) | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/infrastructure.json` | 1 |
-| 4. Modèle de données actuel (facultative) | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 1 |
-| 5. Processus métier (facultative) | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 2 |
-| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
-| 7. Revue de l'existant | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 2, 3, 6 |
-| 8. Trajectoire de modernisation (facultative) | moyen | `architecture-workflow` | `transition-roadmap` | `donnees/feuille-de-route.json`, `feuille-de-route.md` | 7 |
-| 9. Dossier de l'existant (facultative) | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-existant.md` | 7, 8, 4, 5 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Graphe du code | Lecture du dossier | simple | `architecture-workflow` | aucun | `graphify-out/graph.json` | début |
+| 2. Architecture constatée | Lecture du dossier | moyen | `schema-designer` | `c4-architecture` | `donnees/c4.json`, `c4/**/*.png` | 1 |
+| 3. Hébergement tiré de son code (facultative) | Lecture du dossier | moyen | `architecture-workflow` | `cloud-architecture` | `schemas/infrastructure.json` | 1 |
+| 4. Modèle de données actuel (facultative) | Lecture du dossier | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 1 |
+| 5. Processus métier (facultative) | Lecture du dossier | moyen | `schema-designer` | `process-diagram`, `diagram-export` | `processus/*.json`, `processus/*.drawio`, `processus/*.processus.md` | 2 |
+| 6. Domaines et style d'architecture (facultative) | Solutioning | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 2, 4 |
+| 7. Revue de l'existant | Solutioning | complexe | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 2, 3, 6 |
+| 8. Trajectoire de modernisation (facultative) | Solutioning | moyen | `architecture-workflow` | `transition-roadmap` | `donnees/feuille-de-route.json`, `feuille-de-route.md` | 7 |
+| 9. Dossier de l'existant (facultative) | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-existant.md` | 7, 8, 4, 5 |
 
 ### 1. Graphe du code
 

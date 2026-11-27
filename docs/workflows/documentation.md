@@ -20,16 +20,23 @@ Workflow de documentation de l'agent architecture-workflow : documents hétérog
 title: "Des documents en vrac à une documentation : notes du vault, synthèse, schémas et document"
 ---
 flowchart LR
-  s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
-  s_notes["2. Notes du vault<br/><small>architecture-workflow</small>"]
-  s_synthese["3. Synthèse<br/><small>architecture-workflow</small>"]
-  s_schemas["4. Schémas pour le public visé<br/><small>schema-designer</small>"]
-  s_document["5. Document assemblé<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
+    s_notes["2. Notes du vault<br/><small>architecture-workflow</small>"]
+    s_synthese["3. Synthèse<br/><small>architecture-workflow</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_schemas["4. Schémas pour le public visé<br/><small>schema-designer</small>"]
+    s_document["5. Document assemblé<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_notes
   s_documents --> s_synthese
   s_synthese --> s_schemas
   s_schemas --> s_document
   s_notes --> s_document
+  s_synthese ~~~ s_schemas
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -38,20 +45,20 @@ flowchart LR
   class s_notes facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Notes du vault, 3. Synthèse
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Documents en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Notes du vault (facultative) | simple | `architecture-workflow` | `markdown-to-obsidian` | `index.md` | 1 |
-| 3. Synthèse | moyen | `architecture-workflow` | `doc-to-markdown` | `synthese.md` | 1 |
-| 4. Schémas pour le public visé | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 3 |
-| 5. Document assemblé | simple | `architecture-workflow` | `architecture-dossier` | `documentation.md` | 4, 2 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Documents en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Notes du vault (facultative) | Lecture du dossier | simple | `architecture-workflow` | `markdown-to-obsidian` | `index.md` | 1 |
+| 3. Synthèse | Lecture du dossier | moyen | `architecture-workflow` | `doc-to-markdown` | `synthese.md` | 1 |
+| 4. Schémas pour le public visé | Restitution | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 3 |
+| 5. Document assemblé | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `documentation.md` | 4, 2 |
 
 ### 1. Documents en Markdown
 

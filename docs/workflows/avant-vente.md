@@ -20,23 +20,38 @@ Workflow d'avant-vente de l'agent architecture-workflow : documents du dossier d
 title: "Réponse à un appel d'offres, des documents reçus à l'offre"
 ---
 flowchart TD
-  s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
-  s_depouillement["2. Dépouillement de l'appel d'offres<br/><small>architecture-workflow</small>"]
-  s_qualification["3. Qualification go / no-go<br/><small>architecture-workflow</small>"]
-  s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
-  s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
-  s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
-  s_architectures["7. Options d'architecture<br/><small>architecture-workflow</small>"]
-  s_schemas["8. Décision et schémas<br/><small>schema-designer</small>"]
-  s_conformite["9. Matrice de conformité<br/><small>architecture-workflow</small>"]
-  s_maquettes["10. Maquettes d'écrans, revue UX et lots frontend<br/><small>ui-designer</small>"]
-  s_backend["11. Découpage et lots backend<br/><small>backend-estimator</small>"]
-  s_chiffrage["12. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
-  s_revue["13. Revue d'architecture<br/><small>architecture-reviewer</small>"]
-  s_exploitation["14. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
-  s_registre["15. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
-  s_memoire["16. Mémoire technique<br/><small>architecture-workflow</small>"]
-  s_soutenance["17. Support de soutenance<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Documents en Markdown<br/><small>document-extractor</small>"]
+    s_depouillement["2. Dépouillement de l'appel d'offres<br/><small>architecture-workflow</small>"]
+    s_qualification["3. Qualification go / no-go<br/><small>architecture-workflow</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["4. Catalogue des exigences<br/><small>architecture-workflow</small>"]
+    s_dimensionnement["5. Dimensionnement<br/><small>architecture-workflow</small>"]
+    s_domaines["6. Domaines et style d'architecture<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_architectures["7. Options d'architecture<br/><small>architecture-workflow</small>"]
+    s_schemas["8. Décision et schémas<br/><small>schema-designer</small>"]
+    s_maquettes["10. Maquettes d'écrans, revue UX et lots frontend<br/><small>ui-designer</small>"]
+    s_revue["13. Revue d'architecture<br/><small>architecture-reviewer</small>"]
+    s_exploitation["14. Dossier d'exploitation<br/><small>architecture-workflow</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_backend["11. Découpage et lots backend<br/><small>backend-estimator</small>"]
+    s_chiffrage["12. Chiffrage de l'option retenue<br/><small>solution-estimator</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_conformite["9. Matrice de conformité<br/><small>architecture-workflow</small>"]
+    s_registre["15. Hypothèses, exclusions et questions<br/><small>architecture-workflow</small>"]
+    s_memoire["16. Mémoire technique<br/><small>architecture-workflow</small>"]
+    s_soutenance["17. Support de soutenance<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_depouillement
   s_depouillement --> s_qualification
   s_documents --> s_exigences
@@ -61,6 +76,10 @@ flowchart TD
   s_registre --> s_memoire
   s_exploitation --> s_memoire
   s_memoire --> s_soutenance
+  s_qualification ~~~ s_exigences
+  s_domaines ~~~ s_architectures
+  s_exploitation ~~~ s_backend
+  s_chiffrage ~~~ s_conformite
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -69,7 +88,7 @@ flowchart TD
   class s_depouillement,s_qualification,s_domaines,s_conformite,s_maquettes,s_backend,s_chiffrage,s_revue,s_exploitation,s_memoire,s_soutenance facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Dépouillement de l'appel d'offres, 4. Catalogue des exigences, 10. Maquettes d'écrans, revue UX et lots frontend
@@ -78,25 +97,25 @@ En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, 
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Documents en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Dépouillement de l'appel d'offres (facultative) | moyen | `architecture-workflow` | `tender-response` | `donnees/ao.json`, `ao.md` | 1 |
-| 3. Qualification go / no-go (facultative) | complexe | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/qualification.json`, `qualification.md` | 2 |
-| 4. Catalogue des exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
-| 5. Dimensionnement | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
-| 6. Domaines et style d'architecture (facultative) | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
-| 7. Options d'architecture | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 3, 6, 5 |
-| 8. Décision et schémas | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 7 |
-| 9. Matrice de conformité (facultative) | moyen | `architecture-workflow` | `tender-response` | `donnees/conformite.json`, `conformite.md`, `conformite.xlsx` | 8 |
-| 10. Maquettes d'écrans, revue UX et lots frontend (facultative) | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `design-system.json`, `pages/*.json`, `donnees/revue-ux.json`, `decoupage.md`, `donnees/decoupage.lots.json` | 1 |
-| 11. Découpage et lots backend (facultative) | moyen | `backend-estimator` | `api-contract` | `donnees/decoupage-back.lots.json`, `decoupage-back.md` | 8 |
-| 12. Chiffrage de l'option retenue (facultative) | moyen | `solution-estimator` | `solution-estimate`, `capacity-sizing`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 8, 10, 11 |
-| 13. Revue d'architecture (facultative) | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 8 |
-| 14. Dossier d'exploitation (facultative) | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 8 |
-| 15. Hypothèses, exclusions et questions | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/registre.json`, `registre.md`, `questions-client.md` | 9, 12, 13 |
-| 16. Mémoire technique (facultative) | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 15, 14 |
-| 17. Support de soutenance (facultative) | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 16 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Documents en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Dépouillement de l'appel d'offres (facultative) | Lecture du dossier | moyen | `architecture-workflow` | `tender-response` | `donnees/ao.json`, `ao.md` | 1 |
+| 3. Qualification go / no-go (facultative) | Lecture du dossier | complexe | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/qualification.json`, `qualification.md` | 2 |
+| 4. Catalogue des exigences | Cadrage | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `donnees/exigences.csv` | 1 |
+| 5. Dimensionnement | Cadrage | moyen | `architecture-workflow` | `capacity-sizing`, `cloud-cost` | `donnees/dimensionnement.json`, `dimensionnement.md`, `donnees/dimensionnement.result.json` | 4 |
+| 6. Domaines et style d'architecture (facultative) | Cadrage | complexe | `architecture-workflow` | `domain-design`, `data-model` | `donnees/domaines.json`, `domaines.md`, `donnees/domaines.styles.json`, `domaines.carte.drawio` | 4 |
+| 7. Options d'architecture | Solutioning | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 4, 3, 6, 5 |
+| 8. Décision et schémas | Solutioning | moyen | `schema-designer` | `architecture-options`, `drawio-diagram`, `cloud-architecture`, `well-architected-review`, `urbanization-map`, `diagram-export`, `api-contract` | `donnees/decision.json`, `adr-architecture.md`, `tracabilite.md`, `schemas/architectures.drawio`, `schemas/*.png` | 7 |
+| 9. Matrice de conformité (facultative) | Restitution | moyen | `architecture-workflow` | `tender-response` | `donnees/conformite.json`, `conformite.md`, `conformite.xlsx` | 8 |
+| 10. Maquettes d'écrans, revue UX et lots frontend (facultative) | Solutioning | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `design-system.json`, `pages/*.json`, `donnees/revue-ux.json`, `decoupage.md`, `donnees/decoupage.lots.json` | 1 |
+| 11. Découpage et lots backend (facultative) | Chiffrage | moyen | `backend-estimator` | `api-contract` | `donnees/decoupage-back.lots.json`, `decoupage-back.md` | 8 |
+| 12. Chiffrage de l'option retenue (facultative) | Chiffrage | moyen | `solution-estimator` | `solution-estimate`, `capacity-sizing`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 8, 10, 11 |
+| 13. Revue d'architecture (facultative) | Solutioning | moyen | `architecture-reviewer` | `architecture-review`, `threat-model`, `well-architected-review` | `donnees/revue.json`, `revue.md` | 8 |
+| 14. Dossier d'exploitation (facultative) | Solutioning | moyen | `architecture-workflow` | `operations-dossier` | `donnees/exploitation.json`, `exploitation.md` | 8 |
+| 15. Hypothèses, exclusions et questions | Restitution | moyen | `architecture-workflow` | `tender-response`, `decision-log` | `donnees/registre.json`, `registre.md`, `questions-client.md` | 9, 12, 13 |
+| 16. Mémoire technique (facultative) | Restitution | moyen | `architecture-workflow` | `architecture-dossier`, `tender-response` | `memoire/comprehension.md`, `memoire/solution.md`, `memoire-technique.md` | 15, 14 |
+| 17. Support de soutenance (facultative) | Restitution | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 16 |
 
 ### 1. Documents en Markdown
 

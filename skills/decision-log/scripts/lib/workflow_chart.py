@@ -3,7 +3,8 @@
 Même tracé pour la documentation des workflows (scripts/workflow_docs.py : qui mène chaque étape) et pour
 le journal d'un workflow en cours (journal.py, note d'index du vault : avancement de chaque étape). Une
 étape facultative a une bordure en tirets ; une flèche relie une étape à celles dont elle dépend (`after`,
-sinon l'étape précédente).
+sinon l'étape précédente). Les étapes qui ont une `phase` sont rangées dans une zone par phase, dans l'ordre de
+PHASES.
 """
 
 import json
@@ -19,6 +20,11 @@ PROGRESS = {"a-faire": "fill:#f3f4f6,stroke:#6b7280,color:#1f2937",
             "sautee": "fill:#ffffff,stroke:#d1d5db,color:#6b7280"}
 PROGRESS_LABELS = {"a-faire": "à faire", "en-cours": "en cours", "en-revue": "réalisée, en revue",
                    "validee": "validée", "a-reprendre": "à reprendre", "sautee": "sautée"}
+# Zones du schéma, dans l'ordre du workflow : identifiant, libellé, fond.
+PHASES = [("lecture", "Lecture du dossier", "#f8fafc"), ("cadrage", "Cadrage", "#f0f9ff"),
+          ("solutioning", "Solutioning", "#f5f3ff"), ("chiffrage", "Chiffrage", "#fefce8"),
+          ("restitution", "Restitution", "#f0fdf4")]
+PHASE_RANK = {pid: rank for rank, (pid, _, _) in enumerate(PHASES)}
 LEGEND = ("Bordure en tirets : étape facultative. Gris : à faire (à décider pour une facultative) ; bleu : en "
           "cours ; orange : réalisée, en revue ; vert : validée ; rouge : à reprendre ; blanc : sautée.")
 
@@ -40,17 +46,43 @@ def requires(stages: list[dict], index: int) -> list[str]:
     return [stages[index - 1]["id"]] if index else []
 
 
+def phase_errors(stages: list[dict]) -> list[str]:
+    """Zones incohérentes : phase sur certaines étapes seulement, ou dépendance vers une zone placée après."""
+    if not any(s.get("phase") for s in stages):
+        return []
+    errors = [f"étape {s['id']} sans phase alors que d'autres en ont une" for s in stages if not s.get("phase")]
+    phase = {s["id"]: s.get("phase") for s in stages}
+    for i, stage in enumerate(stages):
+        for need in requires(stages, i):
+            if phase.get(need) in PHASE_RANK and stage.get("phase") in PHASE_RANK \
+                    and PHASE_RANK[phase[need]] > PHASE_RANK[stage["phase"]]:
+                errors.append(f"étape {stage['id']} ({stage['phase']}) dépend de {need}, d'une zone placée après "
+                              f"({phase[need]}) : zones dans l'ordre {', '.join(p for p, _, _ in PHASES)}")
+    return errors
+
+
 def flowchart(stages: list[dict], title: str, detail, classes: list[tuple[str, str, list[str]]]) -> str:
-    """Bloc Mermaid : un nœud par étape (numéro, libellé, `detail(stage)` en petit), ses dépendances, puis
-    les classes (nom, style, identifiants des étapes)."""
+    """Bloc Mermaid : un nœud par étape (numéro, libellé, `detail(stage)` en petit), rangé dans la zone de sa phase
+    s'il en a une, ses dépendances, puis les classes (nom, style, identifiants des étapes)."""
     # Au-delà de 10 étapes, de haut en bas : un schéma trop large devient illisible une fois réduit.
     lines = ["```mermaid", "---", "title: " + json.dumps(title, ensure_ascii=False), "---",
              "flowchart " + ("TD" if len(stages) > 10 else "LR")]
-    for i, stage in enumerate(stages, 1):
+    number = {s["id"]: i for i, s in enumerate(stages, 1)}
+
+    def box(stage: dict, indent: str = "  ") -> str:
         label = text(stage.get("label") or stage["id"])
-        lines.append(f'  {node(stage["id"])}["{i}. {label}<br/><small>{text(detail(stage))}</small>"]')
+        return f'{indent}{node(stage["id"])}["{number[stage["id"]]}. {label}<br/><small>{text(detail(stage))}</small>"]'
+
+    zones = [(pid, name, fill, [s for s in stages if s.get("phase") == pid]) for pid, name, fill in PHASES]
+    zones = [z for z in zones if z[3]]
+    for pid, name, fill, members in zones:
+        lines += [f'  subgraph z_{pid}["{name}"]'] + [box(s, "    ") for s in members] + ["  end",
+                  f"  style z_{pid} fill:{fill},stroke:#94a3b8,color:#0f172a"]
+    lines += [box(s) for s in stages if s.get("phase") not in PHASE_RANK]
     for i, stage in enumerate(stages):
         lines += [f"  {node(need)} --> {node(stage['id'])}" for need in requires(stages, i)]
+    # Un lien invisible entre deux zones voisines les garde dans l'ordre sans empêcher les flèches de traverser.
+    lines += [f"  {node(a[3][-1]['id'])} ~~~ {node(b[3][0]['id'])}" for a, b in zip(zones, zones[1:])]
     lines += [f"  classDef {name} {style}" for name, style, _ in classes]
     lines += [f"  class {','.join(node(i) for i in ids)} {name}" for name, _, ids in classes if ids]
     return "\n".join(lines + ["```"])

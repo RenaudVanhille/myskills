@@ -13,6 +13,7 @@
   "stages": [
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -50,6 +51,7 @@
     },
     {
       "id": "evaluation",
+      "phase": "cadrage",
       "label": "Évaluation 6R et vagues",
       "level": "complexe",
       "skills": [
@@ -85,6 +87,7 @@
     },
     {
       "id": "cible",
+      "phase": "solutioning",
       "label": "Architecture cible",
       "level": "complexe",
       "skills": [
@@ -133,6 +136,7 @@
     },
     {
       "id": "chiffrage",
+      "phase": "chiffrage",
       "label": "Chiffrage de la migration",
       "level": "complexe",
       "facultative": true,
@@ -182,6 +186,7 @@
     },
     {
       "id": "exploitation",
+      "phase": "solutioning",
       "label": "Dossier d'exploitation",
       "level": "moyen",
       "after": [
@@ -216,6 +221,7 @@
     },
     {
       "id": "feuille-de-route",
+      "phase": "solutioning",
       "label": "Feuille de route de transition",
       "level": "moyen",
       "after": [
@@ -254,6 +260,7 @@
     },
     {
       "id": "dossier",
+      "phase": "restitution",
       "label": "Dossier de migration",
       "level": "simple",
       "after": [
