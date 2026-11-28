@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LiteLLM",
+      "options": {
+        "baseURL": "{env:LITELLM_BASE_URL}",
+        "apiKey": "{env:LITELLM_API_KEY}"
+      },
+      "models": {
+        "claude-haiku": {"name": "claude-haiku (LiteLLM)"},
+        "claude-sonnet": {"name": "claude-sonnet (LiteLLM)"},
+        "claude-opus": {"name": "claude-opus (LiteLLM)"}
+      }
+    }
+  },
+  "enabled_providers": ["litellm"],
+  "model": "litellm/claude-sonnet",
+  "small_model": "litellm/claude-haiku",
+  "share": "disabled",
+  "autoupdate": false,
+  "permission": {
+    "edit": "allow",
+    "webfetch": "deny",
+    "bash": {
+      "*": "deny",
+      "uv run *": "allow",
+      "python *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow"
+    }
+  }
+}

@@ -480,6 +480,7 @@ sur `main` ; on ne les modifie jamais à la main (AGENTS.md, section 9).
 | `scripts/check_commit.py` | Vérifie un titre de PR ou un message de commit (Conventional Commits), lu par release-please |
 | `release-please-config.json`, `.release-please-manifest.json` | Release automatisée : sections du journal, fichiers dont la version monte, version publiée |
 | `scripts/install.py` | Installation et synchronisation depuis GitHub (`sync`, `status`) pour les cinq outils, en global ou par projet |
+| `deploy/remote-mission/` | Missions menées à distance, hors des skills : service (`service/` : un message = droits GitLab, pod de session, agent OpenCode sur LiteLLM, commit et push ; contrat et tests dans `run.py`), fonction Pipe d'Open WebUI, image avec les outils de tous les skills, chart Helm avec Open WebUI connecté par GitLab ([guide](deploy/remote-mission/README.md)) |
 | `tests/` | Documents de test, résultats attendus, `run.py` (scripts), `judge.py` (agents et déclenchement des skills) et `cost.py` (coût des agents, historique dans `costs.csv`) |
 
 Vérification du plugin Claude Code : `claude plugin validate .`

@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+---
+# Le service ne gère que les pods et volumes des sessions, dans son namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [create, get, list, delete]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [create, get, list, delete, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "myskills.name" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "myskills.name" . }}
+{{- with .Values.sessions.quota }}
+{{- if .enabled }}
+---
+# Plafond des sessions ouvertes en même temps dans le namespace.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "myskills.name" $ }}-sessions
+  labels: {{- include "myskills.labels" $ | nindent 4 }}
+spec:
+  hard:
+    pods: {{ add .maxSessions .nodes 3 | quote }}
+    persistentvolumeclaims: {{ mul .maxSessions 5 | quote }}
+    requests.storage: {{ .storage }}
+    limits.memory: {{ .memory }}
+{{- end }}
+{{- end }}

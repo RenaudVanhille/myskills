@@ -1,0 +1,46 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "foundry": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "Azure AI Foundry",
+      "options": {
+        "baseURL": "https://{env:FOUNDRY_RESOURCE}.services.ai.azure.com/anthropic/v1",
+        "apiKey": "{env:ANTHROPIC_FOUNDRY_API_KEY}",
+        "headers": {
+          "api-key": "{env:ANTHROPIC_FOUNDRY_API_KEY}"
+        }
+      },
+      "models": {
+        "claude-haiku-5-5": {
+          "name": "claude-haiku-5-5 (Azure AI Foundry)"
+        },
+        "claude-sonnet-5-5": {
+          "name": "claude-sonnet-5-5 (Azure AI Foundry)"
+        },
+        "claude-opus-5-5": {
+          "name": "claude-opus-5-5 (Azure AI Foundry)"
+        }
+      }
+    }
+  },
+  "enabled_providers": [
+    "foundry"
+  ],
+  "model": "foundry/claude-sonnet-5-5",
+  "small_model": "foundry/claude-haiku-5-5",
+  "share": "disabled",
+  "autoupdate": false,
+  "permission": {
+    "edit": "allow",
+    "webfetch": "deny",
+    "bash": {
+      "*": "deny",
+      "uv run *": "allow",
+      "python *": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow"
+    }
+  }
+}

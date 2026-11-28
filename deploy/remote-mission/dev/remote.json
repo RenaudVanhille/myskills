@@ -1,0 +1,47 @@
+{
+  "missions": {
+    "demo": {
+      "repo": "/work/missions/demo",
+      "title": "Mission de démonstration (dev local)"
+    }
+  },
+  "workdir": "/work/clones",
+  "branch_prefix": "openwebui/",
+  "allowed_hosts": [
+    "llm-simule"
+  ],
+  "access": {
+    "provider": "file",
+    "file": "acces.json"
+  },
+  "agent": {
+    "command": [
+      "opencode",
+      "run",
+      "{prompt}"
+    ],
+    "timeout": 1800,
+    "env": {
+      "OPENCODE_CONFIG": "/etc/myskills/opencode.json",
+      "OPENCODE_DISABLE_AUTOUPDATE": "true",
+      "OPENCODE_DISABLE_MODELS_FETCH": "true",
+      "OPENCODE_DISABLE_LSP_DOWNLOAD": "true"
+    },
+    "skip_lines": [
+      "^> \\S+ · "
+    ],
+    "continue_args": [
+      "--continue"
+    ]
+  },
+  "git": {
+    "name": "myskills-dev",
+    "email": "myskills-dev@localhost"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8765,
+    "token_env": "MYSKILLS_REMOTE_TOKEN",
+    "max_jobs": 2
+  }
+}

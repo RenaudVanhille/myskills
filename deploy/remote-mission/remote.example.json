@@ -1,0 +1,73 @@
+{
+  "missions": {},
+  "discovery": {
+    "topic": "myskills-mission",
+    "group": "archi",
+    "title": "Missions myskills"
+  },
+  "workdir": "/work/clones",
+  "branch_prefix": "openwebui/",
+  "allowed_hosts": [
+    "gitlab.exemple.local",
+    "litellm.exemple.local"
+  ],
+  "access": {
+    "provider": "gitlab",
+    "api": "https://gitlab.exemple.local/api/v4",
+    "token_env": "GITLAB_ACCESS_TOKEN",
+    "read_level": 20,
+    "write_level": 30
+  },
+  "agent": {
+    "command": [
+      "opencode",
+      "run",
+      "{prompt}"
+    ],
+    "timeout": 5400,
+    "env": {
+      "OPENCODE_CONFIG": "/etc/myskills/opencode.json",
+      "LITELLM_BASE_URL": "https://litellm.exemple.local/v1",
+      "OPENCODE_DISABLE_AUTOUPDATE": "true",
+      "OPENCODE_DISABLE_MODELS_FETCH": "true",
+      "OPENCODE_DISABLE_LSP_DOWNLOAD": "true"
+    },
+    "skip_lines": [
+      "^> \\S+ · "
+    ],
+    "continue_args": [
+      "--continue"
+    ]
+  },
+  "git": {
+    "name": "myskills-remote",
+    "email": "myskills-remote@exemple.local"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8765,
+    "token_env": "MYSKILLS_REMOTE_TOKEN",
+    "max_jobs": 4
+  },
+  "runner": {
+    "kind": "kubernetes",
+    "image": "registry.exemple.local/myskills/remote-mission:2.4.0",
+    "secret": "myskills-session",
+    "git_secret": "myskills-git",
+    "config_map": "myskills-remote",
+    "idle_minutes": 120,
+    "session_size": "5Gi",
+    "retention_days": 14,
+    "resources": {
+      "requests": {
+        "cpu": "250m",
+        "memory": "1Gi"
+      },
+      "limits": {
+        "memory": "4Gi"
+      }
+    },
+    "tools": "opencode",
+    "models": "/etc/myskills/models.json"
+  }
+}

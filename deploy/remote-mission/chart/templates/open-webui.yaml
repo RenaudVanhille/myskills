@@ -1,0 +1,213 @@
+{{- if .Values.openWebui.enabled }}
+{{- $w := .Values.openWebui }}
+{{- $gitlab := trimSuffix "/" .Values.gitlab.url }}
+{{- $url := trimSuffix "/" $w.url }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $w.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests: {storage: {{ $w.persistence.size }}}
+---
+# Open WebUI : connexion par GitLab seulement (OIDC), un seul fournisseur de réponses (le pipe myskills),
+# ni téléchargement de modèle ni télémétrie.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+data:
+  WEBUI_URL: {{ $url | quote }}
+  WEBUI_NAME: {{ $w.name | quote }}
+  ENABLE_OAUTH_SIGNUP: "true"
+  OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "true"
+  OAUTH_PROVIDER_NAME: "GitLab"
+  OPENID_PROVIDER_URL: {{ printf "%s/.well-known/openid-configuration" $gitlab | quote }}
+  OPENID_REDIRECT_URI: {{ printf "%s/oauth/oidc/callback" $url | quote }}
+  # api : jeton de l'utilisateur transmis par le pipe pour ouvrir les merge requests en son nom.
+  OAUTH_SCOPES: {{ ternary "openid email profile api" "openid email profile" .Values.mergeRequests.enabled | quote }}
+  OAUTH_EMAIL_CLAIM: "email"
+  OAUTH_USERNAME_CLAIM: "nickname"
+  ENABLE_LOGIN_FORM: "false"
+  ENABLE_PASSWORD_AUTH: "false"
+  ENABLE_SIGNUP: "false"
+  DEFAULT_USER_ROLE: "user"
+  ENABLE_OAUTH_ROLE_MANAGEMENT: "true"
+  OAUTH_ROLES_CLAIM: "groups"
+  OAUTH_ALLOWED_ROLES: {{ join "," $w.allowedGroups | quote }}
+  OAUTH_ADMIN_ROLES: {{ join "," $w.adminGroups | quote }}
+  ENABLE_OLLAMA_API: "false"
+  ENABLE_OPENAI_API: "false"
+  OFFLINE_MODE: "true"
+  HF_HUB_OFFLINE: "1"
+  ENABLE_COMMUNITY_SHARING: "false"
+  ENABLE_MESSAGE_RATING: "false"
+  ENABLE_WEB_SEARCH: "false"
+  ENABLE_IMAGE_GENERATION: "false"
+  SCARF_NO_ANALYTICS: "true"
+  DO_NOT_TRACK: "true"
+  ANONYMIZED_TELEMETRY: "false"
+  # Le seul modèle est le pipe myskills : visible de tous, les droits sont ceux des projets GitLab des missions.
+  BYPASS_MODEL_ACCESS_CONTROL: "true"
+  ENABLE_EVALUATION_ARENA_MODELS: "false"
+  # Fichiers joints : texte extrait en local sans modèle d'embedding, contexte en message système (le message
+  # de l'utilisateur arrive intact au pipe, qui transmet le fichier lui-même à la mission).
+  BYPASS_EMBEDDING_AND_RETRIEVAL: "true"
+  RAG_SYSTEM_CONTEXT: "true"
+  # Tâches de fond qu'Open WebUI confierait au modèle, donc au pipe : inutiles ici (le titre reste, répondu par le pipe).
+  ENABLE_TAGS_GENERATION: "false"
+  ENABLE_FOLLOW_UP_GENERATION: "false"
+  ENABLE_AUTOCOMPLETE_GENERATION: "false"
+  ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+  ENABLE_SEARCH_QUERY_GENERATION: "false"
+  {{- if $w.pipe.install }}
+  MYSKILLS_SERVER_URL: {{ printf "http://%s.%s.svc.cluster.local:%v" (include "myskills.name" .) .Release.Namespace .Values.service.port | quote }}
+  {{- end }}
+  {{- if .Values.caSecret }}
+  SSL_CERT_FILE: /ca/ca-bundle.crt
+  REQUESTS_CA_BUNDLE: /ca/ca-bundle.crt
+  {{- end }}
+{{- if $w.pipe.install }}
+---
+# Installation et mise à jour du pipe myskills dans Open WebUI (source servie par le service des missions).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui-pipe
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+data:
+  openwebui_install.py: |-
+{{ .Files.Get "files/openwebui_install.py" | indent 4 }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+      annotations:
+        checksum/pipe: {{ .Files.Get "files/openwebui_install.py" | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile: {type: RuntimeDefault}
+      {{- if .Values.caSecret }}
+      initContainers: {{- include "myskills.caInit" . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: open-webui
+          image: {{ $w.image.repository }}:{{ $w.image.tag }}
+          ports: [{containerPort: 8080}]
+          {{- if $w.pipe.install }}
+          # Le pipe s'installe de lui-même en tâche de fond, puis se resynchronise (nouvelle version du service).
+          command: [sh, -c, "python /opt/myskills-pipe/openwebui_install.py --every {{ $w.pipe.syncSeconds }} & exec bash start.sh"]
+          env:
+            - name: MYSKILLS_REMOTE_TOKEN
+              valueFrom: {secretKeyRef: {name: {{ .Values.secrets.service }}, key: MYSKILLS_REMOTE_TOKEN}}
+          {{- end }}
+          envFrom:
+            - configMapRef: {name: {{ include "myskills.name" . }}-open-webui}
+            - secretRef: {name: {{ $w.secret }}}
+          resources: {{- toYaml $w.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            initialDelaySeconds: 10
+          volumeMounts:
+            - {name: data, mountPath: /app/backend/data}
+            {{- if $w.pipe.install }}
+            - {name: pipe, mountPath: /opt/myskills-pipe, readOnly: true}
+            {{- end }}
+            {{- if .Values.caSecret }}
+            - {name: ca-bundle, mountPath: /ca, readOnly: true}
+            {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: {{ include "myskills.name" . }}-open-webui}
+        {{- if $w.pipe.install }}
+        - name: pipe
+          configMap: {name: {{ include "myskills.name" . }}-open-webui-pipe}
+        {{- end }}
+        {{- if .Values.caSecret }}
+        - name: ca
+          secret: {secretName: {{ .Values.caSecret }}}
+        - name: ca-bundle
+          emptyDir: {}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  selector: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+  ports: [{port: 80, targetPort: 8080}]
+{{- if $w.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+  {{- with $w.ingress.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ $w.ingress.className }}
+  tls:
+    - hosts: [{{ $w.ingress.host }}]
+      secretName: {{ $w.ingress.tlsSecret }}
+  rules:
+    - host: {{ $w.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "myskills.name" . }}-open-webui
+                port: {number: 80}
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+---
+# Open WebUI : entrée depuis le contrôleur d'Ingress ; sortie vers DNS, le service des missions et GitLab (OIDC).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "myskills.name" . }}-open-webui
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}}
+      ports: [{port: 8080}]
+  egress:
+    {{- include "myskills.dnsEgress" . | nindent 4 }}
+    - to:
+        - podSelector:
+            matchLabels: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+      ports: [{port: {{ .Values.service.port }}}]
+    {{- include "myskills.gitlabEgress" . | nindent 4 }}
+{{- end }}
+{{- end }}

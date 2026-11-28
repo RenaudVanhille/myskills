@@ -1,0 +1,453 @@
+# Déployer les missions à distance (Kubernetes, LiteLLM, GitLab, Open WebUI)
+
+Les missions myskills menées à distance : une mission vit dans son dépôt
+GitLab, l'utilisateur ne passe que par Open WebUI. Ce n'est pas un skill (aucun
+agent ne s'en sert) : c'est un service et son déploiement, gardés hors de
+`skills/`, donc jamais copiés par `install.py sync` sur les postes ni dans les
+pods de session.
+
+| Fichier | Rôle |
+| --- | --- |
+| `service/` | le service : `remote_server.py` (HTTP du pipe, sessions), `remote_turn.py` (un message), `contract.json` |
+| `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
+| `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
+| `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
+| `openwebui_pipe.py` | fonction Pipe d'Open WebUI (modèle « Missions »), installée d'elle-même par `chart/files/openwebui_install.py` |
+| `dev/` | docker-compose du dev local : Open WebUI, service en mode local, mission de démo, LLM simulé |
+| `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
+
+```
+Open WebUI ──(pipe, jeton)──> myskills-remote (toujours prêt, léger) ──(read_api)──> GitLab : droits
+   (SSO GitLab)                     │──(jeton GitLab de l'utilisateur)──> GitLab : merge request
+                                    │ crée, retrouve ou recharge le pod de la conversation
+                                    v
+                        pod de session (une conversation) ──(HTTPS, clé virtuelle)──> LiteLLM (autre cluster)
+                          │ volume : copie de travail + contexte de l'agent
+                          └──(jeton git)──> GitLab : une branche par conversation
+```
+
+## Sessions et concurrence
+
+- **Service frontal toujours prêt** : un pod léger (HTTP, droits, pods de
+  session), sans dépôt ni clé LiteLLM.
+- **Un pod par conversation** (`runner.kind: kubernetes`) : créé au premier
+  message (10 à 30 s : image en cache, clone), il reste prêt tant que la
+  conversation est active ; les messages suivants partent tout de suite.
+  L'agent reprend sa session à chaque message (`agent.continue_args`,
+  `--continue` pour OpenCode et Claude Code) : il garde le contexte de la conversation.
+- **Arrêt après inactivité** : sans message pendant `runner.idle_minutes`
+  (120 par défaut), le pod s'arrête seul ; chaque message a déjà été commité et
+  poussé.
+- **Retour de l'utilisateur** : la conversation retrouve son volume (PVC :
+  copie de travail et `HOME` de l'agent) ; un nouveau pod le monte, la session
+  est rechargée avec son contexte.
+- **Fin** : `/fin` dans le chat pousse, arrête le pod et efface le volume ; un
+  volume sans pod depuis `runner.retention_days` (14 jours) est effacé. Le
+  travail reste sur la branche.
+- **Concurrence** : un message à la fois par conversation (un message envoyé
+  pendant un autre suit celui en cours), au plus `server.max_jobs` messages
+  traités en même temps par le service, et le `ResourceQuota` du namespace
+  plafonne les sessions ouvertes. Deux conversations d'une mission
+  travaillent sur deux branches : rien ne s'écrase, un conflit se règle à la
+  merge request.
+- **Isolation** : un pod ne voit que sa conversation et sa mission, sans
+  jeton de l'API du cluster ; jeton git propre à une mission possible
+  (`missions.<nom>.git_secret`).
+- `runner.kind: local` (défaut) traite les conversations dans le service lui-même,
+  sur un volume persistant : utile sur un poste ou sans droit de créer des pods.
+
+## Choisir la mission dans Open WebUI
+
+Une mission = un projet GitLab qui porte le topic `discovery.topic` (par
+exemple `myskills-mission`), dans `discovery.group` s'il est donné : rien à
+déclarer dans `remote.json`, ajouter le topic au projet suffit. Open WebUI
+montre un seul modèle, « Missions » ; dans une conversation neuve :
+
+| Message | Effet |
+| --- | --- |
+| `/missions` | missions où l'utilisateur a au moins le rôle de lecture |
+| `/mission archi/portail` | lie la conversation à cette mission (rôle d'écriture), sa session démarre au message suivant |
+| autre message, conversation non liée | rappel de ces deux commandes |
+
+La liaison est gardée par le service (sur le volume de session en mode
+kubernetes) : une conversation reprise des jours plus tard retrouve sa
+mission. Le compte de service GitLab (`GITLAB_ACCESS_TOKEN`) doit voir les
+projets missions (Reporter sur le groupe). Un projet archivé, sans le topic
+ou hors de `allowed_hosts` n'est pas une mission. `missions` de
+`remote.json` reste possible : un modèle par mission déclarée.
+
+## Dans le chat
+
+- `valide` ou `retour : ...` quand une étape est en revue : décision passée à
+  `journal.py review` sans tour de modèle, puis l'agent continue.
+- `/statut` : état des workflows, sans agent.
+- Fichier joint (trombone d'Open WebUI) : copié dans les documents de la
+  mission (`documents/`, ou `documents` de `mission.json`), commité et cité à
+  l'agent dans le même tour ; un fichier identique déjà présent n'est pas
+  recopié. Taille maximale : `server.max_upload_mb` (50 Mo).
+- `/fin` : pousse et termine la session (pod et volume effacés), puis ouvre
+  la merge request de la branche (section 4).
+- Un message pendant un autre : le pipe suit celui en cours ; un résultat
+  manqué s'affiche au message suivant.
+
+Hors Kubernetes (poste, CI GitLab, test), un message se joue sans le service :
+
+```bash
+uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message "..."
+uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
+```
+
+## Fichiers de la mission dans Open WebUI
+
+Seul Open WebUI est exposé : le service des missions et les pods de session
+restent internes au cluster. Les fichiers que la conversation a poussés sur sa
+branche se lisent donc dans Open WebUI, de deux façons :
+
+- **Dans le chat.** `/fichiers` liste les fichiers de la branche, numérotés et
+  rangés par dossier. `/lire 3`, `/lire exigences` ou `/lire vault/Exigences.md`
+  en affiche un : Markdown d'Obsidian rendu (propriétés en tableau, wikilinks
+  et liens vers `/lire`, images `![[...]]` en ligne, callouts, Mermaid),
+  schéma draw.io par son export PNG, image, CSV en tableau, JSON indenté. Un
+  document Office, un PDF ou un fichier trop long devient une pièce jointe
+  d'Open WebUI, à télécharger. Ces commandes ne lancent pas de tour : elles
+  marchent même session arrêtée.
+- **Dans Espace de travail > Connaissances.** Après chaque tour, le pipe
+  recopie la branche dans une collection propre à la conversation
+  (« Mission · titre de la conversation »), avec ses dossiers ; l'aperçu
+  rend le Markdown et Mermaid. Seuls les fichiers dont l'empreinte git a
+  changé sont recopiés, les fichiers retirés de la branche sont effacés. La
+  collection appartient à `myskills` et l'utilisateur la lit seulement : la
+  branche GitLab reste la référence, les corrections passent par le chat.
+  Valves `KNOWLEDGE` (désactiver le miroir) et `KNOWLEDGE_MAX_MB` (20 : au-delà,
+  le fichier reste hors du miroir, `/lire` l'ouvre).
+
+Le pipe lit les fichiers chez le service (`GET /files/MISSION/CHAT`, jeton du
+service), qui revérifie à chaque appel les droits de lecture GitLab de
+l'utilisateur et lit la branche poussée (API GitLab, jeton `read_api` du
+service ; `git` en dev). Dossiers cachés (`.git`, `.obsidian`, `.historique`,
+`.myskills-tmp`, `.trash`) exclus. Les copies restent dans Open WebUI (sa
+base et son stockage) : aucun document ne sort du cluster.
+
+## Dev local (docker-compose)
+
+`dev/compose.yaml` lance tout sur un poste, sans Kubernetes ni GitLab :
+Open WebUI (sans connexion, utilisateur `admin@localhost`), le service en
+mode local (les conversations sont traitées dans son conteneur, sur l'image
+des sessions) avec une mission de démonstration créée au premier lancement,
+et un LLM simulé compatible OpenAI qui répond sans modèle ni crédit (utilisé
+tant que `.env` ne vise pas un vrai LiteLLM).
+
+```bash
+cd deploy/remote-mission/dev
+cp .env.example .env
+docker compose up --build
+```
+
+1. Ouvrir http://localhost:3000 : le pipe est déjà installé, activé et réglé
+   (`docker compose logs open-webui | grep "myskills pipe"`) ; une
+   modification de `openwebui_pipe.py` est reprise en une minute après
+   `docker compose up -d --build service`.
+2. Choisir le modèle « Mission de démonstration (dev local) » et écrire ;
+   `/fichiers` et `/lire` montrent les fichiers de la conversation, et
+   Connaissances leur copie après chaque tour. Les branches `openwebui/<conversation>` sont poussées dans la mission du
+   volume `work`.
+
+Variantes :
+- **Vrai LiteLLM** : `LITELLM_BASE_URL` et `LITELLM_API_KEY` dans `.env`,
+  son hôte dans `allowed_hosts` de `dev/remote.json` ; le LLM simulé reste
+  lancé mais inutilisé.
+- **Azure AI Foundry** : `LLM_PROVIDER=foundry`, `FOUNDRY_RESOURCE` et
+  `ANTHROPIC_FOUNDRY_API_KEY` dans `.env` ; OpenCode prend alors
+  `opencode.foundry.json` et `models.foundry.json` (noms des déploiements à
+  changer là s'ils diffèrent de `claude-*-5-5`).
+- **SSO GitLab** : `WEBUI_AUTH=true` et les variables `OAUTH_*` de `.env`, et
+  le courriel du compte GitLab dans `dev/acces.json`.
+- **Sans Docker** : le service, OpenCode et le LLM simulé se lancent aussi sur
+  le poste (`python dev/llm_simule.py`, `remote_server.py serve --config ...`) ;
+  `remote_server.py probe --pipe openwebui_pipe.py` joue un message par le
+  pipe sans Open WebUI.
+
+Vérifié ainsi sans Docker (service, pipe, OpenCode 1.19.6, LLM simulé) :
+clone de la mission, réponse, branche poussée, reprise de la session de
+l'agent au message suivant (contexte gardé), `/statut`, et refus d'un
+utilisateur absent de `acces.json`.
+
+## 1. Images
+
+```bash
+docker build -f deploy/remote-mission/Dockerfile -t registry.exemple.local/myskills/remote-mission:0.1.0 .
+docker build -f deploy/remote-mission/Dockerfile.service -t registry.exemple.local/myskills/remote-service:0.1.0 .
+```
+
+Deux images, construites depuis la racine du dépôt :
+
+- **Service frontal** (`Dockerfile.service`, `serviceImage`) : Python, le
+  service et les bibliothèques partagées, quelques dizaines de Mo. Il
+  redémarre en quelques secondes (mise à jour, changement de nœud) : Open
+  WebUI ne perd le service que ce temps-là ; les sessions continuent.
+- **Sessions** (`Dockerfile`, `image`) : plusieurs Go. Le chart la
+  **précharge sur chaque nœud** (DaemonSet `prepull`, relancé à chaque
+  nouveau tag) : une session démarre ou se recharge en 10 à 30 s au lieu de
+  quelques minutes quand le nœud n'a pas encore l'image. Avec un quota, compter
+  un pod de préchargement par nœud (`sessions.quota.nodes`).
+
+L'image des sessions contient tout ce que les skills utilisent, préparé à la construction pour qu'une
+session travaille hors ligne (`UV_OFFLINE`, `MYSKILLS_OFFLINE`,
+`HF_HUB_OFFLINE`) :
+
+| Besoin | Dans l'image |
+| --- | --- |
+| Agent | OpenCode (`OPENCODE_VERSION`, licence MIT) ; Claude Code en plus si `CLAUDE_CODE_VERSION` est donné ; skills et agents de myskills |
+| Scripts | uv, Python 3.12, environnement de chaque script préparé (`uv sync --script`) |
+| Schémas | draw.io Desktop (`DRAWIO_VERSION`) sous écran virtuel (xvfb), Chromium de Playwright, Node.js et LikeC4, paquets Mermaid et Excalidraw en cache |
+| Extraction | Tesseract (fr, en), modèles Docling et Whisper préchargés depuis leurs sources épinglées (`doctor.py tout --prefetch`, empreintes vérifiées) |
+| Publication | LibreOffice sans interface, polices ; skill externe markdown-to-pptx si `MD2PPTX_REPO` est donné |
+| Revue | graphify (skill externe) |
+
+La construction finit par `doctor.py tout` (journal de construction) : un
+outil absent y est signalé. Les caches (uv, modèles, navigateur) sont hors du
+`HOME`, qui est sur le volume de la session. Chromium et draw.io tournent
+sans bac à sable (`MYSKILLS_NO_SANDBOX=1`, le pod n'a aucun privilège). Au
+démarrage d'un pod, un conteneur d'initialisation copie les skills de l'image
+dans le `HOME` de la session (`install.py sync`, `runner.tools`) : une
+nouvelle image les met à jour au rechargement suivant. Un autre harness
+(OpenCode...) s'installe de même dans l'image, avec `agent.command` et
+`runner.tools`.
+
+## 2. LiteLLM hors du cluster : une clé propre aux sessions, un accès réservé
+
+LiteLLM tourne sur un autre cluster : les pods de session le joignent par
+HTTPS (`litellm.url`, par exemple `https://litellm.exemple.local/v1`), par la
+sortie du cluster. Seuls eux l'appellent ; le service frontal et Open WebUI
+n'y ont pas accès.
+
+1. **Clé virtuelle dédiée**, créée par un administrateur de LiteLLM, limitée
+   aux modèles utiles, avec un budget et une équipe à part :
+
+   ```bash
+   curl -s https://litellm.exemple.local/key/generate \
+     -H "Authorization: Bearer $LITELLM_MASTER_KEY" -H "Content-Type: application/json" \
+     -d '{"key_alias": "myskills-remote", "team_id": "myskills",
+          "models": ["claude-haiku", "claude-sonnet", "claude-opus"],
+          "max_budget": 200, "budget_duration": "30d", "rpm_limit": 60}'
+   ```
+
+   La clé va dans le Secret des sessions (`LITELLM_API_KEY`), monté dans les
+   seuls pods de session. L'agent la reçoit (il appelle LiteLLM) ; le jeton du
+   service (`MYSKILLS_REMOTE_TOKEN`), lui, est retiré de son environnement.
+2. **Flux réservé, des deux côtés** : ici, la NetworkPolicy des sessions
+   n'ouvre que `litellm.cidrs` sur `litellm.port` (adresse de LiteLLM ou de
+   son Ingress) ; côté LiteLLM, n'admettre que l'adresse de sortie de ce
+   cluster (liste d'IP de l'Ingress ou pare-feu), en plus de la clé.
+3. **Certificat** : un certificat d'une autorité interne se déclare par
+   `caSecret` (Secret avec les `*.crt`) : ajouté aux autorités de l'image pour
+   git, Python et Node, dans les sessions, le service et Open WebUI.
+4. **Interface d'administration de LiteLLM** : pas d'accès public ; SSO de
+   l'entreprise (ou GitLab), clé maîtresse dans un Secret.
+5. **Rien ne part ailleurs** : aucun callback de journalisation vers un service
+   en ligne (Langfuse, Helicone... hébergés) ; `store_prompts_in_spend_logs:
+   false` pour ne pas garder les contenus dans la base de LiteLLM.
+6. **Noms des modèles** : les alias de LiteLLM (`litellm.models` : simple,
+   moyen, complexe) vont dans la configuration d'OpenCode et dans le modèle de
+   chaque niveau des agents de myskills (`opencode.json` et `models.json`,
+   générés par le chart dans sa ConfigMap).
+
+## 2 bis. Azure AI Foundry, sans LiteLLM
+
+Avec `llm.provider: foundry`, les pods de session appellent directement Claude
+sur Azure AI Foundry, par l'API Anthropic de la ressource
+(`https://<foundry.resource>.services.ai.azure.com/anthropic`). LiteLLM
+n'est plus utilisé (ni clé virtuelle, ni budget par équipe : les quotas se
+règlent dans Azure).
+
+- **Valeurs** : `foundry.resource` (nom de la ressource), `foundry.models`
+  (noms des déploiements par niveau : `claude-haiku-5-5`, `claude-sonnet-5-5`,
+  `claude-opus-5-5` par défaut), `foundry.cidrs` et `foundry.port` pour la
+  NetworkPolicy des sessions. Les adresses publiques d'Azure changent :
+  passer par un point de terminaison privé (Private Endpoint) ou une
+  passerelle de sortie, et mettre son adresse dans `foundry.cidrs`. Le chart
+  refuse une liste vide, qui ouvrirait la sortie à tout hôte.
+- **Clé** : `ANTHROPIC_FOUNDRY_API_KEY` dans le Secret des sessions, à la
+  place de `LITELLM_API_KEY`.
+- **Agent** : OpenCode reçoit un fournisseur `foundry` (son fournisseur
+  Anthropic, clé envoyée en `x-api-key` et en `api-key`) ; Claude Code
+  (`agent.kind: claude`) reçoit `CLAUDE_CODE_USE_FOUNDRY=1`,
+  `ANTHROPIC_FOUNDRY_RESOURCE` et les noms des déploiements. L'hôte de la
+  ressource remplace celui de LiteLLM dans `allowed_hosts`.
+
+## Agent : OpenCode (défaut) ou Claude Code
+
+OpenCode (licence MIT) est l'agent par défaut : `agent.command`
+`["opencode", "run", "{prompt}"]`, `continue_args` `["--continue"]`,
+configuration `OPENCODE_CONFIG=/etc/myskills/opencode.json` (seul fournisseur
+LiteLLM ou Foundry, partage désactivé, ni mise à jour ni téléchargement de modèles ou de
+serveurs de langage, `webfetch` refusé, shell limité à `uv run`, `python` et
+la lecture de git). Vérifié face à un LiteLLM simulé, Internet coupé : réponse,
+reprise de session avec son contexte, agents de myskills trouvés avec leur
+modèle par niveau.
+
+Claude Code reste possible si sa licence convient : construire l'image avec
+`--build-arg CLAUDE_CODE_VERSION=...`, puis `agent.kind: claude` dans les
+valeurs du chart (commande, alias des modèles par `ANTHROPIC_DEFAULT_*_MODEL`
+et skills copiés pour Claude Code), la clé dans le Secret des sessions sous
+`ANTHROPIC_AUTH_TOKEN`.
+
+## 3. Qui accède à quelle mission
+
+Les droits sont ceux du projet GitLab de la mission (`access`, fournisseur
+`gitlab`) : le rôle de l'utilisateur sur le projet, groupes hérités
+compris, est lu au début de la session (création ou rechargement du pod),
+puis avant chaque pull et chaque push sur le dépôt ; pas à chaque message.
+
+| Moment | Rôle exigé (défaut) |
+| --- | --- |
+| Début de session | Developer (30), Reporter (20) pour `/statut` |
+| Avant un pull | Reporter (20) |
+| Avant un push | Developer (30) : sinon le commit reste dans la session, refus motivé |
+
+Un droit retiré pendant une session s'applique donc au prochain pull ou push.
+Seuils : `read_level`, `write_level`. Les droits lus sont gardés
+`cache_seconds` (300 s par défaut) dans chaque pod.
+
+- **Identité** : Open WebUI s'authentifie par GitLab seulement (section 6) :
+  le courriel transmis par le pipe est celui du compte GitLab.
+- **Jeton de lecture des droits** (`GITLAB_ACCESS_TOKEN`, dans les Secrets
+  `myskills-remote` et `myskills-session` : le pod de session vérifie les
+  droits avant ses pull et push) : jeton d'un compte de
+  service, portée `read_api`. Un courriel privé n'est trouvé qu'avec un jeton
+  administrateur ; sinon, demander aux utilisateurs un courriel public.
+- **Confiance** : le service croit l'utilisateur que lui transmet le pipe, seul
+  détenteur du jeton du service, et la NetworkPolicy n'admet qu'Open WebUI.
+- **Conversation** : réservée à celui qui l'a ouverte.
+
+## 4. Git
+
+Jeton de déploiement GitLab (`write_repository`) par projet de mission ou
+jeton de groupe, dans le Secret `myskills-git` (fichier `.git-credentials`, `secrets.git`).
+Protéger `main` : les sessions ne poussent que sur `openwebui/<conversation>`
+et la fusion se fait toujours dans GitLab, par une personne.
+
+**Merge request automatique** (`mergeRequests`, section `merge_requests` de
+la configuration) : le service frontal ouvre la merge request de la branche
+vers la branche par défaut du projet (ou `mergeRequests.target`) à `/fin` et
+quand toutes les étapes des workflows de la mission sont validées ou sautées,
+puis en donne le lien dans le chat. Une merge request déjà ouverte pour la
+branche est reprise, jamais doublée ; la description dit qui l'a demandée,
+le dernier commit et l'avancement des workflows.
+
+Elle est ouverte **au nom de l'utilisateur**, avec le jeton que GitLab a remis
+à Open WebUI à sa connexion (portée `api`, gardé chiffré par Open WebUI et
+rafraîchi par lui). Le pipe le joint à chaque message
+(`X-Myskills-Gitlab-Token`) ; le service frontal ne s'en sert que pour cette
+merge request : il n'est ni gardé, ni transmis au pod de session ou à
+l'agent. GitLab applique donc les droits de l'utilisateur lui-même. À
+défaut de jeton utilisateur, une clé `GITLAB_MR_TOKEN` (portée `api`)
+facultative dans le Secret du service sert de secours ; sans l'une ni
+l'autre, le chat le signale et rien n'est ouvert. Le jeton circule en clair
+entre Open WebUI et le service, dans le cluster, sur le seul chemin admis par
+la NetworkPolicy.
+
+## 5. Installer avec Helm
+
+Un namespace, une installation (le service retrouve les pods de session par
+leurs labels dans son namespace).
+
+1. **Application GitLab pour Open WebUI** (Admin > Applications, ou celle d'un
+   groupe) : nom `Open WebUI`, URI de redirection
+   `https://chat.exemple.local/oauth/oidc/callback`, confidentielle, portées
+   `openid`, `email`, `profile` et `api` (merge requests au nom de
+   l'utilisateur ; sans `mergeRequests`, pas d'`api`). Garder l'Application ID
+   et le Secret.
+2. **Secrets**, créés à part (le chart ne fait que les nommer) :
+
+   ```bash
+   kubectl create namespace myskills
+   kubectl -n myskills create secret generic myskills-remote \
+     --from-literal=MYSKILLS_REMOTE_TOKEN="$(openssl rand -hex 32)" \
+     --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
+   kubectl -n myskills create secret generic myskills-session \
+     --from-literal=LITELLM_API_KEY="<clé virtuelle LiteLLM>" \
+     --from-literal=GITLAB_ACCESS_TOKEN="<jeton read_api>"
+   kubectl -n myskills create secret generic myskills-git --from-file=.git-credentials
+   kubectl -n myskills create secret generic open-webui \
+     --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
+     --from-literal=OAUTH_CLIENT_ID="<Application ID>" \
+     --from-literal=OAUTH_CLIENT_SECRET="<Secret>"
+   # llm.provider: foundry : ANTHROPIC_FOUNDRY_API_KEY="<clé de la ressource>" à la place de LITELLM_API_KEY
+   # autorité interne, si GitLab ou LiteLLM en ont une : --set caSecret=autorite-interne
+   kubectl -n myskills create secret generic autorite-interne --from-file=interne.crt
+   ```
+
+3. **Valeurs** (`values.yaml` du chart, à copier) : `image`, `gitlab.url` et
+   `gitlab.cidrs`, `gitlab.discovery` (topic des missions), `litellm.url`,
+   `litellm.cidrs` et `litellm.models` (ou `llm.provider: foundry` et
+   `foundry.*`), `kubernetes.apiCidrs` (adresse de
+   l'API du cluster : `kubectl get endpoints kubernetes`), `openWebui.url`,
+   `openWebui.ingress`, groupes GitLab d'Open WebUI.
+4. **Installation** :
+
+   ```bash
+   helm upgrade --install myskills deploy/remote-mission/chart -n myskills -f mes-valeurs.yaml
+   ```
+
+   Le chart crée : la ConfigMap (`remote.json`, `opencode.json`,
+   `models.json`, générés depuis les valeurs), le compte de service et son
+   Role (pods et volumes du namespace), un `ResourceQuota`, le service
+   frontal, Open WebUI (volume, Ingress) et les NetworkPolicy (service :
+   entrée depuis Open WebUI, sortie vers l'API du cluster, GitLab et les
+   sessions ; sessions : entrée depuis le service, sortie vers GitLab et
+   LiteLLM ; Open WebUI : entrée depuis l'Ingress, sortie vers le service et
+   GitLab). Les notes de fin d'installation donnent la commande de
+   vérification (`remote_server.py check`) et le suivi de l'installation du pipe.
+
+Le contenu des conversations reste dans les volumes de session : réserver aux
+administrateurs le droit de lire les volumes et d'entrer dans les pods du
+namespace.
+
+## 6. Open WebUI et SSO GitLab
+
+Open WebUI (`openWebui.enabled`) n'a que GitLab comme moyen de connexion : ni
+formulaire ni mot de passe, ni Ollama ni API OpenAI directe, ni télémétrie
+ni téléchargement de modèle.
+
+1. **Qui entre** : les groupes GitLab de l'utilisateur (revendication
+   `groups`) décident du rôle dans Open WebUI : `openWebui.allowedGroups`
+   pour entrer, `openWebui.adminGroups` pour administrer. Les missions,
+   elles, restent ouvertes selon le rôle sur leur projet GitLab (section 3) ;
+   aucun droit par modèle n'est à poser dans Open WebUI.
+2. **Fonction Pipe** : rien à importer. Au démarrage d'Open WebUI,
+   `chart/files/openwebui_install.py` (tâche de fond du conteneur) lit le
+   pipe chez le service (`GET /openwebui/pipe`, même version que le service),
+   le crée ou le met à jour dans la base d'Open WebUI, l'active et règle ses
+   Valves `SERVER_URL` et `TOKEN` (les autres réglages d'un administrateur
+   sont gardés). Il recommence toutes les `openWebui.pipe.syncSeconds` : une
+   nouvelle version du service met le pipe à jour sans redémarrer Open WebUI,
+   et un pipe désactivé ou supprimé à la main est rétabli. Le modèle
+   « Missions » est visible de tous (`BYPASS_MODEL_ACCESS_CONTROL`, seul
+   modèle de l'instance, sans « Arena Model »). Vérifié contre Open WebUI
+   0.13.3 réel (et 0.6.18) : fonction créée, activée, Valves réglées, modèle
+   listé, message transmis au service. La 0.13 est exigée : c'est depuis la
+   0.6.27 qu'Open WebUI passe au pipe le jeton GitLab de l'utilisateur.
+   L'installation passe par les modèles internes
+   d'Open WebUI, faute d'administrateur avant la première connexion : relire
+   ce script avant de changer `openWebui.image.tag`.
+   `openWebui.pipe.install: false` revient à l'import manuel (Admin >
+   Fonctions, Valves données par les notes d'installation).
+
+Le pipe affiche la progression du message (statut), puis la réponse, les schémas
+PNG (en ligne jusqu'à `inline_images_kb`, liens GitLab vers le PNG et le
+`.drawio`) et l'étape en revue. Un traitement plus long que la requête
+continue en arrière-plan : son résultat s'affiche au message suivant.
+
+## Limites connues
+
+- Le vault Obsidian n'est pas servi : le parcourir dans GitLab ou le tirer
+  en local (`git pull` de la branche).
+- Les pièces jointes du chat ne sont pas transmises : déposer les documents
+  dans `documents/` du dépôt.
+- Un redémarrage du service ne coupe pas les sessions (elles vivent dans
+  leurs pods, retrouvés au message suivant), mais la réponse d'un message en
+  cours à ce moment ne s'affiche pas : la branche garde le travail. En mode
+  `local`, un redémarrage interrompt le message en cours.
+- Un pod de session arrêté en plein message (nœud perdu) reprend au message
+  suivant depuis son volume ; le message interrompu n'a pas de commit.

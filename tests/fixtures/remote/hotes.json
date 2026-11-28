@@ -1,0 +1,9 @@
+{
+  "missions": {
+    "portail": {"repo": "https://jeton:secret@gitlab.exemple.local/archi/portail.git"},
+    "saas": {"repo": "https://github.com/exemple/mission.git"}
+  },
+  "allowed_hosts": ["gitlab.exemple.local"],
+  "access": {"api": "https://gitlab.autre.local/api/v4"},
+  "agent": {"command": ["claude", "-p", "{prompt}"], "env": {"ANTHROPIC_BASE_URL": "https://api.exemple-saas.com"}}
+}

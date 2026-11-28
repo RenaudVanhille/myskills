@@ -1,0 +1,7 @@
+apiVersion: v2
+name: myskills-remote
+description: Missions myskills menées à distance depuis GitLab et pilotées dans Open WebUI (connexion par GitLab), agent OpenCode sur un LiteLLM hors du cluster.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [myskills, open-webui, gitlab, litellm, opencode]

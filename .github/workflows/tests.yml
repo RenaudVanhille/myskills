@@ -97,3 +97,32 @@ jobs:
         run: |
           uv run tests/triage_eval.py --markdown tri-eval.md --min-f1 0.9
           cat tri-eval.md >> "$GITHUB_STEP_SUMMARY"
+
+  # Chart Helm des missions à distance : lint, rendu (agent OpenCode puis Claude Code, autorité interne, Foundry),
+  # configuration générée validée par remote_server.py check.
+  deploiement:
+    runs-on: ${{ fromJSON(vars.RUNNER_LINUX || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+      - name: Chart myskills-remote
+        run: |
+          chart=deploy/remote-mission/chart
+          helm lint "$chart"
+          foundry="--set llm.provider=foundry --set foundry.resource=essai --set foundry.cidrs={10.1.0.5/32}"
+          for options in "" "--set agent.kind=claude --set caSecret=autorite-interne --set openWebui.enabled=false" \
+                         "$foundry" "$foundry --set agent.kind=claude"; do
+            helm template myskills "$chart" -n myskills $options > "$RUNNER_TEMP/rendu.yaml"
+            uv run --with pyyaml python -c 'import sys, yaml; cm = next(d for d in yaml.safe_load_all(open(sys.argv[1])) if d and d["kind"] == "ConfigMap" and "remote.json" in d["data"]); open(sys.argv[2], "w", encoding="utf-8").write(cm["data"]["remote.json"])' "$RUNNER_TEMP/rendu.yaml" "$RUNNER_TEMP/remote.json"
+            uv run deploy/remote-mission/service/scripts/remote_server.py check --config "$RUNNER_TEMP/remote.json"
+          done
+          # docker-compose du dev local : syntaxe et variables (sans construire ni lancer).
+          if command -v docker > /dev/null && docker compose version > /dev/null 2>&1; then
+            cp deploy/remote-mission/dev/.env.example deploy/remote-mission/dev/.env
+            docker compose -f deploy/remote-mission/dev/compose.yaml config --quiet
+          fi

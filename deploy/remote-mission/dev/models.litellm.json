@@ -1,0 +1,7 @@
+{
+  "opencode": {
+    "simple": "litellm/claude-haiku",
+    "moyen": "litellm/claude-sonnet",
+    "complexe": "litellm/claude-opus"
+  }
+}

@@ -1,0 +1,158 @@
+# Valeurs du chart myskills-remote. Aucun secret ici : ils sont dans des Secrets créés à part
+# (voir le README de deploy/remote-mission), le chart ne fait que les nommer.
+
+# Deux images construites depuis le dépôt : celle des sessions (Dockerfile : outils de tous les skills,
+# lourde) et celle du service frontal (Dockerfile.service : Python et les scripts, légère).
+image:
+  repository: registry.exemple.local/myskills/remote-mission
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+serviceImage:
+  repository: registry.exemple.local/myskills/remote-service
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# GitLab : missions, droits par mission (rôle sur le projet), connexion à Open WebUI.
+gitlab:
+  url: https://gitlab.exemple.local
+  # Adresses de GitLab pour les NetworkPolicy (blocs IP, ou namespace s'il tourne dans le cluster).
+  cidrs: [10.0.0.10/32]
+  # Missions : projets GitLab qui portent ce topic (dans ce groupe s'il est donné).
+  discovery:
+    topic: myskills-mission
+    group: ""
+    title: Missions myskills
+  readLevel: 20    # Reporter : /statut, pull
+  writeLevel: 30   # Developer : ouvrir une session, pousser
+  branchPrefix: openwebui/
+  commitAuthor:
+    name: myskills-remote
+    email: myskills-remote@exemple.local
+
+# LiteLLM hors du cluster : joint par HTTPS (sortie du cluster), clé virtuelle propre aux sessions.
+litellm:
+  url: https://litellm.exemple.local/v1
+  # Adresses de LiteLLM (ou de la passerelle de sortie) pour la NetworkPolicy des sessions.
+  cidrs: [192.0.2.10/32]
+  port: 443
+  # Alias des modèles dans LiteLLM, par niveau des agents de myskills.
+  models:
+    simple: claude-haiku
+    moyen: claude-sonnet
+    complexe: claude-opus
+
+# Fournisseur des modèles des sessions : litellm (ci-dessus) ou foundry (Claude sur Azure AI Foundry, sans
+# LiteLLM ; clé ANTHROPIC_FOUNDRY_API_KEY dans le Secret secrets.session, à la place de LITELLM_API_KEY).
+llm:
+  provider: litellm   # litellm | foundry
+
+# Azure AI Foundry (llm.provider: foundry) : https://<resource>.services.ai.azure.com/anthropic.
+foundry:
+  resource: ""        # nom de la ressource Foundry
+  # Adresses de Foundry pour la NetworkPolicy des sessions : point de terminaison privé (Private Endpoint)
+  # ou passerelle de sortie ; les adresses publiques d'Azure changent.
+  cidrs: []
+  port: 443
+  # Noms des déploiements Foundry, par niveau des agents de myskills.
+  models:
+    simple: claude-haiku-5-5
+    moyen: claude-sonnet-5-5
+    complexe: claude-opus-5-5
+
+# Autorité interne (GitLab ou LiteLLM avec un certificat interne) : Secret avec un ou plusieurs *.crt.
+caSecret: ""
+
+# Secrets créés à part (noms).
+secrets:
+  service: myskills-remote    # MYSKILLS_REMOTE_TOKEN, GITLAB_ACCESS_TOKEN (read_api)
+  session: myskills-session   # LITELLM_API_KEY (ou ANTHROPIC_FOUNDRY_API_KEY), GITLAB_ACCESS_TOKEN
+  git: myskills-git           # .git-credentials (write_repository)
+
+# Merge request de la branche d'une conversation, ouverte par le service quand le travail est prêt :
+# à « /fin » et quand toutes les étapes des workflows sont validées. Ouverte au nom de l'utilisateur avec
+# le jeton de sa connexion GitLab (Open WebUI, portée api ajoutée à OAUTH_SCOPES) ; à défaut, GITLAB_MR_TOKEN
+# du Secret secrets.service s'il existe. La fusion reste faite dans GitLab.
+mergeRequests:
+  enabled: true
+  triggers: [fin, workflow]   # « on » serait lu comme un booléen par YAML
+  target: ""      # défaut : branche par défaut du projet de la mission
+  labels: []
+  draft: false
+
+# Agent lancé à chaque message : OpenCode (défaut) ou Claude Code (image construite avec CLAUDE_CODE_VERSION).
+agent:
+  kind: opencode   # opencode | claude
+  timeout: 5400
+
+service:
+  port: 8765
+  maxJobs: 4
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+
+# Un pod par conversation, avec son volume (copie de travail, contexte de l'agent).
+sessions:
+  idleMinutes: 120
+  retentionDays: 14
+  size: 5Gi
+  storageClass: ""
+  resources:
+    requests: {cpu: 250m, memory: 1Gi}
+    limits: {memory: 4Gi}
+  # Plafond du namespace : sessions ouvertes en même temps (+ service, Open WebUI, préchargement).
+  quota:
+    enabled: true
+    maxSessions: 20
+    nodes: 10        # nœuds du cluster : un pod de préchargement par nœud compte dans le quota
+    storage: 500Gi
+    memory: 84Gi
+
+# Image des sessions préchargée sur chaque nœud (DaemonSet) : le premier message d'une session ne
+# télécharge pas plusieurs Go. Relancé à chaque changement de image.tag.
+prepull:
+  enabled: true
+  pauseImage: registry.k8s.io/pause:3.10
+  nodeSelector: {}
+  tolerations: []
+
+kubernetes:
+  # Adresse de l'API du cluster pour la NetworkPolicy du service (kubectl get endpoints kubernetes).
+  apiCidrs: [10.0.0.1/32]
+  apiPorts: [443, 6443]
+
+networkPolicy:
+  enabled: true
+  # Contrôleur d'Ingress (entrée d'Open WebUI).
+  ingressNamespace: ingress-nginx
+
+openWebui:
+  enabled: true
+  image:
+    repository: ghcr.io/open-webui/open-webui
+    tag: v0.13.3   # version épinglée : relire chart/files/openwebui_install.py avant de la changer
+  url: https://chat.exemple.local
+  name: Missions
+  # Secret : WEBUI_SECRET_KEY, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET (application GitLab).
+  secret: open-webui
+  # Groupes GitLab (revendication groups) : qui entre, qui administre (import du pipe).
+  allowedGroups: [myskills/utilisateurs, myskills/admins]
+  adminGroups: [myskills/admins]
+  # Pipe myskills installé, activé et réglé (SERVER_URL, TOKEN) par Open WebUI lui-même au démarrage, puis
+  # resynchronisé toutes les syncSeconds depuis le service : rien à importer à la main.
+  pipe:
+    install: true
+    syncSeconds: 600
+  persistence:
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests: {cpu: 250m, memory: 1Gi}
+    limits: {memory: 2Gi}
+  ingress:
+    enabled: true
+    className: nginx
+    host: chat.exemple.local
+    tlsSecret: open-webui-tls
+    annotations: {}

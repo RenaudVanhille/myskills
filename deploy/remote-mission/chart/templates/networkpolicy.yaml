@@ -1,0 +1,59 @@
+{{- if .Values.networkPolicy.enabled }}
+# Service : entrée depuis Open WebUI ; sortie vers DNS, l'API du cluster, GitLab et les pods de session.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "myskills.name" . }}
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+      ports: [{port: {{ .Values.service.port }}}]
+  egress:
+    {{- include "myskills.dnsEgress" . | nindent 4 }}
+    - to:
+        {{- range .Values.kubernetes.apiCidrs }}
+        - ipBlock: {cidr: {{ . }}}
+        {{- end }}
+      ports:
+        {{- range .Values.kubernetes.apiPorts }}
+        - port: {{ . }}
+        {{- end }}
+    {{- include "myskills.gitlabEgress" . | nindent 4 }}
+    - to:
+        - podSelector:
+            matchLabels: {app: myskills-session}
+      ports: [{port: 8765}]
+---
+# Pods de session : entrée depuis le service ; sortie vers DNS, GitLab et les modèles (LiteLLM ou Foundry).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "myskills.name" . }}-sessions
+  labels: {{- include "myskills.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {app: myskills-session}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: myskills-remote, app.kubernetes.io/instance: {{ .Release.Name }}}
+      ports: [{port: 8765}]
+  egress:
+    {{- include "myskills.dnsEgress" . | nindent 4 }}
+    {{- include "myskills.gitlabEgress" . | nindent 4 }}
+    {{- $llm := ternary .Values.foundry .Values.litellm (not (empty (include "myskills.foundry" .))) }}
+    {{- if empty $llm.cidrs }}{{ fail "litellm.cidrs ou foundry.cidrs vide : la sortie vers les modèles serait ouverte à tout hôte" }}{{ end }}
+    # Modèles : LiteLLM, ou Azure AI Foundry (point de terminaison privé ou passerelle de sortie).
+    - to:
+        {{- range $llm.cidrs }}
+        - ipBlock: {cidr: {{ . }}}
+        {{- end }}
+      ports: [{port: {{ $llm.port }}}]
+{{- end }}

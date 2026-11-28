@@ -1,0 +1,95 @@
+# Dev local des missions à distance : Open WebUI, le service (mode local, sans Kubernetes) et un LLM
+# simulé (aucun crédit), un vrai LiteLLM ou Azure AI Foundry (LLM_PROVIDER dans .env). Depuis ce dossier :
+#
+#   cp .env.example .env
+#   docker compose up --build      # puis http://localhost:3000
+#
+# Le service tourne sur l'image des sessions (../Dockerfile : outils de tous les skills, longue à
+# construire la première fois). La mission de démonstration est créée au premier lancement dans le
+# volume « work » ; les branches openwebui/<conversation> y sont poussées.
+name: myskills-dev
+
+services:
+  service:
+    build:
+      context: ../../..
+      dockerfile: deploy/remote-mission/Dockerfile
+    image: myskills/remote-mission:dev
+    entrypoint: ["/etc/myskills/demarrer.sh"]
+    environment:
+      MYSKILLS_REMOTE_TOKEN: ${MYSKILLS_REMOTE_TOKEN:-dev-local}
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-http://llm-simule:4000/v1}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-cle-simulee}
+      FOUNDRY_RESOURCE: ${FOUNDRY_RESOURCE:-}
+      ANTHROPIC_FOUNDRY_API_KEY: ${ANTHROPIC_FOUNDRY_API_KEY:-}
+      HOME: /work/home
+      GIT_AUTHOR_NAME: myskills-dev
+      GIT_AUTHOR_EMAIL: myskills-dev@localhost
+      GIT_COMMITTER_NAME: myskills-dev
+      GIT_COMMITTER_EMAIL: myskills-dev@localhost
+    volumes:
+      - ./remote.json:/etc/myskills/remote.json:ro
+      - ./acces.json:/etc/myskills/acces.json:ro
+      # Fournisseur des modèles : LLM_PROVIDER=litellm (LiteLLM ou LLM simulé) ou foundry (Azure AI Foundry).
+      - ./opencode.${LLM_PROVIDER:-litellm}.json:/etc/myskills/opencode.json:ro
+      - ./models.${LLM_PROVIDER:-litellm}.json:/etc/myskills/models.json:ro
+      - ./demarrer.sh:/etc/myskills/demarrer.sh:ro
+      - work:/work
+    ports:
+      - "127.0.0.1:8765:8765"   # pour remote_server.py probe depuis le poste
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8765/health"]
+      interval: 10s
+      start_period: 60s
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.13.3
+    # Le pipe myskills s'installe et se règle seul (modèle « Missions »), comme dans le chart Helm.
+    command: ["sh", "-c", "python /opt/myskills-pipe/openwebui_install.py --every 60 & exec bash start.sh"]
+    environment:
+      MYSKILLS_SERVER_URL: http://service:8765
+      MYSKILLS_REMOTE_TOKEN: ${MYSKILLS_REMOTE_TOKEN:-dev-local}
+      BYPASS_MODEL_ACCESS_CONTROL: "true"
+      ENABLE_EVALUATION_ARENA_MODELS: "false"
+      BYPASS_EMBEDDING_AND_RETRIEVAL: "true"
+      RAG_SYSTEM_CONTEXT: "true"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+      ENABLE_SEARCH_QUERY_GENERATION: "false"
+      # Sans connexion par défaut : un seul utilisateur, admin@localhost (droit sur la mission de démo
+      # dans acces.json). WEBUI_AUTH=true et les variables OAUTH_* de .env pour essayer le SSO GitLab.
+      WEBUI_AUTH: ${WEBUI_AUTH:-false}
+      ENABLE_OAUTH_SIGNUP: "true"
+      OAUTH_PROVIDER_NAME: GitLab
+      OPENID_PROVIDER_URL: ${OPENID_PROVIDER_URL:-}
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
+      OAUTH_SCOPES: openid email profile
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "false"
+      OFFLINE_MODE: "true"
+      HF_HUB_OFFLINE: "1"
+      ENABLE_COMMUNITY_SHARING: "false"
+      SCARF_NO_ANALYTICS: "true"
+      DO_NOT_TRACK: "true"
+      ANONYMIZED_TELEMETRY: "false"
+    volumes:
+      - open-webui:/app/backend/data
+      - ../chart/files/openwebui_install.py:/opt/myskills-pipe/openwebui_install.py:ro
+    ports:
+      - "127.0.0.1:3000:8080"
+    depends_on:
+      service:
+        condition: service_healthy
+
+  llm-simule:  # LLM simulé, aucun crédit ; inutilisé avec un vrai LiteLLM ou Azure AI Foundry
+    image: python:3.12-slim
+    command: ["python", "/app/llm_simule.py", "--port", "4000"]
+    volumes:
+      - ./llm_simule.py:/app/llm_simule.py:ro
+
+volumes:
+  work:
+  open-webui:
