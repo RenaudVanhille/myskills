@@ -30,7 +30,7 @@
         "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
         "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
         "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit",
-        "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
+        "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, exigences non fonctionnelles ENF- renumérotées par catégorie (SECU-01, PERF-01... ; fichiers, journal et vault suivent, correspondance gardée dans le catalogue), journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
         "--apply": "avec upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
         "--keep-definition": "avec upgrade : garder les étapes et consignes d'origine du workflow (refusé si l'ancienne définition n'est plus valide)",
         "--definition": "avec init : workflow livré ou fichier de définition ; avec upgrade : définition à suivre désormais (défaut : celle livrée du même nom)"
@@ -310,10 +310,16 @@
                 "superseded",
                 "noise",
                 "external",
-                "moved"
+                "moved",
+                "renamed"
               ],
               "additionalProperties": false,
               "properties": {
+                "renamed": {
+                  "type": "object",
+                  "additionalProperties": {"type": "string"},
+                  "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01) : catalogue ouvert avant les préfixes de catégorie ; fichiers du workflow, journal et notes du vault suivent, empreintes recalculées ; un identifiant cité par les sources est gardé. Vide : rien à renommer."
+                },
                 "moved": {
                   "type": "array",
                   "items": {"type": "string"},
@@ -777,6 +783,16 @@
                       "facultative": {
                         "type": "boolean",
                         "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
+                      },
+                      "phase": {
+                        "enum": [
+                          "lecture",
+                          "cadrage",
+                          "solutioning",
+                          "chiffrage",
+                          "restitution"
+                        ],
+                        "description": "Zone de l'étape dans le schéma d'avancement, dans cet ordre : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Une étape ne dépend que d'étapes de sa zone ou d'une zone antérieure. Sans phase, le schéma est à plat."
                       },
                       "after": {
                         "type": "array",

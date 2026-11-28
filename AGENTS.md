@@ -25,7 +25,11 @@ moins de tokens possible.
   (`shared/schemas/external-skill.schema.json`), et un passage de main de
   type `externe` le cite **(vérifiée)**. Le script appelant le trouve, valide
   sa sortie contre le contrat et donne la consigne d'installation s'il
-  manque.
+  manque. Un agent tiers suit le même principe
+  (`shared/schemas/external-agent.schema.json`) : un script prépare la
+  demande, validée contre le schéma `request` du contrat, l'agent appelant
+  la lui passe, puis le script vérifie le livrable contre `output_schema`
+  (ainsi `concepteur-deck` pour les présentations PowerPoint).
 - Un skill n'appelle un script d'un autre skill de myskills que par
   `scripts/lib/skill_paths.py` (`find_script`, `load_module`, `schema_of`),
   et le déclare dans le champ `requires` de son contrat (skill, script,
@@ -118,7 +122,10 @@ Chaque étape d'un workflow valide ce qu'elle reçoit et ce qu'elle produit.
   `level`, et ses skills figurent dans ceux de l'agent **(vérifiée)**. Une
   étape qui ne dépend pas de la précédente le dit dans `after`, qui ne cite
   que des étapes placées avant elle **(vérifiée)** : les étapes prêtes en
-  même temps se mènent en parallèle. Chaque workflow a au moins un cas
+  même temps se mènent en parallèle. Chaque étape livrée a une `phase`
+  (lecture, cadrage, solutioning, chiffrage, restitution), sa zone dans le
+  schéma d'avancement, et ne dépend d'aucune étape d'une zone placée après
+  **(vérifiée)**. Chaque workflow a au moins un cas
   d'agent dans `tests/agent-cases.json` **(vérifiée)** ; les mots d'une
   demande qui le désignent sans figurer dans ses libellés (legacy,
   comité...) vont dans `keywords`, et toute demande mal routée s'ajoute au

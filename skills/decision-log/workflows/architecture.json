@@ -20,6 +20,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -39,6 +40,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -64,14 +66,49 @@
           ]
         }
       ],
-      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal.",
+      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.",
       "optional": [
         "donnees/exigences.candidats.json",
         "donnees/exigences.tri.json"
       ]
     },
     {
+      "id": "dimensionnement",
+      "phase": "cadrage",
+      "label": "Dimensionnement",
+      "level": "moyen",
+      "after": [
+        "exigences"
+      ],
+      "skills": [
+        "capacity-sizing",
+        "cloud-cost"
+      ],
+      "inputs": [
+        "donnees/exigences.json"
+      ],
+      "deliverables": [
+        "donnees/dimensionnement.json",
+        "dimensionnement.md",
+        "donnees/dimensionnement.result.json"
+      ],
+      "checks": [
+        "capacity-sizing : size_build.py donnees/dimensionnement.json : pointe, stockage, sauvegardes et trafic calculés, zéro erreur ; chaque avertissement (pic faible, capacité par défaut) justifié ou noté au journal"
+      ],
+      "run": [
+        {
+          "skill": "capacity-sizing",
+          "script": "size_build.py",
+          "args": [
+            "donnees/dimensionnement.json"
+          ]
+        }
+      ],
+      "instructions": "Juste après les exigences, avant toute option : utilisateurs, charge et pointe, débits, données et fichiers, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; pas encore de composants. Le rapport donne la pointe, le stockage à l'horizon, les sauvegardes et le trafic, que les options d'architecture doivent tenir. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat."
+    },
+    {
       "id": "domaines",
+      "phase": "cadrage",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -118,12 +155,21 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : sur un projet neuf, le modèle de données de chaque contexte vient après (data-model, champ context) ; sur un existant, le modèle actuel (model) mesure le couplage réel ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de donnees/domaines.json et se note au journal."
+      "instructions": "Étape facultative, proposée après les exigences quand la solution couvre plusieurs domaines fonctionnels : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Sous-domaines, contextes bornés, langage et carte des contextes tirés des exigences, du glossaire et des processus métier, pas des données : sur un projet neuf, le modèle de données de chaque contexte vient après (data-model, champ context) ; sur un existant, le modèle actuel (model) mesure le couplage réel ; un facteur de la grille inconnu (équipes, maturité DevOps, cohérence exigée) se demande une seule fois, sans réponse il reste absent et la confiance baisse. À la revue, présenter le style recommandé (monolithe modulaire, mixte ou microservices), les contextes à extraire et la carte ; le style retenu par l'utilisateur va dans decision de donnees/domaines.json et se note au journal.",
+      "after": [
+        "exigences"
+      ]
     },
     {
       "id": "architectures",
+      "phase": "solutioning",
       "label": "Options d'architecture",
       "level": "complexe",
+      "after": [
+        "exigences",
+        "domaines",
+        "dimensionnement"
+      ],
       "skills": [
         "architecture-options",
         "urbanization-map",
@@ -133,7 +179,8 @@
         "donnees/exigences.json",
         "documents/pos*",
         "donnees/domaines.json",
-        "donnees/domaines.styles.json"
+        "donnees/domaines.styles.json",
+        "donnees/dimensionnement.result.json"
       ],
       "deliverables": [
         "donnees/options.json",
@@ -158,12 +205,16 @@
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire. Les options tiennent le dimensionnement (donnees/dimensionnement.result.json : pointe, stockage, disponibilité) : les notes de performance et de coût le citent, une option qui ne le tient pas le dit."
     },
     {
       "id": "schemas",
+      "phase": "solutioning",
       "label": "Décision et schémas",
       "level": "moyen",
+      "after": [
+        "architectures"
+      ],
       "skills": [
         "architecture-options",
         "drawio-diagram",
@@ -201,7 +252,7 @@
         "urbanization-map : pos_build.py schemas/pos-option-<id>.json (POS cible de chaque option, si POS)",
         "diagram-export : export.py en PNG des schémas construits sans --export (POS), puis relire chaque image une fois",
         "si l'utilisateur veut les contrats d'interface de l'option retenue : api-contract : api_build.py api/api.json (requirements ../donnees/exigences.json, source ../donnees/options.json et l'option)",
-        "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher)"
+        "si l'utilisateur veut une présentation : architecture-deck : deck_build.py . (le .pptx passe ensuite par document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu)"
       ],
       "run": [
         {
@@ -275,6 +326,7 @@
     },
     {
       "id": "revue",
+      "phase": "solutioning",
       "label": "Revue d'architecture",
       "level": "complexe",
       "after": [
@@ -320,6 +372,7 @@
     },
     {
       "id": "chiffrage",
+      "phase": "chiffrage",
       "label": "Chiffrage de l'option retenue",
       "level": "complexe",
       "after": [
@@ -328,13 +381,15 @@
       "facultative": true,
       "skills": [
         "solution-estimate",
+        "capacity-sizing",
         "cloud-cost"
       ],
       "agent": "solution-estimator",
       "inputs": [
         "donnees/exigences.json",
         "donnees/options.json",
-        "donnees/decision.json"
+        "donnees/decision.json",
+        "donnees/dimensionnement.json"
       ],
       "deliverables": [
         "donnees/chiffrage.json",
@@ -344,13 +399,25 @@
         "donnees/chiffrage.csv",
         "donnees/couts.json",
         "couts.md",
-        "donnees/couts.csv"
+        "donnees/couts.csv",
+        "donnees/dimensionnement-option.json",
+        "dimensionnement-option.md",
+        "donnees/dimensionnement-option.result.json",
+        "donnees/dimensionnement-option.couts.json"
       ],
       "checks": [
-        "cloud-cost : cost_build.py donnees/couts.json --infra <option> pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)",
+        "capacity-sizing : size_build.py donnees/dimensionnement-option.json (--provider <fournisseur> --option <option> pour une option cloud), puis cloud-cost : cost_build.py donnees/dimensionnement-option.couts.json --infra <option> (ou donnees/couts.json s'il complète le dimensionnement) pour une option cloud (coût de run calculé sur la grille locale ; ses lignes vont dans infra de donnees/chiffrage.json)",
         "solution-estimate : estimate_build.py donnees/chiffrage.json, avec --vault <vault> --folder <dossier> si le workflow a un vault (zéro erreur ; hébergeur et qualifications exigées vérifiés)"
       ],
       "run": [
+        {
+          "skill": "cloud-cost",
+          "script": "cost_build.py",
+          "args": [
+            "donnees/dimensionnement-option.couts.json"
+          ],
+          "if": "donnees/dimensionnement-option.couts.json"
+        },
         {
           "skill": "cloud-cost",
           "script": "cost_build.py",
@@ -368,10 +435,11 @@
           "vault": true
         }
       ],
-      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script."
+      "instructions": "Étape facultative : l'utilisateur dit s'il la veut (start) ou non (skip, avec ses mots). Demander une seule fois les taux journaliers, l'horizon et le budget ; sans réponse, chaque valeur prise est une hypothèse notée au journal. Le découpage en lots et les estimations à trois points passent à solution-estimator ; totaux, fourchette et coût total sont calculés par le script. Les volumes viennent de l'étape dimensionnement : avant de passer la main, donnees/dimensionnement-option.json reprend donnees/dimensionnement.json avec les components de l'option retenue, puis size_build.py donnees/dimensionnement-option.json (--provider et --option pour une option cloud) dimensionne les instances et écrit donnees/dimensionnement-option.couts.json ; cost_build.py sur ce fichier --infra <option> donne les lignes d'infrastructure. Aucune question de volumétrie n'est reposée, une valeur manquante est une hypothèse notée au journal."
     },
     {
       "id": "dossier",
+      "phase": "restitution",
       "label": "Dossier d'architecture technique",
       "level": "simple",
       "after": [

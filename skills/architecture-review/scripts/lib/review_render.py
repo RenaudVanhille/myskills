@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from review_common import ATTRIBUTES, AXES, DECIDED, OFF_DESCRIPTION, RULES, SEVERITIES, STATUS, count_of, plain
-from text_tools import slash_cell as cell
+from text_tools import requirement_nature, slash_cell as cell
 
 
 def fits(item: dict, field: str, value) -> bool:
@@ -54,7 +54,7 @@ def expected(rules: list[dict], catalog: dict, comps: list[dict], scenarios) -> 
     la catégorie, rôle de composant) et qu'aucun scénario de leur attribut ne suit."""
     categories = {r.get("category") for r in catalog.values()
                   if r.get("status", "retenue") == "retenue" and r.get("priority") in ("indispensable", "importante")
-                  and (r.get("nature") == "non-fonctionnelle" or r["id"].startswith("ENF"))}
+                  and requirement_nature(r) == "non-fonctionnelle"}
     roles = {c.get("role", "system") for c in comps}
     missing = []
     for rule in rules:

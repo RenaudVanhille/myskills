@@ -474,6 +474,10 @@ def summary(done: dict) -> str:
             found.append(f"entrées ../ suivies pour {count(row['external'], 'étape')}")
         if row.get("moved"):
             found.append(f"{count(row['moved'], 'fichier machine rangé', 'fichiers machine rangés')} dans donnees/")
+        if row.get("renamed"):
+            first = next(iter(row["renamed"].items()))
+            found.append(f"{count(len(row['renamed']), 'exigence renumérotée', 'exigences renumérotées')} par catégorie "
+                         f"({first[0]} → {first[1]}...)")
         if row["vault"]:
             found.append("vault retrouvé")
         if row["links"]:
@@ -515,7 +519,7 @@ def upgrade(args, root: Path, mission: dict, errors: list[str], warnings: list[s
             rows.append({"folder": flow["folder"], "definition": done["definition"], "vault": done["vault"],
                          "journal": done["journal"], "links": done["links"],
                          "superseded": done.get("superseded", 0), "noise": done.get("noise", 0), "external": done.get("external", 0),
-                         "moved": len(done.get("moved", [])),
+                         "moved": len(done.get("moved", [])), "renamed": done.get("renamed") or {},
                          "notes": (report.get("memory") or {}).get("notes")})
     vault = workspace.path_of(root, mission, "vault")
     style = (vault / ".obsidian" / "snippets" / f"{vault_ontology.SNIPPET}.css").is_file()
@@ -599,7 +603,7 @@ def tidy(args, root: Path, mission: dict, warnings: list[str]) -> dict:
 def pending(done: dict) -> bool:
     """Reste-t-il quelque chose qu'une mise à niveau à blanc écrirait ?"""
     return done.get("git") == "absent" or done["tidy"]["moved"] > 0 or any(w["journal"] or w["links"] or w["vault"] or w["superseded"]
-                                              or w["noise"] or w["external"] or w.get("moved")
+                                              or w["noise"] or w["external"] or w.get("moved") or w.get("renamed")
                                               or (w["definition"] or {}).get("changed")
                                               for w in done["workflows"])
 

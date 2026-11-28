@@ -14,7 +14,7 @@ tirés de l'ontologie. La recherche les filtre directement :
 | les risques ouverts | `[type:risque] [statut:ouvert]` |
 | les constats graves d'une revue | `tag:#type/constat tag:#gravite/haute` |
 | les exigences indispensables | `tag:#priorite/indispensable` |
-| ce qui porte sur une exigence | `[porte-sur:ENF-004]` |
+| ce qui porte sur une exigence | `[porte-sur:SECU-01]` |
 | les décisions d'un workflow | `path:"Workflows/Portail sinistres/Décisions"` |
 | mes annotations | `"[!question]" OR "[!retour]"` |
 | un mot dans les seules notes typées | `paiement [type]` |

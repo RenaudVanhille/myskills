@@ -60,7 +60,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, load_module, require_file, schema_of  # noqa: E402
 from spec_schema import check, input_schema, print_schema, read_spec, schema_option  # noqa: E402
-from text_tools import beside, cell, from_data, readable_dir  # noqa: E402
+from text_tools import beside, cell, from_data, readable_dir, requirement_nature  # noqa: E402
 
 # Position des options dans le POS du SI (skill urbanization-map), déclaré dans requires.
 POS = load_module("urbanization-map", "pos_impact.py")
@@ -81,8 +81,8 @@ def load_wa():
 
 
 def nature(req: dict) -> str | None:
-    """Comme requirements-catalog : champ nature, sinon préfixe EF- ou ENF-."""
-    return req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
+    """Comme requirements-catalog : champ nature, sinon préfixe de numérotation (EF-, SECU-, PERF-...)."""
+    return requirement_nature(req)
 
 
 def load_catalog(base: Path, spec: dict, errors: list[str], warnings: list[str]) -> dict[str, dict]:

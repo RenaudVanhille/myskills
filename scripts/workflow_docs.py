@@ -94,18 +94,20 @@ def page(definition: dict) -> str:
     lines += ["## Déroulé", "", flowchart(definition), "",
               "En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à "
               "un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). "
+              "Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. "
               "Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.", ""]
     parallel = [w for w in waves(stages) if len(w) > 1]
     if parallel:
         lines.append("Étapes prêtes en même temps, menées en parallèle :")
         lines += ["- " + ", ".join(stage_label(stages, s) for s in wave) for wave in parallel]
         lines.append("")
-    lines += ["## Étapes", "", "| Étape | Niveau | Menée par | Skills | Livrables | Après |",
-              "| --- | --- | --- | --- | --- | --- |"]
+    zone = {pid: name for pid, name, _ in workflow_chart.PHASES}
+    lines += ["## Étapes", "", "| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
     for i, stage in enumerate(stages):
         after = ", ".join(stage_label(stages, d).split(".")[0] for d in requires(stages, i)) or "début"
         label = f"{i + 1}. {stage['label']}" + (" (facultative)" if stage.get("facultative") else "")
-        lines.append(f"| {cell(label)} | {LEVELS.get(stage['level'], stage['level'])} | "
+        lines.append(f"| {cell(label)} | {zone.get(stage.get('phase'), '')} | {LEVELS.get(stage['level'], stage['level'])} | "
                      f"`{stage.get('agent', ENGINE)}` | {cell(stage.get('skills', []))} | "
                      f"{cell(stage.get('deliverables', []))} | {after} |")
     lines.append("")

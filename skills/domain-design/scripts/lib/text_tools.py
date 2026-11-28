@@ -70,3 +70,27 @@ def from_data(base: Path, relative: str | Path) -> Path:
     if base.name == DATA_DIR and not path.exists() and (base.parent / relative).exists():
         return base.parent / relative
     return path
+
+
+# Numérotation des exigences que le catalogue attribue lui-même (requirements-catalog) : EF-001 fonctionnelle,
+# préfixe de sa catégorie pour une non fonctionnelle (SECU-01, PERF-01...). ENF- reste celui de la catégorie
+# « autre » et des catalogues numérotés avant ces préfixes. Un identifiant repris des documents ne change pas.
+NFR_PREFIXES = {"performance": "PERF", "disponibilite": "DISP", "securite": "SECU", "conformite": "CONF",
+                "exploitabilite": "EXPL", "maintenabilite": "MAIN", "evolutivite": "EVOL",
+                "interoperabilite": "INTE", "utilisabilite": "UTIL", "portabilite": "PORT", "cout": "COUT",
+                "autre": "ENF"}
+GENERATED_ID = re.compile(r"^(EF|" + "|".join(NFR_PREFIXES.values()) + r")-\d{2,3}$")
+
+
+def generated_id(prefix: str, number: int) -> str:
+    """EF-001 (fonctionnelle, trois chiffres comme avant) ; SECU-01 (non fonctionnelle, deux chiffres au moins)."""
+    return f"{prefix}-{number:03d}" if prefix == "EF" else f"{prefix}-{number:02d}"
+
+
+def requirement_nature(req: dict) -> str | None:
+    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe de numérotation (EF-, ENF-, SECU-...)."""
+    if req.get("nature"):
+        return req["nature"]
+    if not GENERATED_ID.match(str(req.get("id", ""))):
+        return None
+    return "fonctionnelle" if req["id"].startswith("EF-") else "non-fonctionnelle"

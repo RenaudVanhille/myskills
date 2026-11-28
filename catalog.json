@@ -272,7 +272,8 @@
         "Un modèle Word ou un gabarit PowerPoint (.potx), s'il existe"
       ],
       "produces": [
-        "Des fichiers .docx, .pptx, .html, .xwiki et ses images",
+        "Des fichiers .docx, .html, .xwiki et ses images",
+        "Un .pptx délégué à l'agent externe concepteur-deck, puis vérifié",
         "En option un PDF"
       ],
       "never": [
@@ -294,6 +295,13 @@
           "send": [
             "le document",
             "la cible Markdown et le dossier de travail"
+          ]
+        },
+        {
+          "to": "concepteur-deck",
+          "when": "une présentation PowerPoint est demandée (agent externe, installé à part)",
+          "send": [
+            "le champ handoff du rapport de pptx_publish.py, tel quel : sources, .pptx attendu, mode, trame, gabarit"
           ]
         }
       ],
@@ -2278,7 +2286,7 @@
         "Dossier d'un workflow d'architecture aux étapes validées : options.json, exigences.json (et son glossaire), decision.json, PNG des schémas déjà exportés"
       ],
       "outputs": [
-        "presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
+        "presentation.md : présentation du dossier (besoin, options, décision) au format Markdown que l'agent externe concepteur-deck convertit tel quel, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
       ],
       "scripts": [
         {
@@ -2361,10 +2369,10 @@
         {
           "to": "markdown-publish",
           "kind": "skill",
-          "when": "produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx)"
+          "when": "faire produire le .pptx de presentation.md par l'agent externe concepteur-deck (pptx_publish.py prépare la demande, puis --check vérifie)"
         }
       ],
-      "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité.",
+      "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format que l'agent externe concepteur-deck convertit en PowerPoint. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité.",
       "path": "skills/architecture-deck"
     },
     {
@@ -5434,7 +5442,7 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "description": "exigences de volumétrie et de disponibilité (ENF-...)"
+                  "description": "exigences de volumétrie et de disponibilité (PERF-01, DISP-01...)"
                 },
                 "horizon_years": {
                   "type": "integer",
@@ -7779,7 +7787,7 @@
             "skip DOSSIER ETAPE": "saute une étape facultative de la définition, à la demande de l'utilisateur (--text : ses mots) ; les étapes suivantes peuvent démarrer",
             "--submit": "avec check : si tous les contrôles passent, soumet l'étape dans le même appel (livrables de la définition, comme submit sans --files) ; avec start : démarre l'étape, lance ses contrôles run puis la soumet de même, pour une étape que ses scripts produisent entièrement ; le rapport est alors celui de submit (command submit, checks gardés)",
             "check DOSSIER ETAPE": "lance en un appel les contrôles mécaniques du champ run de l'étape (une fois par fichier pour foreach, sautés si if ne trouve rien, avec --vault et --folder du workflow pour vault), depuis le dossier du workflow ; checks donne chaque commande et son résultat, errors les premières erreurs de chaque commande en échec, et toute commande qui a modifié le livrable d'une étape validée ; n'écrit rien dans workflow.json, sauf avec --submit",
-            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
+            "upgrade DOSSIER": "remet le workflow au niveau des scripts actuels : définition livrée du même nom reprise (étapes nouvelles à faire, étapes retirées gardées si déjà menées, statuts, fichiers et entrées intacts), entrées des versions remplacées des étapes franchies passées à l'archive (superseded), vault de la mission retrouvé si le dossier a bougé, exigences non fonctionnelles ENF- renumérotées par catégorie (SECU-01, PERF-01... ; fichiers, journal et vault suivent, correspondance gardée dans le catalogue), journal.md réécrit, liens des livrables posés, mémoire du vault refaite ; à blanc par défaut (rapport upgrade), rejouable",
             "--apply": "avec upgrade : écrire les changements (défaut : à blanc, rien n'est écrit)",
             "--keep-definition": "avec upgrade : garder les étapes et consignes d'origine du workflow (refusé si l'ancienne définition n'est plus valide)",
             "--definition": "avec init : workflow livré ou fichier de définition ; avec upgrade : définition à suivre désormais (défaut : celle livrée du même nom)"
@@ -8059,10 +8067,18 @@
                     "superseded",
                     "noise",
                     "external",
-                    "moved"
+                    "moved",
+                    "renamed"
                   ],
                   "additionalProperties": false,
                   "properties": {
+                    "renamed": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01) : catalogue ouvert avant les préfixes de catégorie ; fichiers du workflow, journal et notes du vault suivent, empreintes recalculées ; un identifiant cité par les sources est gardé. Vide : rien à renommer."
+                    },
                     "moved": {
                       "type": "array",
                       "items": {
@@ -8550,6 +8566,16 @@
                           "facultative": {
                             "type": "boolean",
                             "description": "Étape facultative : à sa porte, l'utilisateur choisit de la faire (start) ou de la sauter (skip, avec ses mots)."
+                          },
+                          "phase": {
+                            "enum": [
+                              "lecture",
+                              "cadrage",
+                              "solutioning",
+                              "chiffrage",
+                              "restitution"
+                            ],
+                            "description": "Zone de l'étape dans le schéma d'avancement, dans cet ordre : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Une étape ne dépend que d'étapes de sa zone ou d'une zone antérieure. Sans phase, le schéma est à plat."
                           },
                           "after": {
                             "type": "array",
@@ -12562,7 +12588,7 @@
       ],
       "outputs": [
         "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
-        "<nom>.pptx, par le skill externe markdown-to-pptx s'il est installé",
+        "<nom>.pptx, conçu ou converti par l'agent externe concepteur-deck (installé à part), puis vérifié",
         "En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/"
       ],
       "scripts": [
@@ -12718,36 +12744,55 @@
         },
         {
           "name": "pptx_publish.py",
-          "role": "Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs).",
-          "usage": "uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]",
+          "role": "Délègue la présentation PowerPoint à l'agent externe concepteur-deck, installé à part et appelé par son seul contrat d'interface. Sans --check, vérifie les sources (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), écrit en mode convertir la copie de travail dans .myskills-tmp/, trouve l'agent et donne dans le rapport la demande à lui passer (message de passage validé contre le contrat). Avec --check, après l'agent : rouvre le .pptx (diapositives, images, textes alternatifs), valide l'état de relecture contre le contrat, compare le Markdown relu, compte les points [à compléter] et retire les copies .before-*.",
+          "usage": "uv run scripts/pptx_publish.py SOURCE.md [SOURCE...] [--out NOM.pptx] [--mode convertir|concevoir] [--objective TEXTE] [--audience technique|\"non technique\"] [--trame NOM] [--template MARQUE.potx] [--lang fr|en] [--slides N] | uv run scripts/pptx_publish.py --check NOM.pptx [--source DECK.md]",
           "options": {
-            "DOC.md": "document Markdown écrit selon les conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->)",
-            "--out": "dossier de sortie (défaut : à côté du Markdown)",
-            "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill (MD2PPTX_TEMPLATE, dossier .md2pptx/ du projet, gabarit du skill)",
-            "--lang": "langue des libellés générés (défaut : détectée)"
+            "SOURCE": "mode convertir : un Markdown complet aux conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->) ; mode concevoir : les sources du deck (Markdown, JSON, PDF...)",
+            "--out": "présentation à produire (défaut : la première source en .pptx) ; en mode concevoir, l'agent écrit le Markdown du deck à côté, sous le même nom en .md",
+            "--mode": "convertir (défaut) : rendu du Markdown tel quel ; concevoir : l'agent choisit la trame et rédige le deck",
+            "--objective": "décision ou action que le deck doit obtenir, et de qui",
+            "--audience": "technique ou non technique (défaut)",
+            "--trame": "trame de l'agent (propale, copil, diagnostic, schema-directeur, comite-archi, cadrage, retex)",
+            "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill de rendu (dossier .md2pptx/ du projet, gabarit par défaut)",
+            "--lang": "langue du deck (défaut : celle des sources)",
+            "--slides": "taille cible en diapositives",
+            "--check": "vérifier la présentation rendue par l'agent",
+            "--source": "avec --check : Markdown du deck, s'il n'est ni dans .myskills-tmp/ ni à côté du .pptx"
           },
           "report": {
             "format": "json",
-            "description": "Un objet : dossier et version du skill utilisé, diapositives, nombre par type, images, objets sans texte alternatif.",
+            "description": "Un objet : mode (preparer, verifier), demande à passer à concepteur-deck (handoff), fichier de l'agent trouvé ; après l'agent, diapositives, images, objets sans texte alternatif, verdict de relecture, points [à compléter], copies retirées.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "type": "object",
               "required": [
-                "input",
+                "mode",
+                "inputs",
                 "output",
-                "skill",
-                "version",
+                "agent",
+                "handoff",
                 "slides",
-                "kinds",
                 "images",
                 "missing_alt",
+                "review",
+                "todo",
+                "removed",
                 "errors",
                 "warnings"
               ],
               "additionalProperties": false,
               "properties": {
-                "input": {
-                  "type": "string"
+                "mode": {
+                  "enum": [
+                    "preparer",
+                    "verifier"
+                  ]
+                },
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "output": {
                   "type": [
@@ -12755,28 +12800,22 @@
                     "null"
                   ]
                 },
-                "skill": {
+                "agent": {
                   "type": [
                     "string",
                     "null"
                   ]
                 },
-                "version": {
+                "handoff": {
                   "type": [
-                    "string",
+                    "object",
                     "null"
-                  ]
+                  ],
+                  "description": "message de passage à donner tel quel à l'agent concepteur-deck"
                 },
                 "slides": {
                   "type": "integer",
                   "minimum": 0
-                },
-                "kinds": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "integer",
-                    "minimum": 1
-                  }
                 },
                 "images": {
                   "type": "integer",
@@ -12785,6 +12824,42 @@
                 "missing_alt": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "review": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "required": [
+                    "status",
+                    "round",
+                    "issues"
+                  ],
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "clean",
+                        "fix",
+                        "stop"
+                      ]
+                    },
+                    "round": {
+                      "type": "integer"
+                    },
+                    "issues": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "todo": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "removed": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 },
                 "errors": {
                   "type": "array",
@@ -12802,8 +12877,8 @@
             }
           },
           "exit_codes": {
-            "0": "présentation écrite et vérifiée",
-            "1": "Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé"
+            "0": "demande prête (sans --check) ou présentation vérifiée (--check)",
+            "1": "source, image, trame ou gabarit invalide, agent concepteur-deck introuvable (avec la consigne d'installation), relecture inachevée, état de relecture non conforme ou présentation incohérente"
           }
         },
         {
@@ -12826,9 +12901,9 @@
           "when": "exporter les schémas (automatique)"
         },
         {
-          "to": "markdown-to-pptx",
+          "to": "concepteur-deck",
           "kind": "externe",
-          "when": "produire le .pptx (pptx_publish.py le lance)"
+          "when": "concevoir ou convertir le .pptx : pptx_publish.py prépare la demande, l'agent appelant la lui passe, pptx_publish.py --check vérifie le résultat"
         },
         {
           "to": "utilisateur",
@@ -12844,7 +12919,7 @@
           "optional": false
         }
       ],
-      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
+      "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint déléguée à l'agent concepteur-deck installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt.",
       "path": "skills/markdown-publish"
     },
     {
@@ -15282,6 +15357,13 @@
                             "type": "integer",
                             "minimum": 0,
                             "description": "Fichiers machine de la racine du workflow (JSON, CSV...) rangés dans donnees/."
+                          },
+                          "renamed": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "description": "Exigences non fonctionnelles renumérotées par catégorie (ENF-004 -> SECU-01), comme journal.py upgrade."
                           }
                         }
                       }
@@ -17340,7 +17422,7 @@
                         "items": {
                           "type": "string"
                         },
-                        "description": "Exigences que le service tient (ENF-002)."
+                        "description": "Exigences que le service tient (DISP-01)."
                       }
                     }
                   }
@@ -18082,7 +18164,7 @@
       "level": "moyen",
       "inputs": [
         "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
+        "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
       ],
       "outputs": [
         "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
@@ -18092,7 +18174,7 @@
       "scripts": [
         {
           "name": "req_build.py",
-          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
+          "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons, exigences non mesurables et dimensions de volumétrie absentes (utilisateurs, pic, débit, données, croissance, conservation), puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
           "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER] | exigences.json --draft [--sources DOSSIER] | --schema",
           "options": {
             "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
@@ -18144,14 +18226,14 @@
                       "id": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                       },
                       "nature": {
                         "enum": [
                           "fonctionnelle",
                           "non-fonctionnelle"
                         ],
-                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                        "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                       },
                       "title": {
                         "type": "string",
@@ -18328,13 +18410,55 @@
                       }
                     }
                   }
+                },
+                "volumetry": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+                  "properties": {
+                    "utilisateurs": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pointe": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "debit": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "donnees": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "croissance": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "retention": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "renamed": {
+                  "type": "object",
+                  "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^ENF-\\d{3}$": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+-\\d{2,3}$"
+                    }
+                  }
                 }
               }
             }
           },
           "report": {
             "format": "json",
-            "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon).",
+            "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, volumétrie absente) ; volumetry_missing : dimensions de volumétrie à demander.",
             "schema": {
               "$schema": "https://json-schema.org/draft/2020-12/schema",
               "anyOf": [
@@ -18355,7 +18479,8 @@
                     "glossary",
                     "method",
                     "dismissed",
-                    "candidates"
+                    "candidates",
+                    "volumetry_missing"
                   ],
                   "additionalProperties": false,
                   "properties": {
@@ -18423,6 +18548,20 @@
                     "candidates": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "volumetry_missing": {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "utilisateurs",
+                          "pointe",
+                          "debit",
+                          "donnees",
+                          "croissance",
+                          "retention"
+                        ]
+                      },
+                      "description": "Dimensions de volumétrie absentes : ni exigence, ni question, ni sans objet."
                     }
                   }
                 },
@@ -18681,14 +18820,14 @@
                       "id": {
                         "type": "string",
                         "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                        "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                       },
                       "nature": {
                         "enum": [
                           "fonctionnelle",
                           "non-fonctionnelle"
                         ],
-                        "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                        "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                       },
                       "title": {
                         "type": "string",
@@ -18863,6 +19002,48 @@
                           }
                         }
                       }
+                    }
+                  }
+                },
+                "volumetry": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+                  "properties": {
+                    "utilisateurs": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "pointe": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "debit": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "donnees": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "croissance": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "retention": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "renamed": {
+                  "type": "object",
+                  "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^ENF-\\d{3}$": {
+                      "type": "string",
+                      "pattern": "^[A-Z]+-\\d{2,3}$"
                     }
                   }
                 }

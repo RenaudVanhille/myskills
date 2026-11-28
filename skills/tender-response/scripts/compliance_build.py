@@ -41,7 +41,7 @@ from xml.sax.saxutils import escape
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import beside, cell, from_data  # noqa: E402
+from text_tools import beside, cell, from_data, requirement_nature  # noqa: E402
 
 STATUSES = ["conforme", "partiel", "non-conforme", "sans-objet"]
 FROM_GAP = {"partiel": "partiel", "non": "non-conforme"}
@@ -92,7 +92,7 @@ def retained(catalog: dict) -> list[dict]:
 
 
 def kind_of(req: dict) -> str:
-    nature = req.get("nature") or {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0], "")
+    nature = requirement_nature(req) or ""
     return nature.replace("-", " ")
 
 

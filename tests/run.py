@@ -155,7 +155,9 @@ def run_step(step: dict, out: Path, failures: list[str]) -> None:
     command = runner() + [script] + [expand(arg, out) for arg in step.get("args", [])]
     # "env" : variables propres à l'étape (cache isolé, mode hors ligne...).
     env = {**os.environ, **{k: expand(v, out) for k, v in step.get("env", {}).items()}}
-    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=env)
+    # "cwd" : dossier de travail de l'étape (fichiers de .myskills-tmp/ hors du dépôt).
+    cwd = expand(step["cwd"], out) if "cwd" in step else None
+    result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=env, cwd=cwd)
     name = Path(script).name
     if step.get("exit", 0) != "any" and result.returncode != step.get("exit", 0):
         tail = (result.stderr or result.stdout).strip().splitlines()[-1:] or [""]
@@ -246,16 +248,18 @@ def _schema_problem(schema: dict) -> str | None:
     return None
 
 
-def _external_failures(externals: dict, skills: dict, schema: dict) -> list[str]:
-    """Contrats des skills tiers appelés par leur seule interface."""
+def _external_failures(externals: dict, skills: dict, agents: dict, schemas: dict) -> list[str]:
+    """Contrats des skills et agents tiers appelés par leur seule interface."""
     failures = []
     for name, contract in externals.items():
-        failures += [f"external/{name}.contract.json : {e}" for e in schema_errors(contract, schema)]
-        if contract.get("skill") != name:
-            failures.append(f"external/{name}.contract.json : skill = {contract.get('skill')!r}")
-        if name in skills:
-            failures.append(f"external/{name} : un skill du dépôt porte déjà ce nom")
-        for key in ("plan", "output_schema"):
+        kind = "agent" if "agent" in contract else "skill"
+        failures += [f"external/{name}.contract.json : {e}"
+                     for e in schema_errors(contract, schemas[f"external-{kind}"])]
+        if contract.get(kind) != name:
+            failures.append(f"external/{name}.contract.json : {kind} = {contract.get(kind)!r}")
+        if name in skills or name in agents:
+            failures.append(f"external/{name} : un skill ou un agent du dépôt porte déjà ce nom")
+        for key in ("plan", "output_schema", "request"):
             problem = _schema_problem(contract.get(key, {}))
             if problem:
                 failures.append(f"external/{name} : schéma {key} invalide ({problem})")
@@ -391,6 +395,7 @@ def _stage_failures(where: str, definition: dict, skills: dict, agents: dict) ->
 def _workflow_failures(skills: dict, agents: dict, agent_cases: list[dict]) -> list[str]:
     """Workflows livrés : conformes au schéma de définition, documentés, joués par un cas d'agent."""
     from agents_lib import parse_agent as parse, split_list as split
+    from workflow_docs import workflow_chart
 
     failures = []
     journal_input = next(s["input"]["schema"] for s in skills["decision-log"]["scripts"] if s["name"] == "journal.py")
@@ -411,10 +416,13 @@ def _workflow_failures(skills: dict, agents: dict, agent_cases: list[dict]) -> l
         for stage in definition.get("stages", []):
             if not stage.get("level"):
                 failures.append(f"{where} : étape {stage.get('id')} sans level (simple, moyen, complexe)")
+            if not stage.get("phase"):
+                failures.append(f"{where} : étape {stage.get('id')} sans phase (zone du schéma d'avancement)")
             failures += [f"{where} : étape {stage.get('id')}, skill « {s} » absent des skills "
                          "de l'agent architecture-workflow" for s in stage.get("skills", [])
                          if s in skills and s not in engine]
         failures += [f"{where} : {e}" for e in schema_errors(definition, definition_schema)]
+        failures += [f"{where} : {e}" for e in workflow_chart.phase_errors(definition.get("stages", []))]
         if definition.get("name") != path.stem:
             failures.append(f"{where} : name = {definition.get('name')!r}, attendu {path.stem!r}")
         failures += _stage_failures(where, definition, skills, agents)
@@ -476,14 +484,14 @@ def _provider_failures(skills: dict) -> list[str]:
 def check_contracts() -> dict:
     """Contrats valides, cohérents entre eux, et fichiers générés à jour."""
     schemas = {name: contracts_lib.schema(name)
-               for name in ("skill-contract", "agent-contract", "handoff", "agent-report", "external-skill")}
+               for name in ("skill-contract", "agent-contract", "handoff", "agent-report", "external-skill", "external-agent")}
     registry = Registry().with_resources(
         (f"{name}.schema.json", Resource.from_contents(value)) for name, value in schemas.items())
     skills, agents = contracts_lib.skill_contracts(), contracts_lib.agent_contracts()
     externals = contracts_lib.external_contracts()
     agent_cases = json.loads((TESTS / "agent-cases.json").read_text(encoding="utf-8"))["cases"]
 
-    failures = _external_failures(externals, skills, schemas["external-skill"])
+    failures = _external_failures(externals, skills, agents, schemas)
     failures += _skill_failures(skills, agents, externals, schemas["skill-contract"])
     failures += _ontology_failures(skills)
     failures += _case_failures(skills, agent_cases)

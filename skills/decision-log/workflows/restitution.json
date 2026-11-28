@@ -22,6 +22,7 @@
   "stages": [
     {
       "id": "messages",
+      "phase": "cadrage",
       "label": "Décision attendue et messages",
       "level": "moyen",
       "skills": [
@@ -87,6 +88,7 @@
     },
     {
       "id": "schemas",
+      "phase": "restitution",
       "label": "Schémas pour le public visé",
       "level": "moyen",
       "after": [
@@ -203,6 +205,7 @@
     },
     {
       "id": "presentation",
+      "phase": "restitution",
       "label": "Support de présentation",
       "level": "simple",
       "after": [
@@ -221,7 +224,7 @@
       ],
       "checks": [
         "architecture-deck : deck_build.py .. --out presentation.md (besoin, options, décision, schémas du dossier)",
-        "si l'utilisateur veut le .pptx : passer presentation.md à document-publisher (skill externe markdown-to-pptx)"
+        "si l'utilisateur veut le .pptx : passer presentation.md à document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu"
       ],
       "run": [
         {
@@ -238,6 +241,7 @@
     },
     {
       "id": "parcours",
+      "phase": "chiffrage",
       "label": "Vue par parcours utilisateur",
       "level": "simple",
       "facultative": true,
@@ -276,6 +280,7 @@
     },
     {
       "id": "document",
+      "phase": "restitution",
       "label": "Document de restitution",
       "level": "simple",
       "after": [

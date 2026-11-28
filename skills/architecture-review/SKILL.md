@@ -53,14 +53,14 @@ indispensable ou importante et par scénario attendu : complétez et
   "scenarios": [{"id": "QS-01", "attribute": "performance", "importance": "haute", "difficulty": "moyenne",
                  "stimulus": "10 000 assurés déclarent après une tempête", "environment": "pic",
                  "response": "les déclarations sont enregistrées", "measure": "95 % en moins de 2 s",
-                 "refs": ["ENF-001"], "components": ["api"], "status": "satisfait",
+                 "refs": ["PERF-01"], "components": ["api"], "status": "satisfait",
                  "note": "mise à l'échelle automatique, file vers la gestion"}],
   "risks": [{"id": "R-01", "text": "l'annuaire bloque la connexion s'il tombe", "severity": "moyenne",
              "scenarios": ["QS-02"], "mitigation": "délai court et message d'attente", "owner": "équipe portail"}],
   "tradeoffs": [{"text": "file asynchrone : charge absorbée, transmission différée",
                  "attributes": ["performance", "utilisabilite"], "decision": "ADR-001"}],
   "decisions": [{"id": "ADR-001", "title": "Option A retenue", "status": "acceptee",
-                 "refs": ["ENF-004"], "file": "adr-architecture.md"}]
+                 "refs": ["SECU-01"], "file": "adr-architecture.md"}]
 }
 ```
 

@@ -20,14 +20,29 @@ Workflow d'évolution de l'agent architecture-workflow, mené dans un sous-dossi
 title: "Évolution d'une solution validée : écarts, impacts, décision et chiffrage du changement"
 ---
 flowchart LR
-  s_documents["1. Demande en Markdown<br/><small>document-extractor</small>"]
-  s_exigences["2. Écart d'exigences<br/><small>architecture-workflow</small>"]
-  s_contrats["3. Écart de contrat d'interface<br/><small>architecture-workflow</small>"]
-  s_donnees["4. Modèle de données modifié<br/><small>architecture-workflow</small>"]
-  s_options["5. Options de mise en œuvre<br/><small>architecture-workflow</small>"]
-  s_decision["6. Décision<br/><small>architecture-workflow</small>"]
-  s_chiffrage["7. Chiffrage du changement<br/><small>solution-estimator</small>"]
-  s_dossier["8. Dossier d'évolution<br/><small>architecture-workflow</small>"]
+  subgraph z_lecture["Lecture du dossier"]
+    s_documents["1. Demande en Markdown<br/><small>document-extractor</small>"]
+  end
+  style z_lecture fill:#f8fafc,stroke:#94a3b8,color:#0f172a
+  subgraph z_cadrage["Cadrage"]
+    s_exigences["2. Écart d'exigences<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_solutioning["Solutioning"]
+    s_contrats["3. Écart de contrat d'interface<br/><small>architecture-workflow</small>"]
+    s_donnees["4. Modèle de données modifié<br/><small>architecture-workflow</small>"]
+    s_options["5. Options de mise en œuvre<br/><small>architecture-workflow</small>"]
+    s_decision["6. Décision<br/><small>architecture-workflow</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_chiffrage["7. Chiffrage du changement<br/><small>solution-estimator</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_dossier["8. Dossier d'évolution<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_documents --> s_exigences
   s_exigences --> s_contrats
   s_exigences --> s_donnees
@@ -37,6 +52,10 @@ flowchart LR
   s_contrats --> s_chiffrage
   s_donnees --> s_chiffrage
   s_chiffrage --> s_dossier
+  s_documents ~~~ s_exigences
+  s_exigences ~~~ s_contrats
+  s_decision ~~~ s_chiffrage
+  s_chiffrage ~~~ s_dossier
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -45,23 +64,23 @@ flowchart LR
   class s_contrats,s_donnees,s_options,s_decision,s_chiffrage facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 3. Écart de contrat d'interface, 4. Modèle de données modifié, 5. Options de mise en œuvre
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Demande en Markdown | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
-| 2. Écart d'exigences | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `ecarts-exigences.md` | 1 |
-| 3. Écart de contrat d'interface (facultative) | moyen | `architecture-workflow` | `api-contract` | `donnees/api.json`, `ecarts-api.md` | 2 |
-| 4. Modèle de données modifié (facultative) | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 2 |
-| 5. Options de mise en œuvre (facultative) | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 2 |
-| 6. Décision (facultative) | simple | `architecture-workflow` | `architecture-options` | `donnees/decision.json`, `adr-architecture.md` | 5 |
-| 7. Chiffrage du changement (facultative) | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6, 3, 4 |
-| 8. Dossier d'évolution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-evolution.md` | 7 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Demande en Markdown | Lecture du dossier | simple | `document-extractor` | `doc-to-markdown` | `sources/*.md` | début |
+| 2. Écart d'exigences | Cadrage | moyen | `architecture-workflow` | `requirements-catalog` | `donnees/exigences.json`, `exigences.md`, `ecarts-exigences.md` | 1 |
+| 3. Écart de contrat d'interface (facultative) | Solutioning | moyen | `architecture-workflow` | `api-contract` | `donnees/api.json`, `ecarts-api.md` | 2 |
+| 4. Modèle de données modifié (facultative) | Solutioning | moyen | `architecture-workflow` | `data-model` | `donnees/modele.json`, `modele.md` | 2 |
+| 5. Options de mise en œuvre (facultative) | Solutioning | complexe | `architecture-workflow` | `architecture-options`, `urbanization-map`, `well-architected-review` | `donnees/options.json`, `options.md` | 2 |
+| 6. Décision (facultative) | Solutioning | simple | `architecture-workflow` | `architecture-options` | `donnees/decision.json`, `adr-architecture.md` | 5 |
+| 7. Chiffrage du changement (facultative) | Chiffrage | complexe | `solution-estimator` | `solution-estimate`, `cloud-cost` | `donnees/chiffrage.json`, `chiffrage.md` | 6, 3, 4 |
+| 8. Dossier d'évolution | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `synthese.md`, `dossier-evolution.md` | 7 |
 
 ### 1. Demande en Markdown
 

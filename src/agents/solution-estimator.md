@@ -32,7 +32,7 @@ Généré depuis `src/agents/solution-estimator.contract.json`, qui fait foi.
 | `document-publisher` | le chiffrage doit être livré en Word, HTML ou XWiki | chiffrage.md ; l'outil cible |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator | concepteur-deck), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
@@ -85,7 +85,10 @@ workflow, la commande les trace aussi au journal.
    `api.json`, `api_build.py`, `api_breakdown.py` ; `ui_breakdown.py`). Ne
    réestime pas un lot d'expert sans raison écrite dans `note`.
 5. Pour une option cloud, décris ses consommations dans `couts.json` (skill
-   `cloud-cost`) et lance `cost_build.py couts.json --infra <option>`. Puis
+   `cloud-cost`) et lance `cost_build.py couts.json --infra <option>`. Si
+   le dimensionnement de l'option est fait (`dimensionnement-option.couts.json`,
+   skill `capacity-sizing`), pars de lui : ne repose aucune question de
+   volumétrie, une valeur manquante est une hypothèse. Puis
    `estimate_build.py chiffrage.json --draft --lots decoupage-back.lots.json
    [--lots decoupage.lots.json] [--infra couts.infra.json]` : le brouillon
    porte les lots des experts, un lot par autre composant, les lots

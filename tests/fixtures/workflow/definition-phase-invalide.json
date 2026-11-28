@@ -1,0 +1,9 @@
+{
+  "name": "phase-invalide",
+  "stages": [
+    {"id": "exigences", "phase": "cadrage", "level": "moyen", "deliverables": ["exigences.md"]},
+    {"id": "chiffrage", "phase": "chiffrage", "level": "moyen", "deliverables": ["chiffrage.md"]},
+    {"id": "schemas", "phase": "solutioning", "level": "moyen", "deliverables": ["schemas.md"]},
+    {"id": "dossier", "level": "moyen", "deliverables": ["dossier.md"]}
+  ]
+}

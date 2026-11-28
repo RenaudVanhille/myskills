@@ -5,7 +5,8 @@
 
 Entrée : une description JSON courte (`exigences.json`) où chaque exigence a
 un identifiant stable (celui des documents s'ils numérotent déjà leurs
-exigences, sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle), sa
+exigences, sinon EF-001 fonctionnelle, préfixe de sa catégorie pour une non
+fonctionnelle : SECU-01, PERF-01...), sa
 priorité et la citation exacte de sa source dans un document Markdown du
 dossier `sources`. Le script, et non le modèle :
 - vérifie que chaque citation existe dans son document et en donne la ligne ;
@@ -45,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from spec_schema import check as check_schema, print_schema, read_spec, schema_option, validate  # noqa: E402
-from text_tools import beside, cell, from_data  # noqa: E402
+from text_tools import GENERATED_ID, NFR_PREFIXES, beside, cell, from_data, generated_id, requirement_nature  # noqa: E402
 
 PRIORITIES = ["indispensable", "importante", "souhaitable", "hors-perimetre"]
 CATEGORY_LABELS = {"performance": "Performance", "disponibilite": "Disponibilité", "securite": "Sécurité",
@@ -58,6 +59,59 @@ NORMATIVE = re.compile(
     r"\b(doit|doivent|devra|devront|devrait|devraient|il faut|il faudra|est necessaire|sont necessaires|"
     r"obligatoire\w*|imperatif|exige|exigee?s?|ne pourra pas|pourra|shall|must|should|is required|are required)\b")
 MAX_LISTED = 20
+# Volumétrie attendue d'un catalogue : chaque dimension est couverte par une exigence retenue (titre, texte,
+# mesure) ou une question qui la cite, sinon déclarée sans objet (volumetry, avec sa raison). Motifs sur le texte
+# normalisé (sans accents ni majuscules). Sans elle, les volumes ne sont demandés qu'au chiffrage, trop tard.
+NUMBER = r"\d[\d  .,]*\s*(?:k|m|millions?|milliers?|mille)?\s*(?:de |d')?"
+VOLUMETRY = {
+    "utilisateurs": ("nombre d'utilisateurs", rf"{NUMBER}(?:utilisateurs?|usagers?|assures?|clients?|abonnes?|"
+                     r"agents?|comptes?|salaries?|collaborateurs?|patients?|adherents?|visiteurs?)"),
+    "pointe": ("pic ou utilisateurs simultanés", r"simultan|\bpic\b|pics\b|pointe|afflux|concurren|peak"),
+    "debit": ("débit (transactions, requêtes, traitements par unité de temps)",
+              rf"{NUMBER}(?!(?:euros?|heures?|minutes?|secondes?|jours?|fois)\b)(?:[a-z']+ ?){{1,3}}?"
+              r"(?:par |/ ?)(?:seconde|minute|heure|jour|semaine|mois|an|s|sec|min|h|j)\b|"
+              r"\btps\b|\brps\b|\bqps\b|transactions? par|requetes? par"),
+    "donnees": ("volume de données ou de fichiers",
+                rf"{NUMBER}(?:ko|mo|go|to|po|kb|mb|gb|tb|pb)\b|volumes? de donnees|volumetrie|"
+                rf"{NUMBER}(?:enregistrements?|lignes|documents?|fichiers?|dossiers?|contrats?|images?|photos?)"),
+    "croissance": ("croissance", r"croissance|augment|doubl|tripl|montee en charge|evolution du volume|"
+                   r"\d+ ?% (?:par|l')an|par an"),
+    "retention": ("durée de conservation", r"conserv|retention|archiv|purg|historis|\d+ ans\b"),
+}
+
+# Une question n'a pas encore de nombre : ses mots suffisent pour les dimensions qui en exigent un.
+VOLUMETRY_ASKED = {
+    "utilisateurs": r"(?:combien|nombre) (?:d'|de )?(?:utilisateurs?|usagers?|assures?|clients?|abonnes?|comptes?|"
+                    r"agents?|visiteurs?)",
+    "debit": r"debit|combien (?:de |d')?\w+ par|(?:transactions?|requetes?) par",
+    "donnees": r"volumes?|taille|stockage|\b(?:ko|mo|go|to)\b|combien (?:de |d')?(?:enregistrements?|fichiers?|"
+               r"photos?|documents?)",
+}
+
+
+def volumetry(spec: dict, items: list[dict]) -> list[tuple[str, str, str, str]]:
+    """(dimension, libellé, état, détail) : couverte (exigences), question (exigences qui la posent), sans objet
+    (raison) ou absente."""
+    kept = [r for r in items if r.get("status", "retenue") == "retenue"]
+    declared = spec.get("volumetry", {})
+    rows = []
+    for key, (label, pattern) in VOLUMETRY.items():
+        stated = [r["id"] for r in kept if re.search(pattern, normalize(
+            " ".join([r["title"], r["text"], r.get("metric", "")])))]
+        loose = VOLUMETRY_ASKED.get(key, pattern)
+        asked = [r["id"] for r in kept if any(re.search(pattern, normalize(q)) or re.search(loose, normalize(q))
+                                                for q in r.get("questions", []))]
+        if stated:
+            rows.append((key, label, "couverte", ", ".join(stated)))
+        elif asked:
+            rows.append((key, label, "question", ", ".join(asked)))
+        elif key in declared:
+            rows.append((key, label, "sans objet", declared[key]))
+        else:
+            rows.append((key, label, "absente", ""))
+    return rows
+
+
 # Tri des phrases non reprises par un modèle léger (sous-agent de niveau simple) : consigne écrite dans le
 # fichier des candidats, pour que le sous-agent n'ait besoin de rien d'autre. Mesurée par tests/triage_eval.py.
 TRIAGE_INSTRUCTIONS = (
@@ -70,14 +124,9 @@ TRIAGE_INSTRUCTIONS = (
 TRIAGE_SCHEMA = {"type": "object", "additionalProperties": {"type": "boolean"}}
 # Identifiant d'exigence dans un document : REQ-012, EX_F_03, RG.45, RF12...
 SOURCE_ID = re.compile(r"\b[A-Z]{1,6}(?:[-_.][A-Z]{1,6}){0,2}[-_.]?\d{1,4}\b")
-GENERATED_ID = re.compile(r"^(EF|ENF)-\d{3}$")
-
-
-def nature(req: dict) -> str | None:
-    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe EF- ou ENF-."""
-    if req.get("nature"):
-        return req["nature"]
-    return {"EF": "fonctionnelle", "ENF": "non-fonctionnelle"}.get(req["id"].split("-")[0])
+nature = requirement_nature
+# Numérotation d'avant les préfixes de catégorie : dans une source, c'est celle d'un catalogue déjà produit.
+LEGACY_ID = re.compile(r"^(EF|ENF)-\d{3}$")
 
 
 def normalize(text: str) -> str:
@@ -190,7 +239,7 @@ def draft(path: Path, sources_name: str) -> dict:
     if not sources:
         errors.append(f"sources : aucun fichier .md dans {folder}")
         return report
-    requirements, seen, numbers = [], set(), {"EF": 0, "ENF": 0}
+    requirements, seen, numbers = [], set(), {}
     for doc, lines in sources.items():
         for number, sentence, _ in sentences(lines):
             key = normalize(sentence)
@@ -198,20 +247,20 @@ def draft(path: Path, sources_name: str) -> dict:
                 continue
             seen.add(key)
             category = next((c for c, pattern in DRAFT_CATEGORIES if re.search(pattern, key)), None)
-            prefix = "ENF" if category else "EF"
+            prefix = NFR_PREFIXES[category] if category else "EF"
             given = SOURCE_ID.search(sentence) or SOURCE_ID.search(lines[number - 1] if number <= len(lines) else "")
-            if given and not GENERATED_ID.match(given.group()):
+            if given and not LEGACY_ID.match(given.group()):
                 rid = given.group()
             else:
-                numbers[prefix] += 1
-                rid = f"{prefix}-{numbers[prefix]:03d}"
+                numbers[prefix] = numbers.get(prefix, 0) + 1
+                rid = generated_id(prefix, numbers[prefix])
             words = sentence.rstrip(".;:").split()
             req = {"id": rid, "title": " ".join(words[:9]) + ("..." if len(words) > 9 else ""), "text": sentence}
             if category:
                 req["category"] = category
-                if not rid.startswith(("EF-", "ENF-")):
+                if not GENERATED_ID.match(rid):
                     req["nature"] = "non-fonctionnelle"
-            elif not rid.startswith(("EF-", "ENF-")):
+            elif not GENERATED_ID.match(rid):
                 req["nature"] = "fonctionnelle"
             metric = METRIC.findall(sentence)
             if metric and category:
@@ -268,7 +317,7 @@ def source_links(sources: dict[str, list[str]], folder: Path, out_dir: Path):
 
 
 def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list[dict] | None = None,
-              where=cell) -> str:
+              where=cell, volume: list | None = None) -> str:
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
     functional = [r for r in kept if nature(r) == "fonctionnelle"]
     non_functional = [r for r in kept if nature(r) == "non-fonctionnelle"]
@@ -290,6 +339,10 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
     questions = [(r["id"], q) for r in kept for q in r.get("questions", [])]
     if questions:
         lines += ["", "## Questions ouvertes", ""] + [f"- **{rid}** : {q}" for rid, q in questions]
+    if volume:
+        lines += ["", "## Volumétrie", "", "| Dimension | État | Exigences ou raison |", "| --- | --- | --- |"]
+        lines += [f"| {label} | {'**absente : à demander**' if state == 'absente' else state} | {cell(detail) or '-'} |"
+                  for _, label, state, detail in volume]
     derived = [r for r in kept if r.get("derived")]
     if derived:
         lines += ["", "## Exigences déduites, à confirmer", ""]
@@ -302,6 +355,11 @@ def render_md(spec: dict, items: list[dict], ignored: list[dict], glossary: list
         for g in sorted(glossary, key=lambda g: normalize(g["term"])):
             term = g["term"] + (f" ({', '.join(g['aliases'])})" if g.get("aliases") else "")
             lines.append(f"| **{cell(term)}** | {cell(g['definition'])} | {', '.join(g['_refs']) or '-'} |")
+    if spec.get("renamed"):
+        lines += ["", "## Anciens identifiants", "",
+                  "Exigences renumérotées par catégorie (préfixe ENF- d'avant) : liens et références suivent.", "",
+                  "| Ancien | Nouveau |", "| --- | --- |"]
+        lines += [f"| {old} | {new} |" for old, new in spec["renamed"].items()]
     if ignored:
         lines += ["", "## Phrases des sources écartées", "", "| Source | Phrase | Raison |", "| --- | --- | --- |"]
         lines += [f"| {where(i['_where'])} | {cell(i['quote'])} | {cell(i['reason'])} |" for i in ignored]
@@ -353,6 +411,12 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
         return f"{doc}:{line}" + (f" (p. {ref['page']})" if ref.get("page") else "")
 
     items, seen = [], set()
+    corpus = "\n".join("\n".join(lines) for lines in sources.values())
+
+    def cited(rid: str) -> bool:
+        """Identifiant écrit dans les documents sources : leur numérotation, gardée telle quelle."""
+        return re.search(rf"(?<![\w-]){re.escape(rid)}(?![\w-])", corpus) is not None
+
     for index, req in enumerate(spec["requirements"]):
         where = f"requirements/{index} ({req['id']})"
         if req["id"] in seen:
@@ -368,6 +432,13 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
                           f"({', '.join(CATEGORY_LABELS)})")
         if functional and req.get("category"):
             warnings.append(f"{where} : category ignorée pour une exigence fonctionnelle (domain attendu)")
+        expected = NFR_PREFIXES.get(req.get("category", ""))
+        prefix = req["id"].split("-")[0]
+        if not functional and expected and GENERATED_ID.match(req["id"]) and prefix != expected \
+                and not cited(req["id"]):
+            warnings.append(f"{where} : préfixe {prefix}- pour la catégorie {req['category']}, {expected}- attendu"
+                            + (" (mission.py ou journal.py upgrade --apply renomme les ENF- d'un catalogue déjà "
+                               "produit)" if prefix == "ENF" else ""))
         if req.get("status") == "retiree" and not req.get("reason"):
             errors.append(f"{where} : reason manquante pour une exigence retirée")
         if not req.get("sources") and not req.get("derived"):
@@ -379,14 +450,13 @@ def check(spec: dict, base: Path, errors: list[str], warnings: list[str],
                 doc = ref["doc"].replace("\\", "/")
                 line = find_quote(indexes[doc], ref["quote"]) if doc in sources and ref.get("quote") else None
                 found = SOURCE_ID.findall(sources[doc][line - 1]) if line else []
-                found = [f for f in found if not GENERATED_ID.match(f)]
+                found = [f for f in found if not LEGACY_ID.match(f) and f != req["id"]]
                 if found:
                     warnings.append(f"{where} : la source {doc}:{line} porte déjà l'identifiant {found[0]}, "
                                     "conservez-le comme id")
-        elif not any(re.search(rf"(?<![\w-]){re.escape(req['id'])}(?![\w-])", "\n".join(lines))
-                     for lines in sources.values()):
+        elif not cited(req["id"]):
             warnings.append(f"{where} : identifiant {req['id']} absent des sources : numérotation existante "
-                            "ou EF-/ENF- ?")
+                            "ou EF-/SECU-/PERF-... ?")
         if req.get("sources") and not any(ref.get("quote") for ref in req["sources"]) and not req.get("derived"):
             warnings.append(f"{where} : aucune citation, source non vérifiable")
         for ref in req.get("sources", []):
@@ -506,6 +576,15 @@ def main() -> int:
     items, ignored, counts = check(spec, args.spec.parent, errors, warnings,
                                    triage if not errors else None, candidates)
     kept = [r for r in items if r.get("status", "retenue") == "retenue"]
+    volume = volumetry(spec, items) if not errors else []
+    missing = [key for key, _, state, _ in volume if state == "absente"]
+    if missing:
+        warnings.append("volumétrie absente des exigences : " + ", ".join(VOLUMETRY[k][0] for k in missing)
+                        + " ; demandez-la à l'utilisateur (une question dans l'exigence la plus proche) ou "
+                        "déclarez-la sans objet (volumetry, avec sa raison)")
+    for key in spec.get("volumetry", {}):
+        if key not in missing and any(k == key and state != "sans objet" for k, _, state, _ in volume):
+            warnings.append(f"volumetry/{key} : déclarée sans objet alors que des exigences la couvrent")
     report = {"input": str(args.spec), "outputs": [],
               "functional": sum(nature(r) == "fonctionnelle" for r in kept),
               "non_functional": sum(nature(r) == "non-fonctionnelle" for r in kept),
@@ -514,7 +593,7 @@ def main() -> int:
               "documents": counts.get("documents", 0), "uncovered": counts.get("uncovered", 0),
               "glossary": len(spec.get("glossary", [])),
               "method": counts.get("method", "regles"), "dismissed": counts.get("dismissed", 0),
-              "candidates": counts.get("candidates", 0),
+              "candidates": counts.get("candidates", 0), "volumetry_missing": missing,
               "errors": errors, "warnings": warnings}
     if errors:
         print(json.dumps(report, ensure_ascii=False))
@@ -526,7 +605,7 @@ def main() -> int:
     with open(md, "w", encoding="utf-8", newline="\n") as handle:
         folder = from_data(args.spec.parent, spec.get("sources", "sources")).resolve()
         handle.write(render_md(spec, items, ignored, counts.get("glossary"),
-                               source_links(load_sources(folder), folder, md.parent.resolve())))
+                               source_links(load_sources(folder), folder, md.parent.resolve()), volume))
     write_csv(table, items)
     report["outputs"] = [str(md), str(table)]
     print(json.dumps(report, ensure_ascii=False))

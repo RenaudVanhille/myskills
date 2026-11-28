@@ -29,7 +29,7 @@ DOCS = {
 }
 CONVENTIONS = ("FR-n : exigence fonctionnelle ; NFR-n : exigence non fonctionnelle ; AD-n : décision d'architecture ; "
                "S-n.m : story ; UX-n : exigence d'interface ; T-n : cas de recette. L'identifiant d'origine du "
-               "catalogue (EF-001, ENF-001...) suit chaque exigence entre parenthèses.")
+               "catalogue (EF-001, SECU-01, PERF-01...) suit chaque exigence entre parenthèses.")
 PRIORITY_ORDER = {"indispensable": 0, "importante": 1, "souhaitable": 2}
 
 

@@ -8,7 +8,7 @@
   ],
   "outputs": [
     "<nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/",
-    "<nom>.pptx, par le skill externe markdown-to-pptx s'il est installé",
+    "<nom>.pptx, conçu ou converti par l'agent externe concepteur-deck (installé à part), puis vérifié",
     "En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/"
   ],
   "scripts": [
@@ -164,36 +164,55 @@
     },
     {
       "name": "pptx_publish.py",
-      "role": "Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs).",
-      "usage": "uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]",
+      "role": "Délègue la présentation PowerPoint à l'agent externe concepteur-deck, installé à part et appelé par son seul contrat d'interface. Sans --check, vérifie les sources (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), écrit en mode convertir la copie de travail dans .myskills-tmp/, trouve l'agent et donne dans le rapport la demande à lui passer (message de passage validé contre le contrat). Avec --check, après l'agent : rouvre le .pptx (diapositives, images, textes alternatifs), valide l'état de relecture contre le contrat, compare le Markdown relu, compte les points [à compléter] et retire les copies .before-*.",
+      "usage": "uv run scripts/pptx_publish.py SOURCE.md [SOURCE...] [--out NOM.pptx] [--mode convertir|concevoir] [--objective TEXTE] [--audience technique|\"non technique\"] [--trame NOM] [--template MARQUE.potx] [--lang fr|en] [--slides N] | uv run scripts/pptx_publish.py --check NOM.pptx [--source DECK.md]",
       "options": {
-        "DOC.md": "document Markdown écrit selon les conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->)",
-        "--out": "dossier de sortie (défaut : à côté du Markdown)",
-        "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill (MD2PPTX_TEMPLATE, dossier .md2pptx/ du projet, gabarit du skill)",
-        "--lang": "langue des libellés générés (défaut : détectée)"
+        "SOURCE": "mode convertir : un Markdown complet aux conventions du contrat (front matter, un titre #, une section ## par diapositive, consigne <!-- slide: KIND -->) ; mode concevoir : les sources du deck (Markdown, JSON, PDF...)",
+        "--out": "présentation à produire (défaut : la première source en .pptx) ; en mode concevoir, l'agent écrit le Markdown du deck à côté, sous le même nom en .md",
+        "--mode": "convertir (défaut) : rendu du Markdown tel quel ; concevoir : l'agent choisit la trame et rédige le deck",
+        "--objective": "décision ou action que le deck doit obtenir, et de qui",
+        "--audience": "technique ou non technique (défaut)",
+        "--trame": "trame de l'agent (propale, copil, diagnostic, schema-directeur, comite-archi, cadrage, retex)",
+        "--template": "gabarit .potx de la marque ; sinon celui que choisit le skill de rendu (dossier .md2pptx/ du projet, gabarit par défaut)",
+        "--lang": "langue du deck (défaut : celle des sources)",
+        "--slides": "taille cible en diapositives",
+        "--check": "vérifier la présentation rendue par l'agent",
+        "--source": "avec --check : Markdown du deck, s'il n'est ni dans .myskills-tmp/ ni à côté du .pptx"
       },
       "report": {
         "format": "json",
-        "description": "Un objet : dossier et version du skill utilisé, diapositives, nombre par type, images, objets sans texte alternatif.",
+        "description": "Un objet : mode (preparer, verifier), demande à passer à concepteur-deck (handoff), fichier de l'agent trouvé ; après l'agent, diapositives, images, objets sans texte alternatif, verdict de relecture, points [à compléter], copies retirées.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "type": "object",
           "required": [
-            "input",
+            "mode",
+            "inputs",
             "output",
-            "skill",
-            "version",
+            "agent",
+            "handoff",
             "slides",
-            "kinds",
             "images",
             "missing_alt",
+            "review",
+            "todo",
+            "removed",
             "errors",
             "warnings"
           ],
           "additionalProperties": false,
           "properties": {
-            "input": {
-              "type": "string"
+            "mode": {
+              "enum": [
+                "preparer",
+                "verifier"
+              ]
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
             "output": {
               "type": [
@@ -201,28 +220,22 @@
                 "null"
               ]
             },
-            "skill": {
+            "agent": {
               "type": [
                 "string",
                 "null"
               ]
             },
-            "version": {
+            "handoff": {
               "type": [
-                "string",
+                "object",
                 "null"
-              ]
+              ],
+              "description": "message de passage à donner tel quel à l'agent concepteur-deck"
             },
             "slides": {
               "type": "integer",
               "minimum": 0
-            },
-            "kinds": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "integer",
-                "minimum": 1
-              }
             },
             "images": {
               "type": "integer",
@@ -231,6 +244,42 @@
             "missing_alt": {
               "type": "integer",
               "minimum": 0
+            },
+            "review": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "required": [
+                "status",
+                "round",
+                "issues"
+              ],
+              "properties": {
+                "status": {
+                  "enum": [
+                    "clean",
+                    "fix",
+                    "stop"
+                  ]
+                },
+                "round": {
+                  "type": "integer"
+                },
+                "issues": {
+                  "type": "integer"
+                }
+              }
+            },
+            "todo": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "removed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
             "errors": {
               "type": "array",
@@ -248,8 +297,8 @@
         }
       },
       "exit_codes": {
-        "0": "présentation écrite et vérifiée",
-        "1": "Markdown, image ou gabarit invalide, skill markdown-to-pptx introuvable (avec la consigne d'installation), rendu en échec ou présentation incohérente ; aucun .pptx laissé"
+        "0": "demande prête (sans --check) ou présentation vérifiée (--check)",
+        "1": "source, image, trame ou gabarit invalide, agent concepteur-deck introuvable (avec la consigne d'installation), relecture inachevée, état de relecture non conforme ou présentation incohérente"
       }
     },
     {
@@ -272,9 +321,9 @@
       "when": "exporter les schémas (automatique)"
     },
     {
-      "to": "markdown-to-pptx",
+      "to": "concepteur-deck",
       "kind": "externe",
-      "when": "produire le .pptx (pptx_publish.py le lance)"
+      "when": "concevoir ou convertir le .pptx : pptx_publish.py prépare la demande, l'agent appelant la lui passe, pptx_publish.py --check vérifie le résultat"
     },
     {
       "to": "utilisateur",
