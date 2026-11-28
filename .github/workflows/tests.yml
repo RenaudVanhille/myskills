@@ -122,5 +122,5 @@ jobs:
           # docker-compose du dev local : syntaxe et variables (sans construire ni lancer).
           if command -v docker > /dev/null && docker compose version > /dev/null 2>&1; then
             cp deploy/remote-mission/dev/.env.example deploy/remote-mission/dev/.env
-            docker compose -f deploy/remote-mission/dev/compose.yaml --profile simule config --quiet
+            docker compose -f deploy/remote-mission/dev/compose.yaml config --quiet
           fi

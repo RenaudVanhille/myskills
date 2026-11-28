@@ -99,13 +99,13 @@ uv run deploy/remote-mission/service/scripts/remote_server.py probe --config rem
 Open WebUI (sans connexion, utilisateur `admin@localhost`), le service en
 mode local (les conversations sont traitées dans son conteneur, sur l'image
 des sessions) avec une mission de démonstration créée au premier lancement,
-et, avec le profil `simule`, un LLM simulé compatible OpenAI qui répond sans
-modèle ni crédit.
+et un LLM simulé compatible OpenAI qui répond sans modèle ni crédit (utilisé
+tant que `.env` ne vise pas un vrai LiteLLM).
 
 ```bash
 cd deploy/remote-mission/dev
 cp .env.example .env
-docker compose --profile simule up --build
+docker compose up --build
 ```
 
 1. Ouvrir http://localhost:3000 : le pipe est déjà installé, activé et réglé
@@ -118,8 +118,8 @@ docker compose --profile simule up --build
 
 Variantes :
 - **Vrai LiteLLM** : `LITELLM_BASE_URL` et `LITELLM_API_KEY` dans `.env`,
-  son hôte dans `allowed_hosts` de `dev/remote.json`, lancer sans le profil
-  `simule`.
+  son hôte dans `allowed_hosts` de `dev/remote.json` ; le LLM simulé reste
+  lancé mais inutilisé.
 - **SSO GitLab** : `WEBUI_AUTH=true` et les variables `OAUTH_*` de `.env`, et
   le courriel du compte GitLab dans `dev/acces.json`.
 - **Sans Docker** : le service, OpenCode et le LLM simulé se lancent aussi sur

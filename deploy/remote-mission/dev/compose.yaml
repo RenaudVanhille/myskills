@@ -1,8 +1,8 @@
-# Dev local des missions à distance : Open WebUI, le service (mode local, sans Kubernetes) et, avec le
-# profil « simule », un LLM simulé (aucun crédit). Depuis ce dossier :
+# Dev local des missions à distance : Open WebUI, le service (mode local, sans Kubernetes) et un LLM
+# simulé (aucun crédit). Depuis ce dossier :
 #
 #   cp .env.example .env
-#   docker compose --profile simule up --build      # puis http://localhost:3000
+#   docker compose up --build      # puis http://localhost:3000
 #
 # Le service tourne sur l'image des sessions (../Dockerfile : outils de tous les skills, longue à
 # construire la première fois). La mission de démonstration est créée au premier lancement dans le
@@ -48,6 +48,11 @@ services:
       MYSKILLS_REMOTE_TOKEN: ${MYSKILLS_REMOTE_TOKEN:-dev-local}
       BYPASS_MODEL_ACCESS_CONTROL: "true"
       ENABLE_EVALUATION_ARENA_MODELS: "false"
+      ENABLE_TAGS_GENERATION: "false"
+      ENABLE_FOLLOW_UP_GENERATION: "false"
+      ENABLE_AUTOCOMPLETE_GENERATION: "false"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+      ENABLE_SEARCH_QUERY_GENERATION: "false"
       # Sans connexion par défaut : un seul utilisateur, admin@localhost (droit sur la mission de démo
       # dans acces.json). WEBUI_AUTH=true et les variables OAUTH_* de .env pour essayer le SSO GitLab.
       WEBUI_AUTH: ${WEBUI_AUTH:-false}
@@ -74,8 +79,7 @@ services:
       service:
         condition: service_healthy
 
-  llm-simule:
-    profiles: [simule]
+  llm-simule:  # LLM simulé, aucun crédit ; inutilisé si LITELLM_BASE_URL vise un vrai LiteLLM
     image: python:3.12-slim
     command: ["python", "/app/llm_simule.py", "--port", "4000"]
     volumes:

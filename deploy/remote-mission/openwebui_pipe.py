@@ -110,9 +110,22 @@ class Pipe:
             parts.append(f"> ⚠️ {error}")
         if report.get("branch") and report.get("commit"):
             pushed = "poussée" if report.get("pushed") else "non poussée"
-            parts.append(f"<sub>Branche `{report['branch']}` ({pushed}), commit `{report['commit']}`, "
-                         f"{report.get('seconds', 0)} s.</sub>")
+            parts.append(f"*Branche `{report['branch']}` ({pushed}), commit `{report['commit']}`, "
+                         f"{report.get('seconds', 0)} s.*")
         return "\n\n".join(parts) + "\n"
+
+    @staticmethod
+    def task_answer(task: str, body: dict) -> str:
+        """Réponse locale aux tâches d'Open WebUI, au format qu'il attend, sans appeler le service."""
+        asked = [m.get("content") for m in body.get("messages", []) if m.get("role") == "user"]
+        first = asked[0] if asked and isinstance(asked[0], str) else ""
+        if "title" in task:
+            return json.dumps({"title": " ".join(first.split())[:60] or "Mission"}, ensure_ascii=False)
+        if "tags" in task:
+            return json.dumps({"tags": ["mission"]})
+        if "follow_up" in task:
+            return json.dumps({"follow_ups": []})
+        return ""
 
     async def _status(self, emitter, text: str, done: bool = False):
         if emitter:
@@ -123,7 +136,11 @@ class Pipe:
     # --- un message -------------------------------------------------------------------
     async def pipe(self, body: dict, __metadata__: dict | None = None, __event_emitter__=None,
                    __chat_id__: str | None = None, __user__: dict | None = None,
-                   __oauth_token__: dict | None = None):
+                   __oauth_token__: dict | None = None, __task__: str | None = None,
+                   __task_body__: dict | None = None):
+        if __task__:  # tâche de fond d'Open WebUI (titre, étiquettes, suites...) : jamais un tour de mission
+            yield self.task_answer(__task__, __task_body__ or body)
+            return
         mission = body.get("model", "").split(".", 1)[-1]
         chat = __chat_id__ or (__metadata__ or {}).get("chat_id") or "sans-conversation"
         user = (__user__ or {}).get("email", "")

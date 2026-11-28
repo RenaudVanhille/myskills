@@ -56,6 +56,12 @@ data:
   # Le seul modèle est le pipe myskills : visible de tous, les droits sont ceux des projets GitLab des missions.
   BYPASS_MODEL_ACCESS_CONTROL: "true"
   ENABLE_EVALUATION_ARENA_MODELS: "false"
+  # Tâches de fond qu'Open WebUI confierait au modèle, donc au pipe : inutiles ici (le titre reste, répondu par le pipe).
+  ENABLE_TAGS_GENERATION: "false"
+  ENABLE_FOLLOW_UP_GENERATION: "false"
+  ENABLE_AUTOCOMPLETE_GENERATION: "false"
+  ENABLE_RETRIEVAL_QUERY_GENERATION: "false"
+  ENABLE_SEARCH_QUERY_GENERATION: "false"
   {{- if $w.pipe.install }}
   MYSKILLS_SERVER_URL: {{ printf "http://%s.%s.svc.cluster.local:%v" (include "myskills.name" .) .Release.Namespace .Values.service.port | quote }}
   {{- end }}
