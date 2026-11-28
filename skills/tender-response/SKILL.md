@@ -114,7 +114,7 @@ Le brouillon reprend les questions ouvertes d'`exigences.json`, les
 hypothèses et exclusions de `chiffrage.json` et les hypothèses et
 questions du journal. Reformulez chaque question pour le client, ajoutez
 les prérequis (accès, données, interlocuteurs) et les questions sur les
-clauses à risque (`refs` : `R-02`, `ENF-001`...). Une question reçoit
+clauses à risque (`refs` : `R-02`, `PERF-01`...). Une question reçoit
 `status` (`a-envoyer`, `envoyee`, `repondue` avec `answer`,
 `sans-reponse`). Après la date limite, une question sans réponse devient
 une hypothèse de l'offre.

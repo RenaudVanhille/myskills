@@ -273,9 +273,9 @@
     {
       "id": "publier-pptx",
       "agent": "document-publisher",
-      "prompt": "Fais la présentation PowerPoint dossier.pptx, à côté de dossier.md, pour le comité de direction, avec le gabarit par défaut. Environnement de test : MD2PPTX_SKILL désigne volontairement la doublure du skill markdown-to-pptx, utilise-la.",
+      "prompt": "Fais la présentation PowerPoint dossier.pptx, à côté de dossier.md, pour le comité de direction, avec le gabarit par défaut. Environnement de test : CONCEPTEUR_DECK_AGENT désigne volontairement une doublure de l'agent concepteur-deck, qui ne peut pas être lancée : prépare la demande et rends-la dans next.",
       "env": {
-        "MD2PPTX_SKILL": "{tests}/fixtures/md2pptx-stub"
+        "CONCEPTEUR_DECK_AGENT": "{tests}/fixtures/concepteur-deck-stub/concepteur-deck.md"
       },
       "inputs": [
         {
@@ -287,15 +287,16 @@
           "to": "images/schema-flux.png"
         }
       ],
-      "output": "dossier.pptx",
+      "output": ".myskills-tmp/dossier.md",
       "checks": [
         {
-          "file": "dossier.pptx"
+          "file": ".myskills-tmp/dossier.md"
         }
       ],
       "rubric": [
-        "dossier.pptx a été produit par pptx_publish.py (skill markdown-publish, qui appelle le skill externe markdown-to-pptx) et son rapport n'a aucune erreur.",
-        "Le rapport final de l'agent est un JSON sur une ligne, avec dossier.pptx dans files.",
+        "La demande a été préparée par pptx_publish.py (skill markdown-publish), en mode convertir, sans erreur dans son rapport.",
+        "Le rapport final de l'agent est un JSON sur une ligne dont next est le message de passage du rapport de pptx_publish.py, adressé à concepteur-deck avec destination powerpoint.",
+        "Le todo du rapport final demande de vérifier ensuite la présentation avec pptx_publish.py --check dossier.pptx.",
         "L'agent n'a pas posé de question sur le gabarit, puisque le prompt demande le gabarit par défaut."
       ]
     },
@@ -1611,9 +1612,9 @@
         {
           "file": "dossier-architecture.md",
           "contains": [
-            "##",
-            "ENF-"
-          ]
+            "##"
+          ],
+          "matches": "\\b(PERF|DISP|SECU|CONF|EXPL|MAIN|EVOL|INTE|UTIL|PORT|COUT|ENF)-\\d"
         },
         {
           "file": "workflow.json",
@@ -1750,9 +1751,9 @@
         {
           "file": "dossier-architecture.md",
           "contains": [
-            "##",
-            "ENF-"
-          ]
+            "##"
+          ],
+          "matches": "\\b(PERF|DISP|SECU|CONF|EXPL|MAIN|EVOL|INTE|UTIL|PORT|COUT|ENF)-\\d"
         }
       ],
       "rubric": [

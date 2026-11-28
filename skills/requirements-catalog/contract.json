@@ -3,7 +3,7 @@
   "level": "moyen",
   "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
+    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
   ],
   "outputs": [
     "<nom>.md : catalogue pour la revue (exigences fonctionnelles, non fonctionnelles, questions, exigences déduites, retirées, phrases écartées, glossaire avec les exigences qui emploient chaque terme) ; chaque source est un lien Markdown vers le document, à la section de la ligne citée",
@@ -13,7 +13,7 @@
   "scripts": [
     {
       "name": "req_build.py",
-      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons et exigences non mesurables, puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
+      "role": "Vérifie chaque citation dans son document et en donne la ligne, repère les phrases des sources reprises par aucune exigence (phrases normatives par la regex ; avec --candidates et son tri par un modèle léger, les phrases qu'il tient pour des exigences), signale une exigence renumérotée alors que sa source porte un identifiant, doublons, exigences non mesurables et dimensions de volumétrie absentes (utilisateurs, pic, débit, données, croissance, conservation), puis écrit le catalogue en Markdown et en CSV ; avec --draft, écrit d'abord le brouillon de la description (une exigence par phrase normative des sources, citation exacte, identifiant du document, nature, catégorie, priorité et mesure déduites) que le modèle trie.",
       "usage": "uv run scripts/req_build.py exigences.json [--out-dir DOSSIER] [--candidates [FICHIER]] [--triage FICHIER] | exigences.json --draft [--sources DOSSIER] | --schema",
       "options": {
         "exigences.json": "description des exigences ; le dossier sources est relatif à ce fichier",
@@ -65,14 +65,14 @@
                   "id": {
                     "type": "string",
                     "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                   },
                   "nature": {
                     "enum": [
                       "fonctionnelle",
                       "non-fonctionnelle"
                     ],
-                    "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                    "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                   },
                   "title": {
                     "type": "string",
@@ -249,13 +249,55 @@
                   }
                 }
               }
+            },
+            "volumetry": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+              "properties": {
+                "utilisateurs": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pointe": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "debit": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "donnees": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "croissance": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "retention": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "renamed": {
+              "type": "object",
+              "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^ENF-\\d{3}$": {
+                  "type": "string",
+                  "pattern": "^[A-Z]+-\\d{2,3}$"
+                }
+              }
             }
           }
         }
       },
       "report": {
         "format": "json",
-        "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon).",
+        "description": "Compteurs, fichiers produits, méthode (regles, tri), phrases normatives que le tri écarte (dismissed), phrases écrites pour le tri (candidates), erreurs (citation introuvable, document absent, identifiant en double, tri invalide) et avertissements (phrase d'exigence non reprise, exigence non mesurable, doublon, volumétrie absente) ; volumetry_missing : dimensions de volumétrie à demander.",
         "schema": {
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "anyOf": [
@@ -276,7 +318,8 @@
                 "glossary",
                 "method",
                 "dismissed",
-                "candidates"
+                "candidates",
+                "volumetry_missing"
               ],
               "additionalProperties": false,
               "properties": {
@@ -344,6 +387,20 @@
                 "candidates": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "volumetry_missing": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "utilisateurs",
+                      "pointe",
+                      "debit",
+                      "donnees",
+                      "croissance",
+                      "retention"
+                    ]
+                  },
+                  "description": "Dimensions de volumétrie absentes : ni exigence, ni question, ni sans objet."
                 }
               }
             },
@@ -602,14 +659,14 @@
                   "id": {
                     "type": "string",
                     "pattern": "^[A-Za-z][A-Za-z0-9]*([-_.][A-Za-z0-9]+)*$",
-                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, ENF-001 non fonctionnelle ; stable d'une version à l'autre."
+                    "description": "Identifiant des documents s'ils numérotent déjà leurs exigences (REQ-012...), sinon EF-001 fonctionnelle, préfixe de catégorie pour une non fonctionnelle (SECU-01 sécurité, PERF-01 performance, DISP, CONF, EXPL, MAIN, EVOL, INTE, UTIL, PORT, COUT ; ENF-01 autre) ; stable d'une version à l'autre."
                   },
                   "nature": {
                     "enum": [
                       "fonctionnelle",
                       "non-fonctionnelle"
                     ],
-                    "description": "Obligatoire si l'identifiant ne commence pas par EF- ou ENF-."
+                    "description": "Obligatoire si l'identifiant n'est pas une numérotation du catalogue (EF-001, SECU-01, PERF-01...)."
                   },
                   "title": {
                     "type": "string",
@@ -784,6 +841,48 @@
                       }
                     }
                   }
+                }
+              }
+            },
+            "volumetry": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Dimensions de volumétrie sans objet pour ce projet, avec leur raison (ex. retention : aucune donnée conservée). Une dimension ni couverte par une exigence ou une question, ni déclarée ici, est signalée.",
+              "properties": {
+                "utilisateurs": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pointe": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "debit": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "donnees": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "croissance": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "retention": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "renamed": {
+              "type": "object",
+              "description": "Correspondance ancien -> nouvel identifiant, écrite par journal.py upgrade quand il renumérote par catégorie les ENF- d'un catalogue déjà produit (ENF-004 -> SECU-01) ; le catalogue la reprend, les autres workflows de la mission la suivent.",
+              "additionalProperties": false,
+              "patternProperties": {
+                "^ENF-\\d{3}$": {
+                  "type": "string",
+                  "pattern": "^[A-Z]+-\\d{2,3}$"
                 }
               }
             }

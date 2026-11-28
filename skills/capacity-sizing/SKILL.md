@@ -31,7 +31,7 @@ notez chacune de celles que vous posez dans `assumptions`. Fichier
 
 ```json
 {
-  "title": "Dimensionnement du portail sinistres", "refs": ["ENF-001", "ENF-002"],
+  "title": "Dimensionnement du portail sinistres", "refs": ["PERF-01", "DISP-01"],
   "users": {"total": 200000, "active_share": 0.02},
   "load": {"requests_per_user_hour": 30, "peak_factor": 10},
   "data": [{"name": "déclarations", "records": 500000, "record_kb": 4, "growth_per_year": 15}],

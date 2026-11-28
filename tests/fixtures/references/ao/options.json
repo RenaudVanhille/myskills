@@ -25,7 +25,7 @@
      "tech": "Vue.js, RGAA",
      "refs": [
       "EF-001",
-      "ENF-004"
+      "CONF-01"
      ]
     },
     {
@@ -37,12 +37,12 @@
       "EF-001",
       "EF-003",
       "EF-005",
-      "ENF-001",
-      "ENF-002",
-      "ENF-007",
-      "ENF-003",
-      "ENF-006",
-      "ENF-010"
+      "SECU-01",
+      "PERF-01",
+      "SECU-02",
+      "DISP-01",
+      "CONF-02",
+      "PORT-01"
      ]
     },
     {
@@ -51,8 +51,8 @@
      "role": "db",
      "tech": "PostgreSQL managé",
      "refs": [
-      "ENF-005",
-      "ENF-008"
+      "UTIL-01",
+      "COUT-01"
      ]
     },
     {
@@ -76,7 +76,7 @@
      "label": "Annuaire de la Métropole",
      "role": "external",
      "refs": [
-      "ENF-009"
+      "EXPL-01"
      ]
     }
    ],
@@ -191,7 +191,7 @@
      "label": "Annuaire de la Métropole",
      "role": "external",
      "refs": [
-      "ENF-009"
+      "EXPL-01"
      ]
     }
    ],
@@ -238,10 +238,10 @@
     "propriété intellectuelle limitée au connecteur"
    ],
    "risks": [
-    "exigence ENF-003 non couverte"
+    "exigence DISP-01 non couverte"
    ],
    "gaps": {
-    "ENF-003": {
+    "DISP-01": {
      "level": "non",
      "note": "éditeur hébergé hors SecNumCloud"
     }
@@ -262,7 +262,7 @@
   "option": "A",
   "why": "seule option qui héberge les données chez un hébergeur SecNumCloud",
   "refs": [
-   "ENF-003"
+   "DISP-01"
   ]
  }
 }

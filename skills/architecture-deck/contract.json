@@ -5,7 +5,7 @@
     "Dossier d'un workflow d'architecture aux étapes validées : options.json, exigences.json (et son glossaire), decision.json, PNG des schémas déjà exportés"
   ],
   "outputs": [
-    "presentation.md : présentation du dossier (besoin, options, décision) au format du skill externe markdown-to-pptx, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
+    "presentation.md : présentation du dossier (besoin, options, décision) au format Markdown que l'agent externe concepteur-deck convertit tel quel, schémas exportés compris ; chaque donnée n'y figure qu'une fois"
   ],
   "scripts": [
     {
@@ -88,7 +88,7 @@
     {
       "to": "markdown-publish",
       "kind": "skill",
-      "when": "produire le .pptx de presentation.md avec pptx_publish.py (skill externe markdown-to-pptx)"
+      "when": "faire produire le .pptx de presentation.md par l'agent externe concepteur-deck (pptx_publish.py prépare la demande, puis --check vérifie)"
     }
   ]
 }

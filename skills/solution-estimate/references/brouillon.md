@@ -45,7 +45,7 @@ usuelles, seulement quand vous avez une raison.
      "basis": "hypothèse : 4 tâches 1 vCPU 2 Go, grille publique 2026"}
   ],
   "run": [{"id": "R1", "name": "Maintenance corrective et évolutive", "percent_of_build": 15}],
-  "budget": {"monthly": 8000, "refs": ["ENF-005"]},
+  "budget": {"monthly": 8000, "refs": ["COUT-01"]},
   "assumptions": ["L'outil de gestion expose une API de création de dossier."]
 }
 ```

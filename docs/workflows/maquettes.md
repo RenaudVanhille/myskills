@@ -20,29 +20,36 @@ Workflow des maquettes de l'agent architecture-workflow : design system tiré de
 title: "Maquettes d'écrans vers pages HTML, revue UX et chiffrage frontend"
 ---
 flowchart LR
-  s_design_system["1. Design system<br/><small>ui-designer</small>"]
-  s_pages["2. Pages HTML comparées aux maquettes<br/><small>ui-designer</small>"]
-  s_ux["3. Revue UX et accessibilité<br/><small>ui-designer</small>"]
-  s_decoupage["4. Découpage et lots du chiffrage frontend<br/><small>ui-designer</small>"]
+  subgraph z_solutioning["Solutioning"]
+    s_design_system["1. Design system<br/><small>ui-designer</small>"]
+    s_pages["2. Pages HTML comparées aux maquettes<br/><small>ui-designer</small>"]
+    s_ux["3. Revue UX et accessibilité<br/><small>ui-designer</small>"]
+  end
+  style z_solutioning fill:#f5f3ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_decoupage["4. Découpage et lots du chiffrage frontend<br/><small>ui-designer</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
   s_design_system --> s_pages
   s_pages --> s_ux
   s_ux --> s_decoupage
+  s_ux ~~~ s_decoupage
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
   class s_design_system,s_pages,s_ux,s_decoupage agent
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Design system | moyen | `ui-designer` | `design-system` | `design-system.json` | début |
-| 2. Pages HTML comparées aux maquettes | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `pages/*.json`, `pages/*.html`, `pages/*.css` | 1 |
-| 3. Revue UX et accessibilité | moyen | `ui-designer` | `mockup-to-html` | `donnees/revue-ux.json`, `pages/*.ux.md` | 2 |
-| 4. Découpage et lots du chiffrage frontend | moyen | `ui-designer` | `mockup-to-html` | `decoupage.md`, `donnees/decoupage.lots.json` | 3 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Design system | Solutioning | moyen | `ui-designer` | `design-system` | `design-system.json` | début |
+| 2. Pages HTML comparées aux maquettes | Solutioning | moyen | `ui-designer` | `mockup-to-html`, `design-system` | `pages/*.json`, `pages/*.html`, `pages/*.css` | 1 |
+| 3. Revue UX et accessibilité | Solutioning | moyen | `ui-designer` | `mockup-to-html` | `donnees/revue-ux.json`, `pages/*.ux.md` | 2 |
+| 4. Découpage et lots du chiffrage frontend | Chiffrage | moyen | `ui-designer` | `mockup-to-html` | `decoupage.md`, `donnees/decoupage.lots.json` | 3 |
 
 ### 1. Design system
 

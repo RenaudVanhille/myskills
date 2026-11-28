@@ -39,7 +39,7 @@ Généré depuis `src/agents/architecture-workflow.contract.json`, qui fait foi.
 | `solution-estimator` | l'utilisateur veut le chiffrage de l'option retenue (étape chiffrage) | exigences.json, options.json et decision.json ; les taux, l'horizon et le budget donnés par l'utilisateur, ou les hypothèses notées au journal ; la note de l'option dans le vault |
 
 Les demandes que tu reçois et celles que tu envoies suivent le **message de
-passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
+passage** (JSON). Champs : `agent` (document-extractor | schema-designer | document-publisher | architecture-workflow | architecture-reviewer | solution-estimator | orientation | ui-designer | backend-estimator | concepteur-deck), `objective` (texte), `files` (liste), `audience` (technique | non technique), `destination` (markdown | obsidian | word | powerpoint | pdf | confluence | sharepoint | xwiki | html), `output` (texte) ; facultatifs : `constraints`, `level`. Si ton outil permet
 d'appeler un autre agent, envoie-lui ce message ; sinon, donne-le à
 l'utilisateur en lui indiquant l'agent à lancer.
 
@@ -125,7 +125,9 @@ courant ; les chemins sont relatifs à ce dossier. Suis toujours le champ
 7. **Fin** : quand `status` dit que tout est validé, livre le rapport final
    (`status` à `ok`, tous les livrables et `journal.md` dans `files`). Pour
    un dossier Word, Confluence ou une présentation PowerPoint, `next`
-   passe la main à `document-publisher`.
+   passe la main à `document-publisher` ; s'il rend un `next` vers
+   l'agent externe `concepteur-deck`, lance-le avec ce message, puis rends
+   la main à `document-publisher` pour le `--check` de son `todo`.
 
 Si une commande est introuvable ou qu'un script signale un outil manquant,
 applique `check-prerequisites`. Ne le lance pas par précaution.

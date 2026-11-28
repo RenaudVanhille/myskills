@@ -42,7 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from skill_paths import absent, find_script, require_module, run_script, schema_of  # noqa: E402
 from spec_schema import check, print_schema, read_spec, schema_option  # noqa: E402
-from text_tools import beside, from_data, near as hint, slash_cell as cell  # noqa: E402
+from text_tools import beside, from_data, near as hint, requirement_nature, slash_cell as cell  # noqa: E402
 
 vault_ontology = require_module("markdown-to-obsidian", "lib/vault_ontology.py")
 workspace = require_module("mission-workspace", "lib/workspace.py")
@@ -266,7 +266,7 @@ def analyse(spec: dict, base: Path) -> dict:
     if catalog is not None:
         carried = {r for c in ctxs.values() for r in c.get("refs", [])}
         functional = [r["id"] for r in reqs.values()
-                      if (r.get("nature") or {"EF": "fonctionnelle"}.get(r["id"].split("-")[0])) == "fonctionnelle"
+                      if requirement_nature(r) == "fonctionnelle"
                       and r.get("status", "retenue") == "retenue" and r.get("priority") != "hors-perimetre"]
         missing = [r for r in functional if r not in carried]
         if missing:

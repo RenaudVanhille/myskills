@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10,<3.15"
-# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5", "pypdfium2>=4"]
+# dependencies = ["markitdown[docx,pptx,xlsx,pdf]>=0.1.7", "pypdf>=5", "lxml<6.2", "pypdfium2>=4"]
 # ///
 """Convertit un document (PDF, DOCX, PPTX, XLSX, image) en Markdown, en local.
 

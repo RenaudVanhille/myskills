@@ -52,8 +52,8 @@ En pointillés : les workflows dont le dossier validé (exigences et options) es
 
 | Workflow | Étapes | Point de départ |
 | --- | --- | --- |
-| [Des documents du projet aux schémas d'architecture](architecture.md) (`architecture`) | 8 | Documents du projet |
-| [Réponse à un appel d'offres, des documents reçus à l'offre](avant-vente.md) (`avant-vente`) | 16 | Documents du projet |
+| [Des documents du projet aux schémas d'architecture](architecture.md) (`architecture`) | 9 | Documents du projet |
+| [Réponse à un appel d'offres, des documents reçus à l'offre](avant-vente.md) (`avant-vente`) | 17 | Documents du projet |
 | [Cadrage d'un projet : ateliers, processus, exigences, données, dimensionnement, interfaces et recette](cadrage.md) (`cadrage`) | 11 | Documents du projet |
 | [Schémas et menaces d'une infrastructure existante](cloud-existant.md) (`cloud-existant`) | 3 | Code d'infrastructure |
 | [Conformité d'une architecture : sécurité, RGPD et hébergement](conformite.md) (`conformite`) | 5 | Documents du projet |

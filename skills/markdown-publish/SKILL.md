@@ -1,6 +1,6 @@
 ---
 name: markdown-publish
-description: "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
+description: "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint déléguée à l'agent concepteur-deck installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
 ---
 
 # markdown-publish
@@ -16,14 +16,14 @@ Résumé de [`contract.json`](contract.json), qui fait foi (champs des rapports 
 
 - **Niveau** : simple (modèle léger).
 - **Entrées** : Markdown ou notes Obsidian, avec leurs images et schémas sources ; Modèle Word ou gabarit PowerPoint .potx (facultatif) ; Vault Obsidian (facultatif).
-- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, par le skill externe markdown-to-pptx s'il est installé ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
+- **Sorties** : <nom>.docx, <nom>.html, <nom>.xwiki et ses images dans <nom>-xwiki/ ; <nom>.pptx, conçu ou converti par l'agent externe concepteur-deck (installé à part), puis vérifié ; En option : PDF, planches PNG des pages à relire dans .myskills-tmp/<nom>-apercu/.
 - **`publish.py`** : Produit Word, HTML ou XWiki à partir d'un Markdown, schémas compris, sans rien publier. Rapport JSON (0 succès, 1 erreur).
-- **`pptx_publish.py`** : Produit une présentation PowerPoint modifiable avec le skill markdown-to-pptx, installé à part et appelé par son seul contrat d'interface : vérifie le Markdown (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), lance le skill dans le dossier du Markdown, valide le plan rendu contre le contrat puis rouvre le .pptx (diapositives, images, textes alternatifs). Rapport JSON (0 succès, 1 erreur).
+- **`pptx_publish.py`** : Délègue la présentation PowerPoint à l'agent externe concepteur-deck, installé à part et appelé par son seul contrat d'interface. Sans --check, vérifie les sources (images en PNG, JPEG ou SVG, textes alternatifs, consignes de visuel connues), écrit en mode convertir la copie de travail dans .myskills-tmp/, trouve l'agent et donne dans le rapport la demande à lui passer (message de passage validé contre le contrat). Avec --check, après l'agent : rouvre le .pptx (diapositives, images, textes alternatifs), valide l'état de relecture contre le contrat, compare le Markdown relu, compte les points [à compléter] et retire les copies .before-*. Rapport JSON (0 succès, 1 erreur).
 - **`make_reference.py`** (maintenance du dépôt) : Régénère references/modele.docx aux couleurs de la charte. Pas de rapport (0 succès, 1 erreur).
 - **Lancement** : `uv run "<dossier du skill>/scripts/<script>" ...`, chemin complet écrit dans chaque commande, avec des `/` (une variable ou une fonction shell d'un appel précédent y est vide) ; rapport JSON lu tel quel, sans tube ; fichiers de travail dans `.myskills-tmp/` du dossier de travail, jamais dans le dossier temporaire du système.
 - **Dépend de** `diagram-export` (`export.py`, obligatoire) : exporter en image les schémas cités par le Markdown (sources .drawio, .excalidraw, .mmd, .c4).
 - **Passe la main** au skill `diagram-export` : exporter les schémas (automatique).
-- **Passe la main** au skill externe `markdown-to-pptx` (installé à part, contrat `shared/external/markdown-to-pptx.contract.json`) : produire le .pptx (pptx_publish.py le lance).
+- **Passe la main** à l'agent externe `concepteur-deck` (installé à part, contrat `shared/external/concepteur-deck.contract.json`) : concevoir ou convertir le .pptx : pptx_publish.py prépare la demande, l'agent appelant la lui passe, pptx_publish.py --check vérifie le résultat.
 - **Passe la main** à l'utilisateur : importer les fichiers dans SharePoint, Confluence ou XWiki, ou présenter le .pptx.
 
 ## 1. Produire les fichiers
@@ -63,28 +63,39 @@ couvrent SharePoint, Confluence et XWiki.
 
 ## 3. Présentation PowerPoint
 
+La présentation est **déléguée à l'agent externe `concepteur-deck`**
+(projet powerpoint-skill, installé à part avec le skill de rendu
+`markdown-to-pptx`) : myskills n'en contient rien et ne s'appuie que sur
+son contrat, `scripts/lib/concepteur-deck.contract.json` (copie de
+`shared/external/`). Un script ne lance pas un agent : trois temps.
+
 ```bash
-uv run scripts/pptx_publish.py DOC.md [--out DOSSIER] [--template MARQUE.potx] [--lang fr|en]
+uv run scripts/pptx_publish.py SOURCE.md [--out NOM.pptx] [--mode convertir|concevoir] [--trame NOM] [--template MARQUE.potx]
+# passer le champ handoff du rapport, tel quel, à l'agent concepteur-deck
+uv run scripts/pptx_publish.py --check NOM.pptx
 ```
 
-Le rendu est fait par le skill `markdown-to-pptx`, **installé à part** :
-myskills n'en contient pas le code et ne s'appuie que sur son contrat
-d'interface, `scripts/lib/markdown-to-pptx.contract.json` (copie de
-`shared/external/`). Le script le trouve par la variable `MD2PPTX_SKILL`
-ou dans les dossiers d'installation habituels (Claude Code, Copilot,
-OpenCode, Kiro, Hermes) ; sinon il s'arrête avec la consigne
-d'installation. Il le lance dans le dossier du Markdown, ce qui lui fait
-trouver un dossier `.md2pptx/` de gabarit de marque, valide le plan rendu
-contre le contrat, puis relit le `.pptx` (diapositives, images, textes
-alternatifs).
-
-Le Markdown suit les conventions du contrat (champ `markdown`) : front
-matter (`title`, `subtitle`, `purpose`, `lang`), un seul titre `#`, une
-section `##` par diapositive avec une consigne `<!-- slide: KIND -->` sous
-son titre, une image PNG par section au plus, avec son texte alternatif.
-Un schéma source ou un bloc Mermaid s'exporte d'abord en PNG
-(`diagram-export`). Pour un dossier d'architecture, `deck_build.py` du
-skill `architecture-deck` écrit ce Markdown à partir du workflow.
+1. **Préparer** : le script vérifie les sources (images PNG, JPEG ou SVG
+   avec texte alternatif ; un schéma source ou un bloc Mermaid s'exporte
+   d'abord en PNG avec `diagram-export`), trouve l'agent (variable
+   `CONCEPTEUR_DECK_AGENT` ou dossiers d'agents de Claude Code, Copilot,
+   Kiro, OpenCode ; sinon consigne d'installation) et écrit la demande
+   dans `handoff` (message de passage validé contre le contrat).
+   - `convertir` (défaut) : un Markdown complet aux conventions du contrat
+     (champ `markdown` : front matter, un seul `#`, une section `##` par
+     diapositive, consigne `<!-- slide: KIND -->`). L'agent travaille sur
+     une copie dans `.myskills-tmp/` : la source reste intacte.
+     `presentation.md` de `deck_build.py` (skill `architecture-deck`) suit
+     déjà ces conventions.
+   - `concevoir` : des sources et un objectif (`--objective`, `--trame`) ;
+     l'agent rédige le Markdown du deck à côté du `.pptx` (`NOM.md`).
+2. **Déléguer** : passer `handoff` à `concepteur-deck` (sous-agent, ou
+   agent à lancer par l'utilisateur si l'outil ne permet pas d'appeler un
+   agent). Il génère, relit le rendu (trois tours au plus) et rend ses
+   hypothèses et ses points `[à compléter]`.
+3. **Vérifier** : `--check` rouvre le `.pptx`, valide l'état de relecture
+   (`clean`, `stop` : avertissement, `fix` : erreur) et retire les copies
+   `.before-*`. Un `.pptx` non vérifié se signale comme tel.
 
 ## 4. Un Word prêt à l'emploi
 

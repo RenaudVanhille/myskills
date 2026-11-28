@@ -116,7 +116,7 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "Exigences que le service tient (ENF-002)."
+                    "description": "Exigences que le service tient (DISP-01)."
                   }
                 }
               }

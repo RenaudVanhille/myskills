@@ -12,6 +12,7 @@
   "stages": [
     {
       "id": "documents",
+      "phase": "lecture",
       "label": "Documents en Markdown",
       "level": "simple",
       "skills": [
@@ -31,6 +32,7 @@
     },
     {
       "id": "comptes-rendus",
+      "phase": "lecture",
       "label": "Comptes rendus des ateliers",
       "level": "moyen",
       "facultative": true,
@@ -65,6 +67,7 @@
     },
     {
       "id": "processus",
+      "phase": "cadrage",
       "label": "Processus métier",
       "level": "moyen",
       "facultative": true,
@@ -108,6 +111,7 @@
     },
     {
       "id": "exigences",
+      "phase": "cadrage",
       "label": "Catalogue des exigences",
       "level": "moyen",
       "skills": [
@@ -134,7 +138,7 @@
           ]
         }
       ],
-      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source.",
+      "instructions": "req_build.py donnees/exigences.json --draft écrit d'abord une exigence par phrase normative (citation exacte, numérotation des documents, catégorie, priorité et mesure déduites) ; lire chaque sources/*.md une seule fois pour trier ce brouillon (retirer, fusionner, corriger, passer en ignored avec sa raison), ajouter les exigences sans verbe normatif et le glossaire des termes métier et sigles employés. Chaque exigence déduite, priorité non explicite ou phrase écartée se note au journal. Les exigences X- des comptes rendus validés entrent au catalogue avec leur citation et la réunion pour source. Une dimension de volumétrie absente (volumetry_missing du rapport : utilisateurs, pic, débit, données, croissance, conservation) devient une question dans l'exigence la plus proche, présentée à cette revue ; une dimension sans objet se déclare dans volumetry avec sa raison.",
       "optional": [
         "donnees/exigences.candidats.json",
         "donnees/exigences.tri.json"
@@ -145,7 +149,42 @@
       ]
     },
     {
+      "id": "dimensionnement",
+      "phase": "cadrage",
+      "label": "Dimensionnement",
+      "level": "moyen",
+      "after": [
+        "exigences"
+      ],
+      "skills": [
+        "capacity-sizing",
+        "cloud-cost"
+      ],
+      "inputs": [
+        "donnees/exigences.json"
+      ],
+      "deliverables": [
+        "donnees/dimensionnement.json",
+        "dimensionnement.md",
+        "donnees/dimensionnement.result.json"
+      ],
+      "checks": [
+        "capacity-sizing : size_build.py donnees/dimensionnement.json : pointe, stockage, sauvegardes et trafic calculés, zéro erreur ; chaque avertissement (pic faible, capacité par défaut) justifié ou noté au journal"
+      ],
+      "run": [
+        {
+          "skill": "capacity-sizing",
+          "script": "size_build.py",
+          "args": [
+            "donnees/dimensionnement.json"
+          ]
+        }
+      ],
+      "instructions": "Juste après les exigences, avant toute option : utilisateurs, charge et pointe, débits, données et fichiers, croissance, conservation et disponibilité repris des exigences (section Volumétrie d'exigences.md, mesures citées) et des réponses notées au journal ; pas encore de composants. Le rapport donne la pointe, le stockage à l'horizon, les sauvegardes et le trafic, que les options d'architecture doivent tenir. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat."
+    },
+    {
       "id": "domaines",
+      "phase": "cadrage",
       "label": "Domaines et style d'architecture",
       "level": "complexe",
       "facultative": true,
@@ -185,6 +224,7 @@
     },
     {
       "id": "modele-donnees",
+      "phase": "solutioning",
       "label": "Modèle de données",
       "level": "moyen",
       "after": [
@@ -220,11 +260,13 @@
     },
     {
       "id": "architectures",
+      "phase": "solutioning",
       "label": "Options d'architecture",
       "level": "complexe",
       "after": [
         "exigences",
-        "domaines"
+        "domaines",
+        "dimensionnement"
       ],
       "skills": [
         "architecture-options",
@@ -235,7 +277,8 @@
         "donnees/exigences.json",
         "documents/pos*",
         "donnees/domaines.json",
-        "donnees/domaines.styles.json"
+        "donnees/domaines.styles.json",
+        "donnees/dimensionnement.result.json"
       ],
       "deliverables": [
         "donnees/options.json",
@@ -260,48 +303,11 @@
           ]
         }
       ],
-      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire."
-    },
-    {
-      "id": "dimensionnement",
-      "label": "Dimensionnement",
-      "level": "moyen",
-      "after": [
-        "architectures"
-      ],
-      "skills": [
-        "capacity-sizing",
-        "cloud-cost"
-      ],
-      "inputs": [
-        "donnees/exigences.json",
-        "donnees/options.json"
-      ],
-      "deliverables": [
-        "donnees/dimensionnement.json",
-        "dimensionnement.md",
-        "donnees/dimensionnement.result.json"
-      ],
-      "optional": [
-        "donnees/dimensionnement.couts.json",
-        "dimensionnement.couts.md"
-      ],
-      "checks": [
-        "capacity-sizing : size_build.py donnees/dimensionnement.json, avec --provider et --option pour une option cloud (donnees/couts.json contrôlé contre le schéma de cloud-cost)"
-      ],
-      "run": [
-        {
-          "skill": "capacity-sizing",
-          "script": "size_build.py",
-          "args": [
-            "donnees/dimensionnement.json"
-          ]
-        }
-      ],
-      "instructions": "Volumes, pointe et disponibilité repris des exigences non fonctionnelles (mesures citées) ; composants de l'option retenue. Un volume sans source est une hypothèse notée au journal, ou une question pour l'utilisateur si elle change le résultat."
+      "instructions": "2 ou 3 options notées et justifiées, refs des composants ; provider et type pour une option cloud ; avec le POS du SI (pos, ou vault:<chemin>), le placement de chaque option et la note du critère urbanisation. Une redondance signalée se corrige (remplacer l'existant) ou se justifie (coexists), et ce choix se note au journal. Un constat Well-Architected d'une option cloud nourrit ses notes : composant ajouté, ou écart accepté avec sa raison dans wa_accept ; une gravité haute ne reste jamais sans réponse. Après l'étape domaines, une option reprend les components et flows du style retenu ou recommandé (donnees/domaines.styles.json), une autre l'alternative la plus proche ; leurs composants gardent contexts. À la revue, présenter l'option recommandée et le choix à faire. Les options tiennent le dimensionnement (donnees/dimensionnement.result.json : pointe, stockage, disponibilité) : les notes de performance et de coût le citent, une option qui ne le tient pas le dit."
     },
     {
       "id": "interfaces",
+      "phase": "solutioning",
       "label": "Interfaces et séquences",
       "level": "moyen",
       "after": [
@@ -350,6 +356,7 @@
     },
     {
       "id": "recette",
+      "phase": "solutioning",
       "label": "Plan de recette",
       "level": "moyen",
       "after": [
@@ -385,6 +392,7 @@
     },
     {
       "id": "developpement",
+      "phase": "restitution",
       "label": "Passage au développement (spécifications)",
       "level": "simple",
       "facultative": true,

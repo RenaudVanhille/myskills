@@ -102,6 +102,7 @@
    "stages": [
     "documents",
     "exigences",
+    "dimensionnement",
     "domaines (facultative)",
     "architectures",
     "schemas",
@@ -112,7 +113,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier proposer des architectures options d'architecture cahier des charges"
+   "match": "Documents en Markdown Catalogue des exigences requirements-catalog Dimensionnement capacity-sizing cloud-cost Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Revue d'architecture Chiffrage de l'option retenue Dossier d'architecture technique architecture-dossier proposer des architectures options d'architecture cahier des charges"
   },
   {
    "name": "avant-vente",
@@ -125,6 +126,7 @@
     "depouillement (facultative)",
     "qualification (facultative)",
     "exigences",
+    "dimensionnement",
     "domaines (facultative)",
     "architectures",
     "schemas",
@@ -141,7 +143,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Dossier d'exploitation operations-dossier Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
+   "match": "Documents en Markdown Dépouillement de l'appel d'offres tender-response Qualification go / no-go tender-response decision-log Catalogue des exigences requirements-catalog Dimensionnement capacity-sizing cloud-cost Domaines et style d'architecture domain-design data-model Options d'architecture architecture-options urbanization-map well-architected-review Décision et schémas Matrice de conformité tender-response Maquettes d'écrans, revue UX et lots frontend Découpage et lots backend Chiffrage de l'option retenue Revue d'architecture Dossier d'exploitation operations-dossier Hypothèses, exclusions et questions tender-response decision-log Mémoire technique architecture-dossier tender-response Support de soutenance architecture-deck"
   },
   {
    "name": "cadrage",
@@ -154,10 +156,10 @@
     "comptes-rendus (facultative)",
     "processus (facultative)",
     "exigences",
+    "dimensionnement",
     "domaines (facultative)",
     "modele-donnees",
     "architectures",
-    "dimensionnement",
     "interfaces",
     "recette",
     "developpement (facultative)"
@@ -165,7 +167,7 @@
    "inputs": [
     "documents/*"
    ],
-   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Dimensionnement capacity-sizing cloud-cost Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan Passage au développement (spécifications) spec-pack"
+   "match": "Documents en Markdown Comptes rendus des ateliers meeting-notes Processus métier Catalogue des exigences requirements-catalog Dimensionnement capacity-sizing cloud-cost Domaines et style d'architecture domain-design Modèle de données data-model Options d'architecture architecture-options urbanization-map well-architected-review Interfaces et séquences api-contract mermaid-diagram Plan de recette test-plan Passage au développement (spécifications) spec-pack"
   },
   {
    "name": "cloud-existant",
@@ -369,11 +371,11 @@
   {
    "name": "architecture-deck",
    "level": "simple",
-   "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx.",
+   "description": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format que l'agent externe concepteur-deck convertit en PowerPoint.",
    "inputs": [
     "Dossier d'un workflow d'architecture aux étapes validées : options.json, exigences.json (et son glossaire), decision.json, PNG des schémas déjà exportés"
    ],
-   "match": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format du skill externe markdown-to-pptx. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité."
+   "match": "Assemble la présentation d'un dossier d'architecture (besoin, exigences, options notées, schémas, décision, couverture) depuis les étapes déjà validées d'un workflow, sans rien rédiger, au format que l'agent externe concepteur-deck convertit en PowerPoint. À utiliser pour présenter un choix d'architecture en PowerPoint à un comité."
   },
   {
    "name": "architecture-dossier",
@@ -579,13 +581,13 @@
   {
    "name": "markdown-publish",
    "level": "simple",
-   "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part.",
+   "description": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint déléguée à l'agent concepteur-deck installé à part.",
    "inputs": [
     "Markdown ou notes Obsidian, avec leurs images et schémas sources",
     "Modèle Word ou gabarit PowerPoint .potx (facultatif)",
     "Vault Obsidian (facultatif)"
    ],
-   "match": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint avec le skill markdown-to-pptx installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
+   "match": "Transforme un Markdown (ou une note Obsidian) en fichier Word, PDF, HTML ou XWiki, schémas compris, pour SharePoint, Confluence, XWiki ou un envoi par mail, ou en présentation PowerPoint déléguée à l'agent concepteur-deck installé à part. Ne publie rien en ligne. À utiliser pour livrer une documentation hors du dépôt."
   },
   {
    "name": "markdown-to-obsidian",
@@ -676,7 +678,7 @@
    "description": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV.",
    "inputs": [
     "Documents en Markdown (sortie de doc-to-markdown) dans un dossier sources",
-    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-/ENF-, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
+    "Description JSON des exigences : title, sources, requirements (id repris des documents ou EF-001 / SECU-01, PERF-01... par catégorie, nature, title, text, priority, category ou domain, metric, sources avec citation, questions, status), ignored, glossary (terme, définition, synonymes)"
    ],
    "match": "Extrait des documents d'un projet (cahier des charges, comptes rendus, spécifications convertis en Markdown) le catalogue des exigences fonctionnelles et non fonctionnelles, avec identifiants stables, priorité, mesure et citation de la source vérifiée par script, puis l'exporte en Markdown et CSV. À utiliser pour recenser, tracer ou exporter les exigences d'un projet."
   },

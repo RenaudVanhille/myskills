@@ -6,6 +6,7 @@ option retenue, contextes, entités, registre, pile technique, design system, pa
 `pieces` : livrables lus et validés (requirements, options, decision, domains, model, api, tests,
 register, design, pages, review, breakdown) ; `extra` : la description facultative specs.json (vision, utilisateurs, parcours...).
 """
+from text_tools import requirement_nature
 
 PRIORITIES = ("indispensable", "importante", "souhaitable", "hors-perimetre")
 MVP = ("indispensable", "importante")
@@ -16,10 +17,11 @@ FRONTENDS = {"react-mui": ("React", "MUI"), "react-antd": ("React", "Ant Design"
 
 
 def nature(req: dict) -> str:
-    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe ENF- ou catégorie."""
-    if req.get("nature"):
-        return req["nature"]
-    return "non-fonctionnelle" if req["id"].startswith("ENF-") or req.get("category") else "fonctionnelle"
+    """fonctionnelle ou non-fonctionnelle : champ nature, sinon préfixe de numérotation ou catégorie."""
+    found = requirement_nature(req)
+    if found:
+        return found
+    return "non-fonctionnelle" if req.get("category") else "fonctionnelle"
 
 
 def pick_option(pieces: dict, chosen: str | None, warnings: list[str]) -> tuple[dict | None, dict]:

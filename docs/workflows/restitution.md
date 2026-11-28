@@ -21,17 +21,28 @@ Workflow de restitution de l'agent architecture-workflow, mené dans un sous-dos
 title: "Restitution d'une architecture retenue au comité ou aux décideurs"
 ---
 flowchart LR
-  s_messages["1. Décision attendue et messages<br/><small>architecture-workflow</small>"]
-  s_schemas["2. Schémas pour le public visé<br/><small>schema-designer</small>"]
-  s_presentation["3. Support de présentation<br/><small>architecture-workflow</small>"]
-  s_parcours["4. Vue par parcours utilisateur<br/><small>architecture-workflow</small>"]
-  s_document["5. Document de restitution<br/><small>architecture-workflow</small>"]
+  subgraph z_cadrage["Cadrage"]
+    s_messages["1. Décision attendue et messages<br/><small>architecture-workflow</small>"]
+  end
+  style z_cadrage fill:#f0f9ff,stroke:#94a3b8,color:#0f172a
+  subgraph z_chiffrage["Chiffrage"]
+    s_parcours["4. Vue par parcours utilisateur<br/><small>architecture-workflow</small>"]
+  end
+  style z_chiffrage fill:#fefce8,stroke:#94a3b8,color:#0f172a
+  subgraph z_restitution["Restitution"]
+    s_schemas["2. Schémas pour le public visé<br/><small>schema-designer</small>"]
+    s_presentation["3. Support de présentation<br/><small>architecture-workflow</small>"]
+    s_document["5. Document de restitution<br/><small>architecture-workflow</small>"]
+  end
+  style z_restitution fill:#f0fdf4,stroke:#94a3b8,color:#0f172a
   s_messages --> s_schemas
   s_messages --> s_presentation
   s_messages --> s_parcours
   s_schemas --> s_document
   s_presentation --> s_document
   s_parcours --> s_document
+  s_messages ~~~ s_parcours
+  s_parcours ~~~ s_schemas
   classDef moteur fill:#dbeafe,stroke:#1d4ed8,color:#1f2937
   classDef agent fill:#ffedd5,stroke:#c2410c,color:#1f2937
   classDef facultative stroke-dasharray:5 5
@@ -40,20 +51,20 @@ flowchart LR
   class s_parcours facultative
 ```
 
-En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
+En bleu, les étapes menées par le moteur `architecture-workflow` ; en orange, celles qu'il confie à un agent spécialisé ; en tirets, les étapes facultatives (l'utilisateur peut les passer). Les étapes sont rangées par zone : lecture du dossier, cadrage, solutioning, chiffrage, restitution. Chaque étape s'arrête pour la revue de l'utilisateur avant la suite.
 
 Étapes prêtes en même temps, menées en parallèle :
 - 2. Schémas pour le public visé, 3. Support de présentation, 4. Vue par parcours utilisateur
 
 ## Étapes
 
-| Étape | Niveau | Menée par | Skills | Livrables | Après |
-| --- | --- | --- | --- | --- | --- |
-| 1. Décision attendue et messages | moyen | `architecture-workflow` | `architecture-dossier`, `diagram-brief` | `donnees/synthese.json`, `synthese.md`, `schemas/briefs/*.json` | début |
-| 2. Schémas pour le public visé | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `process-diagram`, `c4-architecture`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 1 |
-| 3. Support de présentation | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 1 |
-| 4. Vue par parcours utilisateur (facultative) | simple | `architecture-workflow` | `solution-estimate` | `parcours.md` | 1 |
-| 5. Document de restitution | simple | `architecture-workflow` | `architecture-dossier` | `glossaire.md`, `restitution.md` | 2, 3, 4 |
+| Étape | Zone | Niveau | Menée par | Skills | Livrables | Après |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1. Décision attendue et messages | Cadrage | moyen | `architecture-workflow` | `architecture-dossier`, `diagram-brief` | `donnees/synthese.json`, `synthese.md`, `schemas/briefs/*.json` | début |
+| 2. Schémas pour le public visé | Restitution | moyen | `schema-designer` | `diagram-brief`, `excalidraw-diagram`, `process-diagram`, `c4-architecture`, `mermaid-diagram`, `drawio-diagram`, `diagram-export` | `schemas/briefs/*.json`, `schemas/**/*.png` | 1 |
+| 3. Support de présentation | Restitution | simple | `architecture-workflow` | `architecture-deck` | `presentation.md` | 1 |
+| 4. Vue par parcours utilisateur (facultative) | Chiffrage | simple | `architecture-workflow` | `solution-estimate` | `parcours.md` | 1 |
+| 5. Document de restitution | Restitution | simple | `architecture-workflow` | `architecture-dossier` | `glossaire.md`, `restitution.md` | 2, 3, 4 |
 
 ### 1. Décision attendue et messages
 
@@ -83,7 +94,7 @@ Un à trois schémas métier, chacun avec un seul message. Le brief de chaque sc
 - **Entrées** : `../donnees/options.json`, `../donnees/decision.json`, `../schemas/*.png`
 - **Livrables** : `presentation.md`
 - **Contrôle** : architecture-deck : deck_build.py .. --out presentation.md (besoin, options, décision, schémas du dossier)
-- **Contrôle** : si l'utilisateur veut le .pptx : passer presentation.md à document-publisher (skill externe markdown-to-pptx)
+- **Contrôle** : si l'utilisateur veut le .pptx : passer presentation.md à document-publisher, qui le délègue à l'agent externe concepteur-deck et vérifie le rendu
 
 Construit par le script à partir des seuls livrables validés du dossier parent ; ne se réécrit pas. Les messages de synthese.md vont dans l'ordre du discours à la revue, pas dans le fichier. Rien à écrire : démarrer, contrôler et soumettre en un appel (journal.py start DOSSIER presentation --submit).
 

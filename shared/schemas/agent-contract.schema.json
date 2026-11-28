@@ -20,7 +20,7 @@
         "required": ["to", "when", "send"],
         "additionalProperties": false,
         "properties": {
-          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator", "orientation", "ui-designer", "backend-estimator"]},
+          "to": {"enum": ["document-extractor", "schema-designer", "document-publisher", "architecture-workflow", "architecture-reviewer", "solution-estimator", "orientation", "ui-designer", "backend-estimator", "concepteur-deck"]},
           "when": {"type": "string"},
           "send": {"type": "array", "items": {"type": "string"}, "minItems": 1,
                    "description": "Ce qui va dans files, objective et constraints du message de passage."}
