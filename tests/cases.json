@@ -2268,6 +2268,32 @@
           "exit": 0
         }
       ]
+    },
+    {
+      "id": "mission-distance-visionneuse",
+      "skill": "tous",
+      "_note": "Visionneuse web des fichiers de mission : branche d'un dépôt local lue par git, page avec CSP, arbre, liens entrants des notes, contenu brut en bac à sable, HTML jamais exécuté, fichier hors branche refusé, lien falsifié ou expiré refusé, droits retirés refusés, routes du service toujours protégées, lien signé ajouté à la réponse.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/visionneuse.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        },
+        {
+          "script": "{root}/deploy/remote-mission/service/scripts/fetch_vendor.py",
+          "args": [
+            "--dest",
+            "{out}/vendor",
+            "--check"
+          ],
+          "exit": 0,
+          "report": {
+            "missing.0": "marked.js"
+          }
+        }
+      ]
     }
   ]
 }

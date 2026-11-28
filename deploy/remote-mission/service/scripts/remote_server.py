@@ -13,6 +13,9 @@ raccroche au tour en cours si la connexion tombe. Un seul tour à la fois par co
     POST /turns                    {"mission", "chat", "message"} -> {"job"} ; 409 si un tour est en cours
     GET  /jobs/ID?after=N&wait=S   événements depuis N, puis le rapport quand le tour est fini (&ack=1 : lu)
     GET  /chats/MISSION/CHAT       tour en cours et dernier rapport non lu de la conversation
+    POST /uploads?chat=ID          fichier joint (corps brut, en-tête X-Myskills-Filename) -> {"upload"}
+    GET  /openwebui/pipe           source du pipe (openwebui_install.py)
+    GET  {viewer.path}/LIEN/...    visionneuse des fichiers de la mission (lien signé, lib/viewer.py)
 
 Jeton : en-tête « Authorization: Bearer ... », lu dans la variable server.token_env ; obligatoire
 dès que le service écoute ailleurs que sur la machine elle-même.
@@ -51,6 +54,7 @@ import access  # noqa: E402
 import discovery  # noqa: E402
 import k8s_sessions  # noqa: E402
 import merge_requests  # noqa: E402
+import viewer  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
@@ -229,6 +233,7 @@ class Service:
                                                   files=files)
                 if self.session is None:  # service frontal : jamais dans le pod de session
                     merge_requests.after_turn(self.config, mission, report, job.emit, gitlab_token)
+                    report["viewer"] = viewer.link(self.config, self.token or "", mission, chat, user)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
             self.drop_uploads(files)
@@ -286,6 +291,14 @@ def handler(service: Service):
             self.end_headers()
             self.wfile.write(body)
 
+        def send_raw(self, code: int, headers: dict, body: bytes) -> None:
+            self.send_response(code)
+            for key, value in headers.items():
+                self.send_header(key, value)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
         def authorized(self) -> bool:
             if not service.token:
                 return True
@@ -297,6 +310,17 @@ def handler(service: Service):
             parts = [unquote(p) for p in url.path.strip("/").split("/") if p]
             if parts == ["health"]:
                 return self.send(200, {"ok": True, "running": service.running()})
+            shown = viewer.settings(service.config)
+            prefix = [p for p in (shown or {}).get("path", "").split("/") if p]
+            if shown and service.session is None and parts[:len(prefix)] == prefix:  # visionneuse : lien signé
+                def branch_of(mission: str, chat: str) -> str:
+                    return service.config.get("branch_prefix", "openwebui/") + remote_turn.slug(chat)
+                try:
+                    return self.send_raw(*viewer.handle(service.config, service.token or "", parts[len(prefix):],
+                                                        branch_of))
+                except Exception as error:  # noqa: BLE001 : la page dit l'erreur, le service continue
+                    return self.send_raw(500, {"Content-Type": "text/plain; charset=utf-8"},
+                                         f"Erreur de la visionneuse : {error}".encode())
             if not self.authorized():
                 return self.send(401, {"error": "jeton absent ou invalide"})
             query = parse_qs(url.query)

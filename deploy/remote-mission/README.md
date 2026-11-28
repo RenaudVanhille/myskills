@@ -12,6 +12,7 @@ pods de session.
 | `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
 | `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
 | `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
+| `service/static/` | visionneuse des fichiers (page, script, style ; bibliothèques de `vendor.json`) |
 | `openwebui_pipe.py` | fonction Pipe d'Open WebUI (modèle « Missions »), installée d'elle-même par `chart/files/openwebui_install.py` |
 | `dev/` | docker-compose du dev local : Open WebUI, service en mode local, mission de démo, LLM simulé |
 | `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
@@ -81,6 +82,10 @@ ou hors de `allowed_hosts` n'est pas une mission. `missions` de
 - `valide` ou `retour : ...` quand une étape est en revue : décision passée à
   `journal.py review` sans tour de modèle, puis l'agent continue.
 - `/statut` : état des workflows, sans agent.
+- Fichier joint (trombone d'Open WebUI) : copié dans les documents de la
+  mission (`documents/`, ou `documents` de `mission.json`), commité et cité à
+  l'agent dans le même tour ; un fichier identique déjà présent n'est pas
+  recopié. Taille maximale : `server.max_upload_mb` (50 Mo).
 - `/fin` : pousse et termine la session (pod et volume effacés), puis ouvre
   la merge request de la branche (section 4).
 - Un message pendant un autre : le pipe suit celui en cours ; un résultat
@@ -92,6 +97,34 @@ Hors Kubernetes (poste, CI GitLab, test), un message se joue sans le service :
 uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json --mission NOM --chat ID --message "..."
 uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
 ```
+
+## Visionneuse des fichiers de la mission
+
+Chaque réponse du chat se termine par **📂 Fichiers de la mission** : une page
+web, sans rien à installer, qui montre ce que la conversation a poussé sur sa
+branche, comme dans Obsidian.
+
+- Arbre des fichiers avec filtre ; ouverture sur `journal.md` ; adresse de
+  chaque fichier dans l'URL (`#chemin`) pour la partager à un collègue qui a
+  le même lien.
+- Markdown rendu : propriétés (frontmatter), wikilinks `[[note|libellé]]` et
+  inclusions `![[image]]` résolus dans la branche, callouts `> [!question]`,
+  tableaux, schémas Mermaid, liens entrants de chaque note.
+- Schémas draw.io affichés par leur export PNG, images, CSV en tableau, JSON
+  indenté, PDF dans un onglet, documents Office et tout fichier à télécharger.
+
+Servie par le service sous `viewer.path` (`/fichiers`) de l'hôte d'Open WebUI
+(même Ingress et certificat). Pas de compte à part : le lien est signé par le
+jeton du service, nomme la mission, la conversation et l'utilisateur, et vaut
+`viewer.linkDays` jours (7) ; les droits de lecture GitLab de l'utilisateur
+sont revérifiés à chaque ouverture. Les fichiers sont lus sur la branche
+poussée (API GitLab, jeton `read_api` du service ; `git` en dev) : la page
+marche session arrêtée ou finie. Page en CSP stricte, contenu brut en bac à
+sable (`sandbox`, `nosniff`, HTML jamais exécuté). marked, DOMPurify et
+Mermaid sont servis par le service (`service/static/vendor.json` : version et
+empreinte SHA-256 vérifiées par `fetch_vendor.py` à la construction des
+images), aucun CDN. Lecture seule pour l'instant : les corrections passent par
+le chat.
 
 ## Dev local (docker-compose)
 
@@ -112,7 +145,9 @@ docker compose up --build
    (`docker compose logs open-webui | grep "myskills pipe"`) ; une
    modification de `openwebui_pipe.py` est reprise en une minute après
    `docker compose up -d --build service`.
-2. Choisir le modèle « Mission de démonstration (dev local) » et écrire.
+2. Choisir le modèle « Mission de démonstration (dev local) » et écrire ; le
+   lien 📂 de chaque réponse ouvre la visionneuse
+   (http://localhost:8765/fichiers/...).
    Les branches `openwebui/<conversation>` sont poussées dans la mission du
    volume `work`.
 

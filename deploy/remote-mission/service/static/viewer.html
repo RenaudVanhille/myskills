@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Fichiers de la mission</title>
+<link rel="stylesheet" href="../_static/viewer.css">
+<script src="../_static/marked.js" defer></script>
+<script src="../_static/purify.js" defer></script>
+<script src="../_static/mermaid.js" defer></script>
+<script src="../_static/viewer.js" defer></script>
+</head>
+<body>
+<header>
+  <button id="menu" type="button" aria-label="Afficher les fichiers">☰</button>
+  <div class="titre"><strong id="mission">Mission</strong> <span id="branche"></span></div>
+  <a id="telecharger" class="bouton" hidden download>Télécharger</a>
+</header>
+<div id="cadre">
+  <nav id="arbre" aria-label="Fichiers">
+    <input id="filtre" type="search" placeholder="Filtrer les fichiers" aria-label="Filtrer les fichiers">
+    <div id="liste"><p class="discret">Chargement…</p></div>
+  </nav>
+  <main>
+    <div id="chemin" class="discret"></div>
+    <article id="contenu"><p class="discret">Choisissez un fichier à gauche.</p></article>
+    <aside id="entrants" hidden><h2>Liens entrants</h2><ul></ul></aside>
+  </main>
+</div>
+</body>
+</html>

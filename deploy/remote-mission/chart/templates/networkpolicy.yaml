@@ -13,6 +13,11 @@ spec:
     - from:
         - podSelector:
             matchLabels: {app.kubernetes.io/name: open-webui, app.kubernetes.io/instance: {{ .Release.Name }}}
+        {{- if .Values.viewer.enabled }}
+        # Visionneuse des fichiers : navigateurs via le contrôleur d'Ingress (lien signé exigé).
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}}
+        {{- end }}
       ports: [{port: {{ .Values.service.port }}}]
   egress:
     {{- include "myskills.dnsEgress" . | nindent 4 }}

@@ -5,3 +5,4 @@ tests/out/
 
 # Dev local des missions à distance : valeurs réelles hors du dépôt
 deploy/remote-mission/dev/.env
+deploy/remote-mission/service/static/vendor/

@@ -140,6 +140,8 @@ class Pipe:
             parts.append(f"> {report['questions']} question(s) ouverte(s) au journal.")
         for error in report.get("errors", []):
             parts.append(f"> ⚠️ {error}")
+        if report.get("viewer"):
+            parts.append(f"📂 [Fichiers de la mission]({report['viewer']})")
         if report.get("branch") and report.get("commit"):
             pushed = "poussée" if report.get("pushed") else "non poussée"
             parts.append(f"*Branche `{report['branch']}` ({pushed}), commit `{report['commit']}`, "

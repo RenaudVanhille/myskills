@@ -45,6 +45,9 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
       "git" (dict "name" $v.gitlab.commitAuthor.name "email" $v.gitlab.commitAuthor.email)
       "server" (dict "host" "0.0.0.0" "port" $v.service.port "token_env" "MYSKILLS_REMOTE_TOKEN" "max_jobs" $v.service.maxJobs)
       "runner" $runner -}}
+{{- if and $v.viewer.enabled $v.openWebui.ingress.enabled -}}
+{{- $_ := set $config "viewer" (dict "url" (printf "https://%s%s" $v.openWebui.ingress.host $v.viewer.path) "link_days" $v.viewer.linkDays) -}}
+{{- end -}}
 {{- if $v.mergeRequests.enabled -}}
 {{- $merge := dict "on" $v.mergeRequests.triggers "draft" $v.mergeRequests.draft "token_env" "GITLAB_MR_TOKEN" -}}
 {{- if $v.mergeRequests.target }}{{ $_ := set $merge "target" $v.mergeRequests.target }}{{ end -}}
