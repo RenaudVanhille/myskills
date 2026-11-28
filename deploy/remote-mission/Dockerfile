@@ -29,9 +29,10 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python \
     LANG=C.UTF-8
 
 # Outils système : git, OCR (Tesseract fr/en), LibreOffice sans interface (PDF, relecture des
-# .docx), écran virtuel pour draw.io (xvfb), polices des rendus, bibliothèques d'Electron.
+# .docx), écran virtuel pour draw.io (xvfb), polices des rendus, bibliothèques d'Electron,
+# libatomic1 (requise par le Node embarqué de Playwright, absente de l'image slim).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git ca-certificates curl xvfb xauth \
+        git ca-certificates curl xvfb xauth libatomic1 \
         tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng \
         libreoffice-writer-nogui libreoffice-impress-nogui libreoffice-calc-nogui \
         fonts-dejavu fonts-liberation fonts-noto-core fonts-noto-color-emoji \
@@ -65,9 +66,10 @@ ENV MD2PPTX_SKILL=/opt/md2pptx
 # sources épinglées, empreintes vérifiées ; navigateur de Playwright ; environnements uv de chaque
 # script (dépendances PEP 723). Les skills et agents sont copiés dans le HOME de chaque session au
 # démarrage de son pod (install.py sync, runner.tools). Puis état des outils (informatif).
-RUN uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout --prefetch \
+# Le navigateur s'installe avant : doctor.py échoue si un outil obligatoire manque.
+RUN uvx playwright install chromium \
+    && uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout --prefetch \
     && python3 /opt/myskills/deploy/remote-mission/service/scripts/fetch_vendor.py \
-    && uvx playwright install chromium \
     && for script in /opt/myskills/skills/*/scripts/*.py; do \
            uv sync --quiet --script "$script"; \
        done \
