@@ -69,7 +69,7 @@ ENV MD2PPTX_SKILL=/opt/md2pptx
 # Le navigateur s'installe avant : doctor.py échoue si un outil obligatoire manque.
 RUN uvx playwright install chromium \
     && uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout --prefetch \
-    && python3 /opt/myskills/deploy/remote-mission/service/scripts/fetch_vendor.py \
+    && uv run /opt/myskills/deploy/remote-mission/service/scripts/fetch_vendor.py \
     && for script in /opt/myskills/skills/*/scripts/*.py; do \
            uv sync --quiet --script "$script"; \
        done \
