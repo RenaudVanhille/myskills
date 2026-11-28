@@ -30,7 +30,7 @@ spec:
             matchLabels: {app: myskills-session}
       ports: [{port: 8765}]
 ---
-# Pods de session : entrée depuis le service ; sortie vers DNS, GitLab et LiteLLM (hors du cluster).
+# Pods de session : entrée depuis le service ; sortie vers DNS, GitLab et les modèles (LiteLLM ou Foundry).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -48,9 +48,12 @@ spec:
   egress:
     {{- include "myskills.dnsEgress" . | nindent 4 }}
     {{- include "myskills.gitlabEgress" . | nindent 4 }}
+    {{- $llm := ternary .Values.foundry .Values.litellm (not (empty (include "myskills.foundry" .))) }}
+    {{- if empty $llm.cidrs }}{{ fail "litellm.cidrs ou foundry.cidrs vide : la sortie vers les modèles serait ouverte à tout hôte" }}{{ end }}
+    # Modèles : LiteLLM, ou Azure AI Foundry (point de terminaison privé ou passerelle de sortie).
     - to:
-        {{- range .Values.litellm.cidrs }}
+        {{- range $llm.cidrs }}
         - ipBlock: {cidr: {{ . }}}
         {{- end }}
-      ports: [{port: {{ .Values.litellm.port }}}]
+      ports: [{port: {{ $llm.port }}}]
 {{- end }}

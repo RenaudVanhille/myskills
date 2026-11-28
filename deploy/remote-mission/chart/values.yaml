@@ -42,13 +42,31 @@ litellm:
     moyen: claude-sonnet
     complexe: claude-opus
 
+# Fournisseur des modèles des sessions : litellm (ci-dessus) ou foundry (Claude sur Azure AI Foundry, sans
+# LiteLLM ; clé ANTHROPIC_FOUNDRY_API_KEY dans le Secret secrets.session, à la place de LITELLM_API_KEY).
+llm:
+  provider: litellm   # litellm | foundry
+
+# Azure AI Foundry (llm.provider: foundry) : https://<resource>.services.ai.azure.com/anthropic.
+foundry:
+  resource: ""        # nom de la ressource Foundry
+  # Adresses de Foundry pour la NetworkPolicy des sessions : point de terminaison privé (Private Endpoint)
+  # ou passerelle de sortie ; les adresses publiques d'Azure changent.
+  cidrs: []
+  port: 443
+  # Noms des déploiements Foundry, par niveau des agents de myskills.
+  models:
+    simple: claude-haiku-5-5
+    moyen: claude-sonnet-5-5
+    complexe: claude-opus-5-5
+
 # Autorité interne (GitLab ou LiteLLM avec un certificat interne) : Secret avec un ou plusieurs *.crt.
 caSecret: ""
 
 # Secrets créés à part (noms).
 secrets:
   service: myskills-remote    # MYSKILLS_REMOTE_TOKEN, GITLAB_ACCESS_TOKEN (read_api)
-  session: myskills-session   # LITELLM_API_KEY, GITLAB_ACCESS_TOKEN
+  session: myskills-session   # LITELLM_API_KEY (ou ANTHROPIC_FOUNDRY_API_KEY), GITLAB_ACCESS_TOKEN
   git: myskills-git           # .git-credentials (write_repository)
 
 # Merge request de la branche d'une conversation, ouverte par le service quand le travail est prêt :

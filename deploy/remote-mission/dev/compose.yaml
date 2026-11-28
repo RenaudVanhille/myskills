@@ -1,5 +1,5 @@
 # Dev local des missions à distance : Open WebUI, le service (mode local, sans Kubernetes) et un LLM
-# simulé (aucun crédit). Depuis ce dossier :
+# simulé (aucun crédit), un vrai LiteLLM ou Azure AI Foundry (LLM_PROVIDER dans .env). Depuis ce dossier :
 #
 #   cp .env.example .env
 #   docker compose up --build      # puis http://localhost:3000
@@ -20,6 +20,8 @@ services:
       MYSKILLS_REMOTE_TOKEN: ${MYSKILLS_REMOTE_TOKEN:-dev-local}
       LITELLM_BASE_URL: ${LITELLM_BASE_URL:-http://llm-simule:4000/v1}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-cle-simulee}
+      FOUNDRY_RESOURCE: ${FOUNDRY_RESOURCE:-}
+      ANTHROPIC_FOUNDRY_API_KEY: ${ANTHROPIC_FOUNDRY_API_KEY:-}
       HOME: /work/home
       GIT_AUTHOR_NAME: myskills-dev
       GIT_AUTHOR_EMAIL: myskills-dev@localhost
@@ -28,8 +30,9 @@ services:
     volumes:
       - ./remote.json:/etc/myskills/remote.json:ro
       - ./acces.json:/etc/myskills/acces.json:ro
-      - ./opencode.json:/etc/myskills/opencode.json:ro
-      - ./models.json:/etc/myskills/models.json:ro
+      # Fournisseur des modèles : LLM_PROVIDER=litellm (LiteLLM ou LLM simulé) ou foundry (Azure AI Foundry).
+      - ./opencode.${LLM_PROVIDER:-litellm}.json:/etc/myskills/opencode.json:ro
+      - ./models.${LLM_PROVIDER:-litellm}.json:/etc/myskills/models.json:ro
       - ./demarrer.sh:/etc/myskills/demarrer.sh:ro
       - work:/work
     ports:
@@ -81,7 +84,7 @@ services:
       service:
         condition: service_healthy
 
-  llm-simule:  # LLM simulé, aucun crédit ; inutilisé si LITELLM_BASE_URL vise un vrai LiteLLM
+  llm-simule:  # LLM simulé, aucun crédit ; inutilisé avec un vrai LiteLLM ou Azure AI Foundry
     image: python:3.12-slim
     command: ["python", "/app/llm_simule.py", "--port", "4000"]
     volumes:

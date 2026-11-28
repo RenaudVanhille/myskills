@@ -10,6 +10,14 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- define "myskills.image" -}}{{ .Values.image.repository }}:{{ .Values.image.tag }}{{- end }}
 {{- define "myskills.serviceImage" -}}{{ .Values.serviceImage.repository }}:{{ .Values.serviceImage.tag }}{{- end }}
 
+{{/* Fournisseur des modèles : litellm (LiteLLM d'un autre cluster) ou foundry (Azure AI Foundry, sans LiteLLM). */}}
+{{- define "myskills.foundry" -}}{{ if eq (.Values.llm.provider | default "litellm") "foundry" }}true{{ end }}{{- end }}
+{{- define "myskills.foundryHost" -}}{{ required "foundry.resource : nom de la ressource Azure AI Foundry" .Values.foundry.resource }}.services.ai.azure.com{{- end }}
+{{/* Hôte des modèles (allowed_hosts). */}}
+{{- define "myskills.llmHost" -}}
+{{- if include "myskills.foundry" . }}{{ include "myskills.foundryHost" . }}{{ else }}{{ include "myskills.host" .Values.litellm.url }}{{ end -}}
+{{- end }}
+
 {{/* Nom d'hôte d'une URL, sans port. */}}
 {{- define "myskills.host" -}}{{ (urlParse .).host | splitList ":" | first }}{{- end }}
 
@@ -20,13 +28,20 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- $discovery := dict "topic" $v.gitlab.discovery.topic "title" $v.gitlab.discovery.title -}}
 {{- if $v.gitlab.discovery.group }}{{ $_ := set $discovery "group" $v.gitlab.discovery.group }}{{ end -}}
 {{- $agent := dict "timeout" $v.agent.timeout "continue_args" (list "--continue") -}}
+{{- $foundry := include "myskills.foundry" . -}}
+{{- $m := ternary $v.foundry.models $v.litellm.models (not (empty $foundry)) -}}
 {{- if eq $v.agent.kind "claude" -}}
 {{- $_ := set $agent "command" (list "claude" "-p" "{prompt}" "--output-format" "text" "--permission-mode" "acceptEdits" "--allowedTools" "Bash(uv run:*)" "Bash(python:*)" "Read" "Write" "Edit" "Glob" "Grep" "Skill" "Agent") -}}
-{{- $_ := set $agent "env" (dict "ANTHROPIC_BASE_URL" (trimSuffix "/v1" (trimSuffix "/" $v.litellm.url)) "ANTHROPIC_DEFAULT_HAIKU_MODEL" $v.litellm.models.simple "ANTHROPIC_DEFAULT_SONNET_MODEL" $v.litellm.models.moyen "ANTHROPIC_DEFAULT_OPUS_MODEL" $v.litellm.models.complexe "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" "1" "DISABLE_AUTOUPDATER" "1") -}}
+{{- $env := dict "ANTHROPIC_DEFAULT_HAIKU_MODEL" $m.simple "ANTHROPIC_DEFAULT_SONNET_MODEL" $m.moyen "ANTHROPIC_DEFAULT_OPUS_MODEL" $m.complexe "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" "1" "DISABLE_AUTOUPDATER" "1" -}}
+{{- if $foundry }}{{ $_ := set $env "CLAUDE_CODE_USE_FOUNDRY" "1" }}{{ $_ := set $env "ANTHROPIC_FOUNDRY_RESOURCE" $v.foundry.resource }}
+{{- else }}{{ $_ := set $env "ANTHROPIC_BASE_URL" (trimSuffix "/v1" (trimSuffix "/" $v.litellm.url)) }}{{ end -}}
+{{- $_ := set $agent "env" $env -}}
 {{- else -}}
 {{- $_ := set $agent "command" (list "opencode" "run" "{prompt}") -}}
 {{- $_ := set $agent "skip_lines" (list "^> \\S+ · ") -}}
-{{- $_ := set $agent "env" (dict "OPENCODE_CONFIG" "/etc/myskills/opencode.json" "LITELLM_BASE_URL" $v.litellm.url "OPENCODE_DISABLE_AUTOUPDATE" "true" "OPENCODE_DISABLE_MODELS_FETCH" "true" "OPENCODE_DISABLE_LSP_DOWNLOAD" "true") -}}
+{{- $env := dict "OPENCODE_CONFIG" "/etc/myskills/opencode.json" "OPENCODE_DISABLE_AUTOUPDATE" "true" "OPENCODE_DISABLE_MODELS_FETCH" "true" "OPENCODE_DISABLE_LSP_DOWNLOAD" "true" -}}
+{{- if not $foundry }}{{ $_ := set $env "LITELLM_BASE_URL" $v.litellm.url }}{{ end -}}
+{{- $_ := set $agent "env" $env -}}
 {{- end -}}
 {{- $runner := dict "kind" "kubernetes" "image" (include "myskills.image" .) "namespace" .Release.Namespace
       "secret" $v.secrets.session "git_secret" $v.secrets.git "config_map" (printf "%s-config" (include "myskills.name" .))
@@ -39,7 +54,7 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
       "discovery" $discovery
       "workdir" "/work/clones"
       "branch_prefix" $v.gitlab.branchPrefix
-      "allowed_hosts" (list (include "myskills.host" $v.gitlab.url) (include "myskills.host" $v.litellm.url) | uniq)
+      "allowed_hosts" (list (include "myskills.host" $v.gitlab.url) (include "myskills.llmHost" .) | uniq)
       "access" (dict "provider" "gitlab" "api" (printf "%s/api/v4" $gitlab) "token_env" "GITLAB_ACCESS_TOKEN" "read_level" $v.gitlab.readLevel "write_level" $v.gitlab.writeLevel)
       "agent" $agent
       "git" (dict "name" $v.gitlab.commitAuthor.name "email" $v.gitlab.commitAuthor.email)
@@ -54,20 +69,30 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- toPrettyJson $config }}
 {{- end }}
 
-{{/* Configuration d'OpenCode : LiteLLM seul fournisseur, rien ne se télécharge, shell limité. */}}
+{{/* Configuration d'OpenCode : un seul fournisseur (LiteLLM ou Azure AI Foundry), rien ne se télécharge, shell limité. */}}
 {{- define "myskills.opencodeJson" -}}
-{{- $m := .Values.litellm.models -}}
+{{- $foundry := include "myskills.foundry" . -}}
+{{- $id := ternary "foundry" "litellm" (not (empty $foundry)) -}}
+{{- $m := ternary .Values.foundry.models .Values.litellm.models (not (empty $foundry)) -}}
 {{- $models := dict -}}
-{{- range $level, $alias := $m }}{{ $_ := set $models $alias (dict "name" (printf "%s (LiteLLM)" $alias)) }}{{ end -}}
-{{- $provider := dict "npm" "@ai-sdk/openai-compatible" "name" "LiteLLM"
+{{- range $level, $alias := $m }}{{ $_ := set $models $alias (dict "name" (printf "%s (%s)" $alias (ternary "Azure AI Foundry" "LiteLLM" (not (empty $foundry))))) }}{{ end -}}
+{{- $provider := dict -}}
+{{- if $foundry -}}
+{{- /* API Anthropic de Foundry : clé en x-api-key (fournisseur Anthropic d'OpenCode) et en api-key (Azure). */ -}}
+{{- $provider = dict "npm" "@ai-sdk/anthropic" "name" "Azure AI Foundry"
+      "options" (dict "baseURL" (printf "https://%s/anthropic/v1" (include "myskills.foundryHost" .)) "apiKey" "{env:ANTHROPIC_FOUNDRY_API_KEY}"
+                      "headers" (dict "api-key" "{env:ANTHROPIC_FOUNDRY_API_KEY}")) "models" $models -}}
+{{- else -}}
+{{- $provider = dict "npm" "@ai-sdk/openai-compatible" "name" "LiteLLM"
       "options" (dict "baseURL" "{env:LITELLM_BASE_URL}" "apiKey" "{env:LITELLM_API_KEY}") "models" $models -}}
+{{- end -}}
 {{- $bash := dict "*" "deny" "uv run *" "allow" "python *" "allow" "git status*" "allow" "git diff*" "allow" "git log*" "allow" -}}
 {{- toPrettyJson (dict
       "$schema" "https://opencode.ai/config.json"
-      "provider" (dict "litellm" $provider)
-      "enabled_providers" (list "litellm")
-      "model" (printf "litellm/%s" $m.moyen)
-      "small_model" (printf "litellm/%s" $m.simple)
+      "provider" (dict $id $provider)
+      "enabled_providers" (list $id)
+      "model" (printf "%s/%s" $id $m.moyen)
+      "small_model" (printf "%s/%s" $id $m.simple)
       "share" "disabled"
       "autoupdate" false
       "permission" (dict "edit" "allow" "webfetch" "deny" "bash" $bash)) }}
@@ -75,9 +100,11 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 
 {{/* Modèle de chaque niveau des agents de myskills (install.py sync --models). */}}
 {{- define "myskills.modelsJson" -}}
-{{- $m := .Values.litellm.models -}}
+{{- $foundry := include "myskills.foundry" . -}}
+{{- $id := ternary "foundry" "litellm" (not (empty $foundry)) -}}
+{{- $m := ternary .Values.foundry.models .Values.litellm.models (not (empty $foundry)) -}}
 {{- toPrettyJson (dict
-      "opencode" (dict "simple" (printf "litellm/%s" $m.simple) "moyen" (printf "litellm/%s" $m.moyen) "complexe" (printf "litellm/%s" $m.complexe))
+      "opencode" (dict "simple" (printf "%s/%s" $id $m.simple) "moyen" (printf "%s/%s" $id $m.moyen) "complexe" (printf "%s/%s" $id $m.complexe))
       "claude" (dict "simple" "haiku" "moyen" "sonnet" "complexe" "opus")) }}
 {{- end }}
 

@@ -156,6 +156,10 @@ Variantes :
 - **Vrai LiteLLM** : `LITELLM_BASE_URL` et `LITELLM_API_KEY` dans `.env`,
   son hôte dans `allowed_hosts` de `dev/remote.json` ; le LLM simulé reste
   lancé mais inutilisé.
+- **Azure AI Foundry** : `LLM_PROVIDER=foundry`, `FOUNDRY_RESOURCE` et
+  `ANTHROPIC_FOUNDRY_API_KEY` dans `.env` ; OpenCode prend alors
+  `opencode.foundry.json` et `models.foundry.json` (noms des déploiements à
+  changer là s'ils diffèrent de `claude-*-5-5`).
 - **SSO GitLab** : `WEBUI_AUTH=true` et les variables `OAUTH_*` de `.env`, et
   le courriel du compte GitLab dans `dev/acces.json`.
 - **Sans Docker** : le service, OpenCode et le LLM simulé se lancent aussi sur
@@ -248,12 +252,35 @@ n'y ont pas accès.
    chaque niveau des agents de myskills (`opencode.json` et `models.json`,
    générés par le chart dans sa ConfigMap).
 
+## 2 bis. Azure AI Foundry, sans LiteLLM
+
+Avec `llm.provider: foundry`, les pods de session appellent directement Claude
+sur Azure AI Foundry, par l'API Anthropic de la ressource
+(`https://<foundry.resource>.services.ai.azure.com/anthropic`). LiteLLM
+n'est plus utilisé (ni clé virtuelle, ni budget par équipe : les quotas se
+règlent dans Azure).
+
+- **Valeurs** : `foundry.resource` (nom de la ressource), `foundry.models`
+  (noms des déploiements par niveau : `claude-haiku-5-5`, `claude-sonnet-5-5`,
+  `claude-opus-5-5` par défaut), `foundry.cidrs` et `foundry.port` pour la
+  NetworkPolicy des sessions. Les adresses publiques d'Azure changent :
+  passer par un point de terminaison privé (Private Endpoint) ou une
+  passerelle de sortie, et mettre son adresse dans `foundry.cidrs`. Le chart
+  refuse une liste vide, qui ouvrirait la sortie à tout hôte.
+- **Clé** : `ANTHROPIC_FOUNDRY_API_KEY` dans le Secret des sessions, à la
+  place de `LITELLM_API_KEY`.
+- **Agent** : OpenCode reçoit un fournisseur `foundry` (son fournisseur
+  Anthropic, clé envoyée en `x-api-key` et en `api-key`) ; Claude Code
+  (`agent.kind: claude`) reçoit `CLAUDE_CODE_USE_FOUNDRY=1`,
+  `ANTHROPIC_FOUNDRY_RESOURCE` et les noms des déploiements. L'hôte de la
+  ressource remplace celui de LiteLLM dans `allowed_hosts`.
+
 ## Agent : OpenCode (défaut) ou Claude Code
 
 OpenCode (licence MIT) est l'agent par défaut : `agent.command`
 `["opencode", "run", "{prompt}"]`, `continue_args` `["--continue"]`,
 configuration `OPENCODE_CONFIG=/etc/myskills/opencode.json` (seul fournisseur
-LiteLLM, partage désactivé, ni mise à jour ni téléchargement de modèles ou de
+LiteLLM ou Foundry, partage désactivé, ni mise à jour ni téléchargement de modèles ou de
 serveurs de langage, `webfetch` refusé, shell limité à `uv run`, `python` et
 la lecture de git). Vérifié face à un LiteLLM simulé, Internet coupé : réponse,
 reprise de session avec son contexte, agents de myskills trouvés avec leur
@@ -346,13 +373,15 @@ leurs labels dans son namespace).
      --from-literal=WEBUI_SECRET_KEY="$(openssl rand -hex 32)" \
      --from-literal=OAUTH_CLIENT_ID="<Application ID>" \
      --from-literal=OAUTH_CLIENT_SECRET="<Secret>"
+   # llm.provider: foundry : ANTHROPIC_FOUNDRY_API_KEY="<clé de la ressource>" à la place de LITELLM_API_KEY
    # autorité interne, si GitLab ou LiteLLM en ont une : --set caSecret=autorite-interne
    kubectl -n myskills create secret generic autorite-interne --from-file=interne.crt
    ```
 
 3. **Valeurs** (`values.yaml` du chart, à copier) : `image`, `gitlab.url` et
    `gitlab.cidrs`, `gitlab.discovery` (topic des missions), `litellm.url`,
-   `litellm.cidrs` et `litellm.models`, `kubernetes.apiCidrs` (adresse de
+   `litellm.cidrs` et `litellm.models` (ou `llm.provider: foundry` et
+   `foundry.*`), `kubernetes.apiCidrs` (adresse de
    l'API du cluster : `kubectl get endpoints kubernetes`), `openWebui.url`,
    `openWebui.ingress`, groupes GitLab d'Open WebUI.
 4. **Installation** :

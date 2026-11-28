@@ -1,0 +1,7 @@
+{
+  "opencode": {
+    "simple": "foundry/claude-haiku-5-5",
+    "moyen": "foundry/claude-sonnet-5-5",
+    "complexe": "foundry/claude-opus-5-5"
+  }
+}
