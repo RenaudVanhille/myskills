@@ -1845,6 +1845,34 @@
             "--chat",
             "c1",
             "--user",
+            "dev@exemple.local",
+            "--message",
+            "voici le cahier des charges",
+            "--file",
+            "{fixtures}/remote/hotes.json",
+            "--file",
+            "{fixtures}/remote/hotes.json"
+          ],
+          "env": {
+            "MOCK_SKILLS": "{skills}",
+            "MYSKILLS_REMOTE_TOKEN": "ne-doit-pas-passer"
+          },
+          "exit": 0,
+          "report": {
+            "uploaded.0": "documents/hotes.json",
+            "pushed": true
+          }
+        },
+        {
+          "script": "{root}/deploy/remote-mission/service/scripts/remote_turn.py",
+          "args": [
+            "--config",
+            "{out}/remote.json",
+            "--mission",
+            "portail",
+            "--chat",
+            "c1",
+            "--user",
             "lecteur@exemple.local",
             "--message",
             "dessine"
@@ -2220,6 +2248,20 @@
       "steps": [
         {
           "script": "{fixtures}/remote/merge_request.py",
+          "args": [
+            "{skills}"
+          ],
+          "exit": 0
+        }
+      ]
+    },
+    {
+      "id": "mission-distance-fichiers-joints",
+      "skill": "tous",
+      "_note": "Fichiers joints dans le chat : reçus par POST /uploads, remis au tour qui les cite puis effacés, relayés au pod de session, refusés d'une autre conversation, au-delà de server.max_upload_mb ou sous un nom invalide.",
+      "steps": [
+        {
+          "script": "{fixtures}/remote/uploads.py",
           "args": [
             "{skills}"
           ],

@@ -12,6 +12,7 @@ license: MIT
 
 import asyncio
 import json
+import re
 import urllib.error
 import urllib.request
 from urllib.parse import quote
@@ -61,6 +62,35 @@ class Pipe:
     async def _acall(self, *args, **kwargs) -> tuple[int, dict]:
         return await asyncio.to_thread(self._call, *args, **kwargs)
 
+    def _upload(self, chat: str, user: str, name: str, data: bytes) -> tuple[int, dict]:
+        request = urllib.request.Request(
+            self.valves.SERVER_URL.rstrip("/") + f"/uploads?chat={quote(chat, safe='')}", data=data, method="POST",
+            headers={"Authorization": f"Bearer {self.valves.TOKEN}", "X-Myskills-User": user,
+                     "X-Myskills-Filename": quote(name), "Content-Type": "application/octet-stream"})
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response:
+                return response.status, json.loads(response.read() or b"{}")
+        except urllib.error.HTTPError as error:
+            try:
+                return error.code, json.loads(error.read() or b"{}")
+            except ValueError:
+                return error.code, {"error": str(error)}
+
+    @staticmethod
+    async def _file_bytes(item: dict) -> tuple[str, bytes]:
+        """Nom et contenu d'un fichier joint, lus dans le stockage d'Open WebUI (le pipe tourne chez lui)."""
+        from open_webui.models.files import Files
+        from open_webui.storage.provider import Storage
+
+        meta = item.get("file") if isinstance(item.get("file"), dict) else item
+        found = Files.get_file_by_id(meta.get("id") or item.get("id"))
+        found = await found if asyncio.iscoroutine(found) else found
+        if found is None or not found.path:
+            raise FileNotFoundError(item.get("name") or meta.get("filename") or "fichier")
+        path = await asyncio.to_thread(Storage.get_file, found.path)
+        data = await asyncio.to_thread(lambda: open(path, "rb").read())
+        return found.filename or (found.meta or {}).get("name") or "fichier", data
+
     def pipes(self) -> list[dict]:
         try:
             code, data = self._call("GET", "/missions", timeout=10)
@@ -78,6 +108,8 @@ class Pipe:
             done = report["shortcut"]
             word = "validée" if done["decision"] == "valide" else "renvoyée avec votre retour"
             parts.append(f"Étape **{done['stage']}** {word}.")
+        if report.get("uploaded"):
+            parts.append("Fichiers ajoutés à la mission : " + ", ".join(f"`{f}`" for f in report["uploaded"]) + ".")
         if report.get("answer"):
             parts.append(report["answer"])
         if report.get("mode") == "fin" and not report.get("errors"):
@@ -137,7 +169,7 @@ class Pipe:
     async def pipe(self, body: dict, __metadata__: dict | None = None, __event_emitter__=None,
                    __chat_id__: str | None = None, __user__: dict | None = None,
                    __oauth_token__: dict | None = None, __task__: str | None = None,
-                   __task_body__: dict | None = None):
+                   __task_body__: dict | None = None, __files__: list | None = None):
         if __task__:  # tâche de fond d'Open WebUI (titre, étiquettes, suites...) : jamais un tour de mission
             yield self.task_answer(__task__, __task_body__ or body)
             return
@@ -148,12 +180,26 @@ class Pipe:
         content = messages[-1]["content"] if messages else ""
         if isinstance(content, list):  # message multimodal : seul le texte est transmis
             content = " ".join(c.get("text", "") for c in content if c.get("type") == "text")
+        content = re.sub(r"<attached_files>.*?</attached_files>\s*", "", content, flags=re.S)  # repères d'Open WebUI
         try:
             code, previous = await self._acall("GET", f"/chats/{quote(mission, safe='')}/{quote(chat, safe='')}",
                                                user=user)
             if code == 200 and previous.get("report"):
                 yield "**Résultat du tour précédent**\n\n" + self.render(previous["report"]) + "\n---\n\n"
-            code, started = await self._acall("POST", "/turns", {"mission": mission, "chat": chat, "message": content},
+            uploads = []
+            for item in [f for f in (__files__ or []) if isinstance(f, dict) and f.get("type", "file") == "file"]:
+                try:
+                    name, data = await self._file_bytes(item)
+                except Exception as error:  # noqa: BLE001 : signalé, le message part quand même
+                    yield f"> ⚠️ Fichier joint illisible ({error}) : non transmis.\n\n"
+                    continue
+                code, sent = await asyncio.to_thread(self._upload, chat, user, name, data)
+                if code != 201:
+                    yield f"> ⚠️ {name} : {sent.get('error', f'service : code {code}')}\n\n"
+                    continue
+                uploads.append(sent["upload"])
+            code, started = await self._acall("POST", "/turns", {"mission": mission, "chat": chat, "message": content,
+                                                                 "uploads": uploads},
                                               user=user, gitlab_token=(__oauth_token__ or {}).get("access_token", ""))
         except OSError as error:
             yield f"> ⚠️ Service des missions injoignable : {error}\n"

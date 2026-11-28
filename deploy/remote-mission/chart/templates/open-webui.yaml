@@ -56,6 +56,10 @@ data:
   # Le seul modèle est le pipe myskills : visible de tous, les droits sont ceux des projets GitLab des missions.
   BYPASS_MODEL_ACCESS_CONTROL: "true"
   ENABLE_EVALUATION_ARENA_MODELS: "false"
+  # Fichiers joints : texte extrait en local sans modèle d'embedding, contexte en message système (le message
+  # de l'utilisateur arrive intact au pipe, qui transmet le fichier lui-même à la mission).
+  BYPASS_EMBEDDING_AND_RETRIEVAL: "true"
+  RAG_SYSTEM_CONTEXT: "true"
   # Tâches de fond qu'Open WebUI confierait au modèle, donc au pipe : inutiles ici (le titre reste, répondu par le pipe).
   ENABLE_TAGS_GENERATION: "false"
   ENABLE_FOLLOW_UP_GENERATION: "false"

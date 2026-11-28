@@ -116,7 +116,7 @@ expect("sans jeton : avertissement", any("aucun jeton GitLab" in w for w in miss
 expect("sans jeton : rien d'ouvert", missing.get("merge_request"), None)
 
 # Service : jeton du pipe lu dans l'en-tête, utilisé par le frontal, jamais par un pod de session.
-remote_turn.run_turn = lambda cfg, name, chat, message, emit, user=None: turn("fin", branch=f"openwebui/{chat}")
+remote_turn.run_turn = lambda cfg, name, chat, message, emit, user=None, files=None: turn("fin", branch=f"openwebui/{chat}")
 for session, chat in ((None, "c4"), (("portail", "c5"), "c5")):
     service = remote_server.Service(config, "jeton-service-myskills", session)
     front = remote_server.start_server(service, "127.0.0.1", 0)

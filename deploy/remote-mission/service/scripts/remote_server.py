@@ -30,8 +30,10 @@ import importlib.util
 import json
 import os
 import secrets
+import shutil
 import signal
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -39,7 +41,7 @@ import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -98,6 +100,9 @@ class Service:
         self.lock = threading.Lock()
         self.turns = 0
         self.max_jobs = config.get("server", {}).get("max_jobs", 4)
+        self.max_upload = int(config.get("server", {}).get("max_upload_mb", 50)) * 1_000_000
+        self.uploads: dict[str, dict] = {}  # fichiers joints en attente de leur tour : id -> conversation, chemin
+        self.upload_root: Path | None = None
         self.bindings = discovery.Bindings(config, self.sessions) if discovery.enabled(config) else None
 
     def discovered(self) -> set:
@@ -154,9 +159,40 @@ class Service:
             return None, self.quick(discovery.MODEL_ID, chat, user, errors=[f"missions : {error}"])
         return bound, None
 
+    def upload(self, chat: str, user: str | None, name: str, data: bytes) -> tuple[int, dict]:
+        """Fichier joint dans le chat, gardé jusqu'au tour qui le cite (POST /turns, uploads)."""
+        name = Path(name.replace("\\", "/")).name.strip()
+        if not name or name.startswith("."):
+            return 400, {"error": "nom de fichier invalide"}
+        with self.lock:
+            if self.upload_root is None:
+                self.upload_root = Path(tempfile.mkdtemp(prefix="myskills-uploads-"))
+            upload_id = uuid.uuid4().hex
+            folder = self.upload_root / upload_id
+        folder.mkdir()
+        (folder / name).write_bytes(data)
+        self.uploads[upload_id] = {"chat": chat, "user": (user or "").lower(), "path": folder / name}
+        return 201, {"upload": upload_id, "name": name, "bytes": len(data)}
+
+    def take_uploads(self, ids: list, chat: str, user: str | None) -> tuple[list[Path], list[str]]:
+        files, errors = [], []
+        for upload_id in ids:
+            item = self.uploads.pop(str(upload_id), None)
+            if item is None or item["chat"] != chat or item["user"] != (user or "").lower():
+                errors.append(f"fichier joint {upload_id} inconnu de cette conversation")
+            else:
+                files.append(item["path"])
+        return files, errors
+
+    @staticmethod
+    def drop_uploads(files: list[Path]) -> None:
+        for path in files:
+            shutil.rmtree(Path(path).parent, ignore_errors=True)
+
     def start(self, mission: str, chat: str, message: str, user: str | None,
-              gitlab_token: str = "") -> tuple[int, dict]:
-        """gitlab_token : jeton GitLab de l'utilisateur (pipe), pour la seule merge request de ce tour."""
+              gitlab_token: str = "", uploads: list | None = None) -> tuple[int, dict]:
+        """gitlab_token : jeton GitLab de l'utilisateur (pipe), pour la seule merge request de ce tour ;
+        uploads : fichiers joints envoyés avant par POST /uploads."""
         if mission == discovery.MODEL_ID and self.bindings:
             mission, answered = self.resolve(chat, message, user)
             if answered:
@@ -175,6 +211,10 @@ class Service:
                 return 409, {"job": current.id, "busy": True}
             if self.running() >= self.max_jobs:
                 return 503, {"error": f"{self.max_jobs} tours déjà en cours (server.max_jobs), réessayez plus tard"}
+            files, errors = self.take_uploads(uploads or [], chat, user)
+            if errors:
+                self.drop_uploads(files)
+                return 400, {"error": " ; ".join(errors)}
             job = Job(mission, chat)
             self.jobs[job.id], self.chats[(mission, chat)] = job, job.id
             self.owners.setdefault((mission, chat), (user or "").lower())
@@ -183,20 +223,23 @@ class Service:
         def work() -> None:
             try:
                 if self.sessions:
-                    report = self.via_session(mission, chat, message, user, job.emit)
+                    report = self.via_session(mission, chat, message, user, job.emit, files)
                 else:  # droits vérifiés au début de la session, avant chaque pull et chaque push
-                    report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user)
+                    report = remote_turn.run_turn(self.config, mission, chat, message, job.emit, user=user,
+                                                  files=files)
                 if self.session is None:  # service frontal : jamais dans le pod de session
                     merge_requests.after_turn(self.config, mission, report, job.emit, gitlab_token)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
+            self.drop_uploads(files)
             job.finish(report)
             self.last_activity = time.monotonic()
 
         threading.Thread(target=work, daemon=True).start()
         return 202, {"job": job.id}
 
-    def via_session(self, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
+    def via_session(self, mission: str, chat: str, message: str, user: str | None, emit,
+                    files: list[Path] | None = None) -> dict:
         """Message passé au pod de session de la conversation (créé, retrouvé ou rechargé). Les droits
         se vérifient ici quand la session démarre ou se recharge, puis dans le pod avant chaque pull
         et chaque push ; pas à chaque message."""
@@ -208,7 +251,7 @@ class Service:
                 if refused:
                     return {**empty, "errors": [refused]}
             url, token = self.sessions.ensure(mission, chat, emit)
-            report = forward(url, token, mission, chat, message, user, emit)
+            report = forward(url, token, mission, chat, message, user, emit, files or [])
             if report.get("mode") == "fin" and not report.get("errors"):
                 self.sessions.end(mission, chat)
                 emit("session", "pod et volume de la session effacés")
@@ -285,7 +328,19 @@ def handler(service: Service):
         def do_POST(self) -> None:
             if not self.authorized():
                 return self.send(401, {"error": "jeton absent ou invalide"})
-            if urlparse(self.path).path.rstrip("/") != "/turns":
+            url = urlparse(self.path)
+            if url.path.rstrip("/") == "/uploads":
+                length = int(self.headers.get("Content-Length", "0"))
+                if length > service.max_upload:
+                    return self.send(413, {"error": f"fichier de plus de {service.max_upload // 1_000_000} Mo "
+                                                    "(server.max_upload_mb)"})
+                chat = parse_qs(url.query).get("chat", [""])[0]
+                if not chat:
+                    return self.send(400, {"error": "attendu : /uploads?chat=..."})
+                return self.send(*service.upload(chat, self.headers.get("X-Myskills-User"),
+                                                 unquote(self.headers.get("X-Myskills-Filename", "")),
+                                                 self.rfile.read(length)))
+            if url.path.rstrip("/") != "/turns":
                 return self.send(404, {"error": "chemin inconnu"})
             length = int(self.headers.get("Content-Length", "0"))
             if length > MAX_BODY:
@@ -293,17 +348,20 @@ def handler(service: Service):
             try:
                 data = json.loads(self.rfile.read(length) or b"{}")
                 mission, chat, message = str(data["mission"]), str(data["chat"]), str(data["message"])
+                uploads = list(data.get("uploads") or [])
             except (ValueError, KeyError, TypeError):
                 return self.send(400, {"error": "attendu : {\"mission\", \"chat\", \"message\"}"})
             code, payload = service.start(mission, chat, message, self.headers.get("X-Myskills-User"),
-                                          self.headers.get("X-Myskills-Gitlab-Token", ""))
+                                          self.headers.get("X-Myskills-Gitlab-Token", ""), uploads)
             return self.send(code, payload)
 
     return Handler
 
 
-def forward(url: str, token: str, mission: str, chat: str, message: str, user: str | None, emit) -> dict:
-    """Joue le message dans un autre service (le pod de session) et relaie ses événements."""
+def forward(url: str, token: str, mission: str, chat: str, message: str, user: str | None, emit,
+            files: list[Path] = ()) -> dict:
+    """Joue le message dans un autre service (le pod de session) et relaie ses événements ; les fichiers
+    joints y sont envoyés d'abord."""
     def call(method: str, path: str, payload: dict | None = None, timeout: float = 30) -> tuple[int, dict]:
         request = urllib.request.Request(url + path, method=method,
                                          data=json.dumps(payload).encode("utf-8") if payload else None,
@@ -315,7 +373,16 @@ def forward(url: str, token: str, mission: str, chat: str, message: str, user: s
         except urllib.error.HTTPError as error:
             return error.code, json.loads(error.read() or b"{}")
 
-    code, started = call("POST", "/turns", {"mission": mission, "chat": chat, "message": message})
+    ids = []
+    for path in files:
+        request = urllib.request.Request(f"{url}/uploads?chat={quote(chat, safe='')}", method="POST",
+                                         data=Path(path).read_bytes(),
+                                         headers={"Authorization": f"Bearer {token}", "X-Myskills-User": user or "",
+                                                  "X-Myskills-Filename": quote(Path(path).name),
+                                                  "Content-Type": "application/octet-stream"})
+        with urllib.request.urlopen(request, timeout=120) as response:
+            ids.append(json.loads(response.read())["upload"])
+    code, started = call("POST", "/turns", {"mission": mission, "chat": chat, "message": message, "uploads": ids})
     if code not in (202, 409):
         raise RuntimeError(started.get("error", f"pod de session : code {code}"))
     if code == 409:

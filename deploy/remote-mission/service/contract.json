@@ -28,7 +28,8 @@
         "--user": "utilisateur (courriel ou nom GitLab), exigé quand access est configuré",
         "--message-env": "message lu dans cette variable d'environnement (Job Kubernetes)",
         "--workdir": "copies de travail (remplace workdir de la configuration)",
-        "--job": "tour lancé par le service dans un pod : événements JSON Lines sur la sortie d'erreur, images en ligne gardées, droits déjà vérifiés par le service"
+        "--job": "tour lancé par le service dans un pod : événements JSON Lines sur la sortie d'erreur, images en ligne gardées, droits déjà vérifiés par le service",
+        "--file": "fichier joint, copié dans les documents de la mission (répétable)"
       },
       "exit_codes": {
         "0": "tour joué, branche commitée (et poussée)",
@@ -215,6 +216,11 @@
                   "type": "integer",
                   "minimum": 1,
                   "description": "Tours en parallèle (défaut : 4)."
+                },
+                "max_upload_mb": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Taille maximale d'un fichier joint dans le chat (défaut : 50 Mo)."
                 }
               }
             },
@@ -721,6 +727,13 @@
                   "type": "string"
                 }
               }
+            },
+            "uploaded": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Fichiers joints ajoutés aux documents de la mission (chemins relatifs)."
             }
           }
         }
@@ -932,6 +945,11 @@
                   "type": "integer",
                   "minimum": 1,
                   "description": "Tours en parallèle (défaut : 4)."
+                },
+                "max_upload_mb": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Taille maximale d'un fichier joint dans le chat (défaut : 50 Mo)."
                 }
               }
             },

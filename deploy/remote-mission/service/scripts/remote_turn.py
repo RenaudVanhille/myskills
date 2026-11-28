@@ -361,14 +361,43 @@ def commit_push(config: dict, target: Path, branch: str, chat: str, emit, push: 
     return head, pushed, errors
 
 
+def place_uploads(folder: Path, files: list[Path]) -> list[str]:
+    """Fichiers joints dans le chat, copiés dans les documents de la mission (mission.json : documents,
+    défaut documents/) ; un nom déjà pris par un autre contenu reçoit un suffixe, un fichier identique déjà
+    présent n'est pas recopié. Rend les chemins ajoutés, relatifs au dossier."""
+    try:
+        documents = json.loads((folder / "mission.json").read_text(encoding="utf-8")).get("documents") or "documents"
+    except (OSError, ValueError):
+        documents = "documents"
+    target = (folder / documents).resolve()
+    if folder.resolve() not in target.parents and target != folder.resolve():
+        target = folder / "documents"  # chemin de mission.json hors du dossier : ignoré
+    target.mkdir(parents=True, exist_ok=True)
+    placed = []
+    for source in files:
+        name = Path(source).name
+        stem, suffix, n = Path(name).stem, Path(name).suffix, 1
+        dest, data = target / name, Path(source).read_bytes()
+        while dest.exists() and dest.read_bytes() != data:
+            n += 1
+            dest = target / f"{stem}-{n}{suffix}"
+        if dest.exists():  # même fichier déjà joint (Open WebUI renvoie les pièces de la conversation)
+            continue
+        dest.write_bytes(data)
+        placed.append(dest.relative_to(folder.resolve()).as_posix())
+    return placed
+
+
 def empty_report(name: str, chat: str, user: str | None = None) -> dict:
     return {"mission": name, "chat": chat, "user": user, "branch": None, "folder": None, "mode": "agent", "answer": "",
+            "uploaded": [],
             "shortcut": None, "gate": None, "questions": 0, "workflows": [], "changed": [], "images": [],
             "commit": None, "pushed": False, "resumed": False, "seconds": 0, "errors": [], "warnings": []}
 
 
 def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind, text: None,
-             push: bool = True, user: str | None = None, check_access: bool = True) -> dict:
+             push: bool = True, user: str | None = None, check_access: bool = True,
+             files: list[Path] | None = None) -> dict:
     """Un tour complet ; config déjà validée (load_config), config["_base"] = dossier de la configuration.
     Avec access, les droits de l'utilisateur sur le projet GitLab de la mission se vérifient au début
     de la session (écriture, lecture pour /statut), avant chaque pull (lecture) et chaque push
@@ -394,6 +423,9 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
         if before:
             report["warnings"].append(f"copie de travail non propre avant le tour ({len(before)} fichiers), "
                                       "repris dans le commit")
+        if files and not reading:
+            report["uploaded"] = place_uploads(folder, files)
+            emit("fichiers", f"{len(files)} fichier(s) joint(s) copié(s) dans la mission")
         state = status(folder, report["warnings"])
         if message.strip().lower() in STATUS_WORDS:
             report["mode"] = "statut"
@@ -412,6 +444,9 @@ def run_turn(config: dict, name: str, chat: str, message: str, emit=lambda kind,
                 note = (f" L'utilisateur vient de donner sa décision « {done['decision']} » sur l'étape "
                         f"{done['stage']} : elle est déjà enregistrée au journal (journal.py review), "
                         "ne la refais pas ; continue." if done else "")
+                if report["uploaded"]:
+                    note += (" L'utilisateur a joint des fichiers, déjà copiés dans la mission : "
+                             + ", ".join(report["uploaded"]) + ". Prends-les comme documents d'entrée.")
                 template = config["agent"].get("prompt", DEFAULT_PROMPT)
                 prompt = template.replace("{folder}", str(folder)).replace("{note}", note) \
                     .replace("{message}", message)
@@ -445,6 +480,8 @@ def main() -> int:
     parser.add_argument("--message-file", type=Path, help="message lu dans un fichier (UTF-8)")
     parser.add_argument("--message-env", help="message lu dans cette variable d'environnement (Job Kubernetes)")
     parser.add_argument("--user", help="utilisateur (courriel ou nom GitLab), exigé si access est configuré")
+    parser.add_argument("--file", type=Path, action="append", default=[],
+                        help="fichier joint, copié dans les documents de la mission (répétable)")
     parser.add_argument("--workdir", type=Path, help="copies de travail (remplace workdir de la configuration)")
     parser.add_argument("--no-push", action="store_true", help="commit local seulement")
     parser.add_argument("--events", type=Path, help="journal des événements du tour (JSON Lines)")
@@ -483,7 +520,7 @@ def main() -> int:
 
     try:
         report = run_turn(config, args.mission, args.chat, message, emit, push=not args.no_push,
-                          user=args.user, check_access=not args.job)
+                          user=args.user, check_access=not args.job, files=args.file)
     finally:
         if sink and sink is not sys.stderr:
             sink.close()
