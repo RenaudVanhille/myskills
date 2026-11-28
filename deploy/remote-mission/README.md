@@ -12,7 +12,6 @@ pods de session.
 | `chart/` | chart Helm : service frontal, sessions (RBAC, quota), NetworkPolicy, Open WebUI connecté par GitLab |
 | `Dockerfile` | image des sessions, avec les outils de tous les skills (lourde) |
 | `Dockerfile.service` | image du service frontal : Python et les scripts (légère) |
-| `service/static/` | visionneuse des fichiers (page, script, style ; bibliothèques de `vendor.json`) |
 | `openwebui_pipe.py` | fonction Pipe d'Open WebUI (modèle « Missions »), installée d'elle-même par `chart/files/openwebui_install.py` |
 | `dev/` | docker-compose du dev local : Open WebUI, service en mode local, mission de démo, LLM simulé |
 | `remote.example.json` | configuration du service hors Helm (poste, CI) ; le chart génère la sienne |
@@ -98,33 +97,36 @@ uv run deploy/remote-mission/service/scripts/remote_turn.py --config remote.json
 uv run deploy/remote-mission/service/scripts/remote_server.py probe --config remote.json --mission NOM --pipe deploy/remote-mission/openwebui_pipe.py
 ```
 
-## Visionneuse des fichiers de la mission
+## Fichiers de la mission dans Open WebUI
 
-Chaque réponse du chat se termine par **📂 Fichiers de la mission** : une page
-web, sans rien à installer, qui montre ce que la conversation a poussé sur sa
-branche, comme dans Obsidian.
+Seul Open WebUI est exposé : le service des missions et les pods de session
+restent internes au cluster. Les fichiers que la conversation a poussés sur sa
+branche se lisent donc dans Open WebUI, de deux façons :
 
-- Arbre des fichiers avec filtre ; ouverture sur `journal.md` ; adresse de
-  chaque fichier dans l'URL (`#chemin`) pour la partager à un collègue qui a
-  le même lien.
-- Markdown rendu : propriétés (frontmatter), wikilinks `[[note|libellé]]` et
-  inclusions `![[image]]` résolus dans la branche, callouts `> [!question]`,
-  tableaux, schémas Mermaid, liens entrants de chaque note.
-- Schémas draw.io affichés par leur export PNG, images, CSV en tableau, JSON
-  indenté, PDF dans un onglet, documents Office et tout fichier à télécharger.
+- **Dans le chat.** `/fichiers` liste les fichiers de la branche, numérotés et
+  rangés par dossier. `/lire 3`, `/lire exigences` ou `/lire vault/Exigences.md`
+  en affiche un : Markdown d'Obsidian rendu (propriétés en tableau, wikilinks
+  et liens vers `/lire`, images `![[...]]` en ligne, callouts, Mermaid),
+  schéma draw.io par son export PNG, image, CSV en tableau, JSON indenté. Un
+  document Office, un PDF ou un fichier trop long devient une pièce jointe
+  d'Open WebUI, à télécharger. Ces commandes ne lancent pas de tour : elles
+  marchent même session arrêtée.
+- **Dans Espace de travail > Connaissances.** Après chaque tour, le pipe
+  recopie la branche dans une collection propre à la conversation
+  (« Mission · titre de la conversation »), avec ses dossiers ; l'aperçu
+  rend le Markdown et Mermaid. Seuls les fichiers dont l'empreinte git a
+  changé sont recopiés, les fichiers retirés de la branche sont effacés. La
+  collection appartient à `myskills` et l'utilisateur la lit seulement : la
+  branche GitLab reste la référence, les corrections passent par le chat.
+  Valves `KNOWLEDGE` (désactiver le miroir) et `KNOWLEDGE_MAX_MB` (20 : au-delà,
+  le fichier reste hors du miroir, `/lire` l'ouvre).
 
-Servie par le service sous `viewer.path` (`/fichiers`) de l'hôte d'Open WebUI
-(même Ingress et certificat). Pas de compte à part : le lien est signé par le
-jeton du service, nomme la mission, la conversation et l'utilisateur, et vaut
-`viewer.linkDays` jours (7) ; les droits de lecture GitLab de l'utilisateur
-sont revérifiés à chaque ouverture. Les fichiers sont lus sur la branche
-poussée (API GitLab, jeton `read_api` du service ; `git` en dev) : la page
-marche session arrêtée ou finie. Page en CSP stricte, contenu brut en bac à
-sable (`sandbox`, `nosniff`, HTML jamais exécuté). marked, DOMPurify et
-Mermaid sont servis par le service (`service/static/vendor.json` : version et
-empreinte SHA-256 vérifiées par `fetch_vendor.py` à la construction des
-images), aucun CDN. Lecture seule pour l'instant : les corrections passent par
-le chat.
+Le pipe lit les fichiers chez le service (`GET /files/MISSION/CHAT`, jeton du
+service), qui revérifie à chaque appel les droits de lecture GitLab de
+l'utilisateur et lit la branche poussée (API GitLab, jeton `read_api` du
+service ; `git` en dev). Dossiers cachés (`.git`, `.obsidian`, `.historique`,
+`.myskills-tmp`, `.trash`) exclus. Les copies restent dans Open WebUI (sa
+base et son stockage) : aucun document ne sort du cluster.
 
 ## Dev local (docker-compose)
 
@@ -145,10 +147,9 @@ docker compose up --build
    (`docker compose logs open-webui | grep "myskills pipe"`) ; une
    modification de `openwebui_pipe.py` est reprise en une minute après
    `docker compose up -d --build service`.
-2. Choisir le modèle « Mission de démonstration (dev local) » et écrire ; le
-   lien 📂 de chaque réponse ouvre la visionneuse
-   (http://localhost:8765/fichiers/...).
-   Les branches `openwebui/<conversation>` sont poussées dans la mission du
+2. Choisir le modèle « Mission de démonstration (dev local) » et écrire ;
+   `/fichiers` et `/lire` montrent les fichiers de la conversation, et
+   Connaissances leur copie après chaque tour. Les branches `openwebui/<conversation>` sont poussées dans la mission du
    volume `work`.
 
 Variantes :

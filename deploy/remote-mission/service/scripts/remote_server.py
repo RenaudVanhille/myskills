@@ -15,7 +15,8 @@ raccroche au tour en cours si la connexion tombe. Un seul tour à la fois par co
     GET  /chats/MISSION/CHAT       tour en cours et dernier rapport non lu de la conversation
     POST /uploads?chat=ID          fichier joint (corps brut, en-tête X-Myskills-Filename) -> {"upload"}
     GET  /openwebui/pipe           source du pipe (openwebui_install.py)
-    GET  {viewer.path}/LIEN/...    visionneuse des fichiers de la mission (lien signé, lib/viewer.py)
+    GET  /files/MISSION/CHAT       fichiers de la branche de la conversation (/fichiers du pipe)
+    GET  /files/MISSION/CHAT/raw?path=P   contenu d'un fichier de la branche (/lire du pipe)
 
 Jeton : en-tête « Authorization: Bearer ... », lu dans la variable server.token_env ; obligatoire
 dès que le service écoute ailleurs que sur la machine elle-même.
@@ -54,7 +55,7 @@ import access  # noqa: E402
 import discovery  # noqa: E402
 import k8s_sessions  # noqa: E402
 import merge_requests  # noqa: E402
-import viewer  # noqa: E402
+import mission_files  # noqa: E402
 import remote_turn  # noqa: E402
 from spec_schema import print_schema, schema_option  # noqa: E402
 
@@ -233,10 +234,10 @@ class Service:
                                                   files=files)
                 if self.session is None:  # service frontal : jamais dans le pod de session
                     merge_requests.after_turn(self.config, mission, report, job.emit, gitlab_token)
-                    report["viewer"] = viewer.link(self.config, self.token or "", mission, chat, user)
             except Exception as error:  # le service survit à un tour en échec
                 report = {**remote_turn.empty_report(mission, chat), "errors": [f"tour interrompu : {error}"]}
             self.drop_uploads(files)
+            mission_files.forget()  # la branche a bougé : /fichiers et le miroir la relisent
             job.finish(report)
             self.last_activity = time.monotonic()
 
@@ -310,17 +311,6 @@ def handler(service: Service):
             parts = [unquote(p) for p in url.path.strip("/").split("/") if p]
             if parts == ["health"]:
                 return self.send(200, {"ok": True, "running": service.running()})
-            shown = viewer.settings(service.config)
-            prefix = [p for p in (shown or {}).get("path", "").split("/") if p]
-            if shown and service.session is None and parts[:len(prefix)] == prefix:  # visionneuse : lien signé
-                def branch_of(mission: str, chat: str) -> str:
-                    return service.config.get("branch_prefix", "openwebui/") + remote_turn.slug(chat)
-                try:
-                    return self.send_raw(*viewer.handle(service.config, service.token or "", parts[len(prefix):],
-                                                        branch_of))
-                except Exception as error:  # noqa: BLE001 : la page dit l'erreur, le service continue
-                    return self.send_raw(500, {"Content-Type": "text/plain; charset=utf-8"},
-                                         f"Erreur de la visionneuse : {error}".encode())
             if not self.authorized():
                 return self.send(401, {"error": "jeton absent ou invalide"})
             query = parse_qs(url.query)
@@ -345,6 +335,20 @@ def handler(service: Service):
                 content = PIPE.read_text(encoding="utf-8")
                 return self.send(200, {"content": content,
                                        "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest()})
+            if len(parts) >= 3 and parts[0] == "files":  # /fichiers et /lire du pipe : branche poussée
+                mission, chat, user = parts[1], parts[2], self.headers.get("X-Myskills-User")
+                if mission == discovery.MODEL_ID and service.bindings:
+                    mission = service.bindings.get(chat) or mission
+                    try:
+                        discovery.register(service.config, mission)
+                    except (PermissionError, OSError, ValueError) as error:
+                        return self.send(502, {"error": f"missions : {error}"})
+                refused = service.owner_refused(mission, chat, user)
+                if refused:
+                    return self.send(403, {"error": refused})
+                branch = service.config.get("branch_prefix", "openwebui/") + remote_turn.slug(chat)
+                return self.send_raw(*mission_files.handle(service.config, mission, chat, user, parts[3:], query,
+                                                           branch))
             if len(parts) == 3 and parts[0] == "chats":
                 return self.send(200, service.chat(parts[1], parts[2], self.headers.get("X-Myskills-User")))
             return self.send(404, {"error": "chemin inconnu"})
@@ -356,6 +360,10 @@ def handler(service: Service):
             if url.path.rstrip("/") == "/uploads":
                 length = int(self.headers.get("Content-Length", "0"))
                 if length > service.max_upload:
+                    left = min(length, 4 * service.max_upload)  # corps lu : le client reçoit le refus
+                    while left > 0 and (chunk := self.rfile.read(min(1 << 20, left))):
+                        left -= len(chunk)
+                    self.close_connection = True
                     return self.send(413, {"error": f"fichier de plus de {service.max_upload // 1_000_000} Mo "
                                                     "(server.max_upload_mb)"})
                 chat = parse_qs(url.query).get("chat", [""])[0]

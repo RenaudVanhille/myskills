@@ -466,27 +466,6 @@
                   "description": "Merge request en brouillon (Draft:)."
                 }
               }
-            },
-            "viewer": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "url"
-              ],
-              "description": "Visionneuse web des fichiers de la mission (branche de la conversation), lien signé dans chaque réponse.",
-              "properties": {
-                "url": {
-                  "type": "string",
-                  "pattern": "^https?://[^/]+/.+",
-                  "description": "Adresse publique de la visionneuse, chemin compris (https://chat.exemple.local/fichiers) ; le chemin est servi par le service."
-                },
-                "link_days": {
-                  "type": "number",
-                  "minimum": 0.1,
-                  "maximum": 90,
-                  "description": "Durée de validité d'un lien (défaut : 7 jours)."
-                }
-              }
             }
           }
         }
@@ -755,13 +734,6 @@
                 "type": "string"
               },
               "description": "Fichiers joints ajoutés aux documents de la mission (chemins relatifs)."
-            },
-            "viewer": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "description": "Lien signé de la visionneuse (service frontal)."
             }
           }
         }
@@ -1223,27 +1195,6 @@
                   "description": "Merge request en brouillon (Draft:)."
                 }
               }
-            },
-            "viewer": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "url"
-              ],
-              "description": "Visionneuse web des fichiers de la mission (branche de la conversation), lien signé dans chaque réponse.",
-              "properties": {
-                "url": {
-                  "type": "string",
-                  "pattern": "^https?://[^/]+/.+",
-                  "description": "Adresse publique de la visionneuse, chemin compris (https://chat.exemple.local/fichiers) ; le chemin est servi par le service."
-                },
-                "link_days": {
-                  "type": "number",
-                  "minimum": 0.1,
-                  "maximum": 90,
-                  "description": "Durée de validité d'un lien (défaut : 7 jours)."
-                }
-              }
             }
           }
         }
@@ -1293,71 +1244,6 @@
                 "null"
               ],
               "description": "probe : texte rendu par le pipe Open WebUI (fin)."
-            },
-            "errors": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "warnings": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "name": "fetch_vendor.py",
-      "role": "Télécharge les bibliothèques de la visionneuse (marked, DOMPurify, Mermaid) épinglées dans static/vendor.json, empreinte SHA-256 vérifiée ; lancé à la construction des images.",
-      "usage": "uv run deploy/remote-mission/service/scripts/fetch_vendor.py [--dest DIR] [--check]",
-      "options": {
-        "--dest": "dossier des bibliothèques (défaut : static/vendor du service)",
-        "--check": "dire ce qui manque sans rien télécharger"
-      },
-      "exit_codes": {
-        "0": "succès",
-        "1": "téléchargement impossible ou empreinte différente"
-      },
-      "report": {
-        "format": "json",
-        "description": "Bibliothèques installées, présentes, manquantes.",
-        "schema": {
-          "$schema": "https://json-schema.org/draft/2020-12/schema",
-          "type": "object",
-          "required": [
-            "dest",
-            "installed",
-            "present",
-            "missing",
-            "errors",
-            "warnings"
-          ],
-          "additionalProperties": false,
-          "properties": {
-            "dest": {
-              "type": "string"
-            },
-            "installed": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "present": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "missing": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
             },
             "errors": {
               "type": "array",

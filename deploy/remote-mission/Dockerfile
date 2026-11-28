@@ -66,7 +66,6 @@ ENV MD2PPTX_SKILL=/opt/md2pptx
 # script (dépendances PEP 723). Les skills et agents sont copiés dans le HOME de chaque session au
 # démarrage de son pod (install.py sync, runner.tools). Puis état des outils (informatif).
 RUN uv run /opt/myskills/skills/check-prerequisites/scripts/doctor.py tout --prefetch \
-    && python3 /opt/myskills/deploy/remote-mission/service/scripts/fetch_vendor.py \
     && uvx playwright install chromium \
     && for script in /opt/myskills/skills/*/scripts/*.py; do \
            uv sync --quiet --script "$script"; \

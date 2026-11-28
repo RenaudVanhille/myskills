@@ -15,8 +15,6 @@ COPY --chown=myskills shared/scripts /opt/myskills/shared/scripts
 COPY --chown=myskills deploy/remote-mission/service /opt/myskills/deploy/remote-mission/service
 # Pipe d'Open WebUI, servi par GET /openwebui/pipe à openwebui_install.py (même version que le service).
 COPY --chown=myskills deploy/remote-mission/openwebui_pipe.py /opt/myskills/deploy/remote-mission/openwebui_pipe.py
-# Bibliothèques de la visionneuse (versions et empreintes de static/vendor.json), servies par le service.
-RUN python /opt/myskills/deploy/remote-mission/service/scripts/fetch_vendor.py
 USER myskills
 ENV PYTHONDONTWRITEBYTECODE=1 LANG=C.UTF-8
 

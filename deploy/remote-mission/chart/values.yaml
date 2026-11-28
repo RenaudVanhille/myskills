@@ -51,13 +51,6 @@ secrets:
   session: myskills-session   # LITELLM_API_KEY, GITLAB_ACCESS_TOKEN
   git: myskills-git           # .git-credentials (write_repository)
 
-# Visionneuse web des fichiers de la mission (branche de la conversation) : servie par le service sous ce chemin
-# de l'hôte d'Open WebUI (même Ingress, même certificat), lien signé dans chaque réponse, droits GitLab revérifiés.
-viewer:
-  enabled: true
-  path: /fichiers
-  linkDays: 7
-
 # Merge request de la branche d'une conversation, ouverte par le service quand le travail est prêt :
 # à « /fin » et quand toutes les étapes des workflows sont validées. Ouverte au nom de l'utilisateur avec
 # le jeton de sa connexion GitLab (Open WebUI, portée api ajoutée à OAUTH_SCOPES) ; à défaut, GITLAB_MR_TOKEN
